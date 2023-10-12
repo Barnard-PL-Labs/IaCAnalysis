@@ -1,0 +1,150 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "AccountID": {
+            "Description": "AWS Account id",
+            "Type": "String",
+            "Default": "12345678"
+        },
+        "S3BucketName": {
+            "Description": "S3 bucket where the lambda.zip is stored",
+            "Type": "String",
+            "Default": "abc-def-ghi"
+        },
+        "S3path": {
+            "Description": "S3 path where the lambda.zip is stored wihout the bucket name",
+            "Type": "String",
+            "Default": "lambdas/lambda.zip"
+        }
+    },
+    "Resources": {
+        "IAM": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "glue.amazonaws.com",
+                                    "lambda.amazonaws.com"
+                                ]
+                            },
+                            "Action": [
+                                "sts:AssumeRole"
+                            ]
+                        }
+                    ]
+                },
+                "Path": "/",
+                "Policies": [
+                    {
+                        "PolicyName": "sqs-lambda-role-policy",
+                        "PolicyDocument": {
+                            "Version": "2012-10-17",
+                            "Statement": [
+                                {
+                                    "Effect": "Allow",
+                                    "Action": "s3:*",
+                                    "Resource": "*"
+                                }
+                            ]
+                        }
+                    }
+                ],
+                "RoleName": "sqs-lambda-role"
+            }
+        },
+        "SQSQ2UIH": {
+            "Type": "AWS::SQS::Queue",
+            "Properties": {
+                "FifoQueue": "true",
+                "QueueName": "test-sqs.fifo"
+            }
+        },
+        "SQSPolicy": {
+            "Type": "AWS::SQS::QueuePolicy",
+            "Properties": {
+                "Queues": [
+                    {
+                        "Ref": "SQSQ2UIH"
+                    }
+                ],
+                "PolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "SQS:SendMessage",
+                                "SQS:ReceiveMessage"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": {
+                                "Fn::GetAtt": [
+                                    "SQSQ2UIH",
+                                    "Arn"
+                                ]
+                            },
+                            "Principal": {
+                                "AWS": [
+                                    {
+                                        "Ref": "AccountID"
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        "lambda": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Handler": "lambda_function.lambda_handler",
+                "MemorySize": 128,
+                "Runtime": "python3.8",
+                "Timeout": 30,
+                "FunctionName": "sqs-test-job",
+                "Role": {
+                    "Fn::Join": [
+                        "",
+                        [
+                            "arn:aws:iam::",
+                            {
+                                "Ref": "AccountID"
+                            },
+                            ":role/sqs-lambda-role"
+                        ]
+                    ]
+                },
+                "Code": {
+                    "S3Bucket": {
+                        "Ref": "S3BucketName"
+                    },
+                    "S3Key": {
+                        "Ref": "S3path"
+                    }
+                }
+            }
+        },
+        "DependsOn": [
+            "IAM"
+        ]
+    },
+    "lambdaSqs": {
+        "Type": "AWS::Lambda::EventSourceMapping",
+        "Properties": {
+            "Enabled": true,
+            "EventSourceArn": {
+                "Fn::GetAtt": [
+                    "SQSQ2UIH",
+                    "Arn"
+                ]
+            },
+            "FunctionName": {
+                "Ref": "lambda"
+            }
+        }
+    }
+}

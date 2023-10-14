@@ -182,15 +182,13 @@ def main():
         solver_result = run_iac_analysis(tf_plan, infracost_usage)
 
         if solver_result == z3.sat:
-            logger.info(
-                "The usage estimates satisfy the constraints of the infrastructure"
-            )
+            print("The usage estimates satisfy the constraints of the infrastructure")
         elif solver_result == z3.unsat:
-            logger.warning(
+            print(
                 "The usage estimates did not satisfy the constraints of the infrastructure"
             )
         else:
-            logger.error("The solver failed to solve the constraints")
+            print("The solver failed to solve the constraints")
 
 
 if __name__ == "__main__":

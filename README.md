@@ -1,5 +1,33 @@
 # IaC Analysis
 
+## Usage
+
+```
+$ python iac_analysis/iac_analysis.py --help
+usage: iac_analysis.py [-h] -f FILE -u USAGE [-v]
+
+IaC analysis
+
+options:
+  -h, --help            show this help message and exit
+  -f FILE, --file FILE  Path to a Terraform plan JSON file
+  -u USAGE, --usage USAGE
+                        Path to an Infracost usage YAML file
+  -v, --verbose         Enable verbose mode
+  ```
+
+Example:
+```shell
+python iac_analysis/iac_analysis.py -v -f examples/sqs-lambda-trigger/tfplan.json -u examples/sqs-lambda-trigger/infracost-usage.yml
+```
+
+## Supported cloud platforms and services
+
+AWS:
+- Lambda
+- SQS
+- Lambda Event Source Mapping
+
 ## Viewing Terraform configuration
 
 How to view parsed Terraform configuration:

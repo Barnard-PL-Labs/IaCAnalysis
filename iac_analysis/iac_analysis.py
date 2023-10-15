@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 import yaml
-import z3
+import z3 #pip install z3-solver, not z3
 
 ### Constants
 
@@ -148,6 +148,7 @@ def run_iac_analysis(tf_plan, infracost_usage):
 
     # run solver
     solver_result = solver.check()
+    print(solver.sexpr())
 
     return solver_result
 

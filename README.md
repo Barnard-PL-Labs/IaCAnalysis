@@ -35,6 +35,11 @@ Currently, there is only one sub-command, `check`:
 poetry run iac-analysis check --help
 ```
 
+To show debugging information (e.g. z3 solver constraints), use the `--debug` flag:
+```shell
+poetry run iac-analysis --debug ......
+```
+
 This `check` sub-command checks whether the Infracost usage estimates satisfy the constraints of the Terraform infrastructures. For example:
 ```shell
 poetry run iac-analysis examples/sqs-lambda-trigger/tfplan.json examples/sqs-lambda-trigger/infracost-usage.yml

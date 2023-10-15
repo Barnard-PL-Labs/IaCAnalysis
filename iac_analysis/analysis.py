@@ -1,66 +1,33 @@
-import argparse
-import json
+from enum import Enum
+import z3
 import logging
-import yaml
-import z3 #pip install z3-solver, not z3
+import iac_analysis.terraform as tf
+from iac_analysis.helpers import find_first
+import iac_analysis.infracost as ic
 
-### Constants
-
-TF_AWS_LAMBDA_FUNCTION = "aws_lambda_function"
-TF_AWS_SQS_QUEUE = "aws_sqs_queue"
-TF_AWS_LAMBDA_EVENT_SOURCE_MAPPING = "aws_lambda_event_source_mapping"
-
-### General setup
 logger = logging.getLogger(__name__)
 
-
-### Helper functions
-def find_first(l, predicate):
-    return next((item for item in l if predicate(item)), None)
+(SAT, UNSAT, UNKNOWN) = range(3)
 
 
-def infracost_metric_usage_with_callback(
-    infracost_usage, address, resource_type, metric, callback
-):
-    try:
-        callback(infracost_usage["resource_usage"][address][metric])
-    except KeyError:
-        try:
-            callback(
-                infracost_usage["resource_type_default_usage"][resource_type][metric]
-            )
-        except KeyError:
-            pass
+class Result(Enum):
+    SAT = 0
+    UNSAT = 1
+    UNKNOWN = 2
 
 
-### Infracost
-def read_infracost_usage_yaml(fpath):
-    with open(fpath, "r") as f:
-        return yaml.safe_load(f)
+def run_iac_analysis_with_paths(tf_plan_path: str, ic_usage_path: str) -> Result:
+    tf_plan = tf.read_plan_json(tf_plan_path)
+    ic_usage = ic.read_usage_yaml(ic_usage_path)
+    return run_iac_analysis(tf_plan, ic_usage)
 
 
-### Terraform
-def read_tf_plan_json(fpath):
-    with open(fpath, "r") as f:
-        return json.load(f)
-
-
-def tf_plan_managed_resources(tf_plan):
-    resources = tf_plan["configuration"]["root_module"]["resources"]
-    # filter by 'mode':
-    #   - data block: mode == 'data'
-    #   - resource block: mode == 'managed'
-    managed_resources = {r["address"]: r for r in resources if r["mode"] == "managed"}
-    return managed_resources
-
-
-### Main driver
 def run_iac_analysis(tf_plan, infracost_usage):
     logger.debug(tf_plan)
     logger.debug(infracost_usage)
 
     # map of managed resources, indexed from address to resource
-    managed_resources = tf_plan_managed_resources(tf_plan)
+    managed_resources = tf.plan_managed_resources(tf_plan)
     logger.debug(managed_resources)
 
     # generate a set of z3 variables for each resource
@@ -69,10 +36,10 @@ def run_iac_analysis(tf_plan, infracost_usage):
     for address, resource in managed_resources.items():
         resource_type = resource["type"]
         vars = {}
-        if resource_type == TF_AWS_LAMBDA_FUNCTION:
+        if resource_type == tf.AWS_LAMBDA_FUNCTION:
             vars["monthly_requests"] = z3.Int(address + ".monthly_requests")
             vars["requests_duration_ms"] = z3.Int(address + ".requests_duration_ms")
-        elif resource_type == TF_AWS_SQS_QUEUE:
+        elif resource_type == tf.AWS_SQS_QUEUE:
             vars["monthly_requests"] = z3.Int(address + ".monthly_requests")
             vars["request_size_kb"] = z3.Int(address + ".requests_duration_ms")
         resources_vars_map[address] = vars
@@ -81,7 +48,7 @@ def run_iac_analysis(tf_plan, infracost_usage):
     solver = z3.Solver()
     for address, resource in managed_resources.items():
         resource_type = resource["type"]
-        if resource_type == TF_AWS_LAMBDA_EVENT_SOURCE_MAPPING:
+        if resource_type == tf.AWS_LAMBDA_EVENT_SOURCE_MAPPING:
             # get address for event_source_arn
             event_source_arn_references = resource["expressions"]["event_source_arn"][
                 "references"
@@ -104,7 +71,7 @@ def run_iac_analysis(tf_plan, infracost_usage):
 
             # constraints for aws_lambda_event_source_mapping:
             #   1. if event source is SQS, then sqs.monthly_requests >= lambda.monthly_requests
-            if managed_resources[event_source_address]["type"] == TF_AWS_SQS_QUEUE:
+            if managed_resources[event_source_address]["type"] == tf.AWS_SQS_QUEUE:
                 solver.add(
                     resources_vars_map[event_source_address]["monthly_requests"]
                     >= resources_vars_map[function_address]["monthly_requests"]
@@ -115,30 +82,30 @@ def run_iac_analysis(tf_plan, infracost_usage):
     for address, resource in managed_resources.items():
         vars = resources_vars_map[address]
         resource_type = resource["type"]
-        if resource_type == TF_AWS_LAMBDA_FUNCTION:
-            infracost_metric_usage_with_callback(
+        if resource_type == tf.AWS_LAMBDA_FUNCTION:
+            ic.metric_usage_with_callback(
                 infracost_usage,
                 address,
                 resource_type,
                 "monthly_requests",
                 lambda x: solver.add(vars["monthly_requests"] == x),
             )
-            infracost_metric_usage_with_callback(
+            ic.metric_usage_with_callback(
                 infracost_usage,
                 address,
                 resource_type,
                 "requests_duration_ms",
                 lambda x: solver.add(vars["monthly_requests"] == x),
             )
-        elif resource_type == TF_AWS_SQS_QUEUE:
-            infracost_metric_usage_with_callback(
+        elif resource_type == tf.AWS_SQS_QUEUE:
+            ic.metric_usage_with_callback(
                 infracost_usage,
                 address,
                 resource_type,
                 "monthly_requests",
                 lambda x: solver.add(vars["monthly_requests"] == x),
             )
-            infracost_metric_usage_with_callback(
+            ic.metric_usage_with_callback(
                 infracost_usage,
                 address,
                 resource_type,
@@ -150,47 +117,9 @@ def run_iac_analysis(tf_plan, infracost_usage):
     solver_result = solver.check()
     print(solver.sexpr())
 
-    return solver_result
-
-
-def main():
-    # Create an ArgumentParser object
-    parser = argparse.ArgumentParser(description="IaC analysis")
-
-    # Add command-line arguments
-    parser.add_argument(
-        "-f", "--file", help="Path to a Terraform plan JSON file", required=True
-    )
-    parser.add_argument(
-        "-u", "--usage", help="Path to an Infracost usage YAML file", required=True
-    )
-    parser.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbose mode"
-    )
-
-    # Parse the command-line arguments
-    args = parser.parse_args()
-
-    # Access the values of the arguments
-    if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
+    if solver_result == z3.sat:
+        return SAT
+    elif solver_result == z3.unsat:
+        return UNSAT
     else:
-        logging.basicConfig(level=logging.WARNING)
-
-    if args.file and args.usage:
-        tf_plan = read_tf_plan_json(args.file)
-        infracost_usage = read_infracost_usage_yaml(args.usage)
-        solver_result = run_iac_analysis(tf_plan, infracost_usage)
-
-        if solver_result == z3.sat:
-            print("The usage estimates satisfy the constraints of the infrastructure")
-        elif solver_result == z3.unsat:
-            print(
-                "The usage estimates did not satisfy the constraints of the infrastructure"
-            )
-        else:
-            print("The solver failed to solve the constraints")
-
-
-if __name__ == "__main__":
-    main()
+        return UNKNOWN

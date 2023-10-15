@@ -23,12 +23,8 @@ def run_iac_analysis_with_paths(tf_plan_path: str, ic_usage_path: str) -> Result
 
 
 def run_iac_analysis(tf_plan, infracost_usage):
-    logger.debug(tf_plan)
-    logger.debug(infracost_usage)
-
     # map of managed resources, indexed from address to resource
     managed_resources = tf.plan_managed_resources(tf_plan)
-    logger.debug(managed_resources)
 
     # generate a set of z3 variables for each resource
     # different for each resource type
@@ -41,7 +37,7 @@ def run_iac_analysis(tf_plan, infracost_usage):
             vars["requests_duration_ms"] = z3.Int(address + ".requests_duration_ms")
         elif resource_type == tf.AWS_SQS_QUEUE:
             vars["monthly_requests"] = z3.Int(address + ".monthly_requests")
-            vars["request_size_kb"] = z3.Int(address + ".requests_duration_ms")
+            vars["request_size_kb"] = z3.Int(address + ".request_size_kb")
         resources_vars_map[address] = vars
 
     # generate constraints for each resource
@@ -115,7 +111,7 @@ def run_iac_analysis(tf_plan, infracost_usage):
 
     # run solver
     solver_result = solver.check()
-    print(solver.sexpr())
+    logger.debug("z3 solver constraints: \n%s", solver.sexpr())
 
     if solver_result == z3.sat:
         return SAT

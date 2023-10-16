@@ -13,7 +13,7 @@ import iac_analysis.analysis as analysis
 app = typer.Typer()
 
 
-def version_callback(value: bool):
+def version_callback(value: bool) -> None:
     if value:
         print(f"{__app_name__} v{__version__}")
         raise typer.Exit()
@@ -53,7 +53,7 @@ def main(
 def check(
     tf_plan: Annotated[str, typer.Argument(help="Terraform plan file in JSON")],
     ic_usage: Annotated[str, typer.Argument(help="Infracost usage file in YAML")],
-):
+) -> None:
     """
     Check whether the Infracost usage estimates satisfy the constraints of the Terraform infrastructures.
     """

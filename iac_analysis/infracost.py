@@ -1,5 +1,5 @@
 import yaml
-from typing import Dict, Any
+from typing import Dict, Any, Callable
 
 
 def read_usage_yaml(fpath: str) -> Dict[str, Any]:
@@ -8,7 +8,11 @@ def read_usage_yaml(fpath: str) -> Dict[str, Any]:
 
 
 def metric_usage_with_callback(
-    infracost_usage, address, resource_type, metric, callback
+    infracost_usage: Dict[str, Any],
+    address: str,
+    resource_type: str,
+    metric: str,
+    callback: Callable[[int], None],
 ):
     try:
         callback(infracost_usage["resource_usage"][address][metric])

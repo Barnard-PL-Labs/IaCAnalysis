@@ -45,6 +45,11 @@ This `check` sub-command checks whether the Infracost usage estimates satisfy th
 poetry run iac-analysis check examples/sqs-lambda-trigger/tfplan.json examples/sqs-lambda-trigger/infracost-usage.yml
 ```
 
+There is a script that runs an example for you:
+```shell
+./run_example examples/{sqs-lambda-trigger}
+```
+
 ## 3. Supported cloud platforms and services
 
 AWS:
@@ -54,19 +59,31 @@ AWS:
 
 ## 4. Viewing Terraform configuration
 
-`terraform init`
+First, go into the directory that contains the example that you want to use.
+```shell
+cd examples/{EXAMPLE}
+```
 
-run in directory of example
+Initialize the terraform project:
+```shell
+terraform init
+```
 
-How to view parsed Terraform configuration:
-1. `terraform plan -out tfplan.binary`
-2. `terraform show -json tfplan.binary > tfplan.json`
+Generate a Terraform Plan JSON file:
+```shell
+terraform plan -out tfplan.binary
+terraform show -json tfplan.binary > tfplan.json
+```
 
 The configuration specified by the (.tf) files will be in the `configuration` attribute in the JSON.
 For more information, see Terraform docomentation on [configuration representation](https://developer.hashicorp.com/terraform/internals/json-format#configuration-representation).
 
 ## 5. Using Infracost
 
+First, go into the directory that contains the example that you want to use.
+```shell
+cd examples/{EXAMPLE}
+```
 Generate a new usage file (named `infracost-usage.yml`) and show a breakdown:
 ```shell
 infracost breakdown --sync-usage-file --usage-file infracost-usage.yml --path .

@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Dict, Any
 import z3
 import logging
 import iac_analysis.terraform as tf
@@ -22,7 +23,9 @@ def run_iac_analysis_with_paths(tf_plan_path: str, ic_usage_path: str) -> Result
     return run_iac_analysis(tf_plan, ic_usage)
 
 
-def run_iac_analysis(tf_plan, infracost_usage):
+def run_iac_analysis(
+    tf_plan: Dict[str, Any], infracost_usage: Dict[str, Any]
+) -> Result:
     # map of managed resources, indexed from address to resource
     managed_resources = tf.plan_managed_resources(tf_plan)
 
@@ -91,7 +94,7 @@ def run_iac_analysis(tf_plan, infracost_usage):
                 address,
                 resource_type,
                 "requests_duration_ms",
-                lambda x: solver.add(vars["monthly_requests"] == x),
+                lambda x: solver.add(vars["requests_duration_ms"] == x),
             )
         elif resource_type == tf.AWS_SQS_QUEUE:
             ic.metric_usage_with_callback(
@@ -106,7 +109,7 @@ def run_iac_analysis(tf_plan, infracost_usage):
                 address,
                 resource_type,
                 "request_size_kb",
-                lambda x: solver.add(vars["monthly_requests"] == x),
+                lambda x: solver.add(vars["request_size_kb"] == x),
             )
 
     # run solver

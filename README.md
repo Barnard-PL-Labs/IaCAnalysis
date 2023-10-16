@@ -42,7 +42,7 @@ poetry run iac-analysis --debug ......
 
 This `check` sub-command checks whether the Infracost usage estimates satisfy the constraints of the Terraform infrastructures. For example:
 ```shell
-poetry run iac-analysis examples/sqs-lambda-trigger/tfplan.json examples/sqs-lambda-trigger/infracost-usage.yml
+poetry run iac-analysis check examples/sqs-lambda-trigger/tfplan.json examples/sqs-lambda-trigger/infracost-usage.yml
 ```
 
 ## 3. Supported cloud platforms and services
@@ -54,9 +54,13 @@ AWS:
 
 ## 4. Viewing Terraform configuration
 
+`terraform init`
+
+run in directory of example
+
 How to view parsed Terraform configuration:
 1. `terraform plan -out tfplan.binary`
-2. `terraform show -json tfplan.binary`
+2. `terraform show -json tfplan.binary > tfplan.json`
 
 The configuration specified by the (.tf) files will be in the `configuration` attribute in the JSON.
 For more information, see Terraform docomentation on [configuration representation](https://developer.hashicorp.com/terraform/internals/json-format#configuration-representation).

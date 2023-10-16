@@ -1,7 +1,7 @@
 data "archive_file" "example_lambda2" {
   type        = "zip"
-  source_file = "${path.module}/example_lambda2.js"
-  output_path = "${path.module}/example_lambda2.js.zip"
+  source_file = "${path.module}/example_lambda.js"
+  output_path = "${path.module}/example_lambda.js.zip"
 }
 
 resource "aws_lambda_function" "example_lambda2" {

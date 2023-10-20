@@ -8,7 +8,6 @@ import logging
 import z3
 
 from iac_analysis import __app_name__, __version__
-import iac_analysis.analysis as analysis
 from iac_analysis.infrastructure import Infrastructure
 from iac_analysis import infracost
 
@@ -50,26 +49,6 @@ def main(
     if debug:
         logging_level = logging.DEBUG
     logging.basicConfig(level=logging_level)
-
-
-# @app.command()
-# def check(
-#     tf_plan: Annotated[str, typer.Argument(help="Terraform plan file in JSON")],
-#     ic_usage: Annotated[str, typer.Argument(help="Infracost usage file in YAML")],
-# ) -> None:
-#     """
-#     Check whether the Infracost usage estimates satisfy the constraints of the Terraform infrastructures.
-#     """
-#     result = analysis.run_iac_analysis_with_paths(tf_plan, ic_usage)
-
-#     if result == analysis.SAT:
-#         print("✅ The usage estimates satisfy the constraints of the infrastructure")
-#     elif result == analysis.UNSAT:
-#         print(
-#             "❌ The usage estimates did not satisfy the constraints of the infrastructure"
-#         )
-#     else:
-#         print("⚠️ The solver failed to solve the constraints")
 
 
 @app.command()

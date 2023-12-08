@@ -10,6 +10,7 @@ import z3
 from iac_analysis import __app_name__, __version__
 from iac_analysis.infrastructure import Infrastructure
 from iac_analysis import infracost
+from iac_analysis.infra import Infra
 
 
 app = typer.Typer()
@@ -83,3 +84,15 @@ def check(
         )
     else:
         print("⚠️ The solver failed to solve the constraints")
+
+
+@app.command()
+def constrain(
+    cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
+) -> None:
+    """
+    Produce constraints for the infrastructure specified in the given CloudFormation template.
+    """
+    infra = Infra.from_template(cfn_template)
+    print(infra.resources)
+    infra.print_edges()

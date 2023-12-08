@@ -5,7 +5,8 @@ from iac_analysis.resource import (
     ignore_resource_types,
 )
 import logging
-import graphlib
+import networkx as nx
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -16,10 +17,12 @@ class Infra:
         for _, r in self.resources.items():
             r.compute_edges(self.resources)
         # TODO: topological sort here first
-        ts = graphlib.TopologicalSorter()
+        self.graph = nx.DiGraph()
         for _, r in self.resources.items():
-            ts.add(r, *r.incoming_edges)
-        self.topologically_sorted_resources = [*ts.static_order()]
+            for inn in r.incoming_edges:
+                self.graph.add_edge(inn, r)
+        if not nx.is_directed_acyclic_graph(self.graph):
+            logger.error("Graph is cyclic.")
 
     @classmethod
     def from_template(cls, fpath):
@@ -36,7 +39,7 @@ class Infra:
         return cls(resources)
 
     def print_edges(self):
-        for r in self.topologically_sorted_resources:
+        for _, r in self.resources.items():
             print(f"Edges at {r.name}:")
             for incoming_r in r.incoming_edges:
                 print(f"incoming --> {incoming_r.name}")
@@ -44,5 +47,10 @@ class Infra:
                 print(f"outgoing <-- {outgoing_r.name}")
 
     def compute_constraints(self, solver):
-        for r in self.topologically_sorted_resources:
+        for r in nx.topological_sort(self.graph):
             r.compute_constraints(solver)
+
+    def draw(self, fname):
+        nx.draw(self.graph, with_labels=True)
+        plt.savefig(fname)
+        plt.clf()

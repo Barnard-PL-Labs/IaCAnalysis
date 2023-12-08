@@ -33,7 +33,7 @@ class Resource:
         self.outgoing_edges = set()
 
     def __repr__(self):
-        return f"<{self.name} ({self.resource_type})>"
+        return self.name
 
     def __hash__(self):
         """

@@ -107,3 +107,12 @@ def constrain(
     print("--- CONSTRAINTS ---")
     print(f"count: {len(s.constraints)}")
     print(s.constraints)
+
+
+@app.command()
+def graph(
+    cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
+    file_name: Annotated[str, typer.Argument(help="File name for graph PNG")],
+) -> None:
+    infra = Infra.from_template(cfn_template)
+    infra.draw(file_name)

@@ -19,6 +19,7 @@ class Infra:
         # TODO: topological sort here first
         self.graph = nx.DiGraph()
         for _, r in self.resources.items():
+            self.graph.add_node(r)
             for inn in r.incoming_edges:
                 self.graph.add_edge(inn, r)
         if not nx.is_directed_acyclic_graph(self.graph):

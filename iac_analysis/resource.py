@@ -8,6 +8,18 @@ class ResourceTypes:
     AWS_SQS_Queue = "AWS::SQS::Queue"
     AWS_Lambda_Function = "AWS::Lambda::Function"
     AWS_Lambda_EventSourceMapping = "AWS::Lambda::EventSourceMapping"
+    AWS_SNS_Subscription = "AWS::SNS::Subscription"
+    AWS_SNS_Topic = "AWS::SNS::Topic"
+    AWS_S3_AccessPoint = "AWS::S3::AccessPoint"
+    AWS_S3ObjectLambda_AccessPoint = "AWS::S3ObjectLambda::AccessPoint"
+
+    AWS_S3_BucketPolicy = "AWS::S3::BucketPolicy"
+    AWS_Lambda_Permission = "AWS::Lambda::Permission"
+    AWS_SQS_QueuePolicy = "AWS::SQS::QueuePolicy"
+    AWS_SNS_TopicPolicy = "AWS::SNS::TopicPolicy"
+    AWS_IAM_Role = "AWS::IAM::Role"
+    AWS_IAM_Policy = "AWS::IAM::Policy"
+    AWS_CDK_Metadata = "AWS::CDK::Metadata"
 
 
 class ResourceMetric:
@@ -19,9 +31,21 @@ supported_resource_types = [
     ResourceTypes.AWS_SQS_Queue,
     ResourceTypes.AWS_Lambda_Function,
     ResourceTypes.AWS_Lambda_EventSourceMapping,
+    ResourceTypes.AWS_SNS_Subscription,
+    ResourceTypes.AWS_SNS_Topic,
+    ResourceTypes.AWS_S3_AccessPoint,
+    ResourceTypes.AWS_S3ObjectLambda_AccessPoint,
 ]
 
-ignore_resource_types = []
+ignore_resource_types = [
+    ResourceTypes.AWS_S3_BucketPolicy,
+    ResourceTypes.AWS_Lambda_Permission,
+    ResourceTypes.AWS_SQS_QueuePolicy,
+    ResourceTypes.AWS_SNS_TopicPolicy,
+    ResourceTypes.AWS_IAM_Role,
+    ResourceTypes.AWS_IAM_Policy,
+    ResourceTypes.AWS_CDK_Metadata,
+]
 
 
 class Resource:
@@ -63,20 +87,53 @@ class Resource:
         match self.resource_type:
             case ResourceTypes.AWS_S3_Bucket:
                 pass
-            case ResourceTypes.AWS_Lambda_EventSourceMapping:
+            case ResourceTypes.AWS_SNS_Subscription:
                 try:
-                    eventSource = self.config["Properties"]["EventSourceArn"][
-                        "Fn::GetAtt"
-                    ][0]
+                    endpoint = ref_or_getatt(self.config["Properties"]["Endpoint"])
+                    self.add_outgoing_edge(all_resources[endpoint])
+                    topic = ref_or_getatt(self.config["Properties"]["TopicArn"])
+                    self.add_incoming_edge(all_resources[topic])
+                except Exception:
+                    logger.info(f"No endpoint or topic for {self.name}")
+            case ResourceTypes.AWS_SNS_Topic:
+                pass
+            case ResourceTypes.AWS_Lambda_EventSourceMapping:
+                # eventSource and lambdaFunction
+                try:
+                    eventSource = ref_or_getatt(
+                        self.config["Properties"]["EventSourceArn"]
+                    )
                     self.add_incoming_edge(all_resources[eventSource])
-                    lambdaFunction = self.config["Properties"]["FunctionName"]["Ref"]
+                    lambdaFunction = ref_or_getatt(
+                        self.config["Properties"]["FunctionName"]
+                    )
                     self.add_outgoing_edge(all_resources[lambdaFunction])
-                except KeyError:
-                    logger.info(f"KeyError when computing edges for {self.name}")
+                except Exception:
+                    logger.info(f"No eventSource or lambdaFunction for {self.name}")
             case ResourceTypes.AWS_Lambda_Function:
-                pass
+                try:
+                    for _, envvar in self.config["Properties"]["Environment"][
+                        "Variables"
+                    ].items():
+                        try:
+                            x = ref_or_getatt(envvar)
+                            self.add_outgoing_edge(all_resources[x])
+                        except KeyError:
+                            pass
+                except Exception:
+                    logger.info(f"No environment variables for {self.name}")
+
             case ResourceTypes.AWS_SQS_Queue:
-                pass
+                # deadLetterTarget
+                try:
+                    deadLetterTarget = ref_or_getatt(
+                        self.config["Properties"]["RedrivePolicy"][
+                            "deadLetterTargetArn"
+                        ]
+                    )
+                    self.add_outgoing_edge(all_resources[deadLetterTarget])
+                except Exception:
+                    logger.info(f"No deadLetterTarget for {self.name}")
             case unknown_resource_type:
                 logger.warn(
                     f"Encountered unhandled resource type ({unknown_resource_type}) when computing edges for {self.name}"
@@ -122,3 +179,10 @@ class Resource:
                 logger.warn(
                     f"Encountered unhandled resource type ({unknown_resource_type}) when computing constraints for {self.name}"
                 )
+
+
+def ref_or_getatt(config):
+    try:
+        return config["Ref"]
+    except KeyError:
+        return config["Fn::GetAtt"][0]

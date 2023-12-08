@@ -86,14 +86,24 @@ class Resource:
     def compute_edges(self, all_resources):
         match self.resource_type:
             case ResourceTypes.AWS_S3_Bucket:
-                pass
+                # LambdaConfigurations
+                try:
+                    lambdas = []
+                    for lambdaConfiguration in self.config["Properties"][
+                        "NotificationConfiguration"
+                    ]["LambdaConfigurations"]:
+                        lambdas.append(ref_or_getatt(lambdaConfiguration["Function"]))
+                    for l in lambdas:
+                        self.add_outgoing_edge(all_resources[l])
+                except:
+                    logger.info(f"No LambdaConfigurations for {self.name}")
             case ResourceTypes.AWS_SNS_Subscription:
                 try:
                     endpoint = ref_or_getatt(self.config["Properties"]["Endpoint"])
                     self.add_outgoing_edge(all_resources[endpoint])
                     topic = ref_or_getatt(self.config["Properties"]["TopicArn"])
                     self.add_incoming_edge(all_resources[topic])
-                except Exception:
+                except:
                     logger.info(f"No endpoint or topic for {self.name}")
             case ResourceTypes.AWS_SNS_Topic:
                 pass
@@ -108,7 +118,7 @@ class Resource:
                         self.config["Properties"]["FunctionName"]
                     )
                     self.add_outgoing_edge(all_resources[lambdaFunction])
-                except Exception:
+                except:
                     logger.info(f"No eventSource or lambdaFunction for {self.name}")
             case ResourceTypes.AWS_Lambda_Function:
                 try:
@@ -120,7 +130,7 @@ class Resource:
                             self.add_outgoing_edge(all_resources[x])
                         except KeyError:
                             pass
-                except Exception:
+                except:
                     logger.info(f"No environment variables for {self.name}")
 
             case ResourceTypes.AWS_SQS_Queue:
@@ -132,7 +142,7 @@ class Resource:
                         ]
                     )
                     self.add_outgoing_edge(all_resources[deadLetterTarget])
-                except Exception:
+                except:
                     logger.info(f"No deadLetterTarget for {self.name}")
             case unknown_resource_type:
                 logger.warn(
@@ -142,6 +152,12 @@ class Resource:
     def compute_constraints(self, solver):
         match self.resource_type:
             case ResourceTypes.AWS_S3_Bucket:
+                # > incoming constraints
+
+                # > intrinsic constraints
+
+                # > outgoing constraints
+                # LambdaConfigurations
                 pass
             case ResourceTypes.AWS_Lambda_EventSourceMapping:
                 # > incoming constraints

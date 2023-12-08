@@ -14,9 +14,10 @@ logger = logging.getLogger(__name__)
 class Infra:
     def __init__(self, resources):
         self.resources = resources
+        # compute edges for all resources
         for _, r in self.resources.items():
             r.compute_edges(self.resources)
-        # TODO: topological sort here first
+        # create directed graph for infrastructure
         self.graph = nx.DiGraph()
         for _, r in self.resources.items():
             self.graph.add_node(r)
@@ -48,6 +49,8 @@ class Infra:
                 print(f"outgoing <-- {outgoing_r.name}")
 
     def compute_constraints(self, solver):
+        # compute constraints in topological order
+        # topological order is needed for computing the incoming constraints
         for r in nx.topological_sort(self.graph):
             r.compute_constraints(solver)
 

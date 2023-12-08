@@ -10,6 +10,10 @@ class ResourceTypes:
     AWS_Lambda_EventSourceMapping = "AWS::Lambda::EventSourceMapping"
 
 
+class ResourceMetric:
+    monthly_requests = "monthly_requests"
+
+
 supported_resource_types = [
     ResourceTypes.AWS_S3_Bucket,
     ResourceTypes.AWS_SQS_Queue,
@@ -30,6 +34,13 @@ class Resource:
 
     def __repr__(self):
         return f"<{self.name} ({self.resource_type})>"
+
+    def __hash__(self):
+        """
+        Unique hash is the resource name. The __hash__ method is used
+        for computing topological order using graphlib.
+        """
+        return hash(self.name)
 
     def add_incoming_edge(self, source):
         if source not in self.incoming_edges:
@@ -76,11 +87,37 @@ class Resource:
             case ResourceTypes.AWS_S3_Bucket:
                 pass
             case ResourceTypes.AWS_Lambda_EventSourceMapping:
-                pass
+                # > incoming constraints
+                solver.add_aggregate_incoming_constraint(
+                    self, ResourceMetric.monthly_requests
+                )
+
+                # > intrinsic constraints
+
+                # > outgoing constraints
+                solver.add_broadcast_equality_outgoing_constraints(
+                    self, ResourceMetric.monthly_requests
+                )
             case ResourceTypes.AWS_Lambda_Function:
                 pass
             case ResourceTypes.AWS_SQS_Queue:
-                pass
+                # > incoming constraints
+                solver.add_aggregate_incoming_constraint(
+                    self, ResourceMetric.monthly_requests
+                )
+
+                # > intrinsic constraints
+
+                # > outgoing constraints
+                for outn in self.outgoing_edges:
+                    if (
+                        outn.resource_type
+                        == ResourceTypes.AWS_Lambda_EventSourceMapping
+                    ):
+                        solver.add(
+                            solver.nv(self, ResourceMetric.monthly_requests)
+                            == solver.ev(self, outn, ResourceMetric.monthly_requests)
+                        )
             case unknown_resource_type:
                 logger.warn(
                     f"Encountered unhandled resource type ({unknown_resource_type}) when computing constraints for {self.name}"

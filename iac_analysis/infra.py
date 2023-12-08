@@ -5,6 +5,7 @@ from iac_analysis.resource import (
     ignore_resource_types,
 )
 import logging
+import graphlib
 
 logger = logging.getLogger(__name__)
 
@@ -14,6 +15,11 @@ class Infra:
         self.resources = resources
         for _, r in self.resources.items():
             r.compute_edges(self.resources)
+        # TODO: topological sort here first
+        ts = graphlib.TopologicalSorter()
+        for _, r in self.resources.items():
+            ts.add(r, *r.incoming_edges)
+        self.topologically_sorted_resources = [*ts.static_order()]
 
     @classmethod
     def from_template(cls, fpath):
@@ -30,7 +36,7 @@ class Infra:
         return cls(resources)
 
     def print_edges(self):
-        for _, r in self.resources.items():
+        for r in self.topologically_sorted_resources:
             print(f"Edges at {r.name}:")
             for incoming_r in r.incoming_edges:
                 print(f"incoming --> {incoming_r.name}")
@@ -38,6 +44,5 @@ class Infra:
                 print(f"outgoing <-- {outgoing_r.name}")
 
     def compute_constraints(self, solver):
-        # TODO: topological sort here first
-        for _, r in self.resources.items():
+        for r in self.topologically_sorted_resources:
             r.compute_constraints(solver)

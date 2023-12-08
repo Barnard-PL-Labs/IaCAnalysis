@@ -11,6 +11,7 @@ from iac_analysis import __app_name__, __version__
 from iac_analysis.infrastructure import Infrastructure
 from iac_analysis import infracost
 from iac_analysis.infra import Infra
+from iac_analysis import solver
 
 
 app = typer.Typer()
@@ -94,5 +95,15 @@ def constrain(
     Produce constraints for the infrastructure specified in the given CloudFormation template.
     """
     infra = Infra.from_template(cfn_template)
+    print()
+    print("--- RESOURCES ---")
     print(infra.resources)
+    print()
+    print("--- EDGES ---")
     infra.print_edges()
+    s = solver.Solver()
+    infra.compute_constraints(s)
+    print()
+    print("--- CONSTRAINTS ---")
+    print(f"count: {len(s.constraints)}")
+    print(s.constraints)

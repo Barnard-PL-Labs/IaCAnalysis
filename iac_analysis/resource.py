@@ -226,7 +226,7 @@ class Resource:
                     f"Encountered unhandled resource type ({unknown_resource_type}) when computing edges for {self.name}"
                 )
 
-    def compute_constraints(self, solver, all_resources):
+    def compute_constraints(self, solver, all_resources, custom_generator=None):
         match self.resource_type:
             case ResourceTypes.AWS_S3_Bucket:
                 # > incoming constraints
@@ -446,6 +446,9 @@ class Resource:
                 logger.warn(
                     f"Encountered unhandled resource type ({unknown_resource_type}) when computing constraints for {self.name}"
                 )
+
+        if custom_generator:
+            custom_generator(self, solver, all_resources)
 
 
 def ref_or_getatt(config):

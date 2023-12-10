@@ -49,11 +49,13 @@ class Infra:
             for outgoing_r in r.outgoing_edges:
                 print(f"outgoing <-- {outgoing_r.name}")
 
-    def compute_constraints(self, solver):
+    def compute_constraints(self, solver, custom_generator=None):
         # compute constraints in topological order
         # topological order is needed for computing the incoming constraints
         for r in nx.topological_sort(self.graph):
-            r.compute_constraints(solver, self.resources)
+            r.compute_constraints(
+                solver, self.resources, custom_generator=custom_generator
+            )
 
     def draw(self, fname):
         nx.draw(self.graph, with_labels=True)

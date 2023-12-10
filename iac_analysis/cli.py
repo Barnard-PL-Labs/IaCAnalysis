@@ -6,12 +6,15 @@ import typer
 from typing_extensions import Annotated
 import logging
 import z3
+import sys
 import yaml
+import importlib
 
 from iac_analysis import __app_name__, __version__
 from iac_analysis.infra import Infra
 from iac_analysis import solver
 from iac_analysis.estimates import load_estimates, generate_estimates_template
+from iac_analysis.custom_generator import load_custom_generator
 
 
 app = typer.Typer()
@@ -57,14 +60,22 @@ def main(
 def check(
     cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
     estimates_file: Annotated[str, typer.Argument(help="Estimates file")],
+    custom_generator_module: Annotated[
+        Optional[str],
+        typer.Option("--generator", help="Additional custom constraint generator"),
+    ] = None,
 ) -> None:
     """
     Check whether the usage estimates satisfy the constraints of the infrastructure.
     """
     usage = load_estimates(estimates_file)
+    custom_generator = None
+    if not custom_generator_module is None:
+        custom_generator = load_custom_generator(custom_generator_module)
+
     infra = Infra.from_cfn(cfn_template)
     s = solver.Solver()
-    infra.compute_constraints(s)
+    infra.compute_constraints(s, custom_generator=custom_generator)
     s.add_estimates(infra.resources, usage)
     print("z3 solver constraints: \n%s", s.sexpr())
 
@@ -94,19 +105,29 @@ def estimates_template(
 @app.command()
 def constrain(
     cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
+    custom_generator_module: Annotated[
+        Optional[str],
+        typer.Option("--generator", help="Additional custom constraint generator"),
+    ] = None,
 ) -> None:
     """
     Produce constraints for the infrastructure specified in the given CloudFormation template.
     """
+    custom_generator = None
+    if not custom_generator_module is None:
+        custom_generator = load_custom_generator(custom_generator_module)
+
     infra = Infra.from_cfn(cfn_template)
     print()
     print("--- RESOURCES ---")
     print(infra.resources)
+
     print()
     print("--- EDGES ---")
     infra.print_edges()
+
     s = solver.Solver()
-    infra.compute_constraints(s)
+    infra.compute_constraints(s, custom_generator=custom_generator)
     print()
     print("--- CONSTRAINTS ---")
     print(f"count: {len(s.constraints)}")
@@ -118,7 +139,7 @@ def constrain(
 def graph(
     cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
     file_name: Annotated[
-        str, typer.Argument(help="File name for graph PNG")
+        Optional[str], typer.Argument(help="File name for graph PNG")
     ] = "graph.png",
 ) -> None:
     """

@@ -1,4 +1,7 @@
 import z3
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Solver:
@@ -40,13 +43,22 @@ class Solver:
             if not x is None
         ]
         if len(incoming) > 0:
-            self.add(self.nv(x, metric) >= sum(incoming))
+            self.add(self.nv(x, metric) == sum(incoming[1:], incoming[0]))
 
-    def add_broadcast_equality_outgoing_constraints(self, x, metric):
-        for outn in x.outgoing_edges:
-            self.add(self.nv(x, metric) == self.ev(x, outn, metric))
+    def add_estimates(self, all_resources, estimates):
+        for resource_name, metrics in estimates.items():
+            if not resource_name in all_resources:
+                logger.error(f"{resource_name} does not exist in the infrastructure")
+            resource = all_resources[resource_name]
+            for metric, estimate in metrics.items():
+                self.add(self.nv(resource, metric) == estimate)
 
     def check(self):
         solver = z3.Solver()
         solver.add(*self.constraints)
         return solver.check()
+
+    def sexpr(self):
+        solver = z3.Solver()
+        solver.add(*self.constraints)
+        return solver.sexpr()

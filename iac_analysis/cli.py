@@ -6,12 +6,12 @@ import typer
 from typing_extensions import Annotated
 import logging
 import z3
+import yaml
 
 from iac_analysis import __app_name__, __version__
-from iac_analysis.infrastructure import Infrastructure
-from iac_analysis import infracost
 from iac_analysis.infra import Infra
 from iac_analysis import solver
+from iac_analysis.estimates import load_estimates, generate_estimates_template
 
 
 app = typer.Typer()
@@ -55,28 +55,20 @@ def main(
 
 @app.command()
 def check(
-    tf_plan: Annotated[str, typer.Argument(help="Terraform plan file in JSON")],
-    ic_usage: Annotated[str, typer.Argument(help="Infracost usage file in YAML")],
+    cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
+    estimates_file: Annotated[str, typer.Argument(help="Estimates file")],
 ) -> None:
     """
-    Check whether the Infracost usage estimates satisfy the constraints of the Terraform infrastructures.
+    Check whether the usage estimates satisfy the constraints of the infrastructure.
     """
-    infra = Infrastructure.from_terraform_plan_path(tf_plan)
-    solver = z3.Solver()
+    usage = load_estimates(estimates_file)
+    infra = Infra.from_cfn(cfn_template)
+    s = solver.Solver()
+    infra.compute_constraints(s)
+    s.add_estimates(infra.resources, usage)
+    print("z3 solver constraints: \n%s", s.sexpr())
 
-    # infrastructure constraints
-    for constraint in infra.constraints:
-        solver.add(constraint)
-
-    # infracost usage constraints
-    usage = infracost.read_usage_yaml(ic_usage)
-    usage_constraints = infra.generate_infracost_usage_constraints(usage)
-    for constraint in usage_constraints:
-        solver.add(constraint)
-
-    result = solver.check()
-    print("z3 solver constraints: \n%s", solver.sexpr())
-
+    result = s.check()
     if result == z3.sat:
         print("✅ The usage estimates satisfy the constraints of the infrastructure")
     elif result == z3.unsat:
@@ -88,13 +80,25 @@ def check(
 
 
 @app.command()
+def estimates_template(
+    cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
+) -> None:
+    """
+    Generate a template estimates file file for the given CloudFormation template.
+    """
+    infra = Infra.from_cfn(cfn_template)
+    usage_template = generate_estimates_template(infra)
+    print(yaml.safe_dump(usage_template))
+
+
+@app.command()
 def constrain(
     cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
 ) -> None:
     """
     Produce constraints for the infrastructure specified in the given CloudFormation template.
     """
-    infra = Infra.from_template(cfn_template)
+    infra = Infra.from_cfn(cfn_template)
     print()
     print("--- RESOURCES ---")
     print(infra.resources)
@@ -106,13 +110,19 @@ def constrain(
     print()
     print("--- CONSTRAINTS ---")
     print(f"count: {len(s.constraints)}")
-    print(s.constraints)
+    for i, c in enumerate(s.constraints):
+        print(f"{i+1}: ", c)
 
 
 @app.command()
 def graph(
     cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
-    file_name: Annotated[str, typer.Argument(help="File name for graph PNG")],
+    file_name: Annotated[
+        str, typer.Argument(help="File name for graph PNG")
+    ] = "graph.png",
 ) -> None:
-    infra = Infra.from_template(cfn_template)
+    """
+    Generate PNG image for the infrastructure graph.
+    """
+    infra = Infra.from_cfn(cfn_template)
     infra.draw(file_name)

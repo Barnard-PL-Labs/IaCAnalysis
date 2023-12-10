@@ -1,0 +1,184 @@
+AWSTemplateFormatVersion: '2010-09-09'
+#Transform: 'AWS::Serverless-2016-10-31'
+
+Parameters:
+
+  Env:
+    Type: String
+    Description: 'Name of the environment being deployed to'
+    Default: 'dev'
+    AllowedValues:
+      - dev
+      - acc
+      - prev
+      - prod
+      
+Resources:
+  CodeBucketDev:
+    Type: AWS::S3::Bucket
+    Properties: 
+      BucketName: "elearn-codebucket-dev"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        BlockPublicPolicy: true
+      LifecycleConfiguration:
+        Rules:
+          - Id: "CodeBucketRetentionPolicy"
+            Prefix: ""
+            ExpirationInDays: "1"
+            Status: "Enabled"
+
+  IngestionBucketDev:
+    Type: AWS::S3::Bucket
+    DependsOn:
+     - IngestionTopicDev
+     - IngestionTopicPolicy
+    Properties: 
+      BucketName: "ingestion-codebucket-7832df8a-dev"
+      LifecycleConfiguration:
+        Rules:
+          - Id: "IngestionBucketRetentionPolicy"
+            Prefix: ""
+            ExpirationInDays: "1"
+            Status: "Enabled"
+      VersioningConfiguration:
+        Status: "Suspended"
+      # BucketEncryption:
+      #   ServerSideEncryptionConfiguration:
+      #     - BucketKeyEnabled: true
+      #       ServerSideEncryptionByDefault: 
+      #         KMSMasterKeyID: !Ref EHubCMK
+      #         SSEAlgorithm: 'aws:kms'
+      NotificationConfiguration:
+        TopicConfigurations:
+         -  Topic: !Ref IngestionTopicDev
+            Event: 's3:ObjectCreated:*'
+            Filter:
+              S3Key:
+                Rules:
+                 - Name: suffix
+                   Value: ".json"
+      PublicAccessBlockConfiguration:
+        RestrictPublicBuckets: true
+        BlockPublicPolicy: true
+               
+
+  # EHubCMK:
+  #   Type: 'AWS::KMS::Key'
+  #   # DeletionPolicy: 'Retain'
+  #   Properties: 
+  #     Description: "A KMS Key for lead ehub infrastructure"
+  #     KeySpec: 'SYMMETRIC_DEFAULT'
+  #     PendingWindowInDays: 7
+  #     KeyPolicy:
+  #       Statement:
+  #         - Sid: Enable control for root account
+  #           Effect: Allow
+  #           Principal:
+  #             AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+  #           Action: 
+  #           - 'kms:*'
+  #           Resource: '*'
+  #         - Sid: Allow admin control
+  #           Effect: "Allow"
+  #           Principal:
+  #           # "AWS": "arn:aws:sts::123456789012:assumed-role/FederatedAccess/FederatedUsername"
+  #             AWS: !Sub "arn:aws:iam::${AWS::AccountId}:user/perun.katana"
+  #           Action:
+  #               - "kms:Create*"
+  #               - "kms:Describe*"
+  #               - "kms:Enable*"
+  #               - "kms:List*"
+  #               - "kms:Put*"
+  #               - "kms:Update*"
+  #               - "kms:Revoke*"
+  #               - "kms:Disable*"
+  #               - "kms:Get*"
+  #               - "kms:Delete*"
+  #               - "kms:ScheduleKeyDeletion"
+  #               - "kms:CancelKeyDeletion"
+  #           Resource: "*"            
+  #         - Sid: Enable SNS using the CMK
+  #           Effect: Allow
+  #           Principal:
+  #             Service: "sns.amazonaws.com"
+  #           Action: 
+  #           - 'kms:Decrypt'
+  #           - 'kms:GenerateDataKey*'
+  #           -  "kms:Encrypt"
+  #           -  "kms:Decrypt"
+  #           -  "kms:ReEncrypt*"
+  #           -  "kms:DescribeKey"
+  #           Resource: '*'
+  #           Condition:
+  #             ArnEquals:
+  #               "aws:SourceArn": !Sub "arn:aws:sns:${AWS::Region}:${AWS::AccountId}:elearn-ingest-topic"
+  #         - Sid: Allow S3 using the CMK
+  #           Effect: Allow
+  #           Principal:
+  #             Service: "s3.amazonaws.com"
+  #           Action: 
+  #           - 'kms:Decrypt'
+  #           - 'kms:GenerateDataKey*'
+  #           -  "kms:Encrypt"
+  #           -  "kms:Decrypt"
+  #           -  "kms:ReEncrypt*"
+  #           -  "kms:DescribeKey"
+  #           Resource: '*'
+
+               
+  IngestionTopicDev:
+    Type: AWS::SNS::Topic
+    Properties: 
+      TopicName: "elearn-ingest-topic"
+      DisplayName: "elearn-ingest-topic"
+      # KmsMasterKeyId: !Ref EHubCMK
+      
+  IngestionTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties: 
+      Topics:
+       - !Ref IngestionTopicDev
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action:
+              - 'sns:Publish'
+            Effect: Allow
+            Resource: !Ref IngestionTopicDev
+            Principal: 
+              Service: "s3.amazonaws.com"
+            Condition:
+              ArnEquals:
+               "aws:SourceArn": "arn:aws:s3:::ingestion-codebucket-7832df8a-dev"
+
+Outputs:
+  CodeBucketDev:
+    Description: 'CodeBucket-DEV name '
+    Value: !Ref CodeBucketDev
+    Export:
+      Name: lead-ehub-generic-infrastucture-dev-CodeBucket
+      
+  IngestionBucketDevArn:
+    Description: 'IngestionBucketDev-DEV arn '
+    Value: !GetAtt ["IngestionBucketDev", "Arn"]
+    Export:
+      Name: lead-ehub-generic-infrastucture-dev-IngestionBucket-arn
+
+  IngestionBucketDev:
+    Description: 'IngestionBucketDev-DEV name '
+    Value: !Ref "IngestionBucketDev"
+    Export:
+      Name: lead-ehub-generic-infrastucture-dev-IngestionBucket
+
+  IngestionTopicDev:
+    Description: 'IngestionTopicDEV name '
+    Value: !Ref "IngestionTopicDev"
+    Export:
+      Name: lead-ehub-generic-infrastucture-dev-IngestionSNSTopic
+  
+  # LMEhubCMK:
+  #   Description: 'IngestioCMKDEV name '
+  #   Value: !GetAtt EHubCMK.Arn
+  #   Export:
+  #     Name: lead-ehub-generic-infrastucture-dev-CMK

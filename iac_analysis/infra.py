@@ -3,6 +3,7 @@ from iac_analysis.resource import (
     Resource,
     supported_resource_types,
     ignore_resource_types,
+    public_usage_metrics,
 )
 import logging
 import networkx as nx
@@ -27,7 +28,7 @@ class Infra:
             logger.error("Graph is cyclic.")
 
     @classmethod
-    def from_template(cls, fpath):
+    def from_cfn(cls, fpath):
         c = cfn.load_template(fpath)
         resources = {}
         for name, body in c["Resources"].items():
@@ -52,7 +53,7 @@ class Infra:
         # compute constraints in topological order
         # topological order is needed for computing the incoming constraints
         for r in nx.topological_sort(self.graph):
-            r.compute_constraints(solver)
+            r.compute_constraints(solver, self.resources)
 
     def draw(self, fname):
         nx.draw(self.graph, with_labels=True)

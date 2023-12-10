@@ -1,0 +1,36 @@
+Resources: 
+  AwsServerlessExpressFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: mylambda
+      Description: mylambda 
+      Runtime: nodejs8.10
+      Handler: index.handler
+      MemorySize: 512
+      Timeout: 60
+      Role: !Ref LambdaExecutionRoleArn
+
+  AwsServerlessExpressFunctionAlias:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName: !Ref AwsServerlessExpressFunction
+      FunctionVersion: '$LATEST'
+      Name: live
+
+  SNSTopic: 
+    Type: AWS::SNS::Topic
+    Properties: 
+      DisplayName: mysnstopic
+      TopicName: mysnstopic
+      Subscription:  
+      - 
+        Endpoint: !Ref AwsServerlessExpressFunctionAlias
+        Protocol: lambda
+
+  LambdaInvokePermission: 
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn:  !Ref SNSTopic 
+      FunctionName: !Ref AwsServerlessExpressFunctionAlias

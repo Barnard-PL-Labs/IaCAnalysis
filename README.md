@@ -40,51 +40,13 @@ To show debugging information (e.g. z3 solver constraints), use the `--debug` fl
 poetry run iac-analysis --debug ......
 ```
 
-This `check` sub-command checks whether the Infracost usage estimates satisfy the constraints of the Terraform infrastructures. For example:
+To output a graph of the infrastruture, use `poetry run iac-analysis graph [CFN_FILE]`.
+
+To output resource usage estimates template, use `poetry run iac-analysis estimates-template [CFN_FILE]`.
+
+To show more information about the infrastructure and generated constraints, use `poetry run iac-analysis constrain [CFN_FILE]`.
+
+This `check` sub-command checks whether the usage estimates satisfy the constraints of the infrastructure.
 ```shell
-poetry run iac-analysis check examples/sqs-lambda-trigger/tfplan.json examples/sqs-lambda-trigger/infracost-usage.yml
-```
-
-There is a script that runs an example for you:
-```shell
-./run_example examples/{sqs-lambda-trigger}
-```
-
-## 3. Supported cloud platforms and services
-
-AWS:
-- Lambda
-- SQS
-- Lambda Event Source Mapping
-
-## 4. Viewing Terraform configuration
-
-First, go into the directory that contains the example that you want to use.
-```shell
-cd examples/{EXAMPLE}
-```
-
-Initialize the terraform project:
-```shell
-terraform init
-```
-
-Generate a Terraform Plan JSON file:
-```shell
-terraform plan -out tfplan.binary
-terraform show -json tfplan.binary > tfplan.json
-```
-
-The configuration specified by the (.tf) files will be in the `configuration` attribute in the JSON.
-For more information, see Terraform docomentation on [configuration representation](https://developer.hashicorp.com/terraform/internals/json-format#configuration-representation).
-
-## 5. Using Infracost
-
-First, go into the directory that contains the example that you want to use.
-```shell
-cd examples/{EXAMPLE}
-```
-Generate a new usage file (named `infracost-usage.yml`) and show a breakdown:
-```shell
-infracost breakdown --sync-usage-file --usage-file infracost-usage.yml --path .
+poetry run iac-analysis check [CFN_FILE] [USAGE_ESTIMATES]
 ```

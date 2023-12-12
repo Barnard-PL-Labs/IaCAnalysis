@@ -50,3 +50,5 @@ This `check` sub-command checks whether the usage estimates satisfy the constrai
 ```shell
 poetry run iac-analysis check [CFN_FILE] [USAGE_ESTIMATES]
 ```
+
+The `constrain` and `check` subcommands support `-c` flag to supply custom constraint generator in the form of a Python module, which should export a function named `compute_constraints`. You may look at `./example_custom_constraints.py` as an example.

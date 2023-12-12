@@ -30,16 +30,6 @@ The main command, `iac-analysis`:
 poetry run iac-analysis --help
 ```
 
-Currently, there is only one sub-command, `check`:
-```shell
-poetry run iac-analysis check --help
-```
-
-To show debugging information (e.g. z3 solver constraints), use the `--debug` flag:
-```shell
-poetry run iac-analysis --debug ......
-```
-
 To output a graph of the infrastruture, use `poetry run iac-analysis graph [CFN_FILE]`.
 
 To output resource usage estimates template, use `poetry run iac-analysis estimates-template [CFN_FILE]`.

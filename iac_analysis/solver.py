@@ -1,4 +1,5 @@
 import z3
+from z3 import parse_smt2_string, parse_smt2_file, sat, unsat, unknown
 import logging
 
 logger = logging.getLogger(__name__)
@@ -8,6 +9,7 @@ class Solver:
     def __init__(self):
         self.pool = {}
         self.constraints = []
+        self._solver = z3.Solver()
 
     def nv(self, resource, metric):
         varname = f"{resource.name}.{metric}"
@@ -35,6 +37,7 @@ class Solver:
 
     def add(self, constraint):
         self.constraints.append(constraint)
+        self._solver.add(constraint)
 
     def add_aggregate_incoming_constraint(self, x, metric):
         incoming = [
@@ -54,11 +57,7 @@ class Solver:
                 self.add(self.nv(resource, metric) == estimate)
 
     def check(self):
-        solver = z3.Solver()
-        solver.add(*self.constraints)
-        return solver.check()
+        return self._solver.check()
 
     def sexpr(self):
-        solver = z3.Solver()
-        solver.add(*self.constraints)
-        return solver.sexpr()
+        return self._solver.sexpr()

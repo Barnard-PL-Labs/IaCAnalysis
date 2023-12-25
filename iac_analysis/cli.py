@@ -5,7 +5,6 @@ from typing import Optional
 import typer
 from typing_extensions import Annotated
 import logging
-import z3
 import sys
 import yaml
 import importlib
@@ -62,7 +61,13 @@ def check(
     estimates_file: Annotated[str, typer.Argument(help="Estimates file")],
     custom_generator_module: Annotated[
         Optional[str],
-        typer.Option("--generator", help="Additional custom constraint generator"),
+        typer.Option(
+            "--custom-generator", help="Additional custom constraint generator"
+        ),
+    ] = None,
+    custom_smt2: Annotated[
+        Optional[str],
+        typer.Option("--custom-smt2", help="Additional custom SMT2 constraint"),
     ] = None,
 ) -> None:
     """
@@ -76,13 +81,18 @@ def check(
     infra = Infra.from_cfn(cfn_template)
     s = solver.Solver()
     infra.compute_constraints(s, custom_generator=custom_generator)
+
     s.add_estimates(infra.resources, usage)
+
+    if not custom_smt2 is None:
+        s.add(solver.parse_smt2_file(custom_smt2))
+
     print("z3 solver constraints: \n%s", s.sexpr())
 
     result = s.check()
-    if result == z3.sat:
+    if result == solver.sat:
         print("✅ The usage estimates satisfy the constraints of the infrastructure")
-    elif result == z3.unsat:
+    elif result == solver.unsat:
         print(
             "❌ The usage estimates did not satisfy the constraints of the infrastructure"
         )
@@ -109,6 +119,10 @@ def constrain(
         Optional[str],
         typer.Option("--generator", help="Additional custom constraint generator"),
     ] = None,
+    custom_smt2: Annotated[
+        Optional[str],
+        typer.Option("--custom-smt2", help="Additional custom SMT2 constraint"),
+    ] = None,
 ) -> None:
     """
     Produce constraints for the infrastructure specified in the given CloudFormation template.
@@ -128,6 +142,8 @@ def constrain(
 
     s = solver.Solver()
     infra.compute_constraints(s, custom_generator=custom_generator)
+    if not custom_smt2 is None:
+        s.add(solver.parse_smt2_file(custom_smt2))
     print()
     print("--- CONSTRAINTS ---")
     print(f"count: {len(s.constraints)}")

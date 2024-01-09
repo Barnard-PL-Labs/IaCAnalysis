@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Lambda Function with S3 Trigger, IAM Role, and CloudWatch Log Group
+
+Resources:
+  MyLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt MyLambdaRole.Arn
+      FunctionName: MyLambdaFunction
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket: my-lambda-bucket
+        S3Key: lambda-code.zip
+      Timeout: 30
+
+  MyLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: MyLambdaRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+  MyS3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: my-lambda-bucket
+
+  MyS3Trigger:
+    Type: 'AWS::Lambda::EventSourceMapping'
+    Properties:
+      EventSourceArn: !GetAtt MyS3Bucket.Arn
+      FunctionName: !Ref MyLambdaFunction
+
+  MyLogGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: /aws/lambda/MyLambdaFunction
+

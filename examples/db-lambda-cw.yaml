@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: DynamoDB Table with Lambda Trigger, IAM Role, and CloudWatch Alarm
+
+Resources:
+  MyDynamoDBTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: MyDynamoDBTable
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: N
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  MyLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt MyLambdaRole.Arn
+      FunctionName: MyLambdaFunction
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket: my-lambda-bucket
+        S3Key: lambda-code.zip
+      Timeout: 30
+
+  MyLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: MyLambdaRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+
+  MyDynamoDBTrigger:
+    Type: 'AWS::Lambda::EventSourceMapping'
+    Properties:
+      EventSourceArn: !GetAtt MyDynamoDBTable.StreamArn
+      FunctionName: !Ref MyLambdaFunction
+
+  MyCloudWatchAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmName: MyDynamoDBAlarm
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      MetricName: ConsumedReadCapacityUnits
+      Namespace: AWS/DynamoDB
+      Period: 60
+      Statistic: Sum
+      Threshold: 10
+      ActionsEnabled: true
+      AlarmActions:
+        - !Ref MyLambdaFunction
+

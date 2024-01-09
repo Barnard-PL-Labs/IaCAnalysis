@@ -1,0 +1,135 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: AWS CloudFormation Template for a Medium-sized Company Architecture
+
+Parameters:
+  KeyPairName:
+    Type: String
+    Description: Name of the existing EC2 Key Pair
+
+Resources:
+  MyVPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: '10.0.0.0/16'
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: MyVPC
+
+  PublicSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: '10.0.0.0/24'
+      AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: PublicSubnet
+
+  PrivateSubnet:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      VpcId: !Ref MyVPC
+      CidrBlock: '10.0.1.0/24'
+      AvailabilityZone: !Select [1, !GetAZs '']
+      Tags:
+        - Key: Name
+          Value: PrivateSubnet
+
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+        - Key: Name
+          Value: InternetGateway
+
+  AttachGateway:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  MyRouteTable:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: MyRouteTable
+
+  PublicRoute:
+    Type: 'AWS::EC2::Route'
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref MyRouteTable
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  MyRDSInstance:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      AllocatedStorage: 20
+      DBInstanceIdentifier: MyRDSInstance
+      DBInstanceClass: db.t2.micro
+      Engine: mysql
+      MasterUsername: admin
+      MasterUserPassword: adminpassword
+      VPCSecurityGroups:
+        - Ref: MyDBSecurityGroup
+      Tags:
+        - Key: Name
+          Value: MyRDSInstance
+
+  MyDBSecurityGroup:
+    Type: 'AWS::RDS::DBSecurityGroup'
+    Properties:
+      GroupDescription: Allow database access
+      DBSecurityGroupIngress:
+        - EC2SecurityGroupName: !Ref EC2SecurityGroup
+          EC2SecurityGroupOwnerId: !GetAtt EC2SecurityGroup.GroupId
+
+  EC2SecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref MyVPC
+      GroupDescription: Allow SSH and HTTP access
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+  MyAutoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet
+        - !Ref PrivateSubnet
+      LaunchConfigurationName: !Ref MyLaunchConfig
+      MinSize: 2
+      MaxSize: 5
+      DesiredCapacity: 3
+      Tags:
+        - Key: Name
+          Value: MyAutoScalingGroup
+          PropagateAtLaunch: true
+
+  MyLaunchConfig:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Properties:
+      ImageId: ami-0123456789abcdef0  # Replace with a valid AMI ID
+      InstanceType: t2.micro
+      KeyName: !Ref KeyPairName
+      SecurityGroups:
+        - !Ref EC2SecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          echo "Hello from EC2 User Data!" > /tmp/user-data-output.txt
+

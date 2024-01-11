@@ -36,6 +36,13 @@ class Solver:
         return None
 
     def add(self, constraint):
+        if isinstance(constraint, z3.z3.AstVector):
+            for c in constraint:
+                self._add(c)
+        else:
+            self._add(constraint)
+
+    def _add(self, constraint):
         self.constraints.append(constraint)
         self._solver.add(constraint)
 

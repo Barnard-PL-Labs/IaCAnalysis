@@ -163,3 +163,30 @@ def graph(
     """
     infra = Infra.from_cfn(cfn_template)
     infra.draw(file_name)
+
+
+@app.command()
+def benchmark_constrain(
+    cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
+    custom_generator_module: Annotated[
+        Optional[str],
+        typer.Option("--generator", help="Additional custom constraint generator"),
+    ] = None,
+    custom_smt2: Annotated[
+        Optional[str],
+        typer.Option("--custom-smt2", help="Additional custom SMT2 constraint"),
+    ] = None,
+) -> None:
+    """
+    Produce constraints for the infrastructure specified in the given CloudFormation template.
+    """
+    custom_generator = None
+    if not custom_generator_module is None:
+        custom_generator = load_custom_generator(custom_generator_module)
+
+    infra = Infra.from_cfn(cfn_template)
+
+    s = solver.Solver()
+    infra.compute_constraints(s, custom_generator=custom_generator)
+    if not custom_smt2 is None:
+        s.add(solver.parse_smt2_file(custom_smt2))

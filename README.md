@@ -42,3 +42,22 @@ poetry run iac-analysis check [CFN_FILE] [USAGE_ESTIMATES]
 ```
 
 The `constrain` and `check` subcommands support `-c` flag to supply custom constraint generator in the form of a Python module, which should export a function named `compute_constraints`. You may look at `./example_custom_constraints.py` as an example.
+
+## 3. Benchmark
+
+The project provides a benchmark script to reproduce the statistics in the paper.
+
+First, enter the project shell/virtual environment:
+```sh
+poetry shell
+```
+
+Then you may produce statistics for the full set of benchmarks:
+```sh
+iac-analysis-benchmark all
+```
+
+If you want to, you may aldo produce statistics for any CFN template:
+```sh
+iac-analysis-benchmark single [CFN_TEMPLATE] --custom_smt2 [CUSTOM_SMT2]
+```

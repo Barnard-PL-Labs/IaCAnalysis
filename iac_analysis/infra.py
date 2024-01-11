@@ -61,3 +61,6 @@ class Infra:
         nx.draw(self.graph, with_labels=True)
         plt.savefig(fname)
         plt.clf()
+
+    def average_degree(self):
+        return 2 * self.graph.number_of_edges() / float(self.graph.number_of_nodes())

@@ -14,6 +14,7 @@ class ResourceTypes:
     AWS_SNS_Topic = "AWS::SNS::Topic"
     AWS_S3_AccessPoint = "AWS::S3::AccessPoint"
     AWS_S3ObjectLambda_AccessPoint = "AWS::S3ObjectLambda::AccessPoint"
+    AWS_DynamoDB_Table = "AWS::DynamoDB::Table"
 
     AWS_S3_BucketPolicy = "AWS::S3::BucketPolicy"
     AWS_Lambda_Permission = "AWS::Lambda::Permission"
@@ -26,8 +27,12 @@ class ResourceTypes:
 
 class ResourceMetric:
     monthly_requests = "monthly_requests"
+    monthly_sqs_billing_requests = "monthly_sqs_billing_requests"
     monthly_s3_object_created = "monthly_s3_object_created"
     monthly_s3_object_removed = "monthly_s3_object_removed"
+    monthly_dynamodb_r = "monthly_dynamodb_r"
+    monthly_dynamodb_w = "monthly_dynamodb_w"
+    monthly_dynamodb_rw = "monthly_dynamodb_rw"
 
 
 supported_resource_types = [
@@ -41,6 +46,7 @@ supported_resource_types = [
     ResourceTypes.AWS_SNS_Topic,
     ResourceTypes.AWS_S3_AccessPoint,
     ResourceTypes.AWS_S3ObjectLambda_AccessPoint,
+    ResourceTypes.AWS_DynamoDB_Table,
 ]
 
 ignore_resource_types = [
@@ -62,6 +68,11 @@ public_usage_metrics = {
     ResourceTypes.AWS_Lambda_Function: [ResourceMetric.monthly_requests],
     ResourceTypes.AWS_Serverless_Function: [ResourceMetric.monthly_requests],
     ResourceTypes.AWS_SNS_Topic: [ResourceMetric.monthly_requests],
+    ResourceTypes.AWS_DynamoDB_Table: [
+        ResourceMetric.monthly_dynamodb_r,
+        ResourceMetric.monthly_dynamodb_w,
+        ResourceMetric.monthly_dynamodb_rw,
+    ],
 }
 
 
@@ -153,10 +164,14 @@ class Resource:
                 try:
                     endpoint = ref_or_getatt(self.config["Properties"]["Endpoint"])
                     self.add_outgoing_edge(all_resources[endpoint])
+                except:
+                    logger.info(f"no endpoint for {self.name}")
+
+                try:
                     topic = ref_or_getatt(self.config["Properties"]["TopicArn"])
                     self.add_incoming_edge(all_resources[topic])
                 except:
-                    logger.info(f"No endpoint or topic for {self.name}")
+                    logger.info(f"no topic for {self.name}")
             case ResourceTypes.AWS_SNS_Topic:
                 try:
                     for subscription in self.config["Properties"]["Subscription"]:
@@ -400,6 +415,10 @@ class Resource:
                 )
 
                 # > intrinsic constraints
+                solver.add(
+                    solver.nv(self, ResourceMetric.monthly_requests)
+                    == solver.nv(self, ResourceMetric.monthly_sqs_billing_requests) * 3
+                )
 
                 # > outgoing constraints
                 for outn in self.outgoing_edges:
@@ -427,7 +446,6 @@ class Resource:
                     )
             case ResourceTypes.AWS_SNS_Subscription:
                 # > incoming constraints
-                assert len(self.incoming_edges) == 1
                 solver.add_aggregate_incoming_constraint(
                     self, ResourceMetric.monthly_requests
                 )
@@ -435,12 +453,30 @@ class Resource:
                 # > intrinsic constraints
 
                 # > outgoing constraints
-                assert len(self.outgoing_edges) == 1
-                outgoing = list(self.outgoing_edges)[0]
-                solver.add(
-                    solver.nv(self, ResourceMetric.monthly_requests)
-                    == solver.ev(self, outgoing, ResourceMetric.monthly_requests)
+                if len(self.outgoing_edges) > 0:
+                    outgoing = list(self.outgoing_edges)[0]
+                    solver.add(
+                        solver.nv(self, ResourceMetric.monthly_requests)
+                        == solver.ev(self, outgoing, ResourceMetric.monthly_requests)
+                    )
+
+            case ResourceTypes.AWS_DynamoDB_Table:
+                # > incoming constraints
+                solver.add_aggregate_incoming_constraint(
+                    self, ResourceMetric.monthly_dynamodb_r
                 )
+                solver.add_aggregate_incoming_constraint(
+                    self, ResourceMetric.monthly_dynamodb_w
+                )
+
+                # > intrinsic constraints
+                solver.add(
+                    solver.nv(self, ResourceMetric.monthly_dynamodb_rw)
+                    == solver.nv(self, ResourceMetric.monthly_dynamodb_r)
+                    + solver.nv(self, ResourceMetric.monthly_dynamodb_w)
+                )
+
+                # > outgoing constraints
 
             case unknown_resource_type:
                 logger.warn(

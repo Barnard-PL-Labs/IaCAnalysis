@@ -3,6 +3,7 @@ import typer
 from typing_extensions import Annotated
 import logging
 from pathlib import Path
+import os
 import subprocess
 import time
 
@@ -15,9 +16,7 @@ from iac_analysis.custom_generator import load_custom_generator
 
 app = typer.Typer()
 
-benchmarks = [
-    ("examples/sns-lambda-alias.yaml", "custom.smt2"),
-]
+benchmarks_path = "benchmarks"
 
 
 def version_callback(value: bool) -> None:
@@ -47,7 +46,8 @@ def main(
 
 
 @app.command()
-def single(
+def run(
+    benchmark_name: Annotated[str, typer.Argument(help="Benchmark name")],
     cfn_template: Annotated[str, typer.Argument(help="CloudFormation template")],
     custom_smt2: Annotated[
         Optional[str],
@@ -55,7 +55,7 @@ def single(
     ] = None,
 ) -> None:
     """
-    Benchmark a single CFN template
+    Run benchmark on a CFN template
     """
     infra = Infra.from_cfn(cfn_template)
     s = solver.Solver()
@@ -64,7 +64,6 @@ def single(
         parsed_custom_smt2 = solver.parse_smt2_file(custom_smt2)
         s.add(parsed_custom_smt2)
 
-    benchmark_name = Path(cfn_template).stem
     number_of_resources = len(infra.resources)
     average_degree = infra.average_degree()
     number_of_constraints = len(s.constraints)
@@ -81,12 +80,39 @@ def single(
 
 
 @app.command()
+def single(
+    benchmark_name: Annotated[str, typer.Argument(help="Benchmark name")],
+) -> None:
+    """
+    Single benchmark
+    """
+    cfn_path = os.path.join(benchmarks_path, benchmark_name, "cfn.yaml")
+    custom_smt2_path = os.path.join(benchmarks_path, benchmark_name, "custom.smt2")
+
+    if os.path.exists(custom_smt2_path):
+        run(
+            benchmark_name=benchmark_name,
+            cfn_template=cfn_path,
+            custom_smt2=custom_smt2_path,
+        )
+    else:
+        run(benchmark_name=benchmark_name, cfn_template=cfn_path)
+
+
+@app.command()
 def all():
     """
-    Full benchmark
+    Full benchmark set
     """
-    for cfn_template, custom_smt2 in benchmarks:
-        single(cfn_template=cfn_template, custom_smt2=custom_smt2)
+    subdirectories = sorted(
+        [
+            d
+            for d in os.listdir(benchmarks_path)
+            if os.path.isdir(os.path.join(benchmarks_path, d))
+        ]
+    )
+    for benchmark_name in subdirectories:
+        single(benchmark_name=benchmark_name)
 
 
 # HELPERS

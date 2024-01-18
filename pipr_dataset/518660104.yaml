@@ -1,0 +1,446 @@
+Resources:
+  route53CCC7A685:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: jomicu.com.
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/route53/Resource
+  certificateEC031123:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: api-development.jomicu.com
+      DomainValidationOptions:
+        - DomainName: api-development.jomicu.com
+          HostedZoneId:
+            Ref: route53CCC7A685
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/certificate/Resource
+  developmentProductsTable867E0749:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      TableName: development-Products-Table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/development-Products-Table/Resource
+  developmentProductsAPIcreateproductsServiceRoleDD2AE45E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/development-ProductsAPI-create-products/ServiceRole/Resource
+  developmentProductsAPIcreateproductsServiceRoleDefaultPolicy180DB40B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - developmentProductsTable867E0749
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: developmentProductsAPIcreateproductsServiceRoleDefaultPolicy180DB40B
+      Roles:
+        - Ref: developmentProductsAPIcreateproductsServiceRoleDD2AE45E
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/development-ProductsAPI-create-products/ServiceRole/DefaultPolicy/Resource
+  developmentProductsAPIcreateproductsCC3480AA:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: ade20c3da6da0b1070fd869b26fbcbcc618e50b1c52f908d7bf8a364fa2fb57f.zip
+      Role:
+        Fn::GetAtt:
+          - developmentProductsAPIcreateproductsServiceRoleDD2AE45E
+          - Arn
+      Architectures:
+        - x86_64
+      Environment:
+        Variables:
+          PRODUCTS_TABLE_NAME: development-Products-Table
+      FunctionName: development-ProductsAPI-create-products
+      Handler: create_products.handle_event
+      Runtime: python3.9
+    DependsOn:
+      - developmentProductsAPIcreateproductsServiceRoleDefaultPolicy180DB40B
+      - developmentProductsAPIcreateproductsServiceRoleDD2AE45E
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/development-ProductsAPI-create-products/Resource
+      aws:asset:path: asset.ade20c3da6da0b1070fd869b26fbcbcc618e50b1c52f908d7bf8a364fa2fb57f
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  productsAPIGatewayEF67B34F:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      ApiKeySourceType: HEADER
+      Description: ""
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: development-ProductsAPI
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/productsAPIGateway/Resource
+  productsAPIGatewayCloudWatchRoleD2F118E3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/productsAPIGateway/CloudWatchRole/Resource
+  productsAPIGatewayAccountB351249F:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - productsAPIGatewayCloudWatchRoleD2F118E3
+          - Arn
+    DependsOn:
+      - productsAPIGatewayEF67B34F
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/productsAPIGateway/Account
+  productsAPIGatewayDeployment0E6C7322d4516a71df325d8959111dc5fd3dbee6:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: productsAPIGatewayEF67B34F
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - productsAPIGatewayCreateProductsModelD3A0F55C
+      - productsAPIGatewayPOSTD5344F28
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/productsAPIGateway/Deployment/Resource
+  productsAPIGatewayDeploymentStageprodED14414F:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: productsAPIGatewayEF67B34F
+      DeploymentId:
+        Ref: productsAPIGatewayDeployment0E6C7322d4516a71df325d8959111dc5fd3dbee6
+      StageName: prod
+    DependsOn:
+      - productsAPIGatewayAccountB351249F
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/productsAPIGateway/DeploymentStage.prod/Resource
+  productsAPIGatewayCustomDomainFA60F430:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      DomainName: jomicu.com
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      RegionalCertificateArn:
+        Ref: certificateEC031123
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/productsAPIGateway/CustomDomain/Resource
+  productsAPIGatewayCustomDomainMapproductsdevelopmentProductsAPIStackproductsAPIGateway704B5D20F457C034:
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      DomainName:
+        Ref: productsAPIGatewayCustomDomainFA60F430
+      BasePath: products
+      RestApiId:
+        Ref: productsAPIGatewayEF67B34F
+      Stage:
+        Ref: productsAPIGatewayDeploymentStageprodED14414F
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/productsAPIGateway/CustomDomain/Map:products=>developmentProductsAPIStackproductsAPIGateway704B5D20/Resource
+  productsAPIGatewayPOSTApiPermissiondevelopmentProductsAPIStackproductsAPIGateway704B5D20POST7DBAB128:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - developmentProductsAPIcreateproductsCC3480AA
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: productsAPIGatewayEF67B34F
+            - /
+            - Ref: productsAPIGatewayDeploymentStageprodED14414F
+            - /POST/
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/productsAPIGateway/Default/POST/ApiPermission.developmentProductsAPIStackproductsAPIGateway704B5D20.POST..
+  productsAPIGatewayPOSTD5344F28:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Fn::GetAtt:
+          - productsAPIGatewayEF67B34F
+          - RootResourceId
+      RestApiId:
+        Ref: productsAPIGatewayEF67B34F
+      ApiKeyRequired: true
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: "
+
+                \                {
+
+                \                    \"message\": \"Internal Server Error\"
+
+                \                }
+
+                \            "
+            SelectionPattern: ""
+            StatusCode: "500"
+          - ResponseTemplates:
+              application/json: "
+
+                \                #set($products = $input.path('$.products'))\ 
+
+                \                {
+
+                \                    \"products\": [
+
+                \                        #foreach($product in $products)\ 
+
+                \                        {
+
+                \                            \"id\": \"$product.id\",
+
+                \                            \"name\": \"$product.name\",
+
+                \                            \"type\": \"$product.type\",
+
+                \                            \"unit\": \"$product.unit\",
+
+                \                            \"brand\": \"$product.brand\",
+
+                \                            #if(\"$product.description\" == \"\")
+
+                \                                \"description\": null,
+
+                \                            #else
+
+                \                                \"description\": \"$product.description\",
+
+                \                            #end
+
+                \                            \"tags\": $product.tags
+
+                \                        }#if($foreach.hasNext),#end
+
+                \                        #end
+
+                \                    ]
+
+                \                }
+
+                \            "
+            SelectionPattern: ""
+            StatusCode: "201"
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json: "
+
+            \            #set($products = $input.path('$.products'))\ 
+
+            \            {
+
+            \                \"products\": [
+
+            \                    #foreach($product in $products)\ 
+
+            \                    {
+
+            \                        \"name\": \"$product.name\",
+
+            \                        \"type\": \"$product.type\",
+
+            \                        \"unit\": \"$product.unit\"
+
+            \                        #if(\"$product.brand\" != \"\"),
+
+            \                            \"brand\": \"$product.brand\"
+
+            \                        #end
+
+            \                        #if(\"$product.description\" != \"\"),
+
+            \                            \"description\": \"$product.description\"
+
+            \                        #end
+
+            \                        #if(\"$product.tags\" != \"\"),
+
+            \                            \"tags\": $product.tags
+
+            \                        #end
+
+            \                    }#if($foreach.hasNext),#end
+
+            \                    #end
+
+            \                ]
+
+            \            }
+
+            \        "
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - developmentProductsAPIcreateproductsCC3480AA
+                  - Arn
+              - /invocations
+      RequestModels:
+        application/json:
+          Ref: productsAPIGatewayCreateProductsModelD3A0F55C
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/productsAPIGateway/Default/POST/Resource
+  productsAPIGatewayCreateProductsModelD3A0F55C:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: productsAPIGatewayEF67B34F
+      ContentType: application/json
+      Description: Create products request JSON schema
+      Name: CreateProductsRequestModel
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: CreateProductsRequestModel
+        type: object
+        required:
+          - products
+        additionalProperties: false
+        properties:
+          products:
+            title: The products array holding products to be created
+            type: array
+            uniqueItems: true
+            minItems: 1
+            items:
+              $schema: http://json-schema.org/draft-04/schema#
+              title: CreateProductRequestModel
+              type: object
+              required:
+                - name
+                - type
+                - unit
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                brand:
+                  type: string
+                  minLength: 1
+                  maxLength: 50
+                type:
+                  type: string
+                  enum:
+                    - Food
+                    - Clothes
+                    - Furniture
+                unit:
+                  type: string
+                  enum:
+                    - Unit
+                    - Kilograms
+                    - Meters
+                description:
+                  type: string
+                  minLength: 1
+                  maxLength: 150
+                tags:
+                  type: array
+                  uniqueItems: true
+                  minItems: 0
+                  maxItems: 5
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 10
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/productsAPIGateway/CreateProductsModel/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/11Qy24CMQz8lt5DWlhV6pWHql5oEe2pF2QSsxg2yWrjFK1W+fcmAZVVT54ZTzx2ZrKq5NMDXPxE6fOkob0cPhnUWSRpN3QuMD5XcnhznlF/O4tiebB3FoXCjulAChgNWKixk8PyrmX7iEahewvG6ZTzBfum9AuIogGz1yCH12AVk7O5NcYb7Ax5n1gUBEYOW3d9X+rGNaT64isoCl/twHtkL+e5JC4XQZ2RF+BRQEt1WugCfRqEnuctlVl3OFfKBctihW3jeoMJJnXE0kfVZYErWDkDZN/BFG3Ect4G+LiGtiVb5+5/KcW60Cksq62Rj05n2w2tncam8Axi/LOLclmOv839CNwGvh1SLFHY9Eie/OPP9EVOZ3L6cPJEky6dRgbl9lp/Aed4PiAJAgAA
+    Metadata:
+      aws:cdk:path: development-ProductsAPI-Stack/CDKMetadata/Default
+Outputs:
+  productsAPIGatewayEndpoint9D017CC1:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: productsAPIGatewayEF67B34F
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: productsAPIGatewayDeploymentStageprodED14414F
+          - /
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

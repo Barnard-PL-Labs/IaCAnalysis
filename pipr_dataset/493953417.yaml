@@ -1,0 +1,222 @@
+Resources:
+  Hello4A628BD4:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: name
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: name
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkTypescriptStack/Hello/Resource
+  DynamoLambdaHandlerServiceRole4C867B01:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkTypescriptStack/DynamoLambdaHandler/ServiceRole/Resource
+  DynamoLambdaHandlerServiceRoleDefaultPolicy2B40B090:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - Hello4A628BD4
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: DynamoLambdaHandlerServiceRoleDefaultPolicy2B40B090
+      Roles:
+        - Ref: DynamoLambdaHandlerServiceRole4C867B01
+    Metadata:
+      aws:cdk:path: CdkTypescriptStack/DynamoLambdaHandler/ServiceRole/DefaultPolicy/Resource
+  DynamoLambdaHandlerFB6EB814:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 0514958f50e70c21d6067f320094b1873431ab176ac42e0e7bbd64b0a9d7a09c.zip
+      Role:
+        Fn::GetAtt:
+          - DynamoLambdaHandlerServiceRole4C867B01
+          - Arn
+      Environment:
+        Variables:
+          HELLO_TABLE_NAME:
+            Ref: Hello4A628BD4
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - DynamoLambdaHandlerServiceRoleDefaultPolicy2B40B090
+      - DynamoLambdaHandlerServiceRole4C867B01
+    Metadata:
+      aws:cdk:path: CdkTypescriptStack/DynamoLambdaHandler/Resource
+      aws:asset:path: asset.0514958f50e70c21d6067f320094b1873431ab176ac42e0e7bbd64b0a9d7a09c
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  DynamoLambdaHandlerFunctionUrlAD091B36:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      TargetFunctionArn:
+        Fn::GetAtt:
+          - DynamoLambdaHandlerFB6EB814
+          - Arn
+      Cors:
+        AllowMethods:
+          - "*"
+        AllowOrigins:
+          - "*"
+    Metadata:
+      aws:cdk:path: CdkTypescriptStack/DynamoLambdaHandler/FunctionUrl/Resource
+  DynamoLambdaHandlerinvokefunctionurl355FA346:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunctionUrl
+      FunctionName:
+        Fn::GetAtt:
+          - DynamoLambdaHandlerFB6EB814
+          - Arn
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+    Metadata:
+      aws:cdk:path: CdkTypescriptStack/DynamoLambdaHandler/invoke-function-url
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/z2PvW7DMAyEnyW7zNbO0rUJ0LEJ3HQ2ZIkNaOunMKUWgaF3ryQnne54ID/wOug6eN7JX26UnhtDI6wfQapZ5GhY9c1J63UOL3I0KI5frpokjLSjloPzGieG9ypv0alA3gmSFtbebwdVz96QupVxc0nwfpDMGBhei+QZDlHNGA6S8Y6HNR/8Ux/mczEFdJczLpaYc56S6JF9XBSKysxFruSuZesUw3cM9Z3HSvZH7zQVZBKlCEz89NO+QNtBu5uYqFmiC2QR+k3/ACuu/OMuAQAA
+    Metadata:
+      aws:cdk:path: CdkTypescriptStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  FunctionUrl:
+    Value:
+      Fn::GetAtt:
+        - DynamoLambdaHandlerFunctionUrlAD091B36
+        - FunctionUrl
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

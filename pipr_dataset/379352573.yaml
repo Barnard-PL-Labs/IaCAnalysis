@@ -1,0 +1,422 @@
+Resources:
+  ApiF70053CD:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: products-service
+      XrayEnabled: true
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/Api/Resource
+  ApiSchema510EECD7:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Definition: |-
+        
+        schema @extends @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key", "@shareable", "@provides", "@external", "@tag", "@extends", "@override"]) {query: Query}
+
+        type Product @key(fields: "id") @key(fields: "sku package") @key(fields: "sku variation { id }") {
+          id: ID!
+          sku: String
+          package: String
+          variation: ProductVariation
+          dimensions: ProductDimension
+          createdBy: User @provides(fields: "totalProductsCreated")
+          notes: String @tag(name: "internal")
+        }
+
+        type ProductDimension @shareable {
+          size: String
+          weight: Float
+          unit: String @inaccessible
+        }
+
+        type _Service {
+          sdl: String
+        }
+
+        type ProductVariation {
+          id: ID!
+        }
+        input ProductVariationInput {
+          id: ID!
+        }
+
+        type Query @extends {
+          _service: _Service!
+          _entities(representations: [_Any!]!): [_Entity]!
+          product(id: ID!): Product
+        }
+
+        type User @key(fields: "email") @extends {
+          email: ID! @external
+          name: String @override(from: "users")
+          totalProductsCreated: Int @external
+        }
+
+        union _Entity = User | Product
+
+        input _Any {
+            __typename: String!
+            id: String
+            sku: String
+            package: String
+            variation: ProductVariationInput
+        }
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/Api/Schema
+  ApiDefaultApiKeyF991C37B:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+    DependsOn:
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/Api/DefaultApiKey
+  ApiLambdaDSServiceRole7A3013FF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/Api/LambdaDS/ServiceRole/Resource
+  ApiLambdaDSServiceRoleDefaultPolicyDDA25F27:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - lambdaResolver29EDA011
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ApiLambdaDSServiceRoleDefaultPolicyDDA25F27
+      Roles:
+        - Ref: ApiLambdaDSServiceRole7A3013FF
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/Api/LambdaDS/ServiceRole/DefaultPolicy/Resource
+  ApiLambdaDSFF24A5CA:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Name: LambdaDS
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - lambdaResolver29EDA011
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ApiLambdaDSServiceRole7A3013FF
+          - Arn
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/Api/LambdaDS/Resource
+  ApiLambdaDSQueryserviceResolverDAB6AD73:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: _service
+      TypeName: Query
+      DataSourceName: LambdaDS
+      Kind: UNIT
+    DependsOn:
+      - ApiLambdaDSFF24A5CA
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/Api/LambdaDS/Query_serviceResolver/Resource
+  ApiLambdaDSQueryentitiesResolverFE6B6BE5:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: _entities
+      TypeName: Query
+      DataSourceName: LambdaDS
+      Kind: UNIT
+    DependsOn:
+      - ApiLambdaDSFF24A5CA
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/Api/LambdaDS/Query_entitiesResolver/Resource
+  ApiLambdaDSQueryproductResolver228CDAD2:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: product
+      TypeName: Query
+      DataSourceName: LambdaDS
+      Kind: UNIT
+    DependsOn:
+      - ApiLambdaDSFF24A5CA
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/Api/LambdaDS/QueryproductResolver/Resource
+  ApiLambdaDSProductcreatedByResolver51300D54:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: createdBy
+      TypeName: Product
+      DataSourceName: LambdaDS
+      Kind: UNIT
+    DependsOn:
+      - ApiLambdaDSFF24A5CA
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/Api/LambdaDS/ProductcreatedByResolver/Resource
+  lambdaResolverServiceRole6B2312A0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/lambdaResolver/ServiceRole/Resource
+  lambdaResolverServiceRoleDefaultPolicy3E44DF25:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: lambdaResolverServiceRoleDefaultPolicy3E44DF25
+      Roles:
+        - Ref: lambdaResolverServiceRole6B2312A0
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/lambdaResolver/ServiceRole/DefaultPolicy/Resource
+  lambdaResolver29EDA011:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersb1b2c5842a5c1513c535a41d2f12981cfe6080b0119be1ac879642154fc1493bS3BucketE816D51D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb1b2c5842a5c1513c535a41d2f12981cfe6080b0119be1ac879642154fc1493bS3VersionKey8618C5A0
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb1b2c5842a5c1513c535a41d2f12981cfe6080b0119be1ac879642154fc1493bS3VersionKey8618C5A0
+      Role:
+        Fn::GetAtt:
+          - lambdaResolverServiceRole6B2312A0
+          - Arn
+      Environment:
+        Variables:
+          SCHEMA: |-
+            
+            schema @extends @link(url: "https://specs.apollo.dev/federation/v2.0", import: ["@key", "@shareable", "@provides", "@external", "@tag", "@extends", "@override"]) {query: Query}
+
+            type Product @key(fields: "id") @key(fields: "sku package") @key(fields: "sku variation { id }") {
+              id: ID!
+              sku: String
+              package: String
+              variation: ProductVariation
+              dimensions: ProductDimension
+              createdBy: User @provides(fields: "totalProductsCreated")
+              notes: String @tag(name: "internal")
+            }
+
+            type ProductDimension @shareable {
+              size: String
+              weight: Float
+              unit: String @inaccessible
+            }
+
+            type _Service {
+              sdl: String
+            }
+
+            type ProductVariation {
+              id: ID!
+            }
+            input ProductVariationInput {
+              id: ID!
+            }
+
+            type Query @extends {
+              _service: _Service!
+              _entities(representations: [_Any!]!): [_Entity]!
+              product(id: ID!): Product
+            }
+
+            type User @key(fields: "email") @extends {
+              email: ID! @external
+              name: String @override(from: "users")
+              totalProductsCreated: Int @external
+            }
+
+            union _Entity = User | Product
+
+            input _Any {
+                
+                id: String
+                sku: String
+                package: String
+                variation: ProductVariationInput
+            }
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - lambdaResolverServiceRoleDefaultPolicy3E44DF25
+      - lambdaResolverServiceRole6B2312A0
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/lambdaResolver/Resource
+      aws:asset:path: asset.b1b2c5842a5c1513c535a41d2f12981cfe6080b0119be1ac879642154fc1493b
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VQQVLDMAx8S++OSuilR9oycKBTSvIC4YjWiWMHyy6TyeTv2C5l4KRdzWolbQnl/RruFg/4xYVsuuUkrSOYao+yExtm8hGelDmJnTXsXZBe7D7MER325Mkl8hr8EHK7IrbBSUo46hvllTWzSOYTDgOPRsL07HA4f+rNoJIss7f9f1bLM/WYGrH/QqPYY//e4CN6rH8X/GFpr75cr7nhWSjsYaqszupcj1YrOeYHMpqFzsaFsQ21DIdcnoKR6XDBqwJTBAw5ichhG2RHfotMP6MQzW4D8yySEbS8vJTrGC2Ui5aVKlwwXvUE1bV+A75SFm52AQAA
+    Metadata:
+      aws:cdk:path: ProductsServiceStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParametersb1b2c5842a5c1513c535a41d2f12981cfe6080b0119be1ac879642154fc1493bS3BucketE816D51D:
+    Type: String
+    Description: S3 bucket for asset "b1b2c5842a5c1513c535a41d2f12981cfe6080b0119be1ac879642154fc1493b"
+  AssetParametersb1b2c5842a5c1513c535a41d2f12981cfe6080b0119be1ac879642154fc1493bS3VersionKey8618C5A0:
+    Type: String
+    Description: S3 key for asset version "b1b2c5842a5c1513c535a41d2f12981cfe6080b0119be1ac879642154fc1493b"
+  AssetParametersb1b2c5842a5c1513c535a41d2f12981cfe6080b0119be1ac879642154fc1493bArtifactHashF783DCDF:
+    Type: String
+    Description: Artifact hash for asset "b1b2c5842a5c1513c535a41d2f12981cfe6080b0119be1ac879642154fc1493b"
+Outputs:
+  AppSyncApiEndpoint:
+    Value:
+      Fn::GetAtt:
+        - ApiF70053CD
+        - GraphQLUrl
+    Export:
+      Name: AppSyncApiEndpoint
+  AppSyncApiKey:
+    Value:
+      Fn::GetAtt:
+        - ApiDefaultApiKeyF991C37B
+        - ApiKey
+    Export:
+      Name: AppSyncApiKey
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

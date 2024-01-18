@@ -1,0 +1,279 @@
+Resources:
+  Bucket83908E77:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: JmuParkingStack/Bucket/Resource
+  BucketPolicyE9A3008A:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: Bucket83908E77
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - Bucket83908E77
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - Bucket83908E77
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: JmuParkingStack/Bucket/Policy/Resource
+  DownloaderServiceRole4554DB19:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: JmuParkingStack/Downloader/ServiceRole/Resource
+  DownloaderServiceRoleDefaultPolicy616F28CE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - Bucket83908E77
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - Bucket83908E77
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: DownloaderServiceRoleDefaultPolicy616F28CE
+      Roles:
+        - Ref: DownloaderServiceRole4554DB19
+    Metadata:
+      aws:cdk:path: JmuParkingStack/Downloader/ServiceRole/DefaultPolicy/Resource
+  DownloaderD276429E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 45ccc1eeadef23d7a74b2fcd5e9e0f7d0d28713bb448301160da39e7b6ff08fd.zip
+      Role:
+        Fn::GetAtt:
+          - DownloaderServiceRole4554DB19
+          - Arn
+      Architectures:
+        - arm64
+      Description: Downloads parking availability to an S3 bucket
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: Bucket83908E77
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 10
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - DownloaderServiceRoleDefaultPolicy616F28CE
+      - DownloaderServiceRole4554DB19
+    Metadata:
+      aws:cdk:path: JmuParkingStack/Downloader/Resource
+      aws:asset:path: asset.45ccc1eeadef23d7a74b2fcd5e9e0f7d0d28713bb448301160da39e7b6ff08fd
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  TimerEventE9B94382:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Trigger download every 1 minute
+      ScheduleExpression: rate(1 minute)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - DownloaderD276429E
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: JmuParkingStack/TimerEvent/Resource
+  TimerEventAllowEventRuleJmuParkingStackDownloader0B8D65D83CD698C6:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DownloaderD276429E
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - TimerEventE9B94382
+          - Arn
+    Metadata:
+      aws:cdk:path: JmuParkingStack/TimerEvent/AllowEventRuleJmuParkingStackDownloader0B8D65D8
+  ErrorsFA5270DE:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 60
+      DatapointsToAlarm: 10
+      Dimensions:
+        - Name: FunctionName
+          Value:
+            Ref: DownloaderD276429E
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Period: 60
+      Statistic: Sum
+      Threshold: 1
+    Metadata:
+      aws:cdk:path: JmuParkingStack/Errors/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/0WPS27DMAxEz5K9zNbxptskQJdF4R7AUCQ2pa0PYEoJCkF3ryQbzWpmyOEDeIRhgNeDfHCn9NIZukL6ClItooymxAOkc1QLBnH5drvb5NMbUr/P8Z63cJaMWRhpr1pOzmucGT6avEenAnknSFpIozdYEU2fxM1lwcMkmTEwnKrsQEil8s+pdVwtMZeUBd7RlX4a404umoUyPuqHDOoH0snI1dZVMzmLxi5P38jd2gmyj6tq5xfvNIVGrm/AzC/3/g36I/SHmYm6NbpAFmHc9A+zGxsIUAEAAA==
+    Metadata:
+      aws:cdk:path: JmuParkingStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

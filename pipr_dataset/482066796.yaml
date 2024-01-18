@@ -1,0 +1,1842 @@
+Resources:
+  TGoals19919BAD:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: goalId
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: goalId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      TableName: MyCdkGoals-CdkGoals
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/TGoals/Resource
+  DynamoDbRole2F602CDB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/DynamoDbRole/Resource
+  DynamoDbRoleDefaultPolicy7F9A70F1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TGoals19919BAD
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: DynamoDbRoleDefaultPolicy7F9A70F1
+      Roles:
+        - Ref: DynamoDbRole2F602CDB
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/DynamoDbRole/DefaultPolicy/Resource
+  GoalsPolicyA7D984DB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TGoals19919BAD
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: GoalsPolicy
+      Roles:
+        - Ref: DynamoDbRole2F602CDB
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/GoalsPolicy/Resource
+  SourceAssetBucket61A8AEF8:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: aws-fullstack-template-source-assets-241929
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/SourceAssetBucket/Resource
+  WebsiteBucket75C24D94:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: aws-fullstack-template-website-246740
+      WebsiteConfiguration:
+        ErrorDocument: index.html
+        IndexDocument: index.html
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/WebsiteBucket/Resource
+  WebsiteBucketPolicyE10E3262:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: WebsiteBucket75C24D94
+      PolicyDocument:
+        Statement:
+          - Action: s3:Get*
+            Effect: Allow
+            Principal: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - WebsiteBucket75C24D94
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/WebsiteBucket/Policy/Resource
+  PipelineArtifactsBucketC4BB9BE3:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: aws-fullstack-template-codepipeline-artifacts-485995
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/PipelineArtifactsBucket/Resource
+  S3WebsiteDeployCustomResource5F20F5F3:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameters89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237S3Bucket05A3AF4A
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237S3VersionKey55958B37
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237S3VersionKey55958B37
+      DestinationBucketName:
+        Ref: SourceAssetBucket61A8AEF8
+      Prune: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/S3WebsiteDeploy/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237S3Bucket05A3AF4A
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237S3Bucket05A3AF4A
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SourceAssetBucket61A8AEF8
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SourceAssetBucket61A8AEF8
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4184245adc1f2ed71e1f0ae5719f8fd7f34324b750f1bf06b2fb5cf1f4014f50S3BucketB6159468
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4184245adc1f2ed71e1f0ae5719f8fd7f34324b750f1bf06b2fb5cf1f4014f50S3VersionKey2060CAC0
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4184245adc1f2ed71e1f0ae5719f8fd7f34324b750f1bf06b2fb5cf1f4014f50S3VersionKey2060CAC0
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Runtime: python3.6
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.4184245adc1f2ed71e1f0ae5719f8fd7f34324b750f1bf06b2fb5cf1f4014f50.zip
+      aws:asset:property: Code
+  AssetsCdnCFDistribution86D0FE89:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: CDN for FullStackCdkStack/WebsiteBucket
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::GetAtt:
+                - WebsiteBucket75C24D94
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig: {}
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AssetsCdn/CFDistribution
+  FunctionListGoals94D7D9D2:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3Bucket40A76ED3
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F
+      Handler: ListGoals.handler
+      Role:
+        Fn::GetAtt:
+          - DynamoDbRole2F602CDB
+          - Arn
+      Runtime: nodejs12.x
+      Description: Get list of goals for userId
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TGoals19919BAD
+      FunctionName: MyCdkGoals-ListGoals
+      MemorySize: 256
+      Timeout: 120
+    DependsOn:
+      - DynamoDbRoleDefaultPolicy7F9A70F1
+      - DynamoDbRole2F602CDB
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/FunctionListGoals/Resource
+      aws:asset:path: asset.ca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568
+      aws:asset:property: Code
+  FunctionCreateGoal0DDF94D3:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3Bucket40A76ED3
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F
+      Handler: CreateGoal.handler
+      Role:
+        Fn::GetAtt:
+          - DynamoDbRole2F602CDB
+          - Arn
+      Runtime: nodejs12.x
+      Description: Create goal for user id
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TGoals19919BAD
+      FunctionName: MyCdkGoals-CreateGoal
+      MemorySize: 256
+      Timeout: 120
+    DependsOn:
+      - DynamoDbRoleDefaultPolicy7F9A70F1
+      - DynamoDbRole2F602CDB
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/FunctionCreateGoal/Resource
+      aws:asset:path: asset.ca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568
+      aws:asset:property: Code
+  FunctionDeleteGoalF3370D13:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3Bucket40A76ED3
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F
+      Handler: DeleteGoal.handler
+      Role:
+        Fn::GetAtt:
+          - DynamoDbRole2F602CDB
+          - Arn
+      Runtime: nodejs12.x
+      Description: Delete goal for user id
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TGoals19919BAD
+      FunctionName: MyCdkGoals-DeleteGoal
+      MemorySize: 256
+      Timeout: 120
+    DependsOn:
+      - DynamoDbRoleDefaultPolicy7F9A70F1
+      - DynamoDbRole2F602CDB
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/FunctionDeleteGoal/Resource
+      aws:asset:path: asset.ca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568
+      aws:asset:property: Code
+  FunctionUpdateGoal678FFA9A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3Bucket40A76ED3
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F
+      Handler: UpdateGoal.handler
+      Role:
+        Fn::GetAtt:
+          - DynamoDbRole2F602CDB
+          - Arn
+      Runtime: nodejs12.x
+      Description: Update goal for user id
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TGoals19919BAD
+      FunctionName: MyCdkGoals-UpdateGoal
+      MemorySize: 256
+      Timeout: 120
+    DependsOn:
+      - DynamoDbRoleDefaultPolicy7F9A70F1
+      - DynamoDbRole2F602CDB
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/FunctionUpdateGoal/Resource
+      aws:asset:path: asset.ca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568
+      aws:asset:property: Code
+  FunctionGetGoalServiceRole03ABE1DF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/FunctionGetGoal/ServiceRole/Resource
+  FunctionGetGoalServiceRoleDefaultPolicy6AB160A1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TGoals19919BAD
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: FunctionGetGoalServiceRoleDefaultPolicy6AB160A1
+      Roles:
+        - Ref: FunctionGetGoalServiceRole03ABE1DF
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/FunctionGetGoal/ServiceRole/DefaultPolicy/Resource
+  FunctionGetGoalF32A35B1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3Bucket40A76ED3
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F
+      Handler: GetGoal.handler
+      Role:
+        Fn::GetAtt:
+          - FunctionGetGoalServiceRole03ABE1DF
+          - Arn
+      Runtime: nodejs12.x
+      Description: Get goal for user id
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TGoals19919BAD
+      FunctionName: MyCdkGoals-GetGoal
+      MemorySize: 256
+      Timeout: 120
+    DependsOn:
+      - FunctionGetGoalServiceRoleDefaultPolicy6AB160A1
+      - FunctionGetGoalServiceRole03ABE1DF
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/FunctionGetGoal/Resource
+      aws:asset:path: asset.ca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568
+      aws:asset:property: Code
+  SnsRole29BDC428:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: cognito-idp.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/SnsRole/Resource
+  CognitoSnsPolicy3A0041D9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:publish
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CognitoSnsPolicy
+      Roles:
+        - Ref: SnsRole29BDC428
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/CognitoSnsPolicy/Resource
+  UserPool6BA7E5F2:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: "Here is your verification code: {####}"
+      EmailVerificationSubject: Your verification code
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      Schema:
+        - Mutable: false
+          Name: email
+          Required: true
+      SmsVerificationMessage: Your username is {username}, Your verification code is {####}
+      UsernameAttributes:
+        - email
+      UserPoolName: MyCdkGoals-UserPool
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: "Here is your verification code: {####}"
+        EmailSubject: Your verification code
+        SmsMessage: Your username is {username}, Your verification code is {####}
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/UserPool/Resource
+  UserPoolClient2F5918F7:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: UserPool6BA7E5F2
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ClientName: MyCdkGoals-UserPoolClient
+      GenerateSecret: false
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/UserPoolClient/Resource
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: UserPoolClient2F5918F7
+          ProviderName:
+            Fn::GetAtt:
+              - UserPool6BA7E5F2
+              - ProviderName
+      IdentityPoolName: MyCdkGoalsIdentity
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/IdentityPool
+  CognitoUnAuthorizedRole0DA19B8E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: IdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/CognitoUnAuthorizedRole/Resource
+  CognitoUnauthorizedPolicyC2593084:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - mobileanalytics:PutEvents
+              - cognito-sync:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CognitoUnauthorizedPolicy
+      Roles:
+        - Ref: CognitoUnAuthorizedRole0DA19B8E
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/CognitoUnauthorizedPolicy/Resource
+  CognitoAuthorizedRole14E74FE0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: IdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/CognitoAuthorizedRole/Resource
+  CognitoAuthorizedPolicy65A48715:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - mobileanalytics:PutEvents
+              - cognito-sync:*
+              - cognito-identity:*
+            Effect: Allow
+            Resource: "*"
+          - Action: execute-api:Invoke
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CognitoAuthorizedPolicy
+      Roles:
+        - Ref: CognitoAuthorizedRole14E74FE0
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/CognitoAuthorizedPolicy/Resource
+  DefaultValid:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: IdentityPool
+      Roles:
+        unauthenticated:
+          Fn::GetAtt:
+            - CognitoUnAuthorizedRole0DA19B8E
+            - Arn
+        authenticated:
+          Fn::GetAtt:
+            - CognitoAuthorizedRole14E74FE0
+            - Arn
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/DefaultValid
+  AppApiE7BADA01:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: MyCdkGoals
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Resource
+  AppApiCloudWatchRole8CE3A2DC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/CloudWatchRole/Resource
+  AppApiAccountBFDB23F0:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - AppApiCloudWatchRole8CE3A2DC
+          - Arn
+    DependsOn:
+      - AppApiE7BADA01
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Account
+  AppApiDeployment7658F31331eaf4d0b6a76764e5c9cc199970a5a6:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: AppApiE7BADA01
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - AppApiANY01DE869A
+      - AppApigoalsidDELETE28E0806F
+      - AppApigoalsidGET91935CCF
+      - AppApigoalsidOPTIONS6D5D081E
+      - AppApigoalsidPUT6380E2BF
+      - AppApigoalsid4B444114
+      - AppApigoalsGETB37D4332
+      - AppApigoalsOPTIONS6E146372
+      - AppApigoalsPOSTCD33350C
+      - AppApigoals8F4EA88E
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Deployment/Resource
+  AppApiDeploymentStageprod4B09D08C:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: AppApiE7BADA01
+      DeploymentId:
+        Ref: AppApiDeployment7658F31331eaf4d0b6a76764e5c9cc199970a5a6
+      StageName: prod
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/DeploymentStage.prod/Resource
+  AppApiANY01DE869A:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - AppApiE7BADA01
+          - RootResourceId
+      RestApiId:
+        Ref: AppApiE7BADA01
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/ANY/Resource
+  AppApigoals8F4EA88E:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - AppApiE7BADA01
+          - RootResourceId
+      PathPart: goals
+      RestApiId:
+        Ref: AppApiE7BADA01
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/Resource
+  AppApigoalsGETApiPermissionFullStackCdkStackAppApiA6103FD9GETgoals2795BBEF:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FunctionListGoals94D7D9D2
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /
+            - Ref: AppApiDeploymentStageprod4B09D08C
+            - /GET/goals
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/GET/ApiPermission.FullStackCdkStackAppApiA6103FD9.GET..goals
+  AppApigoalsGETApiPermissionTestFullStackCdkStackAppApiA6103FD9GETgoals2EBFDA32:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FunctionListGoals94D7D9D2
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /test-invoke-stage/GET/goals
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/GET/ApiPermission.Test.FullStackCdkStackAppApiA6103FD9.GET..goals
+  AppApigoalsGETB37D4332:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: AppApigoals8F4EA88E
+      RestApiId:
+        Ref: AppApiE7BADA01
+      AuthorizationType: AWS_IAM
+      AuthorizerId:
+        Ref: ApiAuthorizer
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - FunctionListGoals94D7D9D2
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/GET/Resource
+  AppApigoalsPOSTApiPermissionFullStackCdkStackAppApiA6103FD9POSTgoals66DF7ADC:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FunctionCreateGoal0DDF94D3
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /
+            - Ref: AppApiDeploymentStageprod4B09D08C
+            - /POST/goals
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/POST/ApiPermission.FullStackCdkStackAppApiA6103FD9.POST..goals
+  AppApigoalsPOSTApiPermissionTestFullStackCdkStackAppApiA6103FD9POSTgoalsF5FB6968:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FunctionCreateGoal0DDF94D3
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /test-invoke-stage/POST/goals
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/POST/ApiPermission.Test.FullStackCdkStackAppApiA6103FD9.POST..goals
+  AppApigoalsPOSTCD33350C:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: AppApigoals8F4EA88E
+      RestApiId:
+        Ref: AppApiE7BADA01
+      AuthorizationType: AWS_IAM
+      AuthorizerId:
+        Ref: ApiAuthorizer
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - FunctionCreateGoal0DDF94D3
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/POST/Resource
+  AppApigoalsOPTIONS6E146372:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: AppApigoals8F4EA88E
+      RestApiId:
+        Ref: AppApiE7BADA01
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'false'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE'"
+            StatusCode: "200"
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/OPTIONS/Resource
+  AppApigoalsid4B444114:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: AppApigoals8F4EA88E
+      PathPart: "{id}"
+      RestApiId:
+        Ref: AppApiE7BADA01
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/Resource
+  AppApigoalsidGETApiPermissionFullStackCdkStackAppApiA6103FD9GETgoalsidC41BB243:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FunctionGetGoalF32A35B1
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /
+            - Ref: AppApiDeploymentStageprod4B09D08C
+            - /GET/goals/*
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/GET/ApiPermission.FullStackCdkStackAppApiA6103FD9.GET..goals.{id}
+  AppApigoalsidGETApiPermissionTestFullStackCdkStackAppApiA6103FD9GETgoalsid428D1C0E:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FunctionGetGoalF32A35B1
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /test-invoke-stage/GET/goals/*
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/GET/ApiPermission.Test.FullStackCdkStackAppApiA6103FD9.GET..goals.{id}
+  AppApigoalsidGET91935CCF:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: AppApigoalsid4B444114
+      RestApiId:
+        Ref: AppApiE7BADA01
+      AuthorizationType: AWS_IAM
+      AuthorizerId:
+        Ref: ApiAuthorizer
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - FunctionGetGoalF32A35B1
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/GET/Resource
+  AppApigoalsidPUTApiPermissionFullStackCdkStackAppApiA6103FD9PUTgoalsidA6A286E0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FunctionUpdateGoal678FFA9A
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /
+            - Ref: AppApiDeploymentStageprod4B09D08C
+            - /PUT/goals/*
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/PUT/ApiPermission.FullStackCdkStackAppApiA6103FD9.PUT..goals.{id}
+  AppApigoalsidPUTApiPermissionTestFullStackCdkStackAppApiA6103FD9PUTgoalsidC2118DCB:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FunctionUpdateGoal678FFA9A
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /test-invoke-stage/PUT/goals/*
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/PUT/ApiPermission.Test.FullStackCdkStackAppApiA6103FD9.PUT..goals.{id}
+  AppApigoalsidPUT6380E2BF:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: PUT
+      ResourceId:
+        Ref: AppApigoalsid4B444114
+      RestApiId:
+        Ref: AppApiE7BADA01
+      AuthorizationType: AWS_IAM
+      AuthorizerId:
+        Ref: ApiAuthorizer
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - FunctionUpdateGoal678FFA9A
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/PUT/Resource
+  AppApigoalsidDELETEApiPermissionFullStackCdkStackAppApiA6103FD9DELETEgoalsid92A3A31A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FunctionDeleteGoalF3370D13
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /
+            - Ref: AppApiDeploymentStageprod4B09D08C
+            - /DELETE/goals/*
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/DELETE/ApiPermission.FullStackCdkStackAppApiA6103FD9.DELETE..goals.{id}
+  AppApigoalsidDELETEApiPermissionTestFullStackCdkStackAppApiA6103FD9DELETEgoalsid07991C2C:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FunctionDeleteGoalF3370D13
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /test-invoke-stage/DELETE/goals/*
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/DELETE/ApiPermission.Test.FullStackCdkStackAppApiA6103FD9.DELETE..goals.{id}
+  AppApigoalsidDELETE28E0806F:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: DELETE
+      ResourceId:
+        Ref: AppApigoalsid4B444114
+      RestApiId:
+        Ref: AppApiE7BADA01
+      AuthorizationType: AWS_IAM
+      AuthorizerId:
+        Ref: ApiAuthorizer
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - FunctionDeleteGoalF3370D13
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/DELETE/Resource
+  AppApigoalsidOPTIONS6D5D081E:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: AppApigoalsid4B444114
+      RestApiId:
+        Ref: AppApiE7BADA01
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'false'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE'"
+            StatusCode: "200"
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AppApi/Default/goals/{id}/OPTIONS/Resource
+  ApiAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      RestApiId:
+        Ref: AppApiE7BADA01
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      Name: ApiAuthorizer
+      ProviderARNs:
+        - Fn::GetAtt:
+            - UserPool6BA7E5F2
+            - Arn
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/ApiAuthorizer
+  CodeBuildRole728CBADE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+      RoleName: CodeBuildRole
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/CodeBuildRole/Resource
+  CodeBuildRoleDefaultPolicy829527DE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SourceAssetBucket61A8AEF8
+                  - Arn
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketC4BB9BE3
+                  - Arn
+              - Fn::GetAtt:
+                  - WebsiteBucket75C24D94
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - WebsiteBucket75C24D94
+                        - Arn
+                    - /*
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:CreateLogGroup
+              - cloudfront:CreateInvalidation
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CodeBuildProject4B91CF3F
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CodeBuildProject4B91CF3F
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: CodeBuildProject4B91CF3F
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketC4BB9BE3
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketC4BB9BE3
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CodeBuildRoleDefaultPolicy829527DE
+      Roles:
+        - Ref: CodeBuildRole728CBADE
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/CodeBuildRole/DefaultPolicy/Resource
+  CodePipelineRoleB31C27BE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+      RoleName: CodePipelineRole
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/CodePipelineRole/Resource
+  CodePipelineRoleDefaultPolicy2731C56D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SourceAssetBucket61A8AEF8
+                  - Arn
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketC4BB9BE3
+                  - Arn
+              - Fn::GetAtt:
+                  - WebsiteBucket75C24D94
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - WebsiteBucket75C24D94
+                        - Arn
+                    - /*
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodeBuildProject4B91CF3F
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketC4BB9BE3
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketC4BB9BE3
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AssetsCodePipelineSources3SourceCodePipelineActionRole753E3E34
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AssetsCodePipelineBuildbuildanddeployCodePipelineActionRoleE74C0347
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodePipelineRoleDefaultPolicy2731C56D
+      Roles:
+        - Ref: CodePipelineRoleB31C27BE
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/CodePipelineRole/DefaultPolicy/Resource
+  CodeBuildProject4B91CF3F:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: API_GATEWAY_REGION
+            Type: PLAINTEXT
+            Value:
+              Ref: AWS::Region
+          - Name: API_GATEWAY_URL
+            Type: PLAINTEXT
+            Value:
+              Fn::Join:
+                - ""
+                - - https://
+                  - Ref: AppApiE7BADA01
+                  - .execute-api.
+                  - Ref: AWS::Region
+                  - "."
+                  - Ref: AWS::URLSuffix
+                  - /
+                  - Ref: AppApiDeploymentStageprod4B09D08C
+          - Name: COGNITO_REGION
+            Type: PLAINTEXT
+            Value:
+              Ref: AWS::Region
+          - Name: COGNITO_USER_POOL_ID
+            Type: PLAINTEXT
+            Value:
+              Ref: UserPool6BA7E5F2
+          - Name: COGNITO_APP_CLIENT_ID
+            Type: PLAINTEXT
+            Value:
+              Ref: UserPoolClient2F5918F7
+          - Name: COGNITO_IDENTITY_POOL_ID
+            Type: PLAINTEXT
+            Value:
+              Ref: IdentityPool
+          - Name: WEBSITE_BUCKET
+            Type: PLAINTEXT
+            Value:
+              Ref: WebsiteBucket75C24D94
+        Image: aws/codebuild/standard:3.0
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CodeBuildRole728CBADE
+          - Arn
+      Source:
+        BuildSpec: buildspec.yml
+        Type: CODEPIPELINE
+      Description: CodeBuild Project for MyCdkGoals.
+      Name: MyCdkGoals-build
+      Tags:
+        - Key: app-name
+          Value: MyCdkGoals
+      TimeoutInMinutes: 5
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/CodeBuildProject/Resource
+  AssetsCodePipelineC9CF3FAA:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - CodePipelineRoleB31C27BE
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              Configuration:
+                S3Bucket:
+                  Ref: SourceAssetBucket61A8AEF8
+                S3ObjectKey: assets.zip
+              Name: s3Source
+              OutputArtifacts:
+                - Name: MyCdkGoals-SourceArtifact
+              RoleArn:
+                Fn::GetAtt:
+                  - AssetsCodePipelineSources3SourceCodePipelineActionRole753E3E34
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CodeBuildProject4B91CF3F
+              InputArtifacts:
+                - Name: MyCdkGoals-SourceArtifact
+              Name: build-and-deploy
+              OutputArtifacts:
+                - Name: MyCdkGoals-BuildArtifact
+              RoleArn:
+                Fn::GetAtt:
+                  - AssetsCodePipelineBuildbuildanddeployCodePipelineActionRoleE74C0347
+                  - Arn
+              RunOrder: 1
+          Name: Build
+      ArtifactStore:
+        Location:
+          Ref: PipelineArtifactsBucketC4BB9BE3
+        Type: S3
+      Name: MyCdkGoals-Assets-Pipeline
+    DependsOn:
+      - CodePipelineRoleDefaultPolicy2731C56D
+      - CodePipelineRoleB31C27BE
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AssetsCodePipeline/Resource
+  AssetsCodePipelineSources3SourceCodePipelineActionRole753E3E34:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AssetsCodePipeline/Source/s3Source/CodePipelineActionRole/Resource
+  AssetsCodePipelineSources3SourceCodePipelineActionRoleDefaultPolicy5DB0E73E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SourceAssetBucket61A8AEF8
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SourceAssetBucket61A8AEF8
+                        - Arn
+                    - /*
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketC4BB9BE3
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketC4BB9BE3
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: AssetsCodePipelineSources3SourceCodePipelineActionRoleDefaultPolicy5DB0E73E
+      Roles:
+        - Ref: AssetsCodePipelineSources3SourceCodePipelineActionRole753E3E34
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AssetsCodePipeline/Source/s3Source/CodePipelineActionRole/DefaultPolicy/Resource
+  AssetsCodePipelineBuildbuildanddeployCodePipelineActionRoleE74C0347:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AssetsCodePipeline/Build/build-and-deploy/CodePipelineActionRole/Resource
+  AssetsCodePipelineBuildbuildanddeployCodePipelineActionRoleDefaultPolicyA4768945:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodeBuildProject4B91CF3F
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: AssetsCodePipelineBuildbuildanddeployCodePipelineActionRoleDefaultPolicyA4768945
+      Roles:
+        - Ref: AssetsCodePipelineBuildbuildanddeployCodePipelineActionRoleE74C0347
+    Metadata:
+      aws:cdk:path: FullStackCdkStack/AssetsCodePipeline/Build/build-and-deploy/CodePipelineActionRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.64.1,@aws-cdk/aws-apigateway=1.64.1,@aws-cdk/aws-applicationautoscaling=1.64.1,@aws-cdk/aws-autoscaling=1.64.1,@aws-cdk/aws-autoscaling-common=1.64.1,@aws-cdk/aws-autoscaling-hooktargets=1.64.1,@aws-cdk/aws-certificatemanager=1.64.1,@aws-cdk/aws-cloudformation=1.64.1,@aws-cdk/aws-cloudfront=1.64.1,@aws-cdk/aws-cloudwatch=1.64.1,@aws-cdk/aws-codebuild=1.64.1,@aws-cdk/aws-codeguruprofiler=1.64.1,@aws-cdk/aws-codepipeline=1.64.1,@aws-cdk/aws-codepipeline-actions=1.64.1,@aws-cdk/aws-cognito=1.64.1,@aws-cdk/aws-dynamodb=1.64.1,@aws-cdk/aws-ec2=1.64.1,@aws-cdk/aws-ecr=1.64.1,@aws-cdk/aws-ecr-assets=1.64.1,@aws-cdk/aws-ecs=1.64.1,@aws-cdk/aws-elasticloadbalancingv2=1.64.1,@aws-cdk/aws-events=1.64.1,@aws-cdk/aws-events-targets=1.64.1,@aws-cdk/aws-iam=1.64.1,@aws-cdk/aws-kms=1.64.1,@aws-cdk/aws-lambda=1.64.1,@aws-cdk/aws-logs=1.64.1,@aws-cdk/aws-s3=1.64.1,@aws-cdk/aws-s3-assets=1.64.1,@aws-cdk/aws-s3-deployment=1.64.1,@aws-cdk/aws-servicediscovery=1.64.1,@aws-cdk/aws-sns=1.64.1,@aws-cdk/aws-sns-subscriptions=1.64.1,@aws-cdk/aws-sqs=1.64.1,@aws-cdk/aws-ssm=1.64.1,@aws-cdk/cloud-assembly-schema=1.64.1,@aws-cdk/core=1.64.1,@aws-cdk/custom-resources=1.64.1,@aws-cdk/cx-api=1.64.1,@aws-cdk/region-info=1.64.1,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters4184245adc1f2ed71e1f0ae5719f8fd7f34324b750f1bf06b2fb5cf1f4014f50S3BucketB6159468:
+    Type: String
+    Description: S3 bucket for asset "4184245adc1f2ed71e1f0ae5719f8fd7f34324b750f1bf06b2fb5cf1f4014f50"
+  AssetParameters4184245adc1f2ed71e1f0ae5719f8fd7f34324b750f1bf06b2fb5cf1f4014f50S3VersionKey2060CAC0:
+    Type: String
+    Description: S3 key for asset version "4184245adc1f2ed71e1f0ae5719f8fd7f34324b750f1bf06b2fb5cf1f4014f50"
+  AssetParameters4184245adc1f2ed71e1f0ae5719f8fd7f34324b750f1bf06b2fb5cf1f4014f50ArtifactHash846130E4:
+    Type: String
+    Description: Artifact hash for asset "4184245adc1f2ed71e1f0ae5719f8fd7f34324b750f1bf06b2fb5cf1f4014f50"
+  AssetParameters89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237S3Bucket05A3AF4A:
+    Type: String
+    Description: S3 bucket for asset "89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237"
+  AssetParameters89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237S3VersionKey55958B37:
+    Type: String
+    Description: S3 key for asset version "89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237"
+  AssetParameters89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237ArtifactHash9043800D:
+    Type: String
+    Description: Artifact hash for asset "89ffc0e6cac1f94d73d9b17f5c1b98a96fd87547edb881084bea86a9d4662237"
+  AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3Bucket40A76ED3:
+    Type: String
+    Description: S3 bucket for asset "ca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568"
+  AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568S3VersionKey0488AD8F:
+    Type: String
+    Description: S3 key for asset version "ca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568"
+  AssetParametersca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568ArtifactHash14C71B8C:
+    Type: String
+    Description: Artifact hash for asset "ca08873944f61d9f58e00e57ecb677ab7f83fa93efb7b4a3117550211fb6c568"
+Outputs:
+  AppApiEndpoint979256A8:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: AppApiE7BADA01
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: AppApiDeploymentStageprod4B09D08C
+          - /
+  WebsiteBucketUrl:
+    Value:
+      Fn::GetAtt:
+        - WebsiteBucket75C24D94
+        - WebsiteURL
+  CloudFrontCdnUrl:
+    Value:
+      Fn::Join:
+        - ""
+        - - http://
+          - Fn::GetAtt:
+              - AssetsCdnCFDistribution86D0FE89
+              - DomainName
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

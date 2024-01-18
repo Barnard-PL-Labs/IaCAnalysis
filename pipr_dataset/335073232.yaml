@@ -1,0 +1,363 @@
+Outputs:
+  awsprojectregion:
+    Value:
+      Ref: AWS::Region
+  cognitoComponentawsuserpoolsid1AA115D6:
+    Value:
+      Ref: cognitoComponentuserPool03A6DBB4
+  cognitoComponentawsuserpoolswebclientidD4E9C42B:
+    Value:
+      Ref: cognitoComponentuserPoolClient11D73530
+  cognitoComponentawsidentitypoolidAE1ED89F:
+    Value:
+      Ref: cognitoComponentidentityPoolC69A5177
+  storageComponentawsstoragebucketnameE199F756:
+    Value:
+      Ref: storageComponentstorageBucket934A3A85
+Resources:
+  cognitoComponentuserPool03A6DBB4:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UserPoolName: amplify-storage-cdk-user-pool
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkBackendStack/cognitoComponent/userPool/Resource
+  cognitoComponentuserPoolClient11D73530:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: cognitoComponentuserPool03A6DBB4
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      GenerateSecret: false
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: CdkBackendStack/cognitoComponent/userPoolClient/Resource
+  cognitoComponentidentityPoolC69A5177:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: cognitoComponentuserPoolClient11D73530
+          ProviderName:
+            Fn::GetAtt:
+              - cognitoComponentuserPool03A6DBB4
+              - ProviderName
+    Metadata:
+      aws:cdk:path: CdkBackendStack/cognitoComponent/identityPool
+  cognitoComponentCognitoDefaultAuthenticatedRole17412586:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: cognitoComponentidentityPoolC69A5177
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkBackendStack/cognitoComponent/CognitoDefaultAuthenticatedRole/Resource
+  cognitoComponentCognitoDefaultUnauthenticatedRoleC4AAD8B7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: cognitoComponentidentityPoolC69A5177
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkBackendStack/cognitoComponent/CognitoDefaultUnauthenticatedRole/Resource
+  cognitoComponentDefaultValid2C33EE88:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: cognitoComponentidentityPoolC69A5177
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - cognitoComponentCognitoDefaultAuthenticatedRole17412586
+            - Arn
+        unauthenticated:
+          Fn::GetAtt:
+            - cognitoComponentCognitoDefaultUnauthenticatedRoleC4AAD8B7
+            - Arn
+    Metadata:
+      aws:cdk:path: CdkBackendStack/cognitoComponent/DefaultValid
+  storageComponentstorageBucket934A3A85:
+    Type: AWS::S3::Bucket
+    Properties:
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - PUT
+              - GET
+              - DELETE
+              - HEAD
+              - POST
+            AllowedOrigins:
+              - "*"
+            ExposedHeaders:
+              - x-amz-id-2
+              - ETag
+              - x-amz-request-id
+              - x-amz-server-side-encryption
+            MaxAge: 3000
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkBackendStack/storageComponent/storageBucket/Resource
+  storageComponentAuthenticatedPrivatePolicy349F0803:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:s3:::"
+                    - Ref: storageComponentstorageBucket934A3A85
+                    - /public/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:s3:::"
+                    - Ref: storageComponentstorageBucket934A3A85
+                    - /protected/${cognito-identity.amazonaws.com:sub}/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:s3:::"
+                    - Ref: storageComponentstorageBucket934A3A85
+                    - /private/${cognito-identity.amazonaws.com:sub}/*
+          - Action: s3:ListBucket
+            Condition:
+              StringLike:
+                s3:prefix:
+                  - public/
+                  - public/*
+                  - protected/
+                  - protected/*
+                  - private/${cognito-identity.amazonaws.com:sub}/
+                  - private/${cognito-identity.amazonaws.com:sub}/*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: storageComponentstorageBucket934A3A85
+          - Action: s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: storageComponentstorageBucket934A3A85
+                  - /uploads/*
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: storageComponentstorageBucket934A3A85
+                  - /protected/*
+        Version: "2012-10-17"
+      PolicyName: storageComponentAuthenticatedPrivatePolicy349F0803
+      Roles:
+        - Ref: cognitoComponentCognitoDefaultAuthenticatedRole17412586
+    Metadata:
+      aws:cdk:path: CdkBackendStack/storageComponent/AuthenticatedPrivatePolicy/Resource
+  storageComponentUnAuthenticatedPrivatePolicy6A57C2FB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: storageComponentstorageBucket934A3A85
+                  - /public/*
+          - Action: s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: storageComponentstorageBucket934A3A85
+                  - /uploads/*
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: storageComponentstorageBucket934A3A85
+                  - /protected/*
+          - Action: s3:ListBucket
+            Condition:
+              StringLike:
+                s3:prefix:
+                  - public/
+                  - public/*
+                  - protected/
+                  - protected/*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: storageComponentstorageBucket934A3A85
+        Version: "2012-10-17"
+      PolicyName: storageComponentUnAuthenticatedPrivatePolicy6A57C2FB
+      Roles:
+        - Ref: cognitoComponentCognitoDefaultUnauthenticatedRoleC4AAD8B7
+    Metadata:
+      aws:cdk:path: CdkBackendStack/storageComponent/UnAuthenticatedPrivatePolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02OSw7CMAxEz8I+GAosWAJdsQIVcYAqNWDaxihxQCjK3Umo+Kz8ZvybAmbTBUxHq/rhxrppJ0GzRQgHqXWrypPZebl5USUbJ9ZryV6Fjr3VmDk1GhJiE1U+kdbPhoQhHB3aPXOXh778gbIjNPLf+jnbJgHJ87P8ryvucC0p26VPZlRU9xCy+Y6V65470s8sB4rKzSFsvG7xfX2gGKMy3CBc3eReLKGYQTG6OqKx9elZj1AN9QXY3AniIAEAAA==
+    Metadata:
+      aws:cdk:path: CdkBackendStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

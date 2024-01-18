@@ -1,0 +1,1417 @@
+Parameters:
+  EETeamId:
+    Type: String
+    Default: "123456789012"
+    Description: Unique ID of this Team
+  CreateDMSRole:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    ConstraintDescription: Value must be set to true or false.
+    Description: Set this value to false if the 'dms-vpc-role' IAM Role has already been created in this AWS Account.
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Conditions:
+  createDMSRoleCondition:
+    Fn::Equals:
+      - Ref: CreateDMSRole
+      - "true"
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Resources:
+  dataeduKMS6B3AB969:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:aws:iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+            Sid: Enable IAM User Permissions
+        Version: "2012-10-17"
+      Description: KMS key to encrypt objects in the dataEDU S3 buckets.
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduKMS/Resource
+  dataeduKMSAlias357469DC:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/dataedu-key
+      TargetKeyId:
+        Fn::GetAtt:
+          - dataeduKMS6B3AB969
+          - Arn
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduKMS/Alias/Resource
+  dataeduRawBucket945ADDC3:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - dataeduKMS6B3AB969
+                  - Arn
+              SSEAlgorithm: aws:kms
+      BucketName:
+        Fn::Join:
+          - ""
+          - - dataedu-raw-
+            - Ref: EETeamId
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduRawBucket/Resource
+  dataeduRawBucketPolicyEDC69BFC:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: dataeduRawBucket945ADDC3
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                s3:x-amz-server-side-encryption: AES256
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduRawBucket945ADDC3
+                      - Arn
+                  - /*
+          - Action: s3:PutObject
+            Condition:
+              StringNotLikeIfExists:
+                s3:x-amz-server-side-encryption-aws-kms-key-id:
+                  Fn::GetAtt:
+                    - dataeduKMS6B3AB969
+                    - Arn
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduRawBucket945ADDC3
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduRawBucket/Policy/Resource
+  dataeduCuratedBucket2AB663B1:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - dataeduKMS6B3AB969
+                  - Arn
+              SSEAlgorithm: aws:kms
+      BucketName:
+        Fn::Join:
+          - ""
+          - - dataedu-curated-
+            - Ref: EETeamId
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduCuratedBucket/Resource
+  dataeduCuratedBucketPolicy25B1E0AF:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: dataeduCuratedBucket2AB663B1
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                s3:x-amz-server-side-encryption: AES256
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduCuratedBucket2AB663B1
+                      - Arn
+                  - /*
+          - Action: s3:PutObject
+            Condition:
+              StringNotLikeIfExists:
+                s3:x-amz-server-side-encryption-aws-kms-key-id:
+                  Fn::GetAtt:
+                    - dataeduKMS6B3AB969
+                    - Arn
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduCuratedBucket2AB663B1
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduCuratedBucket/Policy/Resource
+  dataeduResultsBucketBC9A3373:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - dataeduKMS6B3AB969
+                  - Arn
+              SSEAlgorithm: aws:kms
+      BucketName:
+        Fn::Join:
+          - ""
+          - - dataedu-results-
+            - Ref: EETeamId
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduResultsBucket/Resource
+  dataeduResultsBucketPolicy7149F8C9:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: dataeduResultsBucketBC9A3373
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                s3:x-amz-server-side-encryption: AES256
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduResultsBucketBC9A3373
+                      - Arn
+                  - /*
+          - Action: s3:PutObject
+            Condition:
+              StringNotLikeIfExists:
+                s3:x-amz-server-side-encryption-aws-kms-key-id:
+                  Fn::GetAtt:
+                    - dataeduKMS6B3AB969
+                    - Arn
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduResultsBucketBC9A3373
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduResultsBucket/Policy/Resource
+  dataEDURDSSecretA0904793:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString:
+        ExcludePunctuation: true
+        GenerateStringKey: password
+        SecretStringTemplate: '{"username":"admin"}'
+      Name: dataedu-rds-secret
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataEDURDSSecret/Resource
+  dataEDURDSSecretAttachment1F15340A:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId:
+        Ref: dataEDURDSSecretA0904793
+      TargetId:
+        Ref: dataeduRDSInstance2BB1EFE2
+      TargetType: AWS::RDS::DBInstance
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataEDURDSSecret/Attachment/Resource
+  dataeduDMSVPCRole12E65ABC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: dms.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonDMSVPCManagementRole
+      RoleName: dms-vpc-role
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduDMSVPCRole/Resource
+    Condition: createDMSRoleCondition
+  dataeduDMSSourceRole55726A42:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - dms.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduDMSSourceRole/Resource
+  dataeduDMSSourceRoleDefaultPolicy4D64F344:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: kms:Decrypt
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - dataeduKMS6B3AB969
+                - Arn
+          - Action:
+              - secretsmanager:DescribeSecret
+              - secretsmanager:GetSecretValue
+            Effect: Allow
+            Resource:
+              Ref: dataEDURDSSecretA0904793
+        Version: "2012-10-17"
+      PolicyName: dataeduDMSSourceRoleDefaultPolicy4D64F344
+      Roles:
+        - Ref: dataeduDMSSourceRole55726A42
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduDMSSourceRole/DefaultPolicy/Resource
+  dataeduDMSTargetRoleFF1FC64E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: dms.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduDMSTargetRole/Resource
+  dataeduDMSTargetRoleDefaultPolicy58C5A871:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - dataeduRawBucket945ADDC3
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - dataeduRawBucket945ADDC3
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - dataeduKMS6B3AB969
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: dataeduDMSTargetRoleDefaultPolicy58C5A871
+      Roles:
+        - Ref: dataeduDMSTargetRoleFF1FC64E
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduDMSTargetRole/DefaultPolicy/Resource
+  dataeduVPCF752A41B:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/Resource
+  dataeduVPCdataedupublicSubnet1Subnet74067E1D:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: dataeduVPCF752A41B
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: dataedu-public-
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet1
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet1/Subnet
+  dataeduVPCdataedupublicSubnet1RouteTable35F12869:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: dataeduVPCF752A41B
+      Tags:
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet1
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet1/RouteTable
+  dataeduVPCdataedupublicSubnet1RouteTableAssociationCD1DD092:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: dataeduVPCdataedupublicSubnet1RouteTable35F12869
+      SubnetId:
+        Ref: dataeduVPCdataedupublicSubnet1Subnet74067E1D
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet1/RouteTableAssociation
+  dataeduVPCdataedupublicSubnet1DefaultRoute0CF23CE4:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: dataeduVPCdataedupublicSubnet1RouteTable35F12869
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: dataeduVPCIGW1F5E0B85
+    DependsOn:
+      - dataeduVPCVPCGW8A53B470
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet1/DefaultRoute
+  dataeduVPCdataedupublicSubnet1EIPE4A597B7:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet1
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet1/EIP
+  dataeduVPCdataedupublicSubnet1NATGatewayFC94A3CB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId:
+        Ref: dataeduVPCdataedupublicSubnet1Subnet74067E1D
+      AllocationId:
+        Fn::GetAtt:
+          - dataeduVPCdataedupublicSubnet1EIPE4A597B7
+          - AllocationId
+      Tags:
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet1
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet1/NATGateway
+  dataeduVPCdataedupublicSubnet2SubnetA0439A03:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: dataeduVPCF752A41B
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: dataedu-public-
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet2
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet2/Subnet
+  dataeduVPCdataedupublicSubnet2RouteTableCB9C3A58:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: dataeduVPCF752A41B
+      Tags:
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet2
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet2/RouteTable
+  dataeduVPCdataedupublicSubnet2RouteTableAssociation7D7C3FBF:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: dataeduVPCdataedupublicSubnet2RouteTableCB9C3A58
+      SubnetId:
+        Ref: dataeduVPCdataedupublicSubnet2SubnetA0439A03
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet2/RouteTableAssociation
+  dataeduVPCdataedupublicSubnet2DefaultRouteB34B072A:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: dataeduVPCdataedupublicSubnet2RouteTableCB9C3A58
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: dataeduVPCIGW1F5E0B85
+    DependsOn:
+      - dataeduVPCVPCGW8A53B470
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet2/DefaultRoute
+  dataeduVPCdataedupublicSubnet2EIP3BD239AE:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet2
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet2/EIP
+  dataeduVPCdataedupublicSubnet2NATGateway23CEB395:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId:
+        Ref: dataeduVPCdataedupublicSubnet2SubnetA0439A03
+      AllocationId:
+        Fn::GetAtt:
+          - dataeduVPCdataedupublicSubnet2EIP3BD239AE
+          - AllocationId
+      Tags:
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet2
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-public-Subnet2/NATGateway
+  dataeduVPCdataeduprivateSubnet1Subnet9F596219:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: dataeduVPCF752A41B
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: dataedu-private-
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet1
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet1/Subnet
+  dataeduVPCdataeduprivateSubnet1RouteTable21FA07FF:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: dataeduVPCF752A41B
+      Tags:
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet1
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet1/RouteTable
+  dataeduVPCdataeduprivateSubnet1RouteTableAssociation23478CDD:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: dataeduVPCdataeduprivateSubnet1RouteTable21FA07FF
+      SubnetId:
+        Ref: dataeduVPCdataeduprivateSubnet1Subnet9F596219
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet1/RouteTableAssociation
+  dataeduVPCdataeduprivateSubnet1DefaultRoute3CF4A901:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: dataeduVPCdataeduprivateSubnet1RouteTable21FA07FF
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: dataeduVPCdataedupublicSubnet1NATGatewayFC94A3CB
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet1/DefaultRoute
+  dataeduVPCdataeduprivateSubnet2SubnetB6573569:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: dataeduVPCF752A41B
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.3.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: dataedu-private-
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet2
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet2/Subnet
+  dataeduVPCdataeduprivateSubnet2RouteTableED5F435F:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: dataeduVPCF752A41B
+      Tags:
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet2
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet2/RouteTable
+  dataeduVPCdataeduprivateSubnet2RouteTableAssociationCE9DF74B:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: dataeduVPCdataeduprivateSubnet2RouteTableED5F435F
+      SubnetId:
+        Ref: dataeduVPCdataeduprivateSubnet2SubnetB6573569
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet2/RouteTableAssociation
+  dataeduVPCdataeduprivateSubnet2DefaultRoute59FC7D41:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: dataeduVPCdataeduprivateSubnet2RouteTableED5F435F
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: dataeduVPCdataedupublicSubnet2NATGateway23CEB395
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/dataedu-private-Subnet2/DefaultRoute
+  dataeduVPCIGW1F5E0B85:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: DataEduDataEngineerEeStack/dataeduVPC
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/IGW
+  dataeduVPCVPCGW8A53B470:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: dataeduVPCF752A41B
+      InternetGatewayId:
+        Ref: dataeduVPCIGW1F5E0B85
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduVPC/VPCGW
+  dataeduRDSsg43029FA3:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DataEDU RDS Instance security group
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: dataeduVPCF752A41B
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduRDSsg/Resource
+  dataeduRDSsgfromDataEduDataEngineerEeStackdataeduDMSsgB5553F793306F0E78422:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: DMS to RDS (MySQL)
+      FromPort: 3306
+      GroupId:
+        Fn::GetAtt:
+          - dataeduRDSsg43029FA3
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - dataeduDMSsg5B5997DA
+          - GroupId
+      ToPort: 3306
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduRDSsg/from DataEduDataEngineerEeStackdataeduDMSsgB5553F79:3306
+  dataeduRDSsgfromDataEduDataEngineerEeStackdataeduLambdasgCFC29E71330608C2454A:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: SIS Import Lambda to RDS (MySQL)
+      FromPort: 3306
+      GroupId:
+        Fn::GetAtt:
+          - dataeduRDSsg43029FA3
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - dataeduLambdasg8559F486
+          - GroupId
+      ToPort: 3306
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduRDSsg/from DataEduDataEngineerEeStackdataeduLambdasgCFC29E71:3306
+  dataeduDMSsg5B5997DA:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DataEDU DMS Instance security group
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: dataeduVPCF752A41B
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduDMSsg/Resource
+  dataeduLambdasg8559F486:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DataEDU SIS Import Lambda Function security group
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: dataeduVPCF752A41B
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduLambdasg/Resource
+  dataeduRDSInstanceSubnetGroupEBC78F3D:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for dataeduRDSInstance database
+      SubnetIds:
+        - Ref: dataeduVPCdataeduprivateSubnet1Subnet9F596219
+        - Ref: dataeduVPCdataeduprivateSubnet2SubnetB6573569
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduRDSInstance/SubnetGroup/Default
+  dataeduRDSInstance2BB1EFE2:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: db.t3.micro
+      AllocatedStorage: "20"
+      CopyTagsToSnapshot: true
+      DBInstanceIdentifier: dataedu-rds-instance
+      DBSubnetGroupName:
+        Ref: dataeduRDSInstanceSubnetGroupEBC78F3D
+      Engine: mysql
+      EngineVersion: 8.0.26
+      MasterUsername:
+        Fn::Join:
+          - ""
+          - - "{{resolve:secretsmanager:"
+            - Ref: dataEDURDSSecretA0904793
+            - :SecretString:username::}}
+      MasterUserPassword:
+        Fn::Join:
+          - ""
+          - - "{{resolve:secretsmanager:"
+            - Ref: dataEDURDSSecretA0904793
+            - :SecretString:password::}}
+      PubliclyAccessible: false
+      StorageEncrypted: true
+      StorageType: gp2
+      VPCSecurityGroups:
+        - Fn::GetAtt:
+            - dataeduRDSsg43029FA3
+            - GroupId
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduRDSInstance/Resource
+  dataeduDMSSubnetGroup:
+    Type: AWS::DMS::ReplicationSubnetGroup
+    Properties:
+      ReplicationSubnetGroupDescription: dataedu-replication-subnet-group
+      SubnetIds:
+        - Ref: dataeduVPCdataeduprivateSubnet1Subnet9F596219
+        - Ref: dataeduVPCdataeduprivateSubnet2SubnetB6573569
+      ReplicationSubnetGroupIdentifier: dataedu-replication-subnet-group
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduDMSSubnetGroup
+  dataeduDMSInstance:
+    Type: AWS::DMS::ReplicationInstance
+    Properties:
+      ReplicationInstanceClass: dms.t3.micro
+      AllocatedStorage: 20
+      PubliclyAccessible: false
+      ReplicationInstanceIdentifier: dataedu-dms-replication-instance
+      ReplicationSubnetGroupIdentifier:
+        Ref: dataeduDMSSubnetGroup
+      VpcSecurityGroupIds:
+        - Fn::GetAtt:
+            - dataeduDMSsg5B5997DA
+            - GroupId
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduDMSInstance
+  dataeduDMSSourceEndpoint:
+    Type: AWS::DMS::Endpoint
+    Properties:
+      EndpointType: source
+      EngineName: mysql
+      EndpointIdentifier: dataedu-dms-source-endpoint
+      MySqlSettings:
+        SecretsManagerAccessRoleArn:
+          Fn::GetAtt:
+            - dataeduDMSSourceRole55726A42
+            - Arn
+        SecretsManagerSecretId:
+          Ref: dataEDURDSSecretA0904793
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduDMSSourceEndpoint
+  dataeduSISLambdaLayer2B86FA17:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Join:
+            - ""
+            - - ee-assets-prod-
+              - Ref: AWS::Region
+        S3Key: modules/f7ff818991a14cfb80e2617aad4431d1/v1/lambda/mysql_boto3_layer.zip
+      CompatibleRuntimes:
+        - python3.7
+        - python3.8
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduSISLambdaLayer/Resource
+  dataeduSISImportRole61DAD9FC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduSISImportRole/Resource
+  dataeduSISImportRoleDefaultPolicy7294368E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ec2:AttachNetworkInterface
+              - ec2:CreateNetworkInterface
+              - ec2:DeleteNetworkInterface
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:ec2:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action: ec2:DescribeNetworkInterfaces
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - lambda:InvokeAsync
+              - lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:lambda:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :function:dataedu-*
+          - Action: logs:CreateLogGroup
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/dataedu-load-sisdb:*
+          - Action: kms:Decrypt
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - dataeduKMS6B3AB969
+                - Arn
+          - Action:
+              - secretsmanager:DescribeSecret
+              - secretsmanager:GetSecretValue
+            Effect: Allow
+            Resource:
+              Ref: dataEDURDSSecretA0904793
+        Version: "2012-10-17"
+      PolicyName: dataeduSISImportRoleDefaultPolicy7294368E
+      Roles:
+        - Ref: dataeduSISImportRole61DAD9FC
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduSISImportRole/DefaultPolicy/Resource
+  dataeduSISLambdaFunction754154E0:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Join:
+            - ""
+            - - ee-assets-prod-
+              - Ref: AWS::Region
+        S3Key: modules/f7ff818991a14cfb80e2617aad4431d1/v1/lambda/dataedu-load-sisdb.zip
+      Role:
+        Fn::GetAtt:
+          - dataeduSISImportRole61DAD9FC
+          - Arn
+      Environment:
+        Variables:
+          secret_name:
+            Fn::Join:
+              - "-"
+              - - Fn::Select:
+                    - 0
+                    - Fn::Split:
+                        - "-"
+                        - Fn::Select:
+                            - 6
+                            - Fn::Split:
+                                - ":"
+                                - Ref: dataEDURDSSecretA0904793
+                - Fn::Select:
+                    - 1
+                    - Fn::Split:
+                        - "-"
+                        - Fn::Select:
+                            - 6
+                            - Fn::Split:
+                                - ":"
+                                - Ref: dataEDURDSSecretA0904793
+                - Fn::Select:
+                    - 2
+                    - Fn::Split:
+                        - "-"
+                        - Fn::Select:
+                            - 6
+                            - Fn::Split:
+                                - ":"
+                                - Ref: dataEDURDSSecretA0904793
+          region_name:
+            Ref: AWS::Region
+      FunctionName: dataedu-load-sisdb
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - Ref: dataeduSISLambdaLayer2B86FA17
+      MemorySize: 512
+      ReservedConcurrentExecutions: 10
+      Runtime: python3.8
+      Timeout: 900
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::GetAtt:
+              - dataeduLambdasg8559F486
+              - GroupId
+        SubnetIds:
+          - Ref: dataeduVPCdataeduprivateSubnet1Subnet9F596219
+          - Ref: dataeduVPCdataeduprivateSubnet2SubnetB6573569
+    DependsOn:
+      - dataeduSISImportRoleDefaultPolicy7294368E
+      - dataeduSISImportRole61DAD9FC
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduSISLambdaFunction/Resource
+  dataeduSSMParam6F974C31:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Fn::Join:
+          - ""
+          - - '{"base_url":"ee-assets-prod-'
+            - Ref: AWS::Region
+            - '.s3.amazonaws.com/modules/cfdd4f678e99415a9c1f11342a3a9887/v1/mockdata/lms_demo","version": "v1", "current_date": "2020-08-17", "perform_initial_load": "1","target_bucket":"'
+            - Ref: dataeduRawBucket945ADDC3
+            - '", "base_s3_prefix":"lmsapi"}'
+      Description: SSM Parameter for mock LMS integration.
+      Name: /dataedu/lms-demo/state
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduSSMParam/Resource
+  dataeduLMSS3FetchRole16948341:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduLMSS3FetchRole/Resource
+  dataeduLMSS3FetchRoleDefaultPolicyE0083EF5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:ListBucket
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - dataeduRawBucket945ADDC3
+                - Arn
+          - Action:
+              - s3:DeleteObject
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduRawBucket945ADDC3
+                      - Arn
+                  - /*
+          - Action: logs:CreateLogGroup
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/dataedu-fetch-s3-data:*
+        Version: "2012-10-17"
+      PolicyName: dataeduLMSS3FetchRoleDefaultPolicyE0083EF5
+      Roles:
+        - Ref: dataeduLMSS3FetchRole16948341
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduLMSS3FetchRole/DefaultPolicy/Resource
+  dataeduLMSS3FetchLambdaB561DBA8:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Join:
+            - ""
+            - - ee-assets-prod-
+              - Ref: AWS::Region
+        S3Key: modules/f7ff818991a14cfb80e2617aad4431d1/v1/lambda/dataedu-fetch-s3-data.zip
+      Role:
+        Fn::GetAtt:
+          - dataeduLMSS3FetchRole16948341
+          - Arn
+      Description: Lambda function that fetches a file from a URL and stores it in a S3 bucket
+      FunctionName: dataedu-fetch-s3-data
+      Handler: lambda_handler.lambda_handler
+      MemorySize: 256
+      ReservedConcurrentExecutions: 10
+      Runtime: python3.7
+      Timeout: 600
+    DependsOn:
+      - dataeduLMSS3FetchRoleDefaultPolicyE0083EF5
+      - dataeduLMSS3FetchRole16948341
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduLMSS3FetchLambda/Resource
+  dataeduLMSAPIFetchRoleE153F61C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduLMSAPIFetchRole/Resource
+  dataeduLMSAPIFetchRoleDefaultPolicy716C3933:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ssm:GetParameter
+              - ssm:PutParameter
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter
+                  - Ref: dataeduSSMParam6F974C31
+          - Action:
+              - lambda:InvokeAsync
+              - lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:lambda:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :function:dataedu-*
+          - Action: events:DisableRule
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:events:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :rule/dataedu-lmsapi-sync
+          - Action: logs:CreateLogGroup
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/dataedu-fetch-lmsapi:*
+        Version: "2012-10-17"
+      PolicyName: dataeduLMSAPIFetchRoleDefaultPolicy716C3933
+      Roles:
+        - Ref: dataeduLMSAPIFetchRoleE153F61C
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduLMSAPIFetchRole/DefaultPolicy/Resource
+  dataeduLMSAPIFetchLambdaBD421AD7:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Join:
+            - ""
+            - - ee-assets-prod-
+              - Ref: AWS::Region
+        S3Key: modules/f7ff818991a14cfb80e2617aad4431d1/v1/lambda/dataedu-fetch-lmsapi.zip
+      Role:
+        Fn::GetAtt:
+          - dataeduLMSAPIFetchRoleE153F61C
+          - Arn
+      Description: Lambda function that mimics invoking an API to obtain data from a SaaS app
+      FunctionName: dataedu-fetch-lmsapi
+      Handler: lambda_function.lambda_handler
+      MemorySize: 256
+      ReservedConcurrentExecutions: 10
+      Runtime: python3.7
+      Timeout: 600
+    DependsOn:
+      - dataeduLMSAPIFetchRoleDefaultPolicy716C3933
+      - dataeduLMSAPIFetchRoleE153F61C
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduLMSAPIFetchLambda/Resource
+  dataeduEventBridgeRuleF5498C76:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Invokes demo API on a scheduled basis
+      Name: dataedu-lmsapi-sync
+      ScheduleExpression: rate(1 minute)
+      State: DISABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - dataeduLMSAPIFetchLambdaBD421AD7
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduEventBridgeRule/Resource
+  dataeduEventBridgeRuleAllowEventRuleDataEduDataEngineerEeStackdataeduLMSAPIFetchLambda54C04AB18476C72A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - dataeduLMSAPIFetchLambdaBD421AD7
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - dataeduEventBridgeRuleF5498C76
+          - Arn
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduEventBridgeRule/AllowEventRuleDataEduDataEngineerEeStackdataeduLMSAPIFetchLambda54C04AB1
+  dataeduGlueCrawlerRoleAA355627:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSGlueServiceRole
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduGlueCrawlerRole/Resource
+  dataeduGlueCrawlerRoleDefaultPolicy7C2DEEAB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:List*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - dataeduRawBucket945ADDC3
+                - Arn
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduRawBucket945ADDC3
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: dataeduGlueCrawlerRoleDefaultPolicy7C2DEEAB
+      Roles:
+        - Ref: dataeduGlueCrawlerRoleAA355627
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduGlueCrawlerRole/DefaultPolicy/Resource
+  dataeduSisdemoCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role:
+        Fn::GetAtt:
+          - dataeduGlueCrawlerRoleAA355627
+          - Arn
+      Targets:
+        S3Targets:
+          - Path:
+              Fn::Join:
+                - ""
+                - - s3://
+                  - Ref: dataeduRawBucket945ADDC3
+                  - /sisdb/sisdemo/
+      DatabaseName: db_raw_sisdemo
+      Description: SIS demo data crawler.
+      Name: dataedu-sisdemo-crawler
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataeduSisdemoCrawler
+  dataedLmsdemoCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role:
+        Fn::GetAtt:
+          - dataeduGlueCrawlerRoleAA355627
+          - Arn
+      Targets:
+        S3Targets:
+          - Path:
+              Fn::Join:
+                - ""
+                - - s3://
+                  - Ref: dataeduRawBucket945ADDC3
+                  - /lmsapi/
+      DatabaseName: db_raw_lmsdemo
+      Description: LMS demo data crawler.
+      Name: dataedu-lmsdemo-crawler
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/dataedLmsdemoCrawler
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/31TTW/bMAz9Lb0rGpJeek3StQhWDIZb5FrQMuepsaRAHwkMw/+9pGUnaQfsxPfIJ4lfWsn7pVzewTksVH1YtLqS/WsEdRDbP7YADwYjeiZbZ2sdtbOCxO/9wQTZ/8KOQ2zWrYbAZASDCPey3yR1wMjOCWVTuFar7uqeeCYbCEinUXmMwYCFBj2lNHI+MqFs3sA3GNeREv5r0N4IvkcGocHIvnQtsmi01zwyGgSqlez3R8W+fbEVRaoo8JoqOz1+QaVLEd+gytdl/9W3DsEpDWO3ZjGDn7uCzW+IzxDxDJ0ovD4RvF68s9RvwrMgZzKxm0qpzOR17J69S8ep7v84drbxGGguvqa5PUKEihq9syGCVSjy+5ejj5t/HLN0EDVPnqvCIzVnLPKb+iZyeYGrt/XRaZ5FC6aqQfYv0KHfow9To77wp2TV3MFbXKA3OrCE9iQY3levbfNlWS+EZnqidlHGZZpGT3YQTZtQ8lZ7OLcsKzG45HOiMx6EdTXKj/DjtHyQyxV9lI+g9cInG7VBWWb7CXQtvfVEAwAA
+    Metadata:
+      aws:cdk:path: DataEduDataEngineerEeStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

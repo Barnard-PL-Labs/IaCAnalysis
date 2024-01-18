@@ -1,0 +1,994 @@
+Resources:
+  feedstreamC553897B:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      ShardCount: 3
+      Name: feedstream
+      RetentionPeriodHours: 24
+      StreamEncryption:
+        Fn::If:
+          - AwsCdkKinesisEncryptedStreamsUnsupportedRegions
+          - Ref: AWS::NoValue
+          - EncryptionType: KMS
+            KeyId: alias/aws/kinesis
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedstream/Resource
+  sportsfeeds5A2FB2EE:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: ISSCHEDULED
+          AttributeType: S
+        - AttributeName: GAMEDATE
+          AttributeType: "N"
+        - AttributeName: CONNECTION
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: GSI-1
+          KeySchema:
+            - AttributeName: ISSCHEDULED
+              KeyType: HASH
+            - AttributeName: GAMEDATE
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: GSI-2
+          KeySchema:
+            - AttributeName: CONNECTION
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      KinesisStreamSpecification:
+        StreamArn:
+          Fn::GetAtt:
+            - feedstreamC553897B
+            - Arn
+      TableName: sportsfeeds
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/sportsfeeds/Resource
+  writeFeedsServiceRole85A6D1C9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/writeFeeds/ServiceRole/Resource
+  writeFeedsServiceRoleDefaultPolicy847C8C0E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:BatchWriteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - sportsfeeds5A2FB2EE
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - sportsfeeds5A2FB2EE
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: writeFeedsServiceRoleDefaultPolicy847C8C0E
+      Roles:
+        - Ref: writeFeedsServiceRole85A6D1C9
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/writeFeeds/ServiceRole/DefaultPolicy/Resource
+  writeFeedsE8707592:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersde16bbc35a44364908e1c8f5fee627433615906d23f430c4c85884fcb36665b8S3Bucket85BB0E5E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersde16bbc35a44364908e1c8f5fee627433615906d23f430c4c85884fcb36665b8S3VersionKey509FC2EC
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersde16bbc35a44364908e1c8f5fee627433615906d23f430c4c85884fcb36665b8S3VersionKey509FC2EC
+      Role:
+        Fn::GetAtt:
+          - writeFeedsServiceRole85A6D1C9
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME: sportsfeeds
+          REGION:
+            Ref: AWS::Region
+      FunctionName: writeFeeds
+      Handler: writeFeeds.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+    DependsOn:
+      - writeFeedsServiceRoleDefaultPolicy847C8C0E
+      - writeFeedsServiceRole85A6D1C9
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/writeFeeds/Resource
+      aws:asset:path: asset.de16bbc35a44364908e1c8f5fee627433615906d23f430c4c85884fcb36665b8
+      aws:asset:property: Code
+  readFeedsServiceRole248C43F4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/readFeeds/ServiceRole/Resource
+  readFeedsServiceRoleDefaultPolicyA4EA15EC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:Query
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - sportsfeeds5A2FB2EE
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - sportsfeeds5A2FB2EE
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: readFeedsServiceRoleDefaultPolicyA4EA15EC
+      Roles:
+        - Ref: readFeedsServiceRole248C43F4
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/readFeeds/ServiceRole/DefaultPolicy/Resource
+  readFeedsDAC99024:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersbd45ba4588847e9754c9c26fcce6a6f2cc1f219548713994b923dc26f4f68852S3Bucket275D4B33
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbd45ba4588847e9754c9c26fcce6a6f2cc1f219548713994b923dc26f4f68852S3VersionKey6B505C55
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbd45ba4588847e9754c9c26fcce6a6f2cc1f219548713994b923dc26f4f68852S3VersionKey6B505C55
+      Role:
+        Fn::GetAtt:
+          - readFeedsServiceRole248C43F4
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME: sportsfeeds
+          REGION:
+            Ref: AWS::Region
+      FunctionName: readFeeds
+      Handler: readFeeds.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+    DependsOn:
+      - readFeedsServiceRoleDefaultPolicyA4EA15EC
+      - readFeedsServiceRole248C43F4
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/readFeeds/Resource
+      aws:asset:path: asset.bd45ba4588847e9754c9c26fcce6a6f2cc1f219548713994b923dc26f4f68852
+      aws:asset:property: Code
+  connectionManagerServiceRole3C675C7E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/connectionManager/ServiceRole/Resource
+  connectionManagerServiceRoleDefaultPolicy14B8B267:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:putitem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - sportsfeeds5A2FB2EE
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - sportsfeeds5A2FB2EE
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: connectionManagerServiceRoleDefaultPolicy14B8B267
+      Roles:
+        - Ref: connectionManagerServiceRole3C675C7E
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/connectionManager/ServiceRole/DefaultPolicy/Resource
+  connectionManager593277AC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersb88899d2dde477f0b2078541a106c7991126e02f411c02a3a18bb68b09fd8e09S3Bucket8B24799A
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb88899d2dde477f0b2078541a106c7991126e02f411c02a3a18bb68b09fd8e09S3VersionKey0EB235DC
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb88899d2dde477f0b2078541a106c7991126e02f411c02a3a18bb68b09fd8e09S3VersionKey0EB235DC
+      Role:
+        Fn::GetAtt:
+          - connectionManagerServiceRole3C675C7E
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME: sportsfeeds
+          REGION:
+            Ref: AWS::Region
+      FunctionName: connectionManager
+      Handler: connectionManager.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+    DependsOn:
+      - connectionManagerServiceRoleDefaultPolicy14B8B267
+      - connectionManagerServiceRole3C675C7E
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/connectionManager/Resource
+      aws:asset:path: asset.b88899d2dde477f0b2078541a106c7991126e02f411c02a3a18bb68b09fd8e09
+      aws:asset:property: Code
+  streamConsumerServiceRole1EE0B7FC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/streamConsumer/ServiceRole/Resource
+  streamConsumerServiceRoleDefaultPolicy2E2E9EFA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:scan
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - sportsfeeds5A2FB2EE
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - sportsfeeds5A2FB2EE
+                        - Arn
+                    - /index/*
+          - Action:
+              - kinesis:DescribeStreamSummary
+              - kinesis:GetRecords
+              - kinesis:GetShardIterator
+              - kinesis:ListShards
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - feedstreamC553897B
+                - Arn
+          - Action: kinesis:SubscribeToShard
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - streamconsumer
+                - ConsumerARN
+          - Action: execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":execute-api:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: bookmakerAPIBDB6DCE8
+                  - /prod/POST/*
+        Version: "2012-10-17"
+      PolicyName: streamConsumerServiceRoleDefaultPolicy2E2E9EFA
+      Roles:
+        - Ref: streamConsumerServiceRole1EE0B7FC
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/streamConsumer/ServiceRole/DefaultPolicy/Resource
+  streamConsumerC87EBB43:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersacc064a945a4ff6820099a0e34ee2cd5030d4fbabb2ce08e5218ecfb9ed9e799S3Bucket101CCA45
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersacc064a945a4ff6820099a0e34ee2cd5030d4fbabb2ce08e5218ecfb9ed9e799S3VersionKeyDD867EF9
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersacc064a945a4ff6820099a0e34ee2cd5030d4fbabb2ce08e5218ecfb9ed9e799S3VersionKeyDD867EF9
+      Role:
+        Fn::GetAtt:
+          - streamConsumerServiceRole1EE0B7FC
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME: sportsfeeds
+          REGION:
+            Ref: AWS::Region
+      FunctionName: streamConsumer
+      Handler: streamConsumer.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+    DependsOn:
+      - streamConsumerServiceRoleDefaultPolicy2E2E9EFA
+      - streamConsumerServiceRole1EE0B7FC
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/streamConsumer/Resource
+      aws:asset:path: asset.acc064a945a4ff6820099a0e34ee2cd5030d4fbabb2ce08e5218ecfb9ed9e799
+      aws:asset:property: Code
+  streamconsumer:
+    Type: AWS::Kinesis::StreamConsumer
+    Properties:
+      ConsumerName: feed-stream-consumer
+      StreamARN:
+        Fn::GetAtt:
+          - feedstreamC553897B
+          - Arn
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/stream-consumer
+  eventsourcemapping0C2950EB:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: streamConsumerC87EBB43
+      BatchSize: 10
+      EventSourceArn:
+        Fn::GetAtt:
+          - streamconsumer
+          - ConsumerARN
+      StartingPosition: TRIM_HORIZON
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/event-source-mapping/Resource
+  feedsAPIBAF8C980:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: feedsAPI
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Resource
+  feedsAPICloudWatchRole81F6312D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/CloudWatchRole/Resource
+  feedsAPIAccountA89CB671:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - feedsAPICloudWatchRole81F6312D
+          - Arn
+    DependsOn:
+      - feedsAPIBAF8C980
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Account
+  feedsAPIDeployment45D4A012f2e861853178869804113ef4f41996aa:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: feedsAPIBAF8C980
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - feedsAPIfeedsGET6E4E11B1
+      - feedsAPIfeedsOPTIONS1A37943F
+      - feedsAPIfeedsPUTE3BBE144
+      - feedsAPIfeeds46DC3A5E
+      - feedsAPIOPTIONS8F2CA565
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Deployment/Resource
+  feedsAPIDeploymentStageprod7B792274:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: feedsAPIBAF8C980
+      DeploymentId:
+        Ref: feedsAPIDeployment45D4A012f2e861853178869804113ef4f41996aa
+      StageName: prod
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/DeploymentStage.prod/Resource
+  feedsAPIOPTIONS8F2CA565:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - feedsAPIBAF8C980
+          - RootResourceId
+      RestApiId:
+        Ref: feedsAPIBAF8C980
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Default/OPTIONS/Resource
+  feedsAPIfeeds46DC3A5E:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - feedsAPIBAF8C980
+          - RootResourceId
+      PathPart: feeds
+      RestApiId:
+        Ref: feedsAPIBAF8C980
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Default/feeds/Resource
+  feedsAPIfeedsOPTIONS1A37943F:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: feedsAPIfeeds46DC3A5E
+      RestApiId:
+        Ref: feedsAPIBAF8C980
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Default/feeds/OPTIONS/Resource
+  feedsAPIfeedsGETApiPermissionAmazonDynamodbStoreStreamSportsDataStackfeedsAPI3D2C48A2GETfeedsA55A5D49:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - readFeedsDAC99024
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: feedsAPIBAF8C980
+            - /
+            - Ref: feedsAPIDeploymentStageprod7B792274
+            - /GET/feeds
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Default/feeds/GET/ApiPermission.AmazonDynamodbStoreStreamSportsDataStackfeedsAPI3D2C48A2.GET..feeds
+  feedsAPIfeedsGETApiPermissionTestAmazonDynamodbStoreStreamSportsDataStackfeedsAPI3D2C48A2GETfeeds272F24A0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - readFeedsDAC99024
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: feedsAPIBAF8C980
+            - /test-invoke-stage/GET/feeds
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Default/feeds/GET/ApiPermission.Test.AmazonDynamodbStoreStreamSportsDataStackfeedsAPI3D2C48A2.GET..feeds
+  feedsAPIfeedsGET6E4E11B1:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: feedsAPIfeeds46DC3A5E
+      RestApiId:
+        Ref: feedsAPIBAF8C980
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - readFeedsDAC99024
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Default/feeds/GET/Resource
+  feedsAPIfeedsPUTApiPermissionAmazonDynamodbStoreStreamSportsDataStackfeedsAPI3D2C48A2PUTfeeds0C9E2647:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - writeFeedsE8707592
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: feedsAPIBAF8C980
+            - /
+            - Ref: feedsAPIDeploymentStageprod7B792274
+            - /PUT/feeds
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Default/feeds/PUT/ApiPermission.AmazonDynamodbStoreStreamSportsDataStackfeedsAPI3D2C48A2.PUT..feeds
+  feedsAPIfeedsPUTApiPermissionTestAmazonDynamodbStoreStreamSportsDataStackfeedsAPI3D2C48A2PUTfeedsC37AB013:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - writeFeedsE8707592
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: feedsAPIBAF8C980
+            - /test-invoke-stage/PUT/feeds
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Default/feeds/PUT/ApiPermission.Test.AmazonDynamodbStoreStreamSportsDataStackfeedsAPI3D2C48A2.PUT..feeds
+  feedsAPIfeedsPUTE3BBE144:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: PUT
+      ResourceId:
+        Ref: feedsAPIfeeds46DC3A5E
+      RestApiId:
+        Ref: feedsAPIBAF8C980
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - writeFeedsE8707592
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/feedsAPI/Default/feeds/PUT/Resource
+  bookmakerAPIBDB6DCE8:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: bookmakerAPI
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/bookmakerAPI/Resource
+  bookmakerAPIconnectRouteAmazonDynamodbStoreStreamSportsDataStackbookmakerAPIconnectRouteA17E4983PermissionA631969F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - connectionManager593277AC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: bookmakerAPIBDB6DCE8
+            - /*/*$connect
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/bookmakerAPI/$connect-Route/AmazonDynamodbStoreStreamSportsDataStackbookmakerAPIconnectRouteA17E4983-Permission
+  bookmakerAPIconnectRouteWebSocketIntegration0d226da06782a10538a0a4e48d6697da5E9DCEC3:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: bookmakerAPIBDB6DCE8
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":apigateway:"
+            - Ref: AWS::Region
+            - :lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - connectionManager593277AC
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/bookmakerAPI/$connect-Route/WebSocketIntegration-0d226da06782a10538a0a4e48d6697da/Resource
+  bookmakerAPIconnectRouteDCA70E7E:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: bookmakerAPIBDB6DCE8
+      RouteKey: $connect
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: bookmakerAPIconnectRouteWebSocketIntegration0d226da06782a10538a0a4e48d6697da5E9DCEC3
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/bookmakerAPI/$connect-Route/Resource
+  bookmakerAPIdisconnectRouteAmazonDynamodbStoreStreamSportsDataStackbookmakerAPIdisconnectRoute88073C45PermissionC73F76DB:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - connectionManager593277AC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: bookmakerAPIBDB6DCE8
+            - /*/*$disconnect
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/bookmakerAPI/$disconnect-Route/AmazonDynamodbStoreStreamSportsDataStackbookmakerAPIdisconnectRoute88073C45-Permission
+  bookmakerAPIdisconnectRoute60F6F5D3:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: bookmakerAPIBDB6DCE8
+      RouteKey: $disconnect
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: bookmakerAPIconnectRouteWebSocketIntegration0d226da06782a10538a0a4e48d6697da5E9DCEC3
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/bookmakerAPI/$disconnect-Route/Resource
+  bookmakerAPIdefaultRouteAmazonDynamodbStoreStreamSportsDataStackbookmakerAPIdefaultRouteBF4B983BPermission09F9776C:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - connectionManager593277AC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: bookmakerAPIBDB6DCE8
+            - /*/*$default
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/bookmakerAPI/$default-Route/AmazonDynamodbStoreStreamSportsDataStackbookmakerAPIdefaultRouteBF4B983B-Permission
+  bookmakerAPIdefaultRouteD3040E28:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: bookmakerAPIBDB6DCE8
+      RouteKey: $default
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: bookmakerAPIconnectRouteWebSocketIntegration0d226da06782a10538a0a4e48d6697da5E9DCEC3
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/bookmakerAPI/$default-Route/Resource
+  ProdStage6F7F36FB:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: bookmakerAPIBDB6DCE8
+      StageName: prod
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/ProdStage/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21STU/DMAz9LdyzjA4JcWQbIHGYmDokzm7ilaxNUuVjU1Xlv5Nka2ETJz/bL/bLSwpaLB7p/d0znOyM8WY+MG2QDjsHrCHrvVprxYUTWpESrfaGIVlaiy4SaqFqEvvWGc9cIm/BgESHJiUf3nU+l8eTgaQtQyMUWmHTEoMgE+MWpaleogmE9wqk5hUdPqFqMVEyCKQFWXGgw5tXLAuMrQm/HlG5Xd66ga7LSvfq/+oWjRTWxmOBCJB0KPV5UY5b3QrWZ15GgdiHGSQLLM1OxJyuPGvQrcAigU7U4PAEfRyE1i07cfFghEvGtFeOvGDX6l5GSan6J0ve4tmMBEb78vgNum/NU/OCpme5NnpScVzQ4QurnU4KRwUxTLVSe4e/6btyWBsYHb1Jb8jXSkMIRGmO9GDnx+Ipfi1a3B2sEDMT7ysk0vIcfwDWDF3jdgIAAA==
+    Metadata:
+      aws:cdk:path: AmazonDynamodbStoreStreamSportsDataStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  AwsCdkKinesisEncryptedStreamsUnsupportedRegions:
+    Fn::Or:
+      - Fn::Equals:
+          - Ref: AWS::Region
+          - cn-north-1
+      - Fn::Equals:
+          - Ref: AWS::Region
+          - cn-northwest-1
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  AssetParametersde16bbc35a44364908e1c8f5fee627433615906d23f430c4c85884fcb36665b8S3Bucket85BB0E5E:
+    Type: String
+    Description: S3 bucket for asset "de16bbc35a44364908e1c8f5fee627433615906d23f430c4c85884fcb36665b8"
+  AssetParametersde16bbc35a44364908e1c8f5fee627433615906d23f430c4c85884fcb36665b8S3VersionKey509FC2EC:
+    Type: String
+    Description: S3 key for asset version "de16bbc35a44364908e1c8f5fee627433615906d23f430c4c85884fcb36665b8"
+  AssetParametersde16bbc35a44364908e1c8f5fee627433615906d23f430c4c85884fcb36665b8ArtifactHash8D10D3A7:
+    Type: String
+    Description: Artifact hash for asset "de16bbc35a44364908e1c8f5fee627433615906d23f430c4c85884fcb36665b8"
+  AssetParametersbd45ba4588847e9754c9c26fcce6a6f2cc1f219548713994b923dc26f4f68852S3Bucket275D4B33:
+    Type: String
+    Description: S3 bucket for asset "bd45ba4588847e9754c9c26fcce6a6f2cc1f219548713994b923dc26f4f68852"
+  AssetParametersbd45ba4588847e9754c9c26fcce6a6f2cc1f219548713994b923dc26f4f68852S3VersionKey6B505C55:
+    Type: String
+    Description: S3 key for asset version "bd45ba4588847e9754c9c26fcce6a6f2cc1f219548713994b923dc26f4f68852"
+  AssetParametersbd45ba4588847e9754c9c26fcce6a6f2cc1f219548713994b923dc26f4f68852ArtifactHash016734B2:
+    Type: String
+    Description: Artifact hash for asset "bd45ba4588847e9754c9c26fcce6a6f2cc1f219548713994b923dc26f4f68852"
+  AssetParametersb88899d2dde477f0b2078541a106c7991126e02f411c02a3a18bb68b09fd8e09S3Bucket8B24799A:
+    Type: String
+    Description: S3 bucket for asset "b88899d2dde477f0b2078541a106c7991126e02f411c02a3a18bb68b09fd8e09"
+  AssetParametersb88899d2dde477f0b2078541a106c7991126e02f411c02a3a18bb68b09fd8e09S3VersionKey0EB235DC:
+    Type: String
+    Description: S3 key for asset version "b88899d2dde477f0b2078541a106c7991126e02f411c02a3a18bb68b09fd8e09"
+  AssetParametersb88899d2dde477f0b2078541a106c7991126e02f411c02a3a18bb68b09fd8e09ArtifactHash3AD88C8D:
+    Type: String
+    Description: Artifact hash for asset "b88899d2dde477f0b2078541a106c7991126e02f411c02a3a18bb68b09fd8e09"
+  AssetParametersacc064a945a4ff6820099a0e34ee2cd5030d4fbabb2ce08e5218ecfb9ed9e799S3Bucket101CCA45:
+    Type: String
+    Description: S3 bucket for asset "acc064a945a4ff6820099a0e34ee2cd5030d4fbabb2ce08e5218ecfb9ed9e799"
+  AssetParametersacc064a945a4ff6820099a0e34ee2cd5030d4fbabb2ce08e5218ecfb9ed9e799S3VersionKeyDD867EF9:
+    Type: String
+    Description: S3 key for asset version "acc064a945a4ff6820099a0e34ee2cd5030d4fbabb2ce08e5218ecfb9ed9e799"
+  AssetParametersacc064a945a4ff6820099a0e34ee2cd5030d4fbabb2ce08e5218ecfb9ed9e799ArtifactHash539B6D4D:
+    Type: String
+    Description: Artifact hash for asset "acc064a945a4ff6820099a0e34ee2cd5030d4fbabb2ce08e5218ecfb9ed9e799"
+Outputs:
+  feedsAPIEndpoint3CBAF07B:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: feedsAPIBAF8C980
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: feedsAPIDeploymentStageprod7B792274
+          - /
+

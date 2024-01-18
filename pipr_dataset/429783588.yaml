@@ -1,0 +1,932 @@
+Resources:
+  todoList1todoListAuthtodoList1todoListAuthAuthRole77830893:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoListAuth/todoList1-todoListAuth-AuthRole/Resource
+  todoList1todoListAuthtodoList1todoListAuthUnAuthRole212A679E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoListAuth/todoList1-todoListAuth-UnAuthRole/Resource
+  todoList1todoListAuthtodoList1todoListAuthUserPoolFBF66FA4:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AliasAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Schema:
+        - Mutable: true
+          Name: email
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoListAuth/todoList1-todoListAuth-UserPool/Resource
+  todoList1todoListAuthtodoList1todoListAuthUserPooltodoList1todoListAuthWebClient0FCA381D:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: todoList1todoListAuthtodoList1todoListAuthUserPoolFBF66FA4
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      GenerateSecret: false
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoListAuth/todoList1-todoListAuth-UserPool/todoList1-todoListAuth-WebClient/Resource
+  todoList1todoListAuthtodoList1todoListAuthIdentityPoolA96D07FC:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: todoList1todoListAuthtodoList1todoListAuthUserPooltodoList1todoListAuthWebClient0FCA381D
+          ProviderName:
+            Fn::GetAtt:
+              - todoList1todoListAuthtodoList1todoListAuthUserPoolFBF66FA4
+              - ProviderName
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoListAuth/todoList1-todoListAuth-IdentityPool
+  todoList1todoListAuthroleAttachment25C6D104:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: todoList1todoListAuthtodoList1todoListAuthIdentityPoolA96D07FC
+      Roles:
+        unauthenticated:
+          Fn::GetAtt:
+            - todoList1todoListAuthtodoList1todoListAuthUnAuthRole212A679E
+            - Arn
+        authenticated:
+          Fn::GetAtt:
+            - todoList1todoListAuthtodoList1todoListAuthAuthRole77830893
+            - Arn
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoListAuth/roleAttachment
+  todoList1devTodosTableB13B96FF:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+        - AttributeName: cognito-username
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: cognito-username
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-dev-TodosTable/Resource
+  todoList1todoListFunctionstodosAuthorizerD25548A9:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      Name: BackendStacktodoList1todoListFunctionstodosAuthorizer748E237B
+      ProviderARNs:
+        - Fn::GetAtt:
+            - todoList1todoListAuthtodoList1todoListAuthUserPoolFBF66FA4
+            - Arn
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoListFunctions/todosAuthorizer/Resource
+  todoList1getTodosServiceRole03FD188D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-getTodos/ServiceRole/Resource
+  todoList1getTodosServiceRoleDefaultPolicy1054CF61:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - todoList1devTodosTableB13B96FF
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: todoList1getTodosServiceRoleDefaultPolicy1054CF61
+      Roles:
+        - Ref: todoList1getTodosServiceRole03FD188D
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-getTodos/ServiceRole/DefaultPolicy/Resource
+  todoList1getTodos36189760:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters5e505eca62802f411f5c64fc94f81f9b1556cddb7c3525a3abedeb0bf9e8cd48S3Bucket0CA9590E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters5e505eca62802f411f5c64fc94f81f9b1556cddb7c3525a3abedeb0bf9e8cd48S3VersionKey97553473
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters5e505eca62802f411f5c64fc94f81f9b1556cddb7c3525a3abedeb0bf9e8cd48S3VersionKey97553473
+      Role:
+        Fn::GetAtt:
+          - todoList1getTodosServiceRole03FD188D
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: todoList1devTodosTableB13B96FF
+      Handler: app.getAllToDoItem
+      Runtime: nodejs12.x
+    DependsOn:
+      - todoList1getTodosServiceRoleDefaultPolicy1054CF61
+      - todoList1getTodosServiceRole03FD188D
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-getTodos/Resource
+      aws:asset:path: asset.5e505eca62802f411f5c64fc94f81f9b1556cddb7c3525a3abedeb0bf9e8cd48
+      aws:asset:property: Code
+  todoList1addTodoServiceRole52EF1099:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-addTodo/ServiceRole/Resource
+  todoList1addTodoServiceRoleDefaultPolicy1FE96F42:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - todoList1devTodosTableB13B96FF
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: todoList1addTodoServiceRoleDefaultPolicy1FE96F42
+      Roles:
+        - Ref: todoList1addTodoServiceRole52EF1099
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-addTodo/ServiceRole/DefaultPolicy/Resource
+  todoList1addTodoBB730B1F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4dad72cd030ae5930380caa5b9b399b6064a35cbc525ddc4ebffc0dcd7a1662aS3BucketA1E20C93
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4dad72cd030ae5930380caa5b9b399b6064a35cbc525ddc4ebffc0dcd7a1662aS3VersionKeyFE763B36
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4dad72cd030ae5930380caa5b9b399b6064a35cbc525ddc4ebffc0dcd7a1662aS3VersionKeyFE763B36
+      Role:
+        Fn::GetAtt:
+          - todoList1addTodoServiceRole52EF1099
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: todoList1devTodosTableB13B96FF
+      Handler: app.addToDoItem
+      Runtime: nodejs12.x
+    DependsOn:
+      - todoList1addTodoServiceRoleDefaultPolicy1FE96F42
+      - todoList1addTodoServiceRole52EF1099
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-addTodo/Resource
+      aws:asset:path: asset.4dad72cd030ae5930380caa5b9b399b6064a35cbc525ddc4ebffc0dcd7a1662a
+      aws:asset:property: Code
+  todoList1deleteTodoServiceRole916BF65F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-deleteTodo/ServiceRole/Resource
+  todoList1deleteTodoServiceRoleDefaultPolicyE6E43F4C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - todoList1devTodosTableB13B96FF
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: todoList1deleteTodoServiceRoleDefaultPolicyE6E43F4C
+      Roles:
+        - Ref: todoList1deleteTodoServiceRole916BF65F
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-deleteTodo/ServiceRole/DefaultPolicy/Resource
+  todoList1deleteTodo6096743B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters00409a5f492bbacbdd318dede95ec30043efa501ee4d4c686602f2d3c059b03aS3BucketDF821CFE
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters00409a5f492bbacbdd318dede95ec30043efa501ee4d4c686602f2d3c059b03aS3VersionKey849A6819
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters00409a5f492bbacbdd318dede95ec30043efa501ee4d4c686602f2d3c059b03aS3VersionKey849A6819
+      Role:
+        Fn::GetAtt:
+          - todoList1deleteTodoServiceRole916BF65F
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: todoList1devTodosTableB13B96FF
+      Handler: app.deleteToDoItem
+      Runtime: nodejs12.x
+    DependsOn:
+      - todoList1deleteTodoServiceRoleDefaultPolicyE6E43F4C
+      - todoList1deleteTodoServiceRole916BF65F
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-deleteTodo/Resource
+      aws:asset:path: asset.00409a5f492bbacbdd318dede95ec30043efa501ee4d4c686602f2d3c059b03a
+      aws:asset:property: Code
+  todoList1todoApiB1465840:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: todoList1-todoApi
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Resource
+  todoList1todoApiCloudWatchRole214B1DF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/CloudWatchRole/Resource
+  todoList1todoApiAccountBFAEC632:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - todoList1todoApiCloudWatchRole214B1DF2
+          - Arn
+    DependsOn:
+      - todoList1todoApiB1465840
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Account
+  todoList1todoApiDeployment47980E6Cd3d46d74f5cbe43dcf505bd936d5c379:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - todoList1todoApiOPTIONSC5E47899
+      - todoList1todoApitodosidDELETEACDAEB9D
+      - todoList1todoApitodosidOPTIONS36D309C6
+      - todoList1todoApitodosid719EF089
+      - todoList1todoApitodosGETE157DD6C
+      - todoList1todoApitodosOPTIONS49103FE2
+      - todoList1todoApitodosPOSTF9635F65
+      - todoList1todoApitodos7B05EFCC
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Deployment/Resource
+  todoList1todoApiDeploymentStageprodF751AB21:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+      DeploymentId:
+        Ref: todoList1todoApiDeployment47980E6Cd3d46d74f5cbe43dcf505bd936d5c379
+      StageName: prod
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/DeploymentStage.prod/Resource
+  todoList1todoApiOPTIONSC5E47899:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - todoList1todoApiB1465840
+          - RootResourceId
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/OPTIONS/Resource
+  todoList1todoApitodos7B05EFCC:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - todoList1todoApiB1465840
+          - RootResourceId
+      PathPart: todos
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/Resource
+  todoList1todoApitodosOPTIONS49103FE2:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: todoList1todoApitodos7B05EFCC
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/OPTIONS/Resource
+  todoList1todoApitodosGETApiPermissionBackendStacktodoList1todoApi9461262BGETtodosFE2FF2AB:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - todoList1getTodos36189760
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: todoList1todoApiB1465840
+            - /
+            - Ref: todoList1todoApiDeploymentStageprodF751AB21
+            - /GET/todos
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/GET/ApiPermission.BackendStacktodoList1todoApi9461262B.GET..todos
+  todoList1todoApitodosGETApiPermissionTestBackendStacktodoList1todoApi9461262BGETtodosC29373A8:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - todoList1getTodos36189760
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: todoList1todoApiB1465840
+            - /test-invoke-stage/GET/todos
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/GET/ApiPermission.Test.BackendStacktodoList1todoApi9461262B.GET..todos
+  todoList1todoApitodosGETE157DD6C:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: todoList1todoApitodos7B05EFCC
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: todoList1todoListFunctionstodosAuthorizerD25548A9
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - todoList1getTodos36189760
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/GET/Resource
+  todoList1todoApitodosPOSTApiPermissionBackendStacktodoList1todoApi9461262BPOSTtodos21BBBB8A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - todoList1addTodoBB730B1F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: todoList1todoApiB1465840
+            - /
+            - Ref: todoList1todoApiDeploymentStageprodF751AB21
+            - /POST/todos
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/POST/ApiPermission.BackendStacktodoList1todoApi9461262B.POST..todos
+  todoList1todoApitodosPOSTApiPermissionTestBackendStacktodoList1todoApi9461262BPOSTtodosA539C601:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - todoList1addTodoBB730B1F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: todoList1todoApiB1465840
+            - /test-invoke-stage/POST/todos
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/POST/ApiPermission.Test.BackendStacktodoList1todoApi9461262B.POST..todos
+  todoList1todoApitodosPOSTF9635F65:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: todoList1todoApitodos7B05EFCC
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: todoList1todoListFunctionstodosAuthorizerD25548A9
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - todoList1addTodoBB730B1F
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/POST/Resource
+  todoList1todoApitodosid719EF089:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: todoList1todoApitodos7B05EFCC
+      PathPart: "{id}"
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/{id}/Resource
+  todoList1todoApitodosidOPTIONS36D309C6:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: todoList1todoApitodosid719EF089
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/{id}/OPTIONS/Resource
+  todoList1todoApitodosidDELETEApiPermissionBackendStacktodoList1todoApi9461262BDELETEtodosidAA9953A9:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - todoList1deleteTodo6096743B
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: todoList1todoApiB1465840
+            - /
+            - Ref: todoList1todoApiDeploymentStageprodF751AB21
+            - /DELETE/todos/*
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/{id}/DELETE/ApiPermission.BackendStacktodoList1todoApi9461262B.DELETE..todos.{id}
+  todoList1todoApitodosidDELETEApiPermissionTestBackendStacktodoList1todoApi9461262BDELETEtodosid761B8E04:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - todoList1deleteTodo6096743B
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: todoList1todoApiB1465840
+            - /test-invoke-stage/DELETE/todos/*
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/{id}/DELETE/ApiPermission.Test.BackendStacktodoList1todoApi9461262B.DELETE..todos.{id}
+  todoList1todoApitodosidDELETEACDAEB9D:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: DELETE
+      ResourceId:
+        Ref: todoList1todoApitodosid719EF089
+      RestApiId:
+        Ref: todoList1todoApiB1465840
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: todoList1todoListFunctionstodosAuthorizerD25548A9
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - todoList1deleteTodo6096743B
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: BackendStack/todoList1-todoApi/Default/todos/{id}/DELETE/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02S307DIBTGn8V7xqzGxEu7GRMvjM3UB2Bw7M5WoIGDSyV9d4Gus1f8Dh893/nTild3D/z25kmc/Uqq0zpK64DHDxLyxLbWeHJBEtt+m/dAfSC2A2+Dk8Bq74HSuxZNm/VGOKGBwOXg+ipxyqKQ0JqRZZeIQvO4s10Ry9nYDuVQkhQambStQbI8fnlwjbVdFq88w7ZDMLSU/m9eVQKkYf54GWfTmlKLB50uR6YGI7RVex4/xX6qq0AquMdWEJzFwON2qmm28nWgg3X4O3W8iFLzVPd4mcOMtZQ2pNqeoe/soC9lLqI8y+I9wTzCjfDA3iBlV1m80HLAM4+sE3qvBI8vwcg88awuuQGn0fuyC3+/EnmFnpdNpphvgjwBZcNxZMYq4Ee//qke00/Cq5ujR1y51AJq4Lvp/ANTLiqmQAIAAA==
+    Metadata:
+      aws:cdk:path: BackendStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  userpool:
+    Value:
+      Ref: todoList1todoListAuthtodoList1todoListAuthUserPoolFBF66FA4
+  identitypool:
+    Value:
+      Ref: todoList1todoListAuthtodoList1todoListAuthIdentityPoolA96D07FC
+  awscognitoregion:
+    Value:
+      Ref: AWS::Region
+  webclientid:
+    Value:
+      Ref: todoList1todoListAuthtodoList1todoListAuthUserPooltodoList1todoListAuthWebClient0FCA381D
+  todoList1todoApiEndpoint81C5F06E:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: todoList1todoApiB1465840
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: todoList1todoApiDeploymentStageprodF751AB21
+          - /
+  apiname:
+    Value: todoList1-todoApi
+  apiendpoint:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: todoList1todoApiB1465840
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: todoList1todoApiDeploymentStageprodF751AB21
+          - /
+Parameters:
+  AssetParameters5e505eca62802f411f5c64fc94f81f9b1556cddb7c3525a3abedeb0bf9e8cd48S3Bucket0CA9590E:
+    Type: String
+    Description: S3 bucket for asset "5e505eca62802f411f5c64fc94f81f9b1556cddb7c3525a3abedeb0bf9e8cd48"
+  AssetParameters5e505eca62802f411f5c64fc94f81f9b1556cddb7c3525a3abedeb0bf9e8cd48S3VersionKey97553473:
+    Type: String
+    Description: S3 key for asset version "5e505eca62802f411f5c64fc94f81f9b1556cddb7c3525a3abedeb0bf9e8cd48"
+  AssetParameters5e505eca62802f411f5c64fc94f81f9b1556cddb7c3525a3abedeb0bf9e8cd48ArtifactHash0F1F5C1B:
+    Type: String
+    Description: Artifact hash for asset "5e505eca62802f411f5c64fc94f81f9b1556cddb7c3525a3abedeb0bf9e8cd48"
+  AssetParameters4dad72cd030ae5930380caa5b9b399b6064a35cbc525ddc4ebffc0dcd7a1662aS3BucketA1E20C93:
+    Type: String
+    Description: S3 bucket for asset "4dad72cd030ae5930380caa5b9b399b6064a35cbc525ddc4ebffc0dcd7a1662a"
+  AssetParameters4dad72cd030ae5930380caa5b9b399b6064a35cbc525ddc4ebffc0dcd7a1662aS3VersionKeyFE763B36:
+    Type: String
+    Description: S3 key for asset version "4dad72cd030ae5930380caa5b9b399b6064a35cbc525ddc4ebffc0dcd7a1662a"
+  AssetParameters4dad72cd030ae5930380caa5b9b399b6064a35cbc525ddc4ebffc0dcd7a1662aArtifactHash7F624392:
+    Type: String
+    Description: Artifact hash for asset "4dad72cd030ae5930380caa5b9b399b6064a35cbc525ddc4ebffc0dcd7a1662a"
+  AssetParameters00409a5f492bbacbdd318dede95ec30043efa501ee4d4c686602f2d3c059b03aS3BucketDF821CFE:
+    Type: String
+    Description: S3 bucket for asset "00409a5f492bbacbdd318dede95ec30043efa501ee4d4c686602f2d3c059b03a"
+  AssetParameters00409a5f492bbacbdd318dede95ec30043efa501ee4d4c686602f2d3c059b03aS3VersionKey849A6819:
+    Type: String
+    Description: S3 key for asset version "00409a5f492bbacbdd318dede95ec30043efa501ee4d4c686602f2d3c059b03a"
+  AssetParameters00409a5f492bbacbdd318dede95ec30043efa501ee4d4c686602f2d3c059b03aArtifactHash1ACE68E7:
+    Type: String
+    Description: Artifact hash for asset "00409a5f492bbacbdd318dede95ec30043efa501ee4d4c686602f2d3c059b03a"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

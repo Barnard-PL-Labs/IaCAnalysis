@@ -1,0 +1,88 @@
+Resources:
+  auth0nextjsfastapiappRole1D698813:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: amplify.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Auth0NextjsFastapiStack/auth0-nextjs-fastapi-app/Role/Resource
+  auth0nextjsfastapiappD6834B8B:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: auth0-nextjs-fastapi-app
+      BasicAuthConfig:
+        EnableBasicAuth: false
+      IAMServiceRole:
+        Fn::GetAtt:
+          - auth0nextjsfastapiappRole1D698813
+          - Arn
+      OauthToken: "{{resolve:secretsmanager:prod/blog.elmoelmo.net/amplify:SecretString:GITHUB_OAUTH_TOKEN::}}"
+      Repository: https://github.com/s-fujimoto/auth0-nextjs-fastapi
+    Metadata:
+      aws:cdk:path: Auth0NextjsFastapiStack/auth0-nextjs-fastapi-app/Resource
+  auth0nextjsfastapiappmaster6A8D1FA3:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId:
+        Fn::GetAtt:
+          - auth0nextjsfastapiappD6834B8B
+          - AppId
+      BranchName: master
+      EnableAutoBuild: true
+      EnablePullRequestPreview: true
+    Metadata:
+      aws:cdk:path: Auth0NextjsFastapiStack/auth0-nextjs-fastapi-app/master/Resource
+  auth0nextjsfastapiappelmoelmonet1FBF2352:
+    Type: AWS::Amplify::Domain
+    Properties:
+      AppId:
+        Fn::GetAtt:
+          - auth0nextjsfastapiappD6834B8B
+          - AppId
+      DomainName: elmoelmo.net
+      SubDomainSettings:
+        - BranchName:
+            Fn::GetAtt:
+              - auth0nextjsfastapiappmaster6A8D1FA3
+              - BranchName
+          Prefix: myapp
+      AutoSubDomainCreationPatterns:
+        - "*"
+        - pr*
+      AutoSubDomainIAMRole:
+        Fn::GetAtt:
+          - auth0nextjsfastapiappRole1D698813
+          - Arn
+      EnableAutoSubDomain: false
+    Metadata:
+      aws:cdk:path: Auth0NextjsFastapiStack/auth0-nextjs-fastapi-app/elmoelmo.net/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/z2NSQ6DMAxFz8KeGEI3XXY6ARygckMQhkxKoFUVcfeSNurqWf/bzw3wA8S6wFdgop+ZogfEbkExl3t0j4QaYmuVLK+DSdxK1E7R8Ia4J2fnUnHxaMSYppvVSGbbvusy2NWL/aRmqNyIUBen/KhKzKZcxiTLpr/G2F7CFKonPwJvgBdTIGJ+NQtpCe2PH2sauRDFAAAA
+    Metadata:
+      aws:cdk:path: Auth0NextjsFastapiStack/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,1413 @@
+Resources:
+  abaloneBlogBucketCDE1BB0C:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Join:
+          - ""
+          - - abalone-blog-
+            - Ref: AWS::AccountId
+            - "-"
+            - Ref: AWS::Region
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/abaloneBlogBucket/Resource
+  abaloneBlogBucketNotifications20F61CE6:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: abaloneBlogBucketCDE1BB0C
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:Put
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: prefix
+                    Value: Inputs/
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - InvokeStateMachine4BCE189A
+                - Arn
+    DependsOn:
+      - abaloneBlogBucketAllowBucketNotificationsToBlogResourcesStackInvokeStateMachine45E7564319057E3A
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/abaloneBlogBucket/Notifications/Resource
+  abaloneBlogBucketAllowBucketNotificationsToBlogResourcesStackInvokeStateMachine45E7564319057E3A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - InvokeStateMachine4BCE189A
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - abaloneBlogBucketCDE1BB0C
+          - Arn
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/abaloneBlogBucket/AllowBucketNotificationsToBlogResourcesStackInvokeStateMachine45E75643
+  folderCreatorFunctionServiceRole8C27AD54:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/folderCreatorFunction/ServiceRole/Resource
+  folderCreatorFunctionServiceRoleDefaultPolicy7CEB9EBC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - abaloneBlogBucketCDE1BB0C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - abaloneBlogBucketCDE1BB0C
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: folderCreatorFunctionServiceRoleDefaultPolicy7CEB9EBC
+      Roles:
+        - Ref: folderCreatorFunctionServiceRole8C27AD54
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/folderCreatorFunction/ServiceRole/DefaultPolicy/Resource
+  folderCreatorFunction50BA5A5E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersb2d80fde71bf3d7ae5d4de7e4709536753ebd352eb26a1ee975372b6567740b5S3Bucket7EB4C795
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb2d80fde71bf3d7ae5d4de7e4709536753ebd352eb26a1ee975372b6567740b5S3VersionKeyFBC7EB64
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb2d80fde71bf3d7ae5d4de7e4709536753ebd352eb26a1ee975372b6567740b5S3VersionKeyFBC7EB64
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - folderCreatorFunctionServiceRole8C27AD54
+          - Arn
+      Runtime: python3.8
+      Environment:
+        Variables:
+          bucket:
+            Ref: abaloneBlogBucketCDE1BB0C
+      FunctionName:
+        Fn::Join:
+          - ""
+          - - abalone-bucketFolderCreator-
+            - Ref: AWS::AccountId
+            - "-"
+            - Ref: AWS::Region
+    DependsOn:
+      - folderCreatorFunctionServiceRoleDefaultPolicy7CEB9EBC
+      - folderCreatorFunctionServiceRole8C27AD54
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/folderCreatorFunction/Resource
+      aws:asset:path: asset.b2d80fde71bf3d7ae5d4de7e4709536753ebd352eb26a1ee975372b6567740b5
+      aws:asset:property: Code
+  InvokeBucketFolderCreator1:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - folderCreatorFunction50BA5A5E
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/InvokeBucketFolderCreator1/Default
+  DeploySagemakerProcessingScriptCustomResourceDCB75DA9:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameterse0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125S3Bucket3635455F
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125S3VersionKey574B9AF7
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125S3VersionKey574B9AF7
+      DestinationBucketName:
+        Ref: abaloneBlogBucketCDE1BB0C
+      DestinationBucketKeyPrefix: Scripts
+      Prune: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/DeploySagemakerProcessingScript/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameterse0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125S3Bucket3635455F
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameterse0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125S3Bucket3635455F
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - abaloneBlogBucketCDE1BB0C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - abaloneBlogBucketCDE1BB0C
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176S3Bucket77147E20
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176S3VersionKey4253216F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176S3VersionKey4253216F
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Runtime: python3.6
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.c9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176.zip
+      aws:asset:property: Code
+  stepFunctionsRole51F211E9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - Fn::Join:
+                    - ""
+                    - - states.
+                      - Ref: AWS::Region
+                      - .amazonaws.com
+                - sagemaker.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLogsFullAccess
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AWSLambdaFullAccess
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonSageMakerFullAccess
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonS3FullAccess
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/stepFunctionsRole/Resource
+  stepFunctionsRoleDefaultPolicy81DB8DCE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - lambdaStartingFunction74913C74
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - comparisonFunction144DD1AF
+                - Arn
+          - Action:
+              - sagemaker:CreateTrainingJob
+              - sagemaker:DescribeTrainingJob
+              - sagemaker:StopTrainingJob
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":sagemaker:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :training-job/*
+          - Action: sagemaker:ListTags
+            Effect: Allow
+            Resource: "*"
+          - Action: iam:PassRole
+            Condition:
+              StringEquals:
+                iam:PassedToService: sagemaker.amazonaws.com
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - XgboostTrainingSagemakerRole6555FF61
+                - Arn
+          - Action:
+              - events:PutTargets
+              - events:PutRule
+              - events:DescribeRule
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":events:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :rule/StepFunctionsGetEventsForSageMakerTrainingJobsRule
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - describeEndpointLambda13C19589
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - predictionFunction5D639661
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - cleanupFunction808DE61E
+                - Arn
+          - Action: iam:PassRole
+            Condition:
+              StringEquals:
+                iam:PassedToService: sagemaker.amazonaws.com
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LinearTrainingSagemakerRoleDA776B55
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: stepFunctionsRoleDefaultPolicy81DB8DCE
+      Roles:
+        - Ref: stepFunctionsRole51F211E9
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/stepFunctionsRole/DefaultPolicy/Resource
+  lambdaStartingFunctionServiceRole6B3C12B3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/lambdaStartingFunction/ServiceRole/Resource
+  lambdaStartingFunction74913C74:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters8957db1624ac63b2853e95c20e994ba7a72b3a8aef795efa49ee8899639acef6S3Bucket4369334A
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8957db1624ac63b2853e95c20e994ba7a72b3a8aef795efa49ee8899639acef6S3VersionKey34444B81
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8957db1624ac63b2853e95c20e994ba7a72b3a8aef795efa49ee8899639acef6S3VersionKey34444B81
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - lambdaStartingFunctionServiceRole6B3C12B3
+          - Arn
+      Runtime: python3.8
+      Environment:
+        Variables:
+          region:
+            Ref: AWS::Region
+      FunctionName:
+        Fn::Join:
+          - ""
+          - - abalone-stateFirstFunction-
+            - Ref: AWS::AccountId
+            - "-"
+            - Ref: AWS::Region
+    DependsOn:
+      - lambdaStartingFunctionServiceRole6B3C12B3
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/lambdaStartingFunction/Resource
+      aws:asset:path: asset.8957db1624ac63b2853e95c20e994ba7a72b3a8aef795efa49ee8899639acef6
+      aws:asset:property: Code
+  XgboostTrainingSagemakerRole6555FF61:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - cloudwatch:PutMetricData
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateLogGroup
+                  - logs:DescribeLogStreams
+                  - ecr:GetAuthorizationToken
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: CreateTrainingJob
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/XgboostTraining/SagemakerRole/Resource
+  XgboostTrainingSagemakerRoleDefaultPolicyAF5B75CF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - abaloneBlogBucketCDE1BB0C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - abaloneBlogBucketCDE1BB0C
+                        - Arn
+                    - /Xgboost/train/*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - abaloneBlogBucketCDE1BB0C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - abaloneBlogBucketCDE1BB0C
+                        - Arn
+                    - /Xgboost/validation/*
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - abaloneBlogBucketCDE1BB0C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - abaloneBlogBucketCDE1BB0C
+                        - Arn
+                    - /ml_models/xgboost/*
+        Version: "2012-10-17"
+      PolicyName: XgboostTrainingSagemakerRoleDefaultPolicyAF5B75CF
+      Roles:
+        - Ref: XgboostTrainingSagemakerRole6555FF61
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/XgboostTraining/SagemakerRole/DefaultPolicy/Resource
+  LinearTrainingSagemakerRoleDA776B55:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - cloudwatch:PutMetricData
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:CreateLogGroup
+                  - logs:DescribeLogStreams
+                  - ecr:GetAuthorizationToken
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: CreateTrainingJob
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/LinearTraining/SagemakerRole/Resource
+  LinearTrainingSagemakerRoleDefaultPolicy02C3CA01:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - abaloneBlogBucketCDE1BB0C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - abaloneBlogBucketCDE1BB0C
+                        - Arn
+                    - /Linear/train/*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - abaloneBlogBucketCDE1BB0C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - abaloneBlogBucketCDE1BB0C
+                        - Arn
+                    - /Linear/validation/*
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - abaloneBlogBucketCDE1BB0C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - abaloneBlogBucketCDE1BB0C
+                        - Arn
+                    - /ml_models/linear/*
+        Version: "2012-10-17"
+      PolicyName: LinearTrainingSagemakerRoleDefaultPolicy02C3CA01
+      Roles:
+        - Ref: LinearTrainingSagemakerRoleDA776B55
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/LinearTraining/SagemakerRole/DefaultPolicy/Resource
+  describeEndpointLambdaServiceRole1DDFD494:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/describeEndpointLambda/ServiceRole/Resource
+  describeEndpointLambdaServiceRoleDefaultPolicy399F585D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sagemaker:DescribeEndpoint
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: describeEndpointLambdaServiceRoleDefaultPolicy399F585D
+      Roles:
+        - Ref: describeEndpointLambdaServiceRole1DDFD494
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/describeEndpointLambda/ServiceRole/DefaultPolicy/Resource
+  describeEndpointLambda13C19589:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters74dd8cd6e70374098ec152c0a4285142350228213654453f081406df1df8ded9S3Bucket3D409225
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters74dd8cd6e70374098ec152c0a4285142350228213654453f081406df1df8ded9S3VersionKeyDC5ACFD4
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters74dd8cd6e70374098ec152c0a4285142350228213654453f081406df1df8ded9S3VersionKeyDC5ACFD4
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - describeEndpointLambdaServiceRole1DDFD494
+          - Arn
+      Runtime: python3.8
+      FunctionName:
+        Fn::Join:
+          - ""
+          - - abalone-describeEndpointFunction-
+            - Ref: AWS::AccountId
+            - "-"
+            - Ref: AWS::Region
+    DependsOn:
+      - describeEndpointLambdaServiceRoleDefaultPolicy399F585D
+      - describeEndpointLambdaServiceRole1DDFD494
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/describeEndpointLambda/Resource
+      aws:asset:path: asset.74dd8cd6e70374098ec152c0a4285142350228213654453f081406df1df8ded9
+      aws:asset:property: Code
+  predictionFunctionServiceRole5373358D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/predictionFunction/ServiceRole/Resource
+  predictionFunctionServiceRoleDefaultPolicy5FD6BA1A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sagemaker:InvokeEndpoint
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - abaloneBlogBucketCDE1BB0C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - abaloneBlogBucketCDE1BB0C
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: predictionFunctionServiceRoleDefaultPolicy5FD6BA1A
+      Roles:
+        - Ref: predictionFunctionServiceRole5373358D
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/predictionFunction/ServiceRole/DefaultPolicy/Resource
+  predictionFunction5D639661:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters002a7893957be8be51d8a0c04f6da64ea17891e847a04b4cebcd2f5f1c07c288S3Bucket0E53420F
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters002a7893957be8be51d8a0c04f6da64ea17891e847a04b4cebcd2f5f1c07c288S3VersionKey1C6A0FA0
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters002a7893957be8be51d8a0c04f6da64ea17891e847a04b4cebcd2f5f1c07c288S3VersionKey1C6A0FA0
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - predictionFunctionServiceRole5373358D
+          - Arn
+      Runtime: python3.8
+      Environment:
+        Variables:
+          region:
+            Ref: AWS::Region
+          bucket:
+            Ref: abaloneBlogBucketCDE1BB0C
+      FunctionName:
+        Fn::Join:
+          - ""
+          - - abalone-predictionFunction-
+            - Ref: AWS::AccountId
+            - "-"
+            - Ref: AWS::Region
+    DependsOn:
+      - predictionFunctionServiceRoleDefaultPolicy5FD6BA1A
+      - predictionFunctionServiceRole5373358D
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/predictionFunction/Resource
+      aws:asset:path: asset.002a7893957be8be51d8a0c04f6da64ea17891e847a04b4cebcd2f5f1c07c288
+      aws:asset:property: Code
+  cleanupFunctionServiceRoleF2D5398B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/cleanupFunction/ServiceRole/Resource
+  cleanupFunctionServiceRoleDefaultPolicy8DA0A82F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sagemaker:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: cleanupFunctionServiceRoleDefaultPolicy8DA0A82F
+      Roles:
+        - Ref: cleanupFunctionServiceRoleF2D5398B
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/cleanupFunction/ServiceRole/DefaultPolicy/Resource
+  cleanupFunction808DE61E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters7ea39c9beb62db696c88f11f27e54e1ab5cbd660dff0fa111a0caf58047a9048S3BucketE818D96D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters7ea39c9beb62db696c88f11f27e54e1ab5cbd660dff0fa111a0caf58047a9048S3VersionKey53AF48A2
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters7ea39c9beb62db696c88f11f27e54e1ab5cbd660dff0fa111a0caf58047a9048S3VersionKey53AF48A2
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - cleanupFunctionServiceRoleF2D5398B
+          - Arn
+      Runtime: python3.8
+      FunctionName:
+        Fn::Join:
+          - ""
+          - - abalone-cleanupFunction-
+            - Ref: AWS::AccountId
+            - "-"
+            - Ref: AWS::Region
+    DependsOn:
+      - cleanupFunctionServiceRoleDefaultPolicy8DA0A82F
+      - cleanupFunctionServiceRoleF2D5398B
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/cleanupFunction/Resource
+      aws:asset:path: asset.7ea39c9beb62db696c88f11f27e54e1ab5cbd660dff0fa111a0caf58047a9048
+      aws:asset:property: Code
+  comparisonFunctionServiceRoleBA273D56:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/comparisonFunction/ServiceRole/Resource
+  comparisonFunction144DD1AF:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters12b8350f161428de947d3a191994766f0738058a8eb54e6359e01be7cae8e522S3BucketC907F09A
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters12b8350f161428de947d3a191994766f0738058a8eb54e6359e01be7cae8e522S3VersionKeyD4B41EDA
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters12b8350f161428de947d3a191994766f0738058a8eb54e6359e01be7cae8e522S3VersionKeyD4B41EDA
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - comparisonFunctionServiceRoleBA273D56
+          - Arn
+      Runtime: python3.8
+      FunctionName:
+        Fn::Join:
+          - ""
+          - - abalone-comparisonFunction-
+            - Ref: AWS::AccountId
+            - "-"
+            - Ref: AWS::Region
+    DependsOn:
+      - comparisonFunctionServiceRoleBA273D56
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/comparisonFunction/Resource
+      aws:asset:path: asset.12b8350f161428de947d3a191994766f0738058a8eb54e6359e01be7cae8e522
+      aws:asset:property: Code
+  abaloneStepFunction2A107336:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - stepFunctionsRole51F211E9
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Fetch Image URIs","States":{"Fetch Image URIs":{"Next":"Process and divide dataset","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.startLambda","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - lambdaStartingFunction74913C74
+                - Arn
+            - '","Payload.$":"$"}},"Process and divide dataset":{"Next":"Do the work in parallel","Type":"Task","Resource":"arn:aws:states:::sagemaker:createProcessingJob.sync","Parameters":{"ProcessingJobName.$":"$.input.processing_jobname","ProcessingInputs":[{"InputName":"code","S3Input":{"S3Uri":"s3://'
+            - Ref: abaloneBlogBucketCDE1BB0C
+            - /Scripts/preprocessing.py","LocalPath":"/opt/ml/processing/input/code","S3DataType":"S3Prefix","S3InputMode":"File","S3DataDistributionType":"FullyReplicated","S3CompressionType":"None"}}],"ProcessingOutputConfig":{"Outputs":[{"OutputName":"output-1","S3Output":{"S3Uri":"s3://
+            - Ref: abaloneBlogBucketCDE1BB0C
+            - /processing_job_logs/spark_event_logs","LocalPath":"/opt/ml/processing/spark-events/","S3UploadMode":"Continuous"}}]},"AppSpecification":{"ImageUri.$":"$.startLambda.Payload.sagemaker_spark_image","ContainerArguments":["--s3_input_bucket","
+            - Ref: abaloneBlogBucketCDE1BB0C
+            - '","--s3_input_key_prefix","Inputs","--s3_output_bucket","'
+            - Ref: abaloneBlogBucketCDE1BB0C
+            - '"],"ContainerEntrypoint":["smspark-submit","--local-spark-event-logs-dir","/opt/ml/processing/spark-events/","/opt/ml/processing/input/code/preprocessing.py"]},"RoleArn":"'
+            - Fn::GetAtt:
+                - stepFunctionsRole51F211E9
+                - Arn
+            - '","ProcessingResources":{"ClusterConfig":{"InstanceCount":1,"InstanceType":"ml.m5.xlarge","VolumeSizeInGB":30}},"StoppingCondition":{"MaxRuntimeInSeconds":1200}},"ResultPath":"$.model.xgboost"},"Do the work in parallel":{"Type":"Parallel","Next":"Compare performace","Branches":[{"StartAt":"XgboostTraining","States":{"XgboostTraining":{"Next":"Save Xgboost Model","Type":"Task","ResultPath":"$.training.xgboostresult","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::sagemaker:createTrainingJob.sync","Parameters":{"TrainingJobName.$":"$.input.xgb_jobname","RoleArn":"
+            - Fn::GetAtt:
+                - XgboostTrainingSagemakerRole6555FF61
+                - Arn
+            - '","AlgorithmSpecification":{"TrainingInputMode":"File","TrainingImage.$":"$.startLambda.Payload.xgb_image"},"InputDataConfig":[{"ChannelName":"train","DataSource":{"S3DataSource":{"S3Uri":"https://s3.'
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: abaloneBlogBucketCDE1BB0C
+            - /Xgboost/train/","S3DataType":"S3Prefix","S3DataDistributionType":"FullyReplicated"}},"ContentType":"libsvm"},{"ChannelName":"validation","DataSource":{"S3DataSource":{"S3Uri":"https://s3.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: abaloneBlogBucketCDE1BB0C
+            - /Xgboost/validation/","S3DataType":"S3Prefix","S3DataDistributionType":"FullyReplicated"}},"ContentType":"libsvm"}],"OutputDataConfig":{"S3OutputPath":"https://s3.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: abaloneBlogBucketCDE1BB0C
+            - /ml_models/xgboost/"},"ResourceConfig":{"InstanceCount":1,"InstanceType":"ml.m5.2xlarge","VolumeSizeInGB":30},"StoppingCondition":{"MaxRuntimeInSeconds":3600},"HyperParameters":{"max_depth":"5","eta":"0.2","gamma":"4","min_child_weight":"6","subsample":"0.7","silent":"0","objective":"reg:linear","num_round":"50"}}},"Save Xgboost Model":{"Next":"Create Xgboost Endpoint Config","Type":"Task","Resource":"arn:aws:states:::sagemaker:createModel","Parameters":{"ExecutionRoleArn":"
+            - Fn::GetAtt:
+                - stepFunctionsRole51F211E9
+                - Arn
+            - '","ModelName.$":"$.input.xgb_model_name","PrimaryContainer":{"Environment":{},"Image.$":"$.startLambda.Payload.xgb_image","ModelDataUrl.$":"$.training.xgboostresult.ModelArtifacts.S3ModelArtifacts"}},"ResultPath":"$.model.xgboost"},"Create Xgboost Endpoint Config":{"Next":"Create Xgboost Endpoint","Type":"Task","Resource":"arn:aws:states:::sagemaker:createEndpointConfig","Parameters":{"EndpointConfigName.$":"$.input.xgb_model_name","ProductionVariants":[{"InitialInstanceCount":1,"InstanceType":"ml.m4.xlarge","ModelName.$":"$.input.xgb_model_name","VariantName":"AllTraffic"}]},"ResultPath":null},"Create Xgboost Endpoint":{"Next":"Describe Xgboost Endpoint","Type":"Task","Resource":"arn:aws:states:::sagemaker:createEndpoint","Parameters":{"EndpointConfigName.$":"$.input.xgb_model_name","EndpointName.$":"$.input.xgb_endpoint_name"},"ResultPath":null},"Describe Xgboost Endpoint":{"Next":"Xgboost Endpoint Ready?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.endpoints_status.xgboostresult","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - describeEndpointLambda13C19589
+                - Arn
+            - '","Payload.$":"$"}},"Wait For xgboost endpoint":{"Type":"Wait","Seconds":60,"Next":"Describe Xgboost Endpoint"},"Xgboost Endpoint Ready?":{"Type":"Choice","Choices":[{"Not":{"Variable":"$.endpoints_status.xgboostresult.Payload.endpoint_status","StringEquals":"InService"},"Next":"Wait For xgboost endpoint"}],"Default":"Perform Xgboost Prediction"},"Perform Xgboost Prediction":{"Next":"Delete xgboost Endpoint","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.prediction.xgboostresult","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - predictionFunction5D639661
+                - Arn
+            - '","Payload.$":"$"}},"Delete xgboost Endpoint":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.null","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - cleanupFunction808DE61E
+                - Arn
+            - '","Payload.$":"$"}}}},{"StartAt":"LinearTraining","States":{"LinearTraining":{"Next":"Save Linear Model","Type":"Task","ResultPath":"$.training.llresult","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::sagemaker:createTrainingJob.sync","Parameters":{"TrainingJobName.$":"$.input.ll_jobname","RoleArn":"
+            - Fn::GetAtt:
+                - LinearTrainingSagemakerRoleDA776B55
+                - Arn
+            - '","AlgorithmSpecification":{"TrainingInputMode":"File","TrainingImage.$":"$.startLambda.Payload.linear_image"},"InputDataConfig":[{"ChannelName":"train","DataSource":{"S3DataSource":{"S3Uri":"https://s3.'
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: abaloneBlogBucketCDE1BB0C
+            - /Linear/train/","S3DataType":"S3Prefix","S3DataDistributionType":"FullyReplicated"}},"ContentType":"text/csv"},{"ChannelName":"validation","DataSource":{"S3DataSource":{"S3Uri":"https://s3.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: abaloneBlogBucketCDE1BB0C
+            - /Linear/validation/","S3DataType":"S3Prefix","S3DataDistributionType":"FullyReplicated"}},"ContentType":"text/csv"}],"OutputDataConfig":{"S3OutputPath":"https://s3.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: abaloneBlogBucketCDE1BB0C
+            - /ml_models/linear/"},"ResourceConfig":{"InstanceCount":1,"InstanceType":"ml.m5.xlarge","VolumeSizeInGB":30},"StoppingCondition":{"MaxRuntimeInSeconds":3600},"HyperParameters":{"feature_dim":"8","epochs":"10","loss":"absolute_loss","predictor_type":"regressor","normalize_data":"True","optimizer":"adam","mini_batch_size":"100","learning_rate":"0.0001"}}},"Save Linear Model":{"Next":"Create Linear Endpoint Config","Type":"Task","Resource":"arn:aws:states:::sagemaker:createModel","Parameters":{"ExecutionRoleArn":"
+            - Fn::GetAtt:
+                - stepFunctionsRole51F211E9
+                - Arn
+            - '","ModelName.$":"$.input.ll_model_name","PrimaryContainer":{"Environment":{},"Image.$":"$.startLambda.Payload.linear_image","ModelDataUrl.$":"$.training.llresult.ModelArtifacts.S3ModelArtifacts"}},"ResultPath":"$.model.linearlearner"},"Create Linear Endpoint Config":{"Next":"Create Linear Endpoint","Type":"Task","Resource":"arn:aws:states:::sagemaker:createEndpointConfig","Parameters":{"EndpointConfigName.$":"$.input.ll_model_name","ProductionVariants":[{"InitialInstanceCount":1,"InstanceType":"ml.m4.xlarge","ModelName.$":"$.input.ll_model_name","VariantName":"AllTraffic"}]},"ResultPath":null},"Create Linear Endpoint":{"Next":"Describe Linear Endpoint","Type":"Task","Resource":"arn:aws:states:::sagemaker:createEndpoint","Parameters":{"EndpointConfigName.$":"$.input.ll_model_name","EndpointName.$":"$.input.ll_endpoint_name"},"ResultPath":null},"Describe Linear Endpoint":{"Next":"Linear Endpoint Ready?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.endpoints_status.llresult","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - describeEndpointLambda13C19589
+                - Arn
+            - '","Payload.$":"$"}},"Wait For Linear endpoint":{"Type":"Wait","Seconds":60,"Next":"Describe Linear Endpoint"},"Linear Endpoint Ready?":{"Type":"Choice","Choices":[{"Not":{"Variable":"$.endpoints_status.llresult.Payload.endpoint_status","StringEquals":"InService"},"Next":"Wait For Linear endpoint"}],"Default":"Perform Linear Prediction"},"Perform Linear Prediction":{"Next":"Delete Linear Endpoint","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.prediction.llresult","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - predictionFunction5D639661
+                - Arn
+            - '","Payload.$":"$"}},"Delete Linear Endpoint":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.null","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - cleanupFunction808DE61E
+                - Arn
+            - '","Payload.$":"$"}}}}]},"Compare performace":{"Next":"which model had better results ?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","OutputPath":"$[0].winningAlgorithm","ResultPath":"$[0].winningAlgorithm","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - comparisonFunction144DD1AF
+                - Arn
+            - '","Payload.$":"$"}},"which model had better results ?":{"Type":"Choice","Choices":[{"Variable":"$.Payload.winnerAlgorithm","StringEquals":"xgboost","Next":"Xgboost has better accuracy!"}],"Default":"Linear has better accuracy!"},"Linear has better accuracy!":{"Type":"Succeed"},"Xgboost has better accuracy!":{"Type":"Succeed"}},"TimeoutSeconds":3600}'
+    DependsOn:
+      - stepFunctionsRoleDefaultPolicy81DB8DCE
+      - stepFunctionsRole51F211E9
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/abaloneStepFunction/Resource
+  InvokeStateMachineServiceRoleDA113A30:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/InvokeStateMachine/ServiceRole/Resource
+  InvokeStateMachineServiceRoleDefaultPolicy4AC20BD4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: abaloneStepFunction2A107336
+        Version: "2012-10-17"
+      PolicyName: InvokeStateMachineServiceRoleDefaultPolicy4AC20BD4
+      Roles:
+        - Ref: InvokeStateMachineServiceRoleDA113A30
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/InvokeStateMachine/ServiceRole/DefaultPolicy/Resource
+  InvokeStateMachine4BCE189A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters2328e47be15be8f95f7c064b1a7ad9692ccb7e905d3b48608c8123c08497bb00S3BucketE7CB916D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters2328e47be15be8f95f7c064b1a7ad9692ccb7e905d3b48608c8123c08497bb00S3VersionKeyB8C70266
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters2328e47be15be8f95f7c064b1a7ad9692ccb7e905d3b48608c8123c08497bb00S3VersionKeyB8C70266
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - InvokeStateMachineServiceRoleDA113A30
+          - Arn
+      Runtime: python3.8
+      Environment:
+        Variables:
+          stateMachineArn:
+            Ref: abaloneStepFunction2A107336
+          accountId:
+            Ref: AWS::AccountId
+      FunctionName:
+        Fn::Join:
+          - ""
+          - - abalone-invokeStateMachine-
+            - Ref: AWS::AccountId
+            - "-"
+            - Ref: AWS::Region
+    DependsOn:
+      - InvokeStateMachineServiceRoleDefaultPolicy4AC20BD4
+      - InvokeStateMachineServiceRoleDA113A30
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/InvokeStateMachine/Resource
+      aws:asset:path: asset.2328e47be15be8f95f7c064b1a7ad9692ccb7e905d3b48608c8123c08497bb00
+      aws:asset:property: Code
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |-
+          exports.handler = (event, context) => {
+              // eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-extraneous-dependencies
+              const s3 = new (require('aws-sdk').S3)();
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const https = require('https');
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const url = require('url');
+              log(JSON.stringify(event, undefined, 2));
+              const props = event.ResourceProperties;
+              if (event.RequestType === 'Delete') {
+                  props.NotificationConfiguration = {}; // this is how you clean out notifications
+              }
+              const req = {
+                  Bucket: props.BucketName,
+                  NotificationConfiguration: props.NotificationConfiguration,
+              };
+              return s3.putBucketNotificationConfiguration(req, (err, data) => {
+                  log({ err, data });
+                  if (err) {
+                      return submitResponse('FAILED', err.message + `\nMore information in CloudWatch Log Stream: ${context.logStreamName}`);
+                  }
+                  else {
+                      return submitResponse('SUCCESS');
+                  }
+              });
+              function log(obj) {
+                  console.error(event.RequestId, event.StackId, event.LogicalResourceId, obj);
+              }
+              // eslint-disable-next-line max-len
+              // adapted from https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-function-code.html#cfn-lambda-function-code-cfnresponsemodule
+              // to allow sending an error messge as a reason.
+              function submitResponse(responseStatus, reason) {
+                  const responseBody = JSON.stringify({
+                      Status: responseStatus,
+                      Reason: reason || 'See the details in CloudWatch Log Stream: ' + context.logStreamName,
+                      PhysicalResourceId: event.PhysicalResourceId || event.LogicalResourceId,
+                      StackId: event.StackId,
+                      RequestId: event.RequestId,
+                      LogicalResourceId: event.LogicalResourceId,
+                      NoEcho: false,
+                  });
+                  log({ responseBody });
+                  const parsedUrl = url.parse(event.ResponseURL);
+                  const options = {
+                      hostname: parsedUrl.hostname,
+                      port: 443,
+                      path: parsedUrl.path,
+                      method: 'PUT',
+                      headers: {
+                          'content-type': '',
+                          'content-length': responseBody.length,
+                      },
+                  };
+                  const request = https.request(options, (r) => {
+                      log({ statusCode: r.statusCode, statusMessage: r.statusMessage });
+                      context.done();
+                  });
+                  request.on('error', (error) => {
+                      log({ sendError: error });
+                      context.done();
+                  });
+                  request.write(responseBody);
+                  request.end();
+              }
+          };
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: nodejs10.x
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.69.0,@aws-cdk/aws-applicationautoscaling=1.69.0,@aws-cdk/aws-autoscaling=1.69.0,@aws-cdk/aws-autoscaling-common=1.69.0,@aws-cdk/aws-autoscaling-hooktargets=1.69.0,@aws-cdk/aws-cloudformation=1.69.0,@aws-cdk/aws-cloudwatch=1.69.0,@aws-cdk/aws-codebuild=1.69.0,@aws-cdk/aws-codeguruprofiler=1.69.0,@aws-cdk/aws-ec2=1.69.0,@aws-cdk/aws-ecr=1.69.0,@aws-cdk/aws-ecr-assets=1.69.0,@aws-cdk/aws-ecs=1.69.0,@aws-cdk/aws-elasticloadbalancingv2=1.69.0,@aws-cdk/aws-events=1.69.0,@aws-cdk/aws-iam=1.69.0,@aws-cdk/aws-kms=1.69.0,@aws-cdk/aws-lambda=1.69.0,@aws-cdk/aws-logs=1.69.0,@aws-cdk/aws-s3=1.69.0,@aws-cdk/aws-s3-assets=1.69.0,@aws-cdk/aws-s3-deployment=1.69.0,@aws-cdk/aws-s3-notifications=1.69.0,@aws-cdk/aws-servicediscovery=1.69.0,@aws-cdk/aws-sns=1.69.0,@aws-cdk/aws-sns-subscriptions=1.69.0,@aws-cdk/aws-sqs=1.69.0,@aws-cdk/aws-ssm=1.69.0,@aws-cdk/aws-stepfunctions=1.69.0,@aws-cdk/aws-stepfunctions-tasks=1.69.0,@aws-cdk/cloud-assembly-schema=1.69.0,@aws-cdk/core=1.69.0,@aws-cdk/custom-resources=1.69.0,@aws-cdk/cx-api=1.69.0,@aws-cdk/region-info=1.69.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: BlogResourcesStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParametersb2d80fde71bf3d7ae5d4de7e4709536753ebd352eb26a1ee975372b6567740b5S3Bucket7EB4C795:
+    Type: String
+    Description: S3 bucket for asset "b2d80fde71bf3d7ae5d4de7e4709536753ebd352eb26a1ee975372b6567740b5"
+  AssetParametersb2d80fde71bf3d7ae5d4de7e4709536753ebd352eb26a1ee975372b6567740b5S3VersionKeyFBC7EB64:
+    Type: String
+    Description: S3 key for asset version "b2d80fde71bf3d7ae5d4de7e4709536753ebd352eb26a1ee975372b6567740b5"
+  AssetParametersb2d80fde71bf3d7ae5d4de7e4709536753ebd352eb26a1ee975372b6567740b5ArtifactHash6C8498CA:
+    Type: String
+    Description: Artifact hash for asset "b2d80fde71bf3d7ae5d4de7e4709536753ebd352eb26a1ee975372b6567740b5"
+  AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176S3Bucket77147E20:
+    Type: String
+    Description: S3 bucket for asset "c9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176"
+  AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176S3VersionKey4253216F:
+    Type: String
+    Description: S3 key for asset version "c9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176"
+  AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176ArtifactHash4E343C6C:
+    Type: String
+    Description: Artifact hash for asset "c9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176"
+  AssetParameterse0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125S3Bucket3635455F:
+    Type: String
+    Description: S3 bucket for asset "e0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125"
+  AssetParameterse0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125S3VersionKey574B9AF7:
+    Type: String
+    Description: S3 key for asset version "e0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125"
+  AssetParameterse0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125ArtifactHash8CF474C1:
+    Type: String
+    Description: Artifact hash for asset "e0d2eab1b00fe1e6d864671f107c57e646ee5c6f26a81ea7bb1f1e0502351125"
+  AssetParameters8957db1624ac63b2853e95c20e994ba7a72b3a8aef795efa49ee8899639acef6S3Bucket4369334A:
+    Type: String
+    Description: S3 bucket for asset "8957db1624ac63b2853e95c20e994ba7a72b3a8aef795efa49ee8899639acef6"
+  AssetParameters8957db1624ac63b2853e95c20e994ba7a72b3a8aef795efa49ee8899639acef6S3VersionKey34444B81:
+    Type: String
+    Description: S3 key for asset version "8957db1624ac63b2853e95c20e994ba7a72b3a8aef795efa49ee8899639acef6"
+  AssetParameters8957db1624ac63b2853e95c20e994ba7a72b3a8aef795efa49ee8899639acef6ArtifactHash7CB405C2:
+    Type: String
+    Description: Artifact hash for asset "8957db1624ac63b2853e95c20e994ba7a72b3a8aef795efa49ee8899639acef6"
+  AssetParameters74dd8cd6e70374098ec152c0a4285142350228213654453f081406df1df8ded9S3Bucket3D409225:
+    Type: String
+    Description: S3 bucket for asset "74dd8cd6e70374098ec152c0a4285142350228213654453f081406df1df8ded9"
+  AssetParameters74dd8cd6e70374098ec152c0a4285142350228213654453f081406df1df8ded9S3VersionKeyDC5ACFD4:
+    Type: String
+    Description: S3 key for asset version "74dd8cd6e70374098ec152c0a4285142350228213654453f081406df1df8ded9"
+  AssetParameters74dd8cd6e70374098ec152c0a4285142350228213654453f081406df1df8ded9ArtifactHash0D53AE82:
+    Type: String
+    Description: Artifact hash for asset "74dd8cd6e70374098ec152c0a4285142350228213654453f081406df1df8ded9"
+  AssetParameters002a7893957be8be51d8a0c04f6da64ea17891e847a04b4cebcd2f5f1c07c288S3Bucket0E53420F:
+    Type: String
+    Description: S3 bucket for asset "002a7893957be8be51d8a0c04f6da64ea17891e847a04b4cebcd2f5f1c07c288"
+  AssetParameters002a7893957be8be51d8a0c04f6da64ea17891e847a04b4cebcd2f5f1c07c288S3VersionKey1C6A0FA0:
+    Type: String
+    Description: S3 key for asset version "002a7893957be8be51d8a0c04f6da64ea17891e847a04b4cebcd2f5f1c07c288"
+  AssetParameters002a7893957be8be51d8a0c04f6da64ea17891e847a04b4cebcd2f5f1c07c288ArtifactHash9B04A61B:
+    Type: String
+    Description: Artifact hash for asset "002a7893957be8be51d8a0c04f6da64ea17891e847a04b4cebcd2f5f1c07c288"
+  AssetParameters7ea39c9beb62db696c88f11f27e54e1ab5cbd660dff0fa111a0caf58047a9048S3BucketE818D96D:
+    Type: String
+    Description: S3 bucket for asset "7ea39c9beb62db696c88f11f27e54e1ab5cbd660dff0fa111a0caf58047a9048"
+  AssetParameters7ea39c9beb62db696c88f11f27e54e1ab5cbd660dff0fa111a0caf58047a9048S3VersionKey53AF48A2:
+    Type: String
+    Description: S3 key for asset version "7ea39c9beb62db696c88f11f27e54e1ab5cbd660dff0fa111a0caf58047a9048"
+  AssetParameters7ea39c9beb62db696c88f11f27e54e1ab5cbd660dff0fa111a0caf58047a9048ArtifactHash5C912E74:
+    Type: String
+    Description: Artifact hash for asset "7ea39c9beb62db696c88f11f27e54e1ab5cbd660dff0fa111a0caf58047a9048"
+  AssetParameters12b8350f161428de947d3a191994766f0738058a8eb54e6359e01be7cae8e522S3BucketC907F09A:
+    Type: String
+    Description: S3 bucket for asset "12b8350f161428de947d3a191994766f0738058a8eb54e6359e01be7cae8e522"
+  AssetParameters12b8350f161428de947d3a191994766f0738058a8eb54e6359e01be7cae8e522S3VersionKeyD4B41EDA:
+    Type: String
+    Description: S3 key for asset version "12b8350f161428de947d3a191994766f0738058a8eb54e6359e01be7cae8e522"
+  AssetParameters12b8350f161428de947d3a191994766f0738058a8eb54e6359e01be7cae8e522ArtifactHash01BB57FF:
+    Type: String
+    Description: Artifact hash for asset "12b8350f161428de947d3a191994766f0738058a8eb54e6359e01be7cae8e522"
+  AssetParameters2328e47be15be8f95f7c064b1a7ad9692ccb7e905d3b48608c8123c08497bb00S3BucketE7CB916D:
+    Type: String
+    Description: S3 bucket for asset "2328e47be15be8f95f7c064b1a7ad9692ccb7e905d3b48608c8123c08497bb00"
+  AssetParameters2328e47be15be8f95f7c064b1a7ad9692ccb7e905d3b48608c8123c08497bb00S3VersionKeyB8C70266:
+    Type: String
+    Description: S3 key for asset version "2328e47be15be8f95f7c064b1a7ad9692ccb7e905d3b48608c8123c08497bb00"
+  AssetParameters2328e47be15be8f95f7c064b1a7ad9692ccb7e905d3b48608c8123c08497bb00ArtifactHashD5C494ED:
+    Type: String
+    Description: Artifact hash for asset "2328e47be15be8f95f7c064b1a7ad9692ccb7e905d3b48608c8123c08497bb00"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

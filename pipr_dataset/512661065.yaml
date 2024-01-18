@@ -1,0 +1,1032 @@
+Resources:
+  ForecastMLOpsPipelineResourceBucket9C5D14B8:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Join:
+          - ""
+          - - forecast-mlops-pipeline-resource-bucket-
+            - Ref: AWS::AccountId
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPipelineResourceBucket/Resource
+  ForecastMLOpsPipelineResourceBucketPolicy298E1C35:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: ForecastMLOpsPipelineResourceBucket9C5D14B8
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - ForecastMLOpsPipelineResourceBucket9C5D14B8
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ForecastMLOpsPipelineResourceBucket9C5D14B8
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPipelineResourceBucket/Policy/Resource
+  ForecastMLOpsPipelineResourceBucketAutoDeleteObjectsCustomResource15328974:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: ForecastMLOpsPipelineResourceBucket9C5D14B8
+    DependsOn:
+      - ForecastMLOpsPipelineResourceBucketPolicy298E1C35
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPipelineResourceBucket/AutoDeleteObjectsCustomResource/Default
+  ForecastMLOpsPipelineResourceBucketNotifications42B6417C:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: ForecastMLOpsPipelineResourceBucket9C5D14B8
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: suffix
+                    Value: .zip
+                  - Name: prefix
+                    Value: raw/
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - ForecastMLOpsPiplineStateMachineTrainTriggerUploadTriggerLambda68320F10
+                - Arn
+      Managed: true
+    DependsOn:
+      - ForecastMLOpsPipelineResourceBucketAllowBucketNotificationsToForecastMlopsPipelineStackForecastMLOpsPiplineStateMachineTrainTriggerUploadTriggerLambdaC1639822A47010CB
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPipelineResourceBucket/Notifications/Resource
+  ForecastMLOpsPipelineResourceBucketAllowBucketNotificationsToForecastMlopsPipelineStackForecastMLOpsPiplineStateMachineTrainTriggerUploadTriggerLambdaC1639822A47010CB:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineTrainTriggerUploadTriggerLambda68320F10
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - ForecastMLOpsPipelineResourceBucket9C5D14B8
+          - Arn
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPipelineResourceBucket/AllowBucketNotificationsToForecastMlopsPipelineStackForecastMLOpsPiplineStateMachineTrainTriggerUploadTriggerLambdaC1639822
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 0758db37a61ce7177f50559cad0340df233a2001b5880615afa517203dd67c21.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: ForecastMLOpsPipelineResourceBucket9C5D14B8
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.0758db37a61ce7177f50559cad0340df233a2001b5880615afa517203dd67c21
+      aws:asset:property: Code
+  ForecastMLOpsPiplineStateMachineForecastRole0CD94DB8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: forecast.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+      RoleName: ForecastMLOpsPipeline-ForecastRole
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastRole/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsPreprocesspropstaskNameGlueRoleF4472720:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      RoleName: Forecast-MLOps-Preprocess-Glue-Role
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsPreprocess/${props.taskName}GlueRole/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsPreprocesspropstaskNameGlueRoleDefaultPolicy6F55F53A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+                    - /*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        Version: "2012-10-17"
+      PolicyName: ForecastMLOpsPiplineStateMachineForecastMLOpsPreprocesspropstaskNameGlueRoleDefaultPolicy6F55F53A
+      Roles:
+        - Ref: ForecastMLOpsPiplineStateMachineForecastMLOpsPreprocesspropstaskNameGlueRoleF4472720
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsPreprocess/${props.taskName}GlueRole/DefaultPolicy/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsPreprocessForecastMLOpsPreprocessJobB732D431:
+    Type: AWS::Glue::Job
+    Properties:
+      Command:
+        Name: pythonshell
+        PythonVersion: "3"
+        ScriptLocation:
+          Fn::Join:
+            - ""
+            - - s3://
+              - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+              - /ed54cab1b2c1ed3da8a97e497aa67e90ca60648b3b8488e4c9a2ce883f697de5.py
+      Role:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineForecastMLOpsPreprocesspropstaskNameGlueRoleF4472720
+          - Arn
+      DefaultArguments:
+        --job-language: python
+        --bucket:
+          Ref: ForecastMLOpsPipelineResourceBucket9C5D14B8
+        --fileuri: raw/data.zip
+      GlueVersion: "1.0"
+      Name: Forecast-MLOps-Preprocess
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsPreprocess/Forecast-MLOps-PreprocessJob/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetForecastMLOpsCreateDatasetLambdaRoleB0A93208:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonForecastFullAccess
+      RoleName: Forecast-MLOps-Create-Dataset-Lambda-Role
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsCreateDataset/Forecast-MLOps-Create-DatasetLambdaRole/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetForecastMLOpsCreateDatasetLambda67862E9F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 58581d1d619f837bd31d41c5c4833b2c0bf07651d5782d277271c20f150d3760.zip
+      Role:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetForecastMLOpsCreateDatasetLambdaRoleB0A93208
+          - Arn
+      Environment:
+        Variables:
+          RESOURCE_BUCKET:
+            Ref: ForecastMLOpsPipelineResourceBucket9C5D14B8
+      FunctionName: Forecast-MLOps-Create-Dataset
+      Handler: index.handler
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetForecastMLOpsCreateDatasetLambdaRoleB0A93208
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsCreateDataset/Forecast-MLOps-Create-DatasetLambda/Resource
+      aws:asset:path: asset.58581d1d619f837bd31d41c5c4833b2c0bf07651d5782d277271c20f150d3760
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetGroupForecastMLOpsCreateDatasetGroupLambdaRole19DAB03B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonForecastFullAccess
+      RoleName: Forecast-MLOps-Create-Dataset-Group-Lambda-Role
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsCreateDatasetGroup/Forecast-MLOps-Create-Dataset-GroupLambdaRole/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetGroupForecastMLOpsCreateDatasetGroupLambda24DBE71E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: f9279a27d0c473a47a3f49ddf7f25f585557b1b964ee9b9718952b449a1a7224.zip
+      Role:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetGroupForecastMLOpsCreateDatasetGroupLambdaRole19DAB03B
+          - Arn
+      FunctionName: Forecast-MLOps-Create-Dataset-Group
+      Handler: index.handler
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetGroupForecastMLOpsCreateDatasetGroupLambdaRole19DAB03B
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsCreateDatasetGroup/Forecast-MLOps-Create-Dataset-GroupLambda/Resource
+      aws:asset:path: asset.f9279a27d0c473a47a3f49ddf7f25f585557b1b964ee9b9718952b449a1a7224
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetImportJobForecastMLOpsCreateDatasetImportJobLambdaRoleA07F6033:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonForecastFullAccess
+      RoleName: Forecast-MLOps-Create-Dataset-Import-Job-Lambda-Role
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsCreateDatasetImportJob/Forecast-MLOps-Create-Dataset-Import-JobLambdaRole/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetImportJobForecastMLOpsCreateDatasetImportJobLambda980CE032:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: b362c14e9392dfb06304afb7b894184a8ae5491433fc164cc100b7e4246d3818.zip
+      Role:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetImportJobForecastMLOpsCreateDatasetImportJobLambdaRoleA07F6033
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE:
+            Fn::GetAtt:
+              - ForecastMLOpsPiplineStateMachineForecastRole0CD94DB8
+              - Arn
+      FunctionName: Forecast-MLOps-Create-Dataset-Import-Job
+      Handler: index.handler
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetImportJobForecastMLOpsCreateDatasetImportJobLambdaRoleA07F6033
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsCreateDatasetImportJob/Forecast-MLOps-Create-Dataset-Import-JobLambda/Resource
+      aws:asset:path: asset.b362c14e9392dfb06304afb7b894184a8ae5491433fc164cc100b7e4246d3818
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ForecastMLOpsPiplineStateMachineForecastMLOpsCreatePredictorForecastMLOpsCreatePredictorLambdaRoleB8DA922A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonForecastFullAccess
+      RoleName: Forecast-MLOps-Create-Predictor-Lambda-Role
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsCreatePredictor/Forecast-MLOps-Create-PredictorLambdaRole/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsCreatePredictorForecastMLOpsCreatePredictorLambda40803B62:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 8483c1aa0947725705df920c71d11cbe8e6c27d1a829512d84a5966c5f006585.zip
+      Role:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineForecastMLOpsCreatePredictorForecastMLOpsCreatePredictorLambdaRoleB8DA922A
+          - Arn
+      FunctionName: Forecast-MLOps-Create-Predictor
+      Handler: index.handler
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - ForecastMLOpsPiplineStateMachineForecastMLOpsCreatePredictorForecastMLOpsCreatePredictorLambdaRoleB8DA922A
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsCreatePredictor/Forecast-MLOps-Create-PredictorLambda/Resource
+      aws:asset:path: asset.8483c1aa0947725705df920c71d11cbe8e6c27d1a829512d84a5966c5f006585
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ForecastMLOpsPiplineStateMachineForecastMLOpsCreateForecastForecastMLOpsCreateForecastLambdaRole7C38C6AB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonForecastFullAccess
+      RoleName: Forecast-MLOps-Create-Forecast-Lambda-Role
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsCreateForecast/Forecast-MLOps-Create-ForecastLambdaRole/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsCreateForecastForecastMLOpsCreateForecastLambda82AAF82C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 1c1675b44124e62a5453bbab6ba45e577955617c92ad525a7b10ca250a5c461f.zip
+      Role:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateForecastForecastMLOpsCreateForecastLambdaRole7C38C6AB
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE:
+            Fn::GetAtt:
+              - ForecastMLOpsPiplineStateMachineForecastRole0CD94DB8
+              - Arn
+          RESOURCE_BUCKET:
+            Ref: ForecastMLOpsPipelineResourceBucket9C5D14B8
+      FunctionName: Forecast-MLOps-Create-Forecast
+      Handler: index.handler
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateForecastForecastMLOpsCreateForecastLambdaRole7C38C6AB
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsCreateForecast/Forecast-MLOps-Create-ForecastLambda/Resource
+      aws:asset:path: asset.1c1675b44124e62a5453bbab6ba45e577955617c92ad525a7b10ca250a5c461f
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ForecastMLOpsPiplineStateMachineForecastMLOpsPostprocesspropstaskNameGlueRoleCA7FA382:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      RoleName: Forecast-MLOps-Postprocess-Glue-Role
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsPostprocess/${props.taskName}GlueRole/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsPostprocesspropstaskNameGlueRoleDefaultPolicy16B9EA2C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+                    - /*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        Version: "2012-10-17"
+      PolicyName: ForecastMLOpsPiplineStateMachineForecastMLOpsPostprocesspropstaskNameGlueRoleDefaultPolicy16B9EA2C
+      Roles:
+        - Ref: ForecastMLOpsPiplineStateMachineForecastMLOpsPostprocesspropstaskNameGlueRoleCA7FA382
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsPostprocess/${props.taskName}GlueRole/DefaultPolicy/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsPostprocessForecastMLOpsPostprocessJob85E1AA83:
+    Type: AWS::Glue::Job
+    Properties:
+      Command:
+        Name: pythonshell
+        PythonVersion: "3"
+        ScriptLocation:
+          Fn::Join:
+            - ""
+            - - s3://
+              - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+              - /e81ae9a0ff650ea1c84554571904d3c76b6458a169d950a33e3bc583d39135b0.py
+      Role:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineForecastMLOpsPostprocesspropstaskNameGlueRoleCA7FA382
+          - Arn
+      DefaultArguments:
+        --job-language: python
+      GlueVersion: "1.0"
+      Name: Forecast-MLOps-Postprocess
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsPostprocess/Forecast-MLOps-PostprocessJob/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsDeleteForecastResourceForecastMLOpsDeleteForecastResourceLambdaRole14EE51CC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonS3FullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonForecastFullAccess
+      RoleName: Forecast-MLOps-Delete-Forecast-Resource-Lambda-Role
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsDeleteForecastResource/Forecast-MLOps-Delete-Forecast-ResourceLambdaRole/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsDeleteForecastResourceForecastMLOpsDeleteForecastResourceLambdaE844AC69:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: a0f8e82626d71860d1efe707a742b438b019eefcb8890377f4a555bb8436a6ed.zip
+      Role:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineForecastMLOpsDeleteForecastResourceForecastMLOpsDeleteForecastResourceLambdaRole14EE51CC
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE:
+            Fn::GetAtt:
+              - ForecastMLOpsPiplineStateMachineForecastRole0CD94DB8
+              - Arn
+      FunctionName: Forecast-MLOps-Delete-Forecast-Resource
+      Handler: index.handler
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - ForecastMLOpsPiplineStateMachineForecastMLOpsDeleteForecastResourceForecastMLOpsDeleteForecastResourceLambdaRole14EE51CC
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsDeleteForecastResource/Forecast-MLOps-Delete-Forecast-ResourceLambda/Resource
+      aws:asset:path: asset.a0f8e82626d71860d1efe707a742b438b019eefcb8890377f4a555bb8436a6ed
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ForecastMLOpsPiplineStateMachineForecastMLOpsPipelineStateMachineExecutionRole882C7834:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      RoleName: ForecastMLOpsPipelineStateMachineExecutionRole
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsPipelineStateMachineExecutionRole/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsPipelineStateMachineExecutionRoleDefaultPolicyB28CC383:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - glue:BatchStopJobRun
+              - glue:GetJobRun
+              - glue:GetJobRuns
+              - glue:StartJobRun
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :job/
+                    - Ref: ForecastMLOpsPiplineStateMachineForecastMLOpsPostprocessForecastMLOpsPostprocessJob85E1AA83
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :job/
+                    - Ref: ForecastMLOpsPiplineStateMachineForecastMLOpsPreprocessForecastMLOpsPreprocessJobB732D431
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetForecastMLOpsCreateDatasetLambda67862E9F
+                  - Arn
+              - Fn::GetAtt:
+                  - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetGroupForecastMLOpsCreateDatasetGroupLambda24DBE71E
+                  - Arn
+              - Fn::GetAtt:
+                  - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetImportJobForecastMLOpsCreateDatasetImportJobLambda980CE032
+                  - Arn
+              - Fn::GetAtt:
+                  - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateForecastForecastMLOpsCreateForecastLambda82AAF82C
+                  - Arn
+              - Fn::GetAtt:
+                  - ForecastMLOpsPiplineStateMachineForecastMLOpsCreatePredictorForecastMLOpsCreatePredictorLambda40803B62
+                  - Arn
+              - Fn::GetAtt:
+                  - ForecastMLOpsPiplineStateMachineForecastMLOpsDeleteForecastResourceForecastMLOpsDeleteForecastResourceLambdaE844AC69
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetForecastMLOpsCreateDatasetLambda67862E9F
+                        - Arn
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetGroupForecastMLOpsCreateDatasetGroupLambda24DBE71E
+                        - Arn
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetImportJobForecastMLOpsCreateDatasetImportJobLambda980CE032
+                        - Arn
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateForecastForecastMLOpsCreateForecastLambda82AAF82C
+                        - Arn
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ForecastMLOpsPiplineStateMachineForecastMLOpsCreatePredictorForecastMLOpsCreatePredictorLambda40803B62
+                        - Arn
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ForecastMLOpsPiplineStateMachineForecastMLOpsDeleteForecastResourceForecastMLOpsDeleteForecastResourceLambdaE844AC69
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: ForecastMLOpsPiplineStateMachineForecastMLOpsPipelineStateMachineExecutionRoleDefaultPolicyB28CC383
+      Roles:
+        - Ref: ForecastMLOpsPiplineStateMachineForecastMLOpsPipelineStateMachineExecutionRole882C7834
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsPipelineStateMachineExecutionRole/DefaultPolicy/Resource
+  ForecastMLOpsPiplineStateMachineForecastMLOpsPipelineStateMachine6598A61D:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineForecastMLOpsPipelineStateMachineExecutionRole882C7834
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Forecast-MLOps-Preprocess","States":{"Forecast-MLOps-Preprocess":{"Next":"Forecast-MLOps-Create-Dataset","Type":"Task","ResultPath":"$.result","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::glue:startJobRun.sync","Parameters":{"JobName":"
+            - Ref: ForecastMLOpsPiplineStateMachineForecastMLOpsPreprocessForecastMLOpsPreprocessJobB732D431
+            - '"}},"Forecast-MLOps-Create-Dataset":{"Next":"Forecast-MLOps-Create-Dataset-Group","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["ResourcePending"],"IntervalSeconds":30,"MaxAttempts":600,"BackoffRate":1}],"Type":"Task","OutputPath":"$.Payload","ResultPath":"$","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetForecastMLOpsCreateDatasetLambda67862E9F
+                - Arn
+            - '","Payload.$":"$"}},"Forecast-MLOps-Create-Dataset-Group":{"Next":"Forecast-MLOps-Create-Dataset-Import-Job","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["ResourcePending"],"IntervalSeconds":30,"MaxAttempts":600,"BackoffRate":1}],"Type":"Task","OutputPath":"$.Payload","ResultPath":"$","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetGroupForecastMLOpsCreateDatasetGroupLambda24DBE71E
+                - Arn
+            - '","Payload.$":"$"}},"Forecast-MLOps-Create-Dataset-Import-Job":{"Next":"Forecast-MLOps-Create-Predictor","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["ResourcePending"],"IntervalSeconds":30,"MaxAttempts":600,"BackoffRate":1}],"Type":"Task","OutputPath":"$.Payload","ResultPath":"$","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateDatasetImportJobForecastMLOpsCreateDatasetImportJobLambda980CE032
+                - Arn
+            - '","Payload.$":"$"}},"Forecast-MLOps-Create-Predictor":{"Next":"Forecast-MLOps-Create-Forecast","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["ResourcePending"],"IntervalSeconds":30,"MaxAttempts":600,"BackoffRate":1}],"Type":"Task","OutputPath":"$.Payload","ResultPath":"$","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - ForecastMLOpsPiplineStateMachineForecastMLOpsCreatePredictorForecastMLOpsCreatePredictorLambda40803B62
+                - Arn
+            - '","Payload.$":"$"}},"Forecast-MLOps-Create-Forecast":{"Next":"Forecast-MLOps-Postprocess","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["ResourcePending"],"IntervalSeconds":30,"MaxAttempts":600,"BackoffRate":1}],"Type":"Task","OutputPath":"$.Payload","ResultPath":"$","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - ForecastMLOpsPiplineStateMachineForecastMLOpsCreateForecastForecastMLOpsCreateForecastLambda82AAF82C
+                - Arn
+            - '","Payload.$":"$"}},"Forecast-MLOps-Postprocess":{"Next":"ForecastMLOpsPipelineStrategyChoice","Type":"Task","ResultPath":"$.result","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::glue:startJobRun.sync","Parameters":{"JobName":"
+            - Ref: ForecastMLOpsPiplineStateMachineForecastMLOpsPostprocessForecastMLOpsPostprocessJob85E1AA83
+            - '","Arguments":{"--uid.$":"$.uid","--bucket":"'
+            - Ref: ForecastMLOpsPipelineResourceBucket9C5D14B8
+            - '"}}},"ForecastMLOpsPipelineStrategyChoice":{"Type":"Choice","Choices":[{"Variable":"$.config.PerformDelete","BooleanEquals":true,"Next":"Forecast-MLOps-Delete-Forecast-Resource"}],"Default":"ForecastMLOpsPipelineSkipDeletion"},"ForecastMLOpsPipelineSkipDeletion":{"Type":"Pass","End":true},"Forecast-MLOps-Delete-Forecast-Resource":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2},{"ErrorEquals":["ResourcePending"],"IntervalSeconds":30,"MaxAttempts":600,"BackoffRate":1}],"Type":"Task","OutputPath":"$.Payload","ResultPath":"$","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - ForecastMLOpsPiplineStateMachineForecastMLOpsDeleteForecastResourceForecastMLOpsDeleteForecastResourceLambdaE844AC69
+                - Arn
+            - '","Payload.$":"$"}}}}'
+      StateMachineName: Forecast-MLOps-Pipeline
+    DependsOn:
+      - ForecastMLOpsPiplineStateMachineForecastMLOpsPipelineStateMachineExecutionRoleDefaultPolicyB28CC383
+      - ForecastMLOpsPiplineStateMachineForecastMLOpsPipelineStateMachineExecutionRole882C7834
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/ForecastMLOpsPipelineStateMachine/Resource
+  ForecastMLOpsPiplineStateMachineTrainTriggerForecastMLOpsPipelineTriggerRole6B34C5C5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSStepFunctionsFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchFullAccess
+        - arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+      RoleName: ForecastMLOpsPipelineTriggerRole
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/TrainTrigger/ForecastMLOpsPipelineTriggerRole/Resource
+  ForecastMLOpsPiplineStateMachineTrainTriggerUploadTriggerLambda68320F10:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 43d88ef30692c957ff4d36e6b266d86d9a8d3ab12106b7e6722e282619550c21.zip
+      Role:
+        Fn::GetAtt:
+          - ForecastMLOpsPiplineStateMachineTrainTriggerForecastMLOpsPipelineTriggerRole6B34C5C5
+          - Arn
+      Environment:
+        Variables:
+          STEP_FUNCTIONS_ARN:
+            Ref: ForecastMLOpsPiplineStateMachineForecastMLOpsPipelineStateMachine6598A61D
+      FunctionName: Forecast-MLOps-Pipeline-Upload-Trigger
+      Handler: index.handler
+      Runtime: python3.7
+    DependsOn:
+      - ForecastMLOpsPiplineStateMachineTrainTriggerForecastMLOpsPipelineTriggerRole6B34C5C5
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/ForecastMLOpsPiplineStateMachine/TrainTrigger/UploadTriggerLambda/Resource
+      aws:asset:path: asset.43d88ef30692c957ff4d36e6b266d86d9a8d3ab12106b7e6722e282619550c21
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |
+          import boto3  # type: ignore
+          import json
+          import logging
+          import urllib.request
+
+          s3 = boto3.client("s3")
+
+          EVENTBRIDGE_CONFIGURATION = 'EventBridgeConfiguration'
+
+          CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+          def handler(event: dict, context):
+            response_status = "SUCCESS"
+            error_message = ""
+            try:
+              props = event["ResourceProperties"]
+              bucket = props["BucketName"]
+              notification_configuration = props["NotificationConfiguration"]
+              request_type = event["RequestType"]
+              managed = props.get('Managed', 'true').lower() == 'true'
+              stack_id = event['StackId']
+
+              if managed:
+                config = handle_managed(request_type, notification_configuration)
+              else:
+                config = handle_unmanaged(bucket, stack_id, request_type, notification_configuration)
+
+              put_bucket_notification_configuration(bucket, config)
+            except Exception as e:
+              logging.exception("Failed to put bucket notification configuration")
+              response_status = "FAILED"
+              error_message = f"Error: {str(e)}. "
+            finally:
+              submit_response(event, context, response_status, error_message)
+
+          def handle_managed(request_type, notification_configuration):
+            if request_type == 'Delete':
+              return {}
+            return notification_configuration
+
+          def handle_unmanaged(bucket, stack_id, request_type, notification_configuration):
+            external_notifications = find_external_notifications(bucket, stack_id)
+
+            if request_type == 'Delete':
+              return external_notifications
+
+            def with_id(notification):
+              notification['Id'] = f"{stack_id}-{hash(json.dumps(notification, sort_keys=True))}"
+              return notification
+
+            notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external = external_notifications.get(t, [])
+              incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+              notifications[t] = external + incoming
+
+            if EVENTBRIDGE_CONFIGURATION in notification_configuration:
+              notifications[EVENTBRIDGE_CONFIGURATION] = notification_configuration[EVENTBRIDGE_CONFIGURATION]
+            elif EVENTBRIDGE_CONFIGURATION in external_notifications:
+              notifications[EVENTBRIDGE_CONFIGURATION] = external_notifications[EVENTBRIDGE_CONFIGURATION]
+
+            return notifications
+
+          def find_external_notifications(bucket, stack_id):
+            existing_notifications = get_bucket_notification_configuration(bucket)
+            external_notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+
+            if EVENTBRIDGE_CONFIGURATION in existing_notifications:
+              external_notifications[EVENTBRIDGE_CONFIGURATION] = existing_notifications[EVENTBRIDGE_CONFIGURATION]
+
+            return external_notifications
+
+          def get_bucket_notification_configuration(bucket):
+            return s3.get_bucket_notification_configuration(Bucket=bucket)
+
+          def put_bucket_notification_configuration(bucket, notification_configuration):
+            s3.put_bucket_notification_configuration(Bucket=bucket, NotificationConfiguration=notification_configuration)
+
+          def submit_response(event: dict, context, response_status: str, error_message: str):
+            response_body = json.dumps(
+              {
+                "Status": response_status,
+                "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                "StackId": event["StackId"],
+                "RequestId": event["RequestId"],
+                "LogicalResourceId": event["LogicalResourceId"],
+                "NoEcho": False,
+              }
+            ).encode("utf-8")
+            headers = {"content-type": "", "content-length": str(len(response_body))}
+            try:
+              req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+              with urllib.request.urlopen(req) as response:
+                print(response.read().decode("utf-8"))
+              print("Status code: " + response.reason)
+            except Exception as e:
+                print("send(..) failed executing request.urlopen(..): " + str(e))
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: python3.7
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VRXW/CMAz8Lby7BsrDeNyotGnTJlXdD0AhDcW0TVCdME1R//vcj43xdOez49zJKcb0AVcL9cWJLuukoQPGT690DSLtI28w7oKujYfsaGc2Qe4a0t83ea6nYqfY9NCo9lAqjDKTm64lZnIWnoPVfiAi//IeSLUYC9eYQR7x9sHEeuDNXjEbz/g0AFRNMCj9N3cA9uZynLfx3iuuGeOLDEiazstEESy8j4Ze7dXVYu/uCcZcdkN2cqQNyCNvPpQ+kR0N/a/7HrLA3rWFYRc6PTn+43etvHNXKk0Ho2HZUpGthvnM2ZKm5OkWV4lqLiclh3icL7EccMg3dyRAD9aVBs+8vK63uE5xvTgzUdIF66k1WEz4AynSwq/TAQAA
+    Metadata:
+      aws:cdk:path: ForecastMlopsPipelineStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

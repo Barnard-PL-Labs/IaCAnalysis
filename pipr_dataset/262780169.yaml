@@ -1,0 +1,367 @@
+Resources:
+  slackbotfunctionServiceRole6EB9E20B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/slack-bot-function/ServiceRole/Resource
+  slackbotfunction3677BAD4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5S3Bucket0C5DCCF7
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5S3VersionKeyFCAB14DC
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5S3VersionKeyFCAB14DC
+      Handler: slack_bot.lambda_handler
+      Role:
+        Fn::GetAtt:
+          - slackbotfunctionServiceRole6EB9E20B
+          - Arn
+      Runtime: python3.8
+      Environment:
+        Variables: {}
+      FunctionName: SlackEchoBot
+    DependsOn:
+      - slackbotfunctionServiceRole6EB9E20B
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/slack-bot-function/Resource
+      aws:asset:path: asset.6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5
+      aws:asset:property: Code
+  invokerfunctionServiceRoleD4D9A12E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/invoker-function/ServiceRole/Resource
+  invokerfunctionServiceRoleDefaultPolicy76AA1C7A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - slackbotfunction3677BAD4
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: invokerfunctionServiceRoleDefaultPolicy76AA1C7A
+      Roles:
+        - Ref: invokerfunctionServiceRoleD4D9A12E
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/invoker-function/ServiceRole/DefaultPolicy/Resource
+  invokerfunction58102709:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5S3Bucket0C5DCCF7
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5S3VersionKeyFCAB14DC
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5S3VersionKeyFCAB14DC
+      Handler: lambda_invoker.lambda_handler
+      Role:
+        Fn::GetAtt:
+          - invokerfunctionServiceRoleD4D9A12E
+          - Arn
+      Runtime: python3.8
+      Environment:
+        Variables:
+          INVOCATION_FUNCTION_NAME:
+            Ref: slackbotfunction3677BAD4
+      FunctionName: LambdaInvoker
+    DependsOn:
+      - invokerfunctionServiceRoleDefaultPolicy76AA1C7A
+      - invokerfunctionServiceRoleD4D9A12E
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/invoker-function/Resource
+      aws:asset:path: asset.6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5
+      aws:asset:property: Code
+  slackbotendpoint4DA98BCD:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: SlackBot
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/slack-bot-endpoint/Resource
+  slackbotendpointDeployment46404F485be21caf7cb518150316e154eae77955:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: slackbotendpoint4DA98BCD
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - slackbotendpointPOST9A6E2B94
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/slack-bot-endpoint/Deployment/Resource
+  slackbotendpointDeploymentStageprod3B829B7D:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: slackbotendpoint4DA98BCD
+      DeploymentId:
+        Ref: slackbotendpointDeployment46404F485be21caf7cb518150316e154eae77955
+      StageName: prod
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/slack-bot-endpoint/DeploymentStage.prod/Resource
+  slackbotendpointCloudWatchRole38FFB1BF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/slack-bot-endpoint/CloudWatchRole/Resource
+  slackbotendpointAccount48F78D87:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - slackbotendpointCloudWatchRole38FFB1BF
+          - Arn
+    DependsOn:
+      - slackbotendpoint4DA98BCD
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/slack-bot-endpoint/Account
+  slackbotendpointPOSTApiPermissionSlackEchoBotStackslackbotendpoint85C81CFAPOST1ED59D3A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - invokerfunction58102709
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: slackbotendpoint4DA98BCD
+            - /
+            - Ref: slackbotendpointDeploymentStageprod3B829B7D
+            - /POST/
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/slack-bot-endpoint/Default/POST/ApiPermission.SlackEchoBotStackslackbotendpoint85C81CFA.POST..
+  slackbotendpointPOSTApiPermissionTestSlackEchoBotStackslackbotendpoint85C81CFAPOSTC35F15C6:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - invokerfunction58102709
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: slackbotendpoint4DA98BCD
+            - /test-invoke-stage/POST/
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/slack-bot-endpoint/Default/POST/ApiPermission.Test.SlackEchoBotStackslackbotendpoint85C81CFA.POST..
+  slackbotendpointPOST9A6E2B94:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Fn::GetAtt:
+          - slackbotendpoint4DA98BCD
+          - RootResourceId
+      RestApiId:
+        Ref: slackbotendpoint4DA98BCD
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - invokerfunction58102709
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: SlackEchoBotStack/slack-bot-endpoint/Default/POST/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.38.0,@aws-cdk/aws-apigateway=1.38.0,@aws-cdk/aws-cloudwatch=1.38.0,@aws-cdk/aws-ec2=1.38.0,@aws-cdk/aws-events=1.38.0,@aws-cdk/aws-iam=1.38.0,@aws-cdk/aws-kms=1.38.0,@aws-cdk/aws-lambda=1.38.0,@aws-cdk/aws-logs=1.38.0,@aws-cdk/aws-s3=1.38.0,@aws-cdk/aws-s3-assets=1.38.0,@aws-cdk/aws-sqs=1.38.0,@aws-cdk/aws-ssm=1.38.0,@aws-cdk/cloud-assembly-schema=1.38.0,@aws-cdk/core=1.38.0,@aws-cdk/cx-api=1.38.0,@aws-cdk/region-info=1.38.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5S3Bucket0C5DCCF7:
+    Type: String
+    Description: S3 bucket for asset "6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5"
+  AssetParameters6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5S3VersionKeyFCAB14DC:
+    Type: String
+    Description: S3 key for asset version "6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5"
+  AssetParameters6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5ArtifactHashFAA8BDF2:
+    Type: String
+    Description: Artifact hash for asset "6abe262583021b3a2fcd7623d36c4d9339a4c585f688f16682404d9e75ae31a5"
+Outputs:
+  slackbotendpointEndpointEDDD9283:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: slackbotendpoint4DA98BCD
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: slackbotendpointDeploymentStageprod3B829B7D
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

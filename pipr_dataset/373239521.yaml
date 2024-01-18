@@ -1,0 +1,923 @@
+Resources:
+  wavFiles98E3397D:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/wavFiles/Resource
+  wavFilesPolicy62DF36B5:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: wavFiles98E3397D
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - wavFiles98E3397D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - wavFiles98E3397D
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Effect: Allow
+            Principal:
+              Service: voiceconnector.chime.amazonaws.com
+            Resource:
+              - Fn::GetAtt:
+                  - wavFiles98E3397D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - wavFiles98E3397D
+                        - Arn
+                    - /*
+            Sid: SIPMediaApplicationRead
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/wavFiles/Policy/Resource
+  wavFilesAutoDeleteObjectsCustomResource68FF9BB8:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: wavFiles98E3397D
+    DependsOn:
+      - wavFilesPolicy62DF36B5
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/wavFiles/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: wavFiles98E3397D
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+  WavDeployAwsCliLayerA24B203D:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/WavDeploy/AwsCliLayer/Resource
+      aws:asset:path: asset.e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68.zip
+      aws:asset:property: Content
+  WavDeployCustomResource6C919564:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameters225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0S3Bucket3AACFFFA
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0S3VersionKeyF759BD7B
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0S3VersionKeyF759BD7B
+      DestinationBucketName:
+        Ref: wavFiles98E3397D
+      Prune: true
+      SystemMetadata:
+        content-type: audio/wav
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/WavDeploy/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0S3Bucket3AACFFFA
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0S3Bucket3AACFFFA
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - wavFiles98E3397D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - wavFiles98E3397D
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3BucketD1AD544E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: WavDeployAwsCliLayerA24B203D
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8
+      aws:asset:property: Code
+  callInfo84B39180:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: phoneNumber
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: phoneNumber
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/callInfo/Resource
+  smaLambdaRole1E9776E9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/smaLambdaRole/Resource
+  smaLambdaRoleDefaultPolicyD7CF6277:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - callInfo84B39180
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: smaLambdaRoleDefaultPolicyD7CF6277
+      Roles:
+        - Ref: smaLambdaRole1E9776E9
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/smaLambdaRole/DefaultPolicy/Resource
+  inboundSMALambda6EE6C15D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters213f3790f71f4b56ae866971b942d27956261439138e110a9ba0cd8dd58574aaS3Bucket983E9CD0
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters213f3790f71f4b56ae866971b942d27956261439138e110a9ba0cd8dd58574aaS3VersionKeyC6E5B205
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters213f3790f71f4b56ae866971b942d27956261439138e110a9ba0cd8dd58574aaS3VersionKeyC6E5B205
+      Role:
+        Fn::GetAtt:
+          - smaLambdaRole1E9776E9
+          - Arn
+      Environment:
+        Variables:
+          CALLINFO_TABLE_NAME:
+            Ref: callInfo84B39180
+          WAVFILE_BUCKET:
+            Ref: wavFiles98E3397D
+          SALES_PHONE_NUMBER:
+            Fn::GetAtt:
+              - salesEmulatorSMA
+              - phoneNumber
+          SUPPORT_PHONE_NUMBER:
+            Fn::GetAtt:
+              - supportEmulatorSMA
+              - phoneNumber
+      Handler: inboundSMA.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - smaLambdaRoleDefaultPolicyD7CF6277
+      - smaLambdaRole1E9776E9
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/inboundSMALambda/Resource
+      aws:asset:path: asset.213f3790f71f4b56ae866971b942d27956261439138e110a9ba0cd8dd58574aa
+      aws:asset:property: Code
+  emulatorSMALambdaAF4D9E91:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameterscd4f167722c034af282601d9f862e98e920186e1638ea9bc78b82ffa21ff570aS3Bucket1F3781B4
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterscd4f167722c034af282601d9f862e98e920186e1638ea9bc78b82ffa21ff570aS3VersionKeyDFCA4787
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterscd4f167722c034af282601d9f862e98e920186e1638ea9bc78b82ffa21ff570aS3VersionKeyDFCA4787
+      Role:
+        Fn::GetAtt:
+          - smaLambdaRole1E9776E9
+          - Arn
+      Environment:
+        Variables:
+          CALLINFO_TABLE_NAME:
+            Ref: callInfo84B39180
+          WAVFILE_BUCKET:
+            Ref: wavFiles98E3397D
+      Handler: emulatorSMA.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - smaLambdaRoleDefaultPolicyD7CF6277
+      - smaLambdaRole1E9776E9
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/emulatorSMALambda/Resource
+      aws:asset:path: asset.cd4f167722c034af282601d9f862e98e920186e1638ea9bc78b82ffa21ff570a
+      aws:asset:property: Code
+  createChimeLambdaRole7FBF3767:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:*
+                  - lambda:GetPolicy
+                  - lambda:AddPermission
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: chimePolicy
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/createChimeLambdaRole/Resource
+  createSMALambda7D2D7A7E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters269d33d3a9a7f0b60f7e7a3ed52eca5625b58547c6ffe1011eb2a534eac7a492S3BucketD04CE4C4
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters269d33d3a9a7f0b60f7e7a3ed52eca5625b58547c6ffe1011eb2a534eac7a492S3VersionKeyC92AA02A
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters269d33d3a9a7f0b60f7e7a3ed52eca5625b58547c6ffe1011eb2a534eac7a492S3VersionKeyC92AA02A
+      Role:
+        Fn::GetAtt:
+          - createChimeLambdaRole7FBF3767
+          - Arn
+      Handler: createChimeResources.on_event
+      Runtime: python3.8
+      Timeout: 60
+    DependsOn:
+      - createChimeLambdaRole7FBF3767
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/createSMALambda/Resource
+      aws:asset:path: asset.269d33d3a9a7f0b60f7e7a3ed52eca5625b58547c6ffe1011eb2a534eac7a492
+      aws:asset:property: Code
+  createWavRole22444583:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:*
+                  - polly:*
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: chimePolicy
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/createWavRole/Resource
+  createWavRoleDefaultPolicyCCC18333:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - wavFiles98E3397D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - wavFiles98E3397D
+                        - Arn
+                    - /*
+          - Action: dynamodb:ListStreams
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:DescribeStream
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - callInfo84B39180
+                - StreamArn
+        Version: "2012-10-17"
+      PolicyName: createWavRoleDefaultPolicyCCC18333
+      Roles:
+        - Ref: createWavRole22444583
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/createWavRole/DefaultPolicy/Resource
+  createWav9996D53C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters54ab2b9df70f78b660beec1c4375377f436ff414359513ed9c251bf463bc978fS3BucketD34241F8
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters54ab2b9df70f78b660beec1c4375377f436ff414359513ed9c251bf463bc978fS3VersionKey5BD2B7D2
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters54ab2b9df70f78b660beec1c4375377f436ff414359513ed9c251bf463bc978fS3VersionKey5BD2B7D2
+      Role:
+        Fn::GetAtt:
+          - createWavRole22444583
+          - Arn
+      Environment:
+        Variables:
+          WAVFILE_BUCKET:
+            Ref: wavFiles98E3397D
+      Handler: createWav.lambda_handler
+      Runtime: python3.8
+      Timeout: 60
+    DependsOn:
+      - createWavRoleDefaultPolicyCCC18333
+      - createWavRole22444583
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/createWav/Resource
+      aws:asset:path: asset.54ab2b9df70f78b660beec1c4375377f436ff414359513ed9c251bf463bc978f
+      aws:asset:property: Code
+  createWavDynamoDBEventSourceSmaBridgingDemocallInfoD7BD158A5F65CD6F:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: createWav9996D53C
+      BatchSize: 5
+      BisectBatchOnFunctionError: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - callInfo84B39180
+          - StreamArn
+      MaximumRetryAttempts: 10
+      StartingPosition: LATEST
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/createWav/DynamoDBEventSource:SmaBridgingDemocallInfoD7BD158A/Resource
+  chimeProviderframeworkonEventServiceRoleBCACBEC2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/chimeProvider/framework-onEvent/ServiceRole/Resource
+  chimeProviderframeworkonEventServiceRoleDefaultPolicy7114AD90:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - createSMALambda7D2D7A7E
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: chimeProviderframeworkonEventServiceRoleDefaultPolicy7114AD90
+      Roles:
+        - Ref: chimeProviderframeworkonEventServiceRoleBCACBEC2
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/chimeProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  chimeProviderframeworkonEventE311E5A5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7
+      Role:
+        Fn::GetAtt:
+          - chimeProviderframeworkonEventServiceRoleBCACBEC2
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (SmaBridgingDemo/chimeProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - createSMALambda7D2D7A7E
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - chimeProviderframeworkonEventServiceRoleDefaultPolicy7114AD90
+      - chimeProviderframeworkonEventServiceRoleBCACBEC2
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/chimeProvider/framework-onEvent/Resource
+      aws:asset:path: asset.c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c
+      aws:asset:property: Code
+  inboundSMA:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - chimeProviderframeworkonEventE311E5A5
+          - Arn
+      lambdaArn:
+        Fn::GetAtt:
+          - inboundSMALambda6EE6C15D
+          - Arn
+      region:
+        Ref: AWS::Region
+      smaName: SmaBridgingDemo-inbound
+      ruleName: SmaBridgingDemo-inbound
+      createSMA: true
+      smaID: ""
+      phoneNumberRequired: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/inboundSMA/Default
+  salesEmulatorSMA:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - chimeProviderframeworkonEventE311E5A5
+          - Arn
+      lambdaArn:
+        Fn::GetAtt:
+          - emulatorSMALambdaAF4D9E91
+          - Arn
+      region:
+        Ref: AWS::Region
+      smaName: SmaBridgingDemo-emulator
+      ruleName: SmaBridgingDemo-sales
+      createSMA: true
+      smaID: ""
+      phoneNumberRequired: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/salesEmulatorSMA/Default
+  supportEmulatorSMA:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - chimeProviderframeworkonEventE311E5A5
+          - Arn
+      lambdaArn:
+        Fn::GetAtt:
+          - emulatorSMALambdaAF4D9E91
+          - Arn
+      region:
+        Ref: AWS::Region
+      smaName: SmaBridgingDemo-emulator
+      ruleName: SmaBridgingDemo-support
+      createSMA: false
+      smaID:
+        Fn::GetAtt:
+          - salesEmulatorSMA
+          - smaID
+      phoneNumberRequired: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/supportEmulatorSMA/Default
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2WRwW7CMAyGn4V7ala47DjottOmIZh2D4mHAmlSxQmoivLuS9oCm3byH/+W89muoV4u4GH2xC9UCXmaR2EdQtx5Lk6ssYa8C8KzJpC37RbJBieQNd/mrv9YG2fPSqJjKyL0uc1BmUOp33DHW/TZ+d3lI/gu+KLyX1J5ZU1ihSXSEuI6iBMO7qTGsLFaif6ent7jY80JE6NlFSV22vYtGg+j9XxLMF7oCAbIxDRv95JDzB3feI/uCx1lErbL7Bq9Na/BiMLGbiKX3vTLObfcDTO9866bBv6fTUzxFuLW6nGDJd5nGVVisje8tXIP8ZPvx8pBpCtnpQtjlbcktILVhRqtBmwmhlNUblowwfUaiRkrEY40P9ePUC+gnh1JqcoF41WLsB3jDyXnQkUOAgAA
+    Metadata:
+      aws:cdk:path: SmaBridgingDemo/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D:
+    Type: String
+    Description: S3 bucket for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A:
+    Type: String
+    Description: S3 key for asset version "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1ArtifactHash0128B949:
+    Type: String
+    Description: Artifact hash for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7:
+    Type: String
+    Description: S3 bucket for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F:
+    Type: String
+    Description: S3 key for asset version "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68ArtifactHashD9A515C3:
+    Type: String
+    Description: Artifact hash for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3BucketD1AD544E:
+    Type: String
+    Description: S3 bucket for asset "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70:
+    Type: String
+    Description: S3 key for asset version "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8ArtifactHash238275D6:
+    Type: String
+    Description: Artifact hash for asset "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParameters225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0S3Bucket3AACFFFA:
+    Type: String
+    Description: S3 bucket for asset "225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0"
+  AssetParameters225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0S3VersionKeyF759BD7B:
+    Type: String
+    Description: S3 key for asset version "225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0"
+  AssetParameters225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0ArtifactHash8DDB092C:
+    Type: String
+    Description: Artifact hash for asset "225798d072f90a747420950594743748e56f85f4c7b7e23ab019f8ea8e6dcff0"
+  AssetParameters213f3790f71f4b56ae866971b942d27956261439138e110a9ba0cd8dd58574aaS3Bucket983E9CD0:
+    Type: String
+    Description: S3 bucket for asset "213f3790f71f4b56ae866971b942d27956261439138e110a9ba0cd8dd58574aa"
+  AssetParameters213f3790f71f4b56ae866971b942d27956261439138e110a9ba0cd8dd58574aaS3VersionKeyC6E5B205:
+    Type: String
+    Description: S3 key for asset version "213f3790f71f4b56ae866971b942d27956261439138e110a9ba0cd8dd58574aa"
+  AssetParameters213f3790f71f4b56ae866971b942d27956261439138e110a9ba0cd8dd58574aaArtifactHashDD622EE1:
+    Type: String
+    Description: Artifact hash for asset "213f3790f71f4b56ae866971b942d27956261439138e110a9ba0cd8dd58574aa"
+  AssetParameterscd4f167722c034af282601d9f862e98e920186e1638ea9bc78b82ffa21ff570aS3Bucket1F3781B4:
+    Type: String
+    Description: S3 bucket for asset "cd4f167722c034af282601d9f862e98e920186e1638ea9bc78b82ffa21ff570a"
+  AssetParameterscd4f167722c034af282601d9f862e98e920186e1638ea9bc78b82ffa21ff570aS3VersionKeyDFCA4787:
+    Type: String
+    Description: S3 key for asset version "cd4f167722c034af282601d9f862e98e920186e1638ea9bc78b82ffa21ff570a"
+  AssetParameterscd4f167722c034af282601d9f862e98e920186e1638ea9bc78b82ffa21ff570aArtifactHash157310F7:
+    Type: String
+    Description: Artifact hash for asset "cd4f167722c034af282601d9f862e98e920186e1638ea9bc78b82ffa21ff570a"
+  AssetParameters269d33d3a9a7f0b60f7e7a3ed52eca5625b58547c6ffe1011eb2a534eac7a492S3BucketD04CE4C4:
+    Type: String
+    Description: S3 bucket for asset "269d33d3a9a7f0b60f7e7a3ed52eca5625b58547c6ffe1011eb2a534eac7a492"
+  AssetParameters269d33d3a9a7f0b60f7e7a3ed52eca5625b58547c6ffe1011eb2a534eac7a492S3VersionKeyC92AA02A:
+    Type: String
+    Description: S3 key for asset version "269d33d3a9a7f0b60f7e7a3ed52eca5625b58547c6ffe1011eb2a534eac7a492"
+  AssetParameters269d33d3a9a7f0b60f7e7a3ed52eca5625b58547c6ffe1011eb2a534eac7a492ArtifactHash493C88FD:
+    Type: String
+    Description: Artifact hash for asset "269d33d3a9a7f0b60f7e7a3ed52eca5625b58547c6ffe1011eb2a534eac7a492"
+  AssetParameters54ab2b9df70f78b660beec1c4375377f436ff414359513ed9c251bf463bc978fS3BucketD34241F8:
+    Type: String
+    Description: S3 bucket for asset "54ab2b9df70f78b660beec1c4375377f436ff414359513ed9c251bf463bc978f"
+  AssetParameters54ab2b9df70f78b660beec1c4375377f436ff414359513ed9c251bf463bc978fS3VersionKey5BD2B7D2:
+    Type: String
+    Description: S3 key for asset version "54ab2b9df70f78b660beec1c4375377f436ff414359513ed9c251bf463bc978f"
+  AssetParameters54ab2b9df70f78b660beec1c4375377f436ff414359513ed9c251bf463bc978fArtifactHash61D91E13:
+    Type: String
+    Description: Artifact hash for asset "54ab2b9df70f78b660beec1c4375377f436ff414359513ed9c251bf463bc978f"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43:
+    Type: String
+    Description: S3 bucket for asset "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7:
+    Type: String
+    Description: S3 key for asset version "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cArtifactHash627DAAA7:
+    Type: String
+    Description: Artifact hash for asset "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+Outputs:
+  inboundPhoneNumber:
+    Value:
+      Fn::GetAtt:
+        - inboundSMA
+        - phoneNumber
+  salesPhoneNumber:
+    Value:
+      Fn::GetAtt:
+        - salesEmulatorSMA
+        - phoneNumber
+  supportPhoneNumber:
+    Value:
+      Fn::GetAtt:
+        - supportEmulatorSMA
+        - phoneNumber
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

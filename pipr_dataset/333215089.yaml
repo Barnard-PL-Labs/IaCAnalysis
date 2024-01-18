@@ -1,0 +1,1690 @@
+Resources:
+  emreksadminRole494E27B4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - ec2.
+                    - Ref: AWS::URLSuffix
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AdministratorAccess
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonSSMManagedInstanceCore
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/emr-eks-adminRole/Resource
+  EMREKSJobExecutionRole0B951FBB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: eks.amazonaws.com
+        Version: "2012-10-17"
+      RoleName: EMR_EKS_Job_Execution_Role
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/EMR_EKS_Job_Execution_Role/Resource
+  EMREKSJobExecutionRoleDefaultPolicy58D061B0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+              - s3:ListBucket
+              - glue:GetDatabase
+              - glue:CreateDatabase
+              - glue:CreateTable
+              - glue:GetTable
+              - glue:GetPartition
+              - glue:GetPartitions
+              - glue:DeletePartition
+              - glue:BatchCreatePartition
+              - glue:DeleteTable
+              - glue:ListSchemas
+              - glue:UpdateTable
+              - ec2:CreateSecurityGroup
+              - ec2:DeleteSecurityGroup
+              - ec2:AuthorizeSecurityGroupEgress
+              - ec2:AuthorizeSecurityGroupIngress
+              - ec2:RevokeSecurityGroupEgress
+              - ec2:RevokeSecurityGroupIngress
+              - acm:DescribeCertificate
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:PutLogEvents
+              - logs:CreateLogStream
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+              - logs:CreateLogGroup
+            Effect: Allow
+            Resource: arn:aws:logs:*:*:*
+        Version: "2012-10-17"
+      PolicyName: EMREKSJobExecutionRoleDefaultPolicy58D061B0
+      Roles:
+        - Ref: EMREKSJobExecutionRole0B951FBB
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/EMR_EKS_Job_Execution_Role/DefaultPolicy/Resource
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: emreksadminRole494E27B4
+      InstanceProfileName: emr-eks-instance-profile
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/InstanceProfile
+  eksvpc24660B53:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/Resource
+  eksvpcPublicSubnet1Subnet3296CB2F:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/18
+      VpcId:
+        Ref: eksvpc24660B53
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet1/Subnet
+  eksvpcPublicSubnet1RouteTableF37EEED3:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: eksvpc24660B53
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet1/RouteTable
+  eksvpcPublicSubnet1RouteTableAssociationADF6F2E2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: eksvpcPublicSubnet1RouteTableF37EEED3
+      SubnetId:
+        Ref: eksvpcPublicSubnet1Subnet3296CB2F
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet1/RouteTableAssociation
+  eksvpcPublicSubnet1DefaultRouteD772DADC:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: eksvpcPublicSubnet1RouteTableF37EEED3
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: eksvpcIGW46170B07
+    DependsOn:
+      - eksvpcVPCGW02894A73
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet1/DefaultRoute
+  eksvpcPublicSubnet1EIP7EB80759:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet1/EIP
+  eksvpcPublicSubnet1NATGateway153E5069:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId:
+        Ref: eksvpcPublicSubnet1Subnet3296CB2F
+      AllocationId:
+        Fn::GetAtt:
+          - eksvpcPublicSubnet1EIP7EB80759
+          - AllocationId
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet1/NATGateway
+  eksvpcPublicSubnet2Subnet9EED4A0A:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.64.0/18
+      VpcId:
+        Ref: eksvpc24660B53
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet2/Subnet
+  eksvpcPublicSubnet2RouteTableB641DCEC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: eksvpc24660B53
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet2/RouteTable
+  eksvpcPublicSubnet2RouteTableAssociationA2A87377:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: eksvpcPublicSubnet2RouteTableB641DCEC
+      SubnetId:
+        Ref: eksvpcPublicSubnet2Subnet9EED4A0A
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet2/RouteTableAssociation
+  eksvpcPublicSubnet2DefaultRouteF81B1B36:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: eksvpcPublicSubnet2RouteTableB641DCEC
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: eksvpcIGW46170B07
+    DependsOn:
+      - eksvpcVPCGW02894A73
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet2/DefaultRoute
+  eksvpcPublicSubnet2EIP828F8DB8:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet2/EIP
+  eksvpcPublicSubnet2NATGateway85B88D82:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId:
+        Ref: eksvpcPublicSubnet2Subnet9EED4A0A
+      AllocationId:
+        Fn::GetAtt:
+          - eksvpcPublicSubnet2EIP828F8DB8
+          - AllocationId
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PublicSubnet2/NATGateway
+  eksvpcPrivateSubnet1SubnetC68093F9:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/18
+      VpcId:
+        Ref: eksvpc24660B53
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/internal-elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PrivateSubnet1/Subnet
+  eksvpcPrivateSubnet1RouteTableDD7E43E1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: eksvpc24660B53
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/internal-elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PrivateSubnet1/RouteTable
+  eksvpcPrivateSubnet1RouteTableAssociationFA4CC104:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: eksvpcPrivateSubnet1RouteTableDD7E43E1
+      SubnetId:
+        Ref: eksvpcPrivateSubnet1SubnetC68093F9
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PrivateSubnet1/RouteTableAssociation
+  eksvpcPrivateSubnet1DefaultRouteEE4DE5DB:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: eksvpcPrivateSubnet1RouteTableDD7E43E1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: eksvpcPublicSubnet1NATGateway153E5069
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PrivateSubnet1/DefaultRoute
+  eksvpcPrivateSubnet2Subnet7E2981CD:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.192.0/18
+      VpcId:
+        Ref: eksvpc24660B53
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/internal-elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PrivateSubnet2/Subnet
+  eksvpcPrivateSubnet2RouteTable0618F58A:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: eksvpc24660B53
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: kubernetes.io/role/internal-elb
+          Value: "1"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PrivateSubnet2/RouteTable
+  eksvpcPrivateSubnet2RouteTableAssociationD4ECB43E:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: eksvpcPrivateSubnet2RouteTable0618F58A
+      SubnetId:
+        Ref: eksvpcPrivateSubnet2Subnet7E2981CD
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PrivateSubnet2/RouteTableAssociation
+  eksvpcPrivateSubnet2DefaultRouteE6603F70:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: eksvpcPrivateSubnet2RouteTable0618F58A
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: eksvpcPublicSubnet2NATGateway85B88D82
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/PrivateSubnet2/DefaultRoute
+  eksvpcIGW46170B07:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+        - Key: Name
+          Value: EmrEksAppStack/eks-vpc
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/IGW
+  eksvpcVPCGW02894A73:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: eksvpc24660B53
+      InternetGatewayId:
+        Ref: eksvpcIGW46170B07
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/eks-vpc/VPCGW
+  DBCredentialsCBF39AE9:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString:
+        ExcludePunctuation: true
+        GenerateStringKey: password
+        IncludeSpace: false
+        SecretStringTemplate: '{"username":"hivemsadmin"}'
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/DBCredentials/Resource
+  DBCredentialsAttachment5F5381AF:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId:
+        Ref: DBCredentialsCBF39AE9
+      TargetId:
+        Ref: DatabaseB269D8BB
+      TargetType: AWS::RDS::DBCluster
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/DBCredentials/Attachment/Resource
+  DBSecurityGroupE3B245A3:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: security group for rds metastore
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - eksvpc24660B53
+              - CidrBlock
+          Description: allow MySQL access from vpc
+          FromPort: 3306
+          IpProtocol: tcp
+          ToPort: 3306
+      VpcId:
+        Ref: eksvpc24660B53
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/DBSecurityGroup/Resource
+  DatabaseSubnets56F17B9A:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets for Database database
+      SubnetIds:
+        - Ref: eksvpcPrivateSubnet1SubnetC68093F9
+        - Ref: eksvpcPrivateSubnet2Subnet7E2981CD
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Database/Subnets/Default
+  DatabaseB269D8BB:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      Engine: aurora-mysql
+      CopyTagsToSnapshot: true
+      DatabaseName: hivemetastore
+      DBClusterParameterGroupName: default.aurora-mysql5.7
+      DBSubnetGroupName:
+        Ref: DatabaseSubnets56F17B9A
+      EngineVersion: 5.7.mysql_aurora.2.08.1
+      MasterUsername:
+        Fn::Join:
+          - ""
+          - - "{{resolve:secretsmanager:"
+            - Ref: DBCredentialsCBF39AE9
+            - :SecretString:username::}}
+      MasterUserPassword:
+        Fn::Join:
+          - ""
+          - - "{{resolve:secretsmanager:"
+            - Ref: DBCredentialsCBF39AE9
+            - :SecretString:password::}}
+      VpcSecurityGroupIds:
+        - Fn::GetAtt:
+            - DBSecurityGroupE3B245A3
+            - GroupId
+    UpdateReplacePolicy: Snapshot
+    DeletionPolicy: Snapshot
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Database/Resource
+  DatabaseInstance1844F58FD:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: db.t2.small
+      DBClusterIdentifier:
+        Ref: DatabaseB269D8BB
+      DBSubnetGroupName:
+        Ref: DatabaseSubnets56F17B9A
+      Engine: aurora-mysql
+      EngineVersion: 5.7.mysql_aurora.2.08.1
+      PubliclyAccessible: false
+    DependsOn:
+      - eksvpcPrivateSubnet1DefaultRouteEE4DE5DB
+      - eksvpcPrivateSubnet2DefaultRouteE6603F70
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Database/Instance1
+  DatabaseInstance2AA380DEE:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: db.t2.small
+      DBClusterIdentifier:
+        Ref: DatabaseB269D8BB
+      DBSubnetGroupName:
+        Ref: DatabaseSubnets56F17B9A
+      Engine: aurora-mysql
+      EngineVersion: 5.7.mysql_aurora.2.08.1
+      PubliclyAccessible: false
+    DependsOn:
+      - eksvpcPrivateSubnet1DefaultRouteEE4DE5DB
+      - eksvpcPrivateSubnet2DefaultRouteE6603F70
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Database/Instance2
+  ClusterRoleFA261979:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: eks.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonEKSClusterPolicy
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/Role/Resource
+  ClusterControlPlaneSecurityGroupD274242C:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EKS Control Plane Security Group
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: eksvpc24660B53
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/ControlPlaneSecurityGroup/Resource
+  ClusterCreationRole360249B6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    DependsOn:
+      - eksvpcIGW46170B07
+      - eksvpcPrivateSubnet1DefaultRouteEE4DE5DB
+      - eksvpcPrivateSubnet1RouteTableDD7E43E1
+      - eksvpcPrivateSubnet1RouteTableAssociationFA4CC104
+      - eksvpcPrivateSubnet1SubnetC68093F9
+      - eksvpcPrivateSubnet2DefaultRouteE6603F70
+      - eksvpcPrivateSubnet2RouteTable0618F58A
+      - eksvpcPrivateSubnet2RouteTableAssociationD4ECB43E
+      - eksvpcPrivateSubnet2Subnet7E2981CD
+      - eksvpcPublicSubnet1DefaultRouteD772DADC
+      - eksvpcPublicSubnet1EIP7EB80759
+      - eksvpcPublicSubnet1NATGateway153E5069
+      - eksvpcPublicSubnet1RouteTableF37EEED3
+      - eksvpcPublicSubnet1RouteTableAssociationADF6F2E2
+      - eksvpcPublicSubnet1Subnet3296CB2F
+      - eksvpcPublicSubnet2DefaultRouteF81B1B36
+      - eksvpcPublicSubnet2EIP828F8DB8
+      - eksvpcPublicSubnet2NATGateway85B88D82
+      - eksvpcPublicSubnet2RouteTableB641DCEC
+      - eksvpcPublicSubnet2RouteTableAssociationA2A87377
+      - eksvpcPublicSubnet2Subnet9EED4A0A
+      - eksvpc24660B53
+      - eksvpcVPCGW02894A73
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/Resource/CreationRole/Resource
+  ClusterCreationRoleDefaultPolicyE8BDFC7B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ClusterRoleFA261979
+                - Arn
+          - Action:
+              - eks:CreateCluster
+              - eks:DescribeCluster
+              - eks:DescribeUpdate
+              - eks:DeleteCluster
+              - eks:UpdateClusterVersion
+              - eks:UpdateClusterConfig
+              - eks:CreateFargateProfile
+              - eks:TagResource
+              - eks:UntagResource
+            Effect: Allow
+            Resource:
+              - "*"
+          - Action:
+              - eks:DescribeFargateProfile
+              - eks:DeleteFargateProfile
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - iam:GetRole
+              - iam:listAttachedRolePolicies
+            Effect: Allow
+            Resource: "*"
+          - Action: iam:CreateServiceLinkedRole
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - ec2:DescribeInstances
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeSubnets
+              - ec2:DescribeRouteTables
+              - ec2:DescribeDhcpOptions
+              - ec2:DescribeVpcs
+            Effect: Allow
+            Resource: "*"
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ClusterfargateprofilefargatePodExecutionRole096BB2BB
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ClusterCreationRoleDefaultPolicyE8BDFC7B
+      Roles:
+        - Ref: ClusterCreationRole360249B6
+    DependsOn:
+      - eksvpcIGW46170B07
+      - eksvpcPrivateSubnet1DefaultRouteEE4DE5DB
+      - eksvpcPrivateSubnet1RouteTableDD7E43E1
+      - eksvpcPrivateSubnet1RouteTableAssociationFA4CC104
+      - eksvpcPrivateSubnet1SubnetC68093F9
+      - eksvpcPrivateSubnet2DefaultRouteE6603F70
+      - eksvpcPrivateSubnet2RouteTable0618F58A
+      - eksvpcPrivateSubnet2RouteTableAssociationD4ECB43E
+      - eksvpcPrivateSubnet2Subnet7E2981CD
+      - eksvpcPublicSubnet1DefaultRouteD772DADC
+      - eksvpcPublicSubnet1EIP7EB80759
+      - eksvpcPublicSubnet1NATGateway153E5069
+      - eksvpcPublicSubnet1RouteTableF37EEED3
+      - eksvpcPublicSubnet1RouteTableAssociationADF6F2E2
+      - eksvpcPublicSubnet1Subnet3296CB2F
+      - eksvpcPublicSubnet2DefaultRouteF81B1B36
+      - eksvpcPublicSubnet2EIP828F8DB8
+      - eksvpcPublicSubnet2NATGateway85B88D82
+      - eksvpcPublicSubnet2RouteTableB641DCEC
+      - eksvpcPublicSubnet2RouteTableAssociationA2A87377
+      - eksvpcPublicSubnet2Subnet9EED4A0A
+      - eksvpc24660B53
+      - eksvpcVPCGW02894A73
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/Resource/CreationRole/DefaultPolicy/Resource
+  Cluster9EE0221C:
+    Type: Custom::AWSCDK-EKS-Cluster
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - awscdkawseksClusterResourceProviderNestedStackawscdkawseksClusterResourceProviderNestedStackResource9827C454
+          - Outputs.EmrEksAppStackawscdkawseksClusterResourceProviderframeworkonEventD577391BArn
+      Config:
+        version: "1.21"
+        roleArn:
+          Fn::GetAtt:
+            - ClusterRoleFA261979
+            - Arn
+        resourcesVpcConfig:
+          subnetIds:
+            - Ref: eksvpcPublicSubnet1Subnet3296CB2F
+            - Ref: eksvpcPublicSubnet2Subnet9EED4A0A
+            - Ref: eksvpcPrivateSubnet1SubnetC68093F9
+            - Ref: eksvpcPrivateSubnet2Subnet7E2981CD
+          securityGroupIds:
+            - Fn::GetAtt:
+                - ClusterControlPlaneSecurityGroupD274242C
+                - GroupId
+          endpointPublicAccess: true
+          endpointPrivateAccess: true
+      AssumeRoleArn:
+        Fn::GetAtt:
+          - ClusterCreationRole360249B6
+          - Arn
+      AttributesRevision: 2
+    DependsOn:
+      - ClusterCreationRoleDefaultPolicyE8BDFC7B
+      - ClusterCreationRole360249B6
+      - eksvpcIGW46170B07
+      - eksvpcPrivateSubnet1DefaultRouteEE4DE5DB
+      - eksvpcPrivateSubnet1RouteTableDD7E43E1
+      - eksvpcPrivateSubnet1RouteTableAssociationFA4CC104
+      - eksvpcPrivateSubnet1SubnetC68093F9
+      - eksvpcPrivateSubnet2DefaultRouteE6603F70
+      - eksvpcPrivateSubnet2RouteTable0618F58A
+      - eksvpcPrivateSubnet2RouteTableAssociationD4ECB43E
+      - eksvpcPrivateSubnet2Subnet7E2981CD
+      - eksvpcPublicSubnet1DefaultRouteD772DADC
+      - eksvpcPublicSubnet1EIP7EB80759
+      - eksvpcPublicSubnet1NATGateway153E5069
+      - eksvpcPublicSubnet1RouteTableF37EEED3
+      - eksvpcPublicSubnet1RouteTableAssociationADF6F2E2
+      - eksvpcPublicSubnet1Subnet3296CB2F
+      - eksvpcPublicSubnet2DefaultRouteF81B1B36
+      - eksvpcPublicSubnet2EIP828F8DB8
+      - eksvpcPublicSubnet2NATGateway85B88D82
+      - eksvpcPublicSubnet2RouteTableB641DCEC
+      - eksvpcPublicSubnet2RouteTableAssociationA2A87377
+      - eksvpcPublicSubnet2Subnet9EED4A0A
+      - eksvpc24660B53
+      - eksvpcVPCGW02894A73
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/Resource/Resource/Default
+  ClusterKubectlReadyBarrier200052AF:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value: aws:cdk:eks:kubectl-ready
+    DependsOn:
+      - ClusterfargateprofilefargatePodExecutionRole096BB2BB
+      - ClusterfargateprofilefargateF1DDBE8C
+      - ClusterCreationRoleDefaultPolicyE8BDFC7B
+      - ClusterCreationRole360249B6
+      - Cluster9EE0221C
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/KubectlReadyBarrier
+  ClusterAwsAuthmanifestFE51F8AE:
+    Type: Custom::AWSCDK-EKS-KubernetesResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - awscdkawseksKubectlProviderNestedStackawscdkawseksKubectlProviderNestedStackResourceA7AEBA6B
+          - Outputs.EmrEksAppStackawscdkawseksKubectlProviderframeworkonEvent304B7527Arn
+      Manifest:
+        Fn::Join:
+          - ""
+          - - '[{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"aws-auth","namespace":"kube-system","labels":{"aws.cdk.eks/prune-c8e8faef12d5fa463ce53767050a019cfb1771605b":""}},"data":{"mapRoles":"[{\"rolearn\":\"'
+            - Fn::GetAtt:
+                - emreksadminRole494E27B4
+                - Arn
+            - \",\"username\":\"
+            - Fn::GetAtt:
+                - emreksadminRole494E27B4
+                - Arn
+            - \",\"groups\":[\"system:masters\"]},{\"rolearn\":\"
+            - Fn::GetAtt:
+                - ClusterNodegroupondemandngNodeGroupRoleA688503C
+                - Arn
+            - \",\"username\":\"system:node:{{EC2PrivateDNSName}}\",\"groups\":[\"system:bootstrappers\",\"system:nodes\"]},{\"rolearn\":\"
+            - Fn::GetAtt:
+                - ClusterNodegroupspotngNodeGroupRole948CCC22
+                - Arn
+            - \",\"username\":\"system:node:{{EC2PrivateDNSName}}\",\"groups\":[\"system:bootstrappers\",\"system:nodes\"]},{\"rolearn\":\"
+            - Fn::GetAtt:
+                - ClusterfargateprofilefargatePodExecutionRole096BB2BB
+                - Arn
+            - \",\"username\":\"system:node:{{SessionName}}\",\"groups\":[\"system:bootstrappers\",\"system:nodes\",\"system:node-proxier\"]}]","mapUsers":"[]","mapAccounts":"[]"}}]
+      ClusterName:
+        Ref: Cluster9EE0221C
+      RoleArn:
+        Fn::GetAtt:
+          - ClusterCreationRole360249B6
+          - Arn
+      PruneLabel: aws.cdk.eks/prune-c8e8faef12d5fa463ce53767050a019cfb1771605b
+      Overwrite: true
+    DependsOn:
+      - ClusterKubectlReadyBarrier200052AF
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/AwsAuth/manifest/Resource/Default
+  ClusterNodegroupondemandngNodeGroupRoleA688503C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - ec2.
+                    - Ref: AWS::URLSuffix
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonEKS_CNI_Policy
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/Nodegroupondemand-ng/NodeGroupRole/Resource
+  ClusterNodegroupondemandngE16BAD38:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      ClusterName:
+        Ref: Cluster9EE0221C
+      NodeRole:
+        Fn::GetAtt:
+          - ClusterNodegroupondemandngNodeGroupRoleA688503C
+          - Arn
+      Subnets:
+        - Ref: eksvpcPrivateSubnet1SubnetC68093F9
+        - Ref: eksvpcPrivateSubnet2Subnet7E2981CD
+      AmiType: AL2_x86_64
+      CapacityType: ON_DEMAND
+      ForceUpdateEnabled: true
+      InstanceTypes:
+        - r5.xlarge
+        - r5.2xlarge
+        - r5.4xlarge
+      ScalingConfig:
+        DesiredSize: 3
+        MaxSize: 12
+        MinSize: 3
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/Nodegroupondemand-ng/Resource
+  ClusterNodegroupspotngNodeGroupRole948CCC22:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - ec2.
+                    - Ref: AWS::URLSuffix
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonEKS_CNI_Policy
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/Nodegroupspot-ng/NodeGroupRole/Resource
+  ClusterNodegroupspotng035310E1:
+    Type: AWS::EKS::Nodegroup
+    Properties:
+      ClusterName:
+        Ref: Cluster9EE0221C
+      NodeRole:
+        Fn::GetAtt:
+          - ClusterNodegroupspotngNodeGroupRole948CCC22
+          - Arn
+      Subnets:
+        - Ref: eksvpcPrivateSubnet1SubnetC68093F9
+        - Ref: eksvpcPrivateSubnet2Subnet7E2981CD
+      AmiType: AL2_x86_64
+      CapacityType: SPOT
+      ForceUpdateEnabled: true
+      InstanceTypes:
+        - m5.xlarge
+        - m5.2xlarge
+        - m5.4xlarge
+      ScalingConfig:
+        DesiredSize: 3
+        MaxSize: 12
+        MinSize: 3
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/Nodegroupspot-ng/Resource
+  ClusterfargateprofilefargatePodExecutionRole096BB2BB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: eks-fargate-pods.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/fargate-profile-fargate/PodExecutionRole/Resource
+  ClusterfargateprofilefargateF1DDBE8C:
+    Type: Custom::AWSCDK-EKS-FargateProfile
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - awscdkawseksClusterResourceProviderNestedStackawscdkawseksClusterResourceProviderNestedStackResource9827C454
+          - Outputs.EmrEksAppStackawscdkawseksClusterResourceProviderframeworkonEventD577391BArn
+      AssumeRoleArn:
+        Fn::GetAtt:
+          - ClusterCreationRole360249B6
+          - Arn
+      Config:
+        clusterName:
+          Ref: Cluster9EE0221C
+        podExecutionRoleArn:
+          Fn::GetAtt:
+            - ClusterfargateprofilefargatePodExecutionRole096BB2BB
+            - Arn
+        selectors:
+          - namespace: eks-fargate
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Cluster/fargate-profile-fargate/Resource/Default
+  awscdkawseksClusterResourceProviderNestedStackawscdkawseksClusterResourceProviderNestedStackResource9827C454:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        Fn::Join:
+          - ""
+          - - https://s3.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: AssetParametersb15e663a2b434dcb8eee3352e14a37cd6c630051ba32f052e34d557fb559c2c9S3BucketB052CE65
+            - /
+            - Fn::Select:
+                - 0
+                - Fn::Split:
+                    - "||"
+                    - Ref: AssetParametersb15e663a2b434dcb8eee3352e14a37cd6c630051ba32f052e34d557fb559c2c9S3VersionKeyEB12809F
+            - Fn::Select:
+                - 1
+                - Fn::Split:
+                    - "||"
+                    - Ref: AssetParametersb15e663a2b434dcb8eee3352e14a37cd6c630051ba32f052e34d557fb559c2c9S3VersionKeyEB12809F
+      Parameters:
+        referencetoEmrEksAppStackClusterCreationRole150466DCArn:
+          Fn::GetAtt:
+            - ClusterCreationRole360249B6
+            - Arn
+        referencetoEmrEksAppStackAssetParametersaa417b9073765a3bea6f13c9f810b7a8b342bfae384f894ea1686b5a96db26c5S3BucketFA8062C7Ref:
+          Ref: AssetParametersaa417b9073765a3bea6f13c9f810b7a8b342bfae384f894ea1686b5a96db26c5S3BucketDCF2C5E6
+        referencetoEmrEksAppStackAssetParametersaa417b9073765a3bea6f13c9f810b7a8b342bfae384f894ea1686b5a96db26c5S3VersionKey5108D586Ref:
+          Ref: AssetParametersaa417b9073765a3bea6f13c9f810b7a8b342bfae384f894ea1686b5a96db26c5S3VersionKey14A74995
+        referencetoEmrEksAppStackAssetParameters26ac61b4195cccf80ff73f332788ad7ffaab36d81ce570340a583a8364901665S3Bucket7BEF8E1DRef:
+          Ref: AssetParameters26ac61b4195cccf80ff73f332788ad7ffaab36d81ce570340a583a8364901665S3Bucket1B280681
+        referencetoEmrEksAppStackAssetParameters26ac61b4195cccf80ff73f332788ad7ffaab36d81ce570340a583a8364901665S3VersionKey34E61754Ref:
+          Ref: AssetParameters26ac61b4195cccf80ff73f332788ad7ffaab36d81ce570340a583a8364901665S3VersionKeyB1E02791
+        referencetoEmrEksAppStackAssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3Bucket73F5EACFRef:
+          Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43
+        referencetoEmrEksAppStackAssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKey58F34631Ref:
+          Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/@aws-cdk--aws-eks.ClusterResourceProvider.NestedStack/@aws-cdk--aws-eks.ClusterResourceProvider.NestedStackResource
+  awscdkawseksKubectlProviderNestedStackawscdkawseksKubectlProviderNestedStackResourceA7AEBA6B:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        Fn::Join:
+          - ""
+          - - https://s3.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: AssetParametersc1d1b28d0fe5cdbbf82d8c3d6f88c5f7afc57fea1ddec295cd36a5d315e469d8S3BucketFF155AB9
+            - /
+            - Fn::Select:
+                - 0
+                - Fn::Split:
+                    - "||"
+                    - Ref: AssetParametersc1d1b28d0fe5cdbbf82d8c3d6f88c5f7afc57fea1ddec295cd36a5d315e469d8S3VersionKeyEF96A1E2
+            - Fn::Select:
+                - 1
+                - Fn::Split:
+                    - "||"
+                    - Ref: AssetParametersc1d1b28d0fe5cdbbf82d8c3d6f88c5f7afc57fea1ddec295cd36a5d315e469d8S3VersionKeyEF96A1E2
+      Parameters:
+        referencetoEmrEksAppStackCluster37EFED55Arn:
+          Fn::GetAtt:
+            - Cluster9EE0221C
+            - Arn
+        referencetoEmrEksAppStackClusterCreationRole150466DCArn:
+          Fn::GetAtt:
+            - ClusterCreationRole360249B6
+            - Arn
+        referencetoEmrEksAppStackAssetParameters4129bbca38164ecb28fee8e5b674f0d05e5957b4b8ed97d9c950527b5cc4ce10S3BucketBE7F60DCRef:
+          Ref: AssetParameters4129bbca38164ecb28fee8e5b674f0d05e5957b4b8ed97d9c950527b5cc4ce10S3BucketC6FAEEC9
+        referencetoEmrEksAppStackAssetParameters4129bbca38164ecb28fee8e5b674f0d05e5957b4b8ed97d9c950527b5cc4ce10S3VersionKeyFDA14DA1Ref:
+          Ref: AssetParameters4129bbca38164ecb28fee8e5b674f0d05e5957b4b8ed97d9c950527b5cc4ce10S3VersionKeyA7EE7421
+        referencetoEmrEksAppStackeksvpcPrivateSubnet1SubnetFFB716F4Ref:
+          Ref: eksvpcPrivateSubnet1SubnetC68093F9
+        referencetoEmrEksAppStackeksvpcPrivateSubnet2SubnetCC597C81Ref:
+          Ref: eksvpcPrivateSubnet2Subnet7E2981CD
+        referencetoEmrEksAppStackCluster37EFED55ClusterSecurityGroupId:
+          Fn::GetAtt:
+            - Cluster9EE0221C
+            - ClusterSecurityGroupId
+        referencetoEmrEksAppStackAssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3Bucket59C37975Ref:
+          Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7
+        referencetoEmrEksAppStackAssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKey4593905FRef:
+          Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+        referencetoEmrEksAppStackAssetParametersea17febe6d04c66048f3e8e060c71685c0cb53122abceff44842d27bc0d4a03eS3Bucket4DE69F5DRef:
+          Ref: AssetParametersea17febe6d04c66048f3e8e060c71685c0cb53122abceff44842d27bc0d4a03eS3BucketD3288998
+        referencetoEmrEksAppStackAssetParametersea17febe6d04c66048f3e8e060c71685c0cb53122abceff44842d27bc0d4a03eS3VersionKeyF078AD98Ref:
+          Ref: AssetParametersea17febe6d04c66048f3e8e060c71685c0cb53122abceff44842d27bc0d4a03eS3VersionKeyB00C0565
+        referencetoEmrEksAppStackAssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3Bucket73F5EACFRef:
+          Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43
+        referencetoEmrEksAppStackAssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKey58F34631Ref:
+          Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/@aws-cdk--aws-eks.KubectlProvider.NestedStack/@aws-cdk--aws-eks.KubectlProvider.NestedStackResource
+  bucket43879C71:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Join:
+          - ""
+          - - emr-eks-workshop-
+            - Ref: AWS::AccountId
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/bucket/Resource
+  bucketPolicy638F945D:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: bucket43879C71
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - bucket43879C71
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - bucket43879C71
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/bucket/Policy/Resource
+  bucketAutoDeleteObjectsCustomResource3F4990B2:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: bucket43879C71
+    DependsOn:
+      - bucketPolicy638F945D
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/bucket/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: bucket43879C71
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+  EmrStudioEngineSg522AFCE3:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EmrEksAppStack/EmrStudioEngineSg
+      SecurityGroupEgress:
+        - CidrIp: 255.255.255.255/32
+          Description: Disallow all traffic
+          FromPort: 252
+          IpProtocol: icmp
+          ToPort: 86
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow traffic from any resources in the Workspace security group for EMR Studio.
+          FromPort: 18888
+          IpProtocol: tcp
+          ToPort: 18888
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+      VpcId:
+        Ref: eksvpc24660B53
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/EmrStudioEngineSg/Resource
+  EmrStudioWorkspaceSgDCE29EFA:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: EmrEksAppStack/EmrStudioWorkspaceSg
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow traffic to any resources in the Engine security group for EMR Studio.
+          FromPort: 18888
+          IpProtocol: tcp
+          ToPort: 18888
+        - CidrIp: 0.0.0.0/0
+          Description: Allow traffic to the internet to link Git repositories to Workspaces.
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      Tags:
+        - Key: for-use-with-amazon-emr-managed-policies
+          Value: "true"
+      VpcId:
+        Ref: eksvpc24660B53
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/EmrStudioWorkspaceSg/Resource
+  EMRStudioServiceRoleAAFF2152:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: elasticmapreduce.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/EMRStudioServiceRole/Resource
+  EMRStudioServiceIAMPolicy98F1AC87:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - elasticmapreduce:ListInstances
+              - elasticmapreduce:DescribeCluster
+              - elasticmapreduce:ListSteps
+            Effect: Allow
+            Resource: "*"
+            Sid: AllowEMRReadOnlyActions
+          - Action:
+              - ec2:CreateNetworkInterfacePermission
+              - ec2:DeleteNetworkInterface
+            Condition:
+              StringEquals:
+                aws:ResourceTag/for-use-with-amazon-emr-managed-policies: "true"
+            Effect: Allow
+            Resource: arn:aws:ec2:*:*:network-interface/*
+            Sid: AllowEC2ENIActionsWithEMRTags
+          - Action: ec2:ModifyNetworkInterfaceAttribute
+            Effect: Allow
+            Resource:
+              - arn:aws:ec2:*:*:instance/*
+              - arn:aws:ec2:*:*:network-interface/*
+              - arn:aws:ec2:*:*:security-group/*
+            Sid: AllowEC2ENIAttributeAction
+          - Action:
+              - ec2:AuthorizeSecurityGroupEgress
+              - ec2:AuthorizeSecurityGroupIngress
+              - ec2:RevokeSecurityGroupEgress
+              - ec2:RevokeSecurityGroupIngress
+              - ec2:DeleteNetworkInterfacePermission
+            Condition:
+              StringEquals:
+                aws:ResourceTag/for-use-with-amazon-emr-managed-policies: "true"
+            Effect: Allow
+            Resource: "*"
+            Sid: AllowEC2SecurityGroupActionsWithEMRTags
+          - Action: ec2:CreateSecurityGroup
+            Condition:
+              StringEquals:
+                aws:RequestTag/for-use-with-amazon-emr-managed-policies: "true"
+            Effect: Allow
+            Resource: arn:aws:ec2:*:*:security-group/*
+            Sid: AllowDefaultEC2SecurityGroupsCreationWithEMRTags
+          - Action: ec2:CreateSecurityGroup
+            Condition:
+              StringEquals:
+                aws:ResourceTag/for-use-with-amazon-emr-managed-policies: "true"
+            Effect: Allow
+            Resource: arn:aws:ec2:*:*:vpc/*
+            Sid: AllowDefaultEC2SecurityGroupsCreationInVPCWithEMRTags
+          - Action: ec2:CreateTags
+            Condition:
+              StringEquals:
+                aws:RequestTag/for-use-with-amazon-emr-managed-policies: "true"
+                ec2:CreateAction: CreateSecurityGroup
+            Effect: Allow
+            Resource: arn:aws:ec2:*:*:security-group/*
+            Sid: AllowAddingEMRTagsDuringDefaultSecurityGroupCreation
+          - Action: ec2:CreateNetworkInterface
+            Condition:
+              StringEquals:
+                aws:RequestTag/for-use-with-amazon-emr-managed-policies: "true"
+            Effect: Allow
+            Resource: arn:aws:ec2:*:*:network-interface/*
+            Sid: AllowEC2ENICreationWithEMRTags
+          - Action: ec2:CreateNetworkInterface
+            Condition:
+              StringEquals:
+                aws:ResourceTag/for-use-with-amazon-emr-managed-policies: "true"
+            Effect: Allow
+            Resource:
+              - arn:aws:ec2:*:*:subnet/*
+              - arn:aws:ec2:*:*:security-group/*
+            Sid: AllowEC2ENICreationInSubnetAndSecurityGroupWithEMRTags
+          - Action: ec2:CreateTags
+            Condition:
+              StringEquals:
+                ec2:CreateAction: CreateNetworkInterface
+            Effect: Allow
+            Resource: arn:aws:ec2:*:*:network-interface/*
+            Sid: AllowAddingTagsDuringEC2ENICreation
+          - Action:
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeTags
+              - ec2:DescribeInstances
+              - ec2:DescribeSubnets
+              - ec2:DescribeVpcs
+            Effect: Allow
+            Resource: "*"
+            Sid: AllowEC2ReadOnlyActions
+          - Action: secretsmanager:GetSecretValue
+            Condition:
+              StringEquals:
+                aws:ResourceTag/for-use-with-amazon-emr-managed-policies: "true"
+            Effect: Allow
+            Resource: arn:aws:secretsmanager:*:*:secret:*
+            Sid: AllowSecretsManagerReadOnlyActionsWithEMRTags
+          - Action:
+              - s3:PutObject
+              - s3:GetObject
+              - s3:GetEncryptionConfiguration
+              - s3:ListBucket
+              - s3:DeleteObject
+            Effect: Allow
+            Resource: arn:aws:s3:::*
+        Version: "2012-10-17"
+      PolicyName: EMRStudioServiceIAMPolicy98F1AC87
+      Roles:
+        - Ref: EMRStudioServiceRoleAAFF2152
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/EMRStudioServiceIAMPolicy/Resource
+  EMRStudioUserRole230891F0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: elasticmapreduce.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Ref: EMRStudioUserIAMPolicy1CF4150A3
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/EMRStudioUserRole/Resource
+  EMRStudioUserIAMPolicy1CF4150A3:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - elasticmapreduce:CreateEditor
+              - elasticmapreduce:DescribeEditor
+              - elasticmapreduce:ListEditors
+              - elasticmapreduce:StartEditor
+              - elasticmapreduce:StopEditor
+              - elasticmapreduce:DeleteEditor
+              - elasticmapreduce:OpenEditorInConsole
+              - elasticmapreduce:AttachEditor
+              - elasticmapreduce:DetachEditor
+              - elasticmapreduce:CreateRepository
+              - elasticmapreduce:DescribeRepository
+              - elasticmapreduce:DeleteRepository
+              - elasticmapreduce:ListRepositories
+              - elasticmapreduce:LinkRepository
+              - elasticmapreduce:UnlinkRepository
+              - elasticmapreduce:DescribeCluster
+              - elasticmapreduce:ListInstanceGroups
+              - elasticmapreduce:ListBootstrapActions
+              - elasticmapreduce:ListClusters
+              - elasticmapreduce:ListSteps
+              - elasticmapreduce:CreatePersistentAppUI
+              - elasticmapreduce:DescribePersistentAppUI
+              - elasticmapreduce:GetPersistentAppUIPresignedURL
+              - secretsmanager:CreateSecret
+              - secretsmanager:ListSecrets
+              - emr-containers:DescribeVirtualCluster
+              - emr-containers:ListVirtualClusters
+              - emr-containers:DescribeManagedEndpoint
+              - emr-containers:ListManagedEndpoints
+              - emr-containers:CreateAccessTokenForManagedEndpoint
+              - emr-containers:DescribeJobRun
+              - emr-containers:ListJobRuns
+            Effect: Allow
+            Resource: "*"
+            Sid: AllowBasicActions
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - EMRStudioServiceRoleAAFF2152
+                - Arn
+            Sid: PassRolePermission
+          - Action:
+              - s3:ListAllMyBuckets
+              - s3:ListBucket
+              - s3:GetBucketLocation
+            Effect: Allow
+            Resource: arn:aws:s3:::*
+            Sid: S3ListPermission
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:s3:::"
+                    - Ref: bucket43879C71
+                    - /*
+              - Fn::Join:
+                  - ""
+                  - - arn:aws:s3:::aws-logs-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+                    - /elasticmapreduce/*
+            Sid: S3GetObjectPermission
+        Version: "2012-10-17"
+      Description: ""
+      Path: /
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/EMRStudioUserIAMPolicy1/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2VRTU/DMAz9LdxDoNuFI2N8aEJAtSHubuqVbGsyJc6mqep/x2nWdsDJz/bLy7OdyWx6K2+v7uHor1W5vWmUdSibFYHaiiV6G5xCMbfGkwuKxDx4svXYWJtL/BFoHyiiJMAgBwc1Ero/T3NnD7rk8sx7JKZX2lTxAf9VatLWtCKaajTUslnaXfosxtzutDp14gNasEEwnexaM+cNDFRYjoRfhVagmsjma69i6yufizwU3FiFwmDyP6ClDYSfUCQDqT7W2L1VGqLfgRzB0yKP4R3oBQiPcBK50weGo/DC8FYY94Tk5JzNiBf4XaMhsUIVnKbTi7Nh33m4LLTCo3JIvu4GdHy7Lj8TI0rhE1yFdKE7EP52WuFKL5tHICjA43zHh+NDJeeDi8eHf4We2SX9RXjXW1bre7OjnwX6Fq+h6KZHz5fRa/Qk3m2JVa82Js9sj5dyvizPO5XNQ1DbNOMZpTCe+zJv21YYlpMbf3PI7mQ2kdnVxmt97YIhXaNcpvgDbncuKA4DAAA=
+    Metadata:
+      aws:cdk:path: EmrEksAppStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  ClusterConfigCommand43AAE40F:
+    Value:
+      Fn::Join:
+        - ""
+        - - "aws eks update-kubeconfig --name "
+          - Ref: Cluster9EE0221C
+          - " --region "
+          - Ref: AWS::Region
+          - " --role-arn "
+          - Fn::GetAtt:
+              - emreksadminRole494E27B4
+              - Arn
+  ClusterGetTokenCommand06AE992E:
+    Value:
+      Fn::Join:
+        - ""
+        - - "aws eks get-token --cluster-name "
+          - Ref: Cluster9EE0221C
+          - " --region "
+          - Ref: AWS::Region
+          - " --role-arn "
+          - Fn::GetAtt:
+              - emreksadminRole494E27B4
+              - Arn
+  EmrStudioUserSessionPolicyArn:
+    Description: EmrStudio user session policy Arn
+    Value:
+      Ref: EMRStudioUserIAMPolicy1CF4150A3
+  EmrStudioServiceRoleName:
+    Description: EmrStudio Service Role Name
+    Value:
+      Ref: EMRStudioServiceRoleAAFF2152
+  EmrStudioUserRoleName:
+    Description: EmrStudio User Role Name
+    Value:
+      Ref: EMRStudioUserRole230891F0
+  EKSCluster:
+    Description: Eks cluster name
+    Value:
+      Ref: Cluster9EE0221C
+    Export:
+      Name: EKSClusterName
+  EKSClusterVpcId:
+    Description: EksCluster VpcId
+    Value:
+      Ref: eksvpc24660B53
+    Export:
+      Name: EKSClusterVpcId
+  EKSClusterAdminArn:
+    Value:
+      Fn::GetAtt:
+        - emreksadminRole494E27B4
+        - Arn
+  EMRJobExecutionRoleArn:
+    Value:
+      Fn::GetAtt:
+        - EMREKSJobExecutionRole0B951FBB
+        - Arn
+  GetToken:
+    Value:
+      Fn::Join:
+        - ""
+        - - "aws eks get-token --cluster-name "
+          - Ref: Cluster9EE0221C
+          - " | jq -r '.status.token'"
+  BootStrapCommand:
+    Value:
+      Fn::Join:
+        - ""
+        - - "sh bootstrap.sh "
+          - Ref: Cluster9EE0221C
+          - " "
+          - Ref: AWS::Region
+          - " "
+          - Fn::GetAtt:
+              - emreksadminRole494E27B4
+              - Arn
+  S3Bucket:
+    Value:
+      Fn::Join:
+        - ""
+        - - s3://
+          - Ref: bucket43879C71
+Parameters:
+  AssetParametersaa417b9073765a3bea6f13c9f810b7a8b342bfae384f894ea1686b5a96db26c5S3BucketDCF2C5E6:
+    Type: String
+    Description: S3 bucket for asset "aa417b9073765a3bea6f13c9f810b7a8b342bfae384f894ea1686b5a96db26c5"
+  AssetParametersaa417b9073765a3bea6f13c9f810b7a8b342bfae384f894ea1686b5a96db26c5S3VersionKey14A74995:
+    Type: String
+    Description: S3 key for asset version "aa417b9073765a3bea6f13c9f810b7a8b342bfae384f894ea1686b5a96db26c5"
+  AssetParametersaa417b9073765a3bea6f13c9f810b7a8b342bfae384f894ea1686b5a96db26c5ArtifactHash3EDFDAA1:
+    Type: String
+    Description: Artifact hash for asset "aa417b9073765a3bea6f13c9f810b7a8b342bfae384f894ea1686b5a96db26c5"
+  AssetParameters26ac61b4195cccf80ff73f332788ad7ffaab36d81ce570340a583a8364901665S3Bucket1B280681:
+    Type: String
+    Description: S3 bucket for asset "26ac61b4195cccf80ff73f332788ad7ffaab36d81ce570340a583a8364901665"
+  AssetParameters26ac61b4195cccf80ff73f332788ad7ffaab36d81ce570340a583a8364901665S3VersionKeyB1E02791:
+    Type: String
+    Description: S3 key for asset version "26ac61b4195cccf80ff73f332788ad7ffaab36d81ce570340a583a8364901665"
+  AssetParameters26ac61b4195cccf80ff73f332788ad7ffaab36d81ce570340a583a8364901665ArtifactHash9EA5AC29:
+    Type: String
+    Description: Artifact hash for asset "26ac61b4195cccf80ff73f332788ad7ffaab36d81ce570340a583a8364901665"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43:
+    Type: String
+    Description: S3 bucket for asset "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7:
+    Type: String
+    Description: S3 key for asset version "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cArtifactHash627DAAA7:
+    Type: String
+    Description: Artifact hash for asset "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParameters4129bbca38164ecb28fee8e5b674f0d05e5957b4b8ed97d9c950527b5cc4ce10S3BucketC6FAEEC9:
+    Type: String
+    Description: S3 bucket for asset "4129bbca38164ecb28fee8e5b674f0d05e5957b4b8ed97d9c950527b5cc4ce10"
+  AssetParameters4129bbca38164ecb28fee8e5b674f0d05e5957b4b8ed97d9c950527b5cc4ce10S3VersionKeyA7EE7421:
+    Type: String
+    Description: S3 key for asset version "4129bbca38164ecb28fee8e5b674f0d05e5957b4b8ed97d9c950527b5cc4ce10"
+  AssetParameters4129bbca38164ecb28fee8e5b674f0d05e5957b4b8ed97d9c950527b5cc4ce10ArtifactHash528547CD:
+    Type: String
+    Description: Artifact hash for asset "4129bbca38164ecb28fee8e5b674f0d05e5957b4b8ed97d9c950527b5cc4ce10"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7:
+    Type: String
+    Description: S3 bucket for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F:
+    Type: String
+    Description: S3 key for asset version "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68ArtifactHashD9A515C3:
+    Type: String
+    Description: Artifact hash for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParametersea17febe6d04c66048f3e8e060c71685c0cb53122abceff44842d27bc0d4a03eS3BucketD3288998:
+    Type: String
+    Description: S3 bucket for asset "ea17febe6d04c66048f3e8e060c71685c0cb53122abceff44842d27bc0d4a03e"
+  AssetParametersea17febe6d04c66048f3e8e060c71685c0cb53122abceff44842d27bc0d4a03eS3VersionKeyB00C0565:
+    Type: String
+    Description: S3 key for asset version "ea17febe6d04c66048f3e8e060c71685c0cb53122abceff44842d27bc0d4a03e"
+  AssetParametersea17febe6d04c66048f3e8e060c71685c0cb53122abceff44842d27bc0d4a03eArtifactHash4654D012:
+    Type: String
+    Description: Artifact hash for asset "ea17febe6d04c66048f3e8e060c71685c0cb53122abceff44842d27bc0d4a03e"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D:
+    Type: String
+    Description: S3 bucket for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A:
+    Type: String
+    Description: S3 key for asset version "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1ArtifactHash0128B949:
+    Type: String
+    Description: Artifact hash for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParametersb15e663a2b434dcb8eee3352e14a37cd6c630051ba32f052e34d557fb559c2c9S3BucketB052CE65:
+    Type: String
+    Description: S3 bucket for asset "b15e663a2b434dcb8eee3352e14a37cd6c630051ba32f052e34d557fb559c2c9"
+  AssetParametersb15e663a2b434dcb8eee3352e14a37cd6c630051ba32f052e34d557fb559c2c9S3VersionKeyEB12809F:
+    Type: String
+    Description: S3 key for asset version "b15e663a2b434dcb8eee3352e14a37cd6c630051ba32f052e34d557fb559c2c9"
+  AssetParametersb15e663a2b434dcb8eee3352e14a37cd6c630051ba32f052e34d557fb559c2c9ArtifactHash6233CC3E:
+    Type: String
+    Description: Artifact hash for asset "b15e663a2b434dcb8eee3352e14a37cd6c630051ba32f052e34d557fb559c2c9"
+  AssetParametersc1d1b28d0fe5cdbbf82d8c3d6f88c5f7afc57fea1ddec295cd36a5d315e469d8S3BucketFF155AB9:
+    Type: String
+    Description: S3 bucket for asset "c1d1b28d0fe5cdbbf82d8c3d6f88c5f7afc57fea1ddec295cd36a5d315e469d8"
+  AssetParametersc1d1b28d0fe5cdbbf82d8c3d6f88c5f7afc57fea1ddec295cd36a5d315e469d8S3VersionKeyEF96A1E2:
+    Type: String
+    Description: S3 key for asset version "c1d1b28d0fe5cdbbf82d8c3d6f88c5f7afc57fea1ddec295cd36a5d315e469d8"
+  AssetParametersc1d1b28d0fe5cdbbf82d8c3d6f88c5f7afc57fea1ddec295cd36a5d315e469d8ArtifactHash237F38C1:
+    Type: String
+    Description: Artifact hash for asset "c1d1b28d0fe5cdbbf82d8c3d6f88c5f7afc57fea1ddec295cd36a5d315e469d8"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

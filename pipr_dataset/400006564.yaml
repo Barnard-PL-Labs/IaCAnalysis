@@ -1,0 +1,375 @@
+Resources:
+  ApiHandlerServiceRole592E70E9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BackendStack/ApiHandler/ServiceRole/Resource
+  ApiHandler5E7490E8:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters3ee0abe5667b6ba7fd0df7eddbc889ddce5e5d207e63afcba9620ef0da046443S3BucketEB7B7269
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters3ee0abe5667b6ba7fd0df7eddbc889ddce5e5d207e63afcba9620ef0da046443S3VersionKeyC17CD425
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters3ee0abe5667b6ba7fd0df7eddbc889ddce5e5d207e63afcba9620ef0da046443S3VersionKeyC17CD425
+      Role:
+        Fn::GetAtt:
+          - ApiHandlerServiceRole592E70E9
+          - Arn
+      FunctionName: infinity-woodworks-api-handler
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 30
+    DependsOn:
+      - ApiHandlerServiceRole592E70E9
+    Metadata:
+      aws:cdk:path: BackendStack/ApiHandler/Resource
+      aws:asset:path: asset.3ee0abe5667b6ba7fd0df7eddbc889ddce5e5d207e63afcba9620ef0da046443
+      aws:asset:property: Code
+  BackendApi2EADC735:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: infinity-woodworks-api
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/Resource
+  BackendApiCloudWatchRole9D6D1132:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/CloudWatchRole/Resource
+  BackendApiAccount708C1E86:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - BackendApiCloudWatchRole9D6D1132
+          - Arn
+    DependsOn:
+      - BackendApi2EADC735
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/Account
+  BackendApiDeploymentEA301DA2eb8a2f5f8354099d92e25078a922d217:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: BackendApi2EADC735
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - BackendApiproxyANYFF921672
+      - BackendApiproxy6590F396
+      - BackendApiANYD54417F3
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/Deployment/Resource
+  BackendApiDeploymentStageprodBD958726:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: BackendApi2EADC735
+      DeploymentId:
+        Ref: BackendApiDeploymentEA301DA2eb8a2f5f8354099d92e25078a922d217
+      StageName: prod
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/DeploymentStage.prod/Resource
+  BackendApiproxy6590F396:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - BackendApi2EADC735
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: BackendApi2EADC735
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/Default/{proxy+}/Resource
+  BackendApiproxyANYApiPermissionBackendStackBackendApi7E36BAD1ANYproxyF2982C49:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ApiHandler5E7490E8
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: BackendApi2EADC735
+            - /
+            - Ref: BackendApiDeploymentStageprodBD958726
+            - /*/*
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/Default/{proxy+}/ANY/ApiPermission.BackendStackBackendApi7E36BAD1.ANY..{proxy+}
+  BackendApiproxyANYApiPermissionTestBackendStackBackendApi7E36BAD1ANYproxy9DE79A4A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ApiHandler5E7490E8
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: BackendApi2EADC735
+            - /test-invoke-stage/*/*
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/Default/{proxy+}/ANY/ApiPermission.Test.BackendStackBackendApi7E36BAD1.ANY..{proxy+}
+  BackendApiproxyANYFF921672:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: BackendApiproxy6590F396
+      RestApiId:
+        Ref: BackendApi2EADC735
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - ApiHandler5E7490E8
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/Default/{proxy+}/ANY/Resource
+  BackendApiANYApiPermissionBackendStackBackendApi7E36BAD1ANY15E74BE9:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ApiHandler5E7490E8
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: BackendApi2EADC735
+            - /
+            - Ref: BackendApiDeploymentStageprodBD958726
+            - /*/
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/Default/ANY/ApiPermission.BackendStackBackendApi7E36BAD1.ANY..
+  BackendApiANYApiPermissionTestBackendStackBackendApi7E36BAD1ANYD6F69C31:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ApiHandler5E7490E8
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: BackendApi2EADC735
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/Default/ANY/ApiPermission.Test.BackendStackBackendApi7E36BAD1.ANY..
+  BackendApiANYD54417F3:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - BackendApi2EADC735
+          - RootResourceId
+      RestApiId:
+        Ref: BackendApi2EADC735
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - ApiHandler5E7490E8
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: BackendStack/Backend-Api/Default/ANY/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE01P0U7DMAz8lr2nGWVCgjfKEE9DVOULTOqVbE1SxQ6jivrvNCmDPvl8OvvuSvlwJ282j3ChQrXnbVTOo4zvDOosKiLkGXbadqJBcsErFHtniX1QLPZHW4MHg4w+LW+Bh5Dpf/HRzvpWs3Z2Eskl9mA+WpDxJViV6KRZ4xq90UT5QIORsXF9fpTmJGhXQMpFMscTMOgOGC8wynjIr2dzrgb9m+MKK6VcsCyecejdaNDmoKstFc0+C7hWeAJCUXv3Pa5L/eFX5E/XJmpB0zQJ61qUJ9p+lfeyvJXl5kRaF3521wZls8wfIm59/noBAAA=
+    Metadata:
+      aws:cdk:path: BackendStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters3ee0abe5667b6ba7fd0df7eddbc889ddce5e5d207e63afcba9620ef0da046443S3BucketEB7B7269:
+    Type: String
+    Description: S3 bucket for asset "3ee0abe5667b6ba7fd0df7eddbc889ddce5e5d207e63afcba9620ef0da046443"
+  AssetParameters3ee0abe5667b6ba7fd0df7eddbc889ddce5e5d207e63afcba9620ef0da046443S3VersionKeyC17CD425:
+    Type: String
+    Description: S3 key for asset version "3ee0abe5667b6ba7fd0df7eddbc889ddce5e5d207e63afcba9620ef0da046443"
+  AssetParameters3ee0abe5667b6ba7fd0df7eddbc889ddce5e5d207e63afcba9620ef0da046443ArtifactHash23B34C5A:
+    Type: String
+    Description: Artifact hash for asset "3ee0abe5667b6ba7fd0df7eddbc889ddce5e5d207e63afcba9620ef0da046443"
+Outputs:
+  BackendApiEndpoint3AD48CE9:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: BackendApi2EADC735
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: BackendApiDeploymentStageprodBD958726
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

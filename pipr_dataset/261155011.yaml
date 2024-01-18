@@ -1,0 +1,299 @@
+Resources:
+  WafIpWhitelistContructWebsiteBucketC82471F4:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      WebsiteConfiguration:
+        IndexDocument: index.html
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: WafIpwhitelistStack/WafIpWhitelistContruct/WebsiteBucket/Resource
+  WafIpWhitelistContructWebsiteBucketPolicy2D5FED3F:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: WafIpWhitelistContructWebsiteBucketC82471F4
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - WafIpWhitelistContructoai350DDAA8
+                  - S3CanonicalUserId
+            Resource:
+              - Fn::GetAtt:
+                  - WafIpWhitelistContructWebsiteBucketC82471F4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - WafIpWhitelistContructWebsiteBucketC82471F4
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: WafIpwhitelistStack/WafIpWhitelistContruct/WebsiteBucket/Policy/Resource
+  WafIpWhitelistContructoai350DDAA8:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Allows CloudFront to reach the bucket
+    Metadata:
+      aws:cdk:path: WafIpwhitelistStack/WafIpWhitelistContruct/oai/Resource
+  WafIpWhitelistContructIPSetBA02D9FA:
+    Type: AWS::WAFv2::IPSet
+    Properties:
+      Addresses: []
+      IPAddressVersion: IPV4
+      Scope: CLOUDFRONT
+    Metadata:
+      aws:cdk:path: WafIpwhitelistStack/WafIpWhitelistContruct/IPSet
+  WafIpWhitelistContructWebACLD159E4F4:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      DefaultAction:
+        Block: {}
+      Scope: CLOUDFRONT
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: waf
+        SampledRequestsEnabled: false
+      rules:
+        - name: IPWhitelistRule
+          priority: 1
+          action:
+            allow: {}
+          statement:
+            ipSetReferenceStatement:
+              arn:
+                Fn::GetAtt:
+                  - WafIpWhitelistContructIPSetBA02D9FA
+                  - Arn
+          visibilityConfig:
+            cloudWatchMetricsEnabled: true
+            metricName: ipWhitelist
+            sampledRequestsEnabled: false
+    Metadata:
+      aws:cdk:path: WafIpwhitelistStack/WafIpWhitelistContruct/WebACL
+  WafIpWhitelistContructCFDistributionE0C729F3:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - WafIpWhitelistContructWebsiteBucketC82471F4
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: WafIpWhitelistContructoai350DDAA8
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+        WebACLId:
+          Fn::GetAtt:
+            - WafIpWhitelistContructWebACLD159E4F4
+            - Arn
+    Metadata:
+      aws:cdk:path: WafIpwhitelistStack/WafIpWhitelistContruct/CFDistribution/CFDistribution
+  WafIpWhitelistContructDeployWithInvalidationCustomResource16CD156F:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameters48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176S3Bucket227A91E7
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176S3VersionKeyE4FF4076
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176S3VersionKeyE4FF4076
+      DestinationBucketName:
+        Ref: WafIpWhitelistContructWebsiteBucketC82471F4
+      DistributionId:
+        Ref: WafIpWhitelistContructCFDistributionE0C729F3
+      DistributionPaths:
+        - /*
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: WafIpwhitelistStack/WafIpWhitelistContruct/DeployWithInvalidation/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: WafIpwhitelistStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176S3Bucket227A91E7
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176S3Bucket227A91E7
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - WafIpWhitelistContructWebsiteBucketC82471F4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - WafIpWhitelistContructWebsiteBucketC82471F4
+                        - Arn
+                    - /*
+          - Action:
+              - cloudfront:GetInvalidation
+              - cloudfront:CreateInvalidation
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: WafIpwhitelistStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa9125fa9a40550c71cde90bd478cc23091e868067a12380c1df0827d013ad2ffS3Bucket848A1F31
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa9125fa9a40550c71cde90bd478cc23091e868067a12380c1df0827d013ad2ffS3VersionKey983DBE96
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa9125fa9a40550c71cde90bd478cc23091e868067a12380c1df0827d013ad2ffS3VersionKey983DBE96
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Runtime: python3.6
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: WafIpwhitelistStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.1603499eec37955eb2dd64b356aaf053c039d149ad654f4108f899d7649082ea.zip
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.36.1,@aws-cdk/aws-certificatemanager=1.36.1,@aws-cdk/aws-cloudformation=1.36.1,@aws-cdk/aws-cloudfront=1.36.1,@aws-cdk/aws-cloudwatch=1.36.1,@aws-cdk/aws-ec2=1.36.1,@aws-cdk/aws-events=1.36.1,@aws-cdk/aws-iam=1.36.1,@aws-cdk/aws-kms=1.36.1,@aws-cdk/aws-lambda=1.36.1,@aws-cdk/aws-logs=1.36.1,@aws-cdk/aws-s3=1.36.1,@aws-cdk/aws-s3-assets=1.36.1,@aws-cdk/aws-s3-deployment=1.36.1,@aws-cdk/aws-sqs=1.36.1,@aws-cdk/aws-ssm=1.36.1,@aws-cdk/aws-wafv2=1.36.1,@aws-cdk/cloud-assembly-schema=1.36.1,@aws-cdk/core=1.36.1,@aws-cdk/cx-api=1.36.1,@aws-cdk/region-info=1.36.1,jsii-runtime=node.js/v18.12.1
+Outputs:
+  WafIpWhitelistContructBucketB7BF66B5:
+    Value:
+      Ref: WafIpWhitelistContructWebsiteBucketC82471F4
+  WafIpWhitelistContructDistributionIdF4B8AAF3:
+    Value:
+      Ref: WafIpWhitelistContructCFDistributionE0C729F3
+  WafIpWhitelistContructDomainName6CF2473E:
+    Value:
+      Fn::GetAtt:
+        - WafIpWhitelistContructCFDistributionE0C729F3
+        - DomainName
+Parameters:
+  AssetParametersa9125fa9a40550c71cde90bd478cc23091e868067a12380c1df0827d013ad2ffS3Bucket848A1F31:
+    Type: String
+    Description: S3 bucket for asset "a9125fa9a40550c71cde90bd478cc23091e868067a12380c1df0827d013ad2ff"
+  AssetParametersa9125fa9a40550c71cde90bd478cc23091e868067a12380c1df0827d013ad2ffS3VersionKey983DBE96:
+    Type: String
+    Description: S3 key for asset version "a9125fa9a40550c71cde90bd478cc23091e868067a12380c1df0827d013ad2ff"
+  AssetParametersa9125fa9a40550c71cde90bd478cc23091e868067a12380c1df0827d013ad2ffArtifactHash08605F5E:
+    Type: String
+    Description: Artifact hash for asset "a9125fa9a40550c71cde90bd478cc23091e868067a12380c1df0827d013ad2ff"
+  AssetParameters48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176S3Bucket227A91E7:
+    Type: String
+    Description: S3 bucket for asset "48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176"
+  AssetParameters48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176S3VersionKeyE4FF4076:
+    Type: String
+    Description: S3 key for asset version "48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176"
+  AssetParameters48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176ArtifactHash12BA1436:
+    Type: String
+    Description: Artifact hash for asset "48924b1c0d988b941e2404b08e4aab802232eafbd8acbc92309a810e545ae176"
+

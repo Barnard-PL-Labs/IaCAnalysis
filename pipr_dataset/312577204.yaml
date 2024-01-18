@@ -1,0 +1,698 @@
+Resources:
+  Bucket83908E77:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BatchXrayStack/Bucket/Resource
+  JobRole014917C6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AWSXrayWriteOnlyAccess
+    Metadata:
+      aws:cdk:path: BatchXrayStack/JobRole/Resource
+  JobRoleDefaultPolicy5DE0D8F9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - Bucket83908E77
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - Bucket83908E77
+                        - Arn
+                    - /*
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ecr:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :repository/aws-cdk/assets
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: JobRoleDefaultPolicy5DE0D8F9
+      Roles:
+        - Ref: JobRole014917C6
+    Metadata:
+      aws:cdk:path: BatchXrayStack/JobRole/DefaultPolicy/Resource
+  InstanceRole3CCE2F1D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - ec2.
+                    - Ref: AWS::URLSuffix
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AWSXrayWriteOnlyAccess
+    Metadata:
+      aws:cdk:path: BatchXrayStack/InstanceRole/Resource
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: InstanceRole3CCE2F1D
+    Metadata:
+      aws:cdk:path: BatchXrayStack/InstanceProfile
+  VPCB9E5F0B4:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: BatchXrayStack/VPC
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/Resource
+  VPCPublicSubnet1SubnetB4246D30:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/18
+      VpcId:
+        Ref: VPCB9E5F0B4
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: BatchXrayStack/VPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet1/Subnet
+  VPCPublicSubnet1RouteTableFEE4B781:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPCB9E5F0B4
+      Tags:
+        - Key: Name
+          Value: BatchXrayStack/VPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet1/RouteTable
+  VPCPublicSubnet1RouteTableAssociation0B0896DC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicSubnet1RouteTableFEE4B781
+      SubnetId:
+        Ref: VPCPublicSubnet1SubnetB4246D30
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet1/RouteTableAssociation
+  VPCPublicSubnet1DefaultRoute91CEF279:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicSubnet1RouteTableFEE4B781
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: VPCIGWB7E252D3
+    DependsOn:
+      - VPCVPCGW99B986DC
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet1/DefaultRoute
+  VPCPublicSubnet1EIP6AD938E8:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: BatchXrayStack/VPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet1/EIP
+  VPCPublicSubnet1NATGatewayE0556630:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - VPCPublicSubnet1EIP6AD938E8
+          - AllocationId
+      SubnetId:
+        Ref: VPCPublicSubnet1SubnetB4246D30
+      Tags:
+        - Key: Name
+          Value: BatchXrayStack/VPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet1/NATGateway
+  VPCPublicSubnet2Subnet74179F39:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.64.0/18
+      VpcId:
+        Ref: VPCB9E5F0B4
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: BatchXrayStack/VPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet2/Subnet
+  VPCPublicSubnet2RouteTable6F1A15F1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPCB9E5F0B4
+      Tags:
+        - Key: Name
+          Value: BatchXrayStack/VPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet2/RouteTable
+  VPCPublicSubnet2RouteTableAssociation5A808732:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicSubnet2RouteTable6F1A15F1
+      SubnetId:
+        Ref: VPCPublicSubnet2Subnet74179F39
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet2/RouteTableAssociation
+  VPCPublicSubnet2DefaultRouteB7481BBA:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicSubnet2RouteTable6F1A15F1
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: VPCIGWB7E252D3
+    DependsOn:
+      - VPCVPCGW99B986DC
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet2/DefaultRoute
+  VPCPublicSubnet2EIP4947BC00:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: BatchXrayStack/VPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet2/EIP
+  VPCPublicSubnet2NATGateway3C070193:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - VPCPublicSubnet2EIP4947BC00
+          - AllocationId
+      SubnetId:
+        Ref: VPCPublicSubnet2Subnet74179F39
+      Tags:
+        - Key: Name
+          Value: BatchXrayStack/VPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PublicSubnet2/NATGateway
+  VPCPrivateSubnet1Subnet8BCA10E0:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/18
+      VpcId:
+        Ref: VPCB9E5F0B4
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: BatchXrayStack/VPC/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PrivateSubnet1/Subnet
+  VPCPrivateSubnet1RouteTableBE8A6027:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPCB9E5F0B4
+      Tags:
+        - Key: Name
+          Value: BatchXrayStack/VPC/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PrivateSubnet1/RouteTable
+  VPCPrivateSubnet1RouteTableAssociation347902D1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPrivateSubnet1RouteTableBE8A6027
+      SubnetId:
+        Ref: VPCPrivateSubnet1Subnet8BCA10E0
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PrivateSubnet1/RouteTableAssociation
+  VPCPrivateSubnet1DefaultRouteAE1D6490:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VPCPrivateSubnet1RouteTableBE8A6027
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: VPCPublicSubnet1NATGatewayE0556630
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PrivateSubnet1/DefaultRoute
+  VPCPrivateSubnet2SubnetCFCDAA7A:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.192.0/18
+      VpcId:
+        Ref: VPCB9E5F0B4
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: BatchXrayStack/VPC/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PrivateSubnet2/Subnet
+  VPCPrivateSubnet2RouteTable0A19E10E:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPCB9E5F0B4
+      Tags:
+        - Key: Name
+          Value: BatchXrayStack/VPC/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PrivateSubnet2/RouteTable
+  VPCPrivateSubnet2RouteTableAssociation0C73D413:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPrivateSubnet2RouteTable0A19E10E
+      SubnetId:
+        Ref: VPCPrivateSubnet2SubnetCFCDAA7A
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PrivateSubnet2/RouteTableAssociation
+  VPCPrivateSubnet2DefaultRouteF4F5CFD2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VPCPrivateSubnet2RouteTable0A19E10E
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: VPCPublicSubnet2NATGateway3C070193
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/PrivateSubnet2/DefaultRoute
+  VPCIGWB7E252D3:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: BatchXrayStack/VPC
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/IGW
+  VPCVPCGW99B986DC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPCB9E5F0B4
+      InternetGatewayId:
+        Ref: VPCIGWB7E252D3
+    Metadata:
+      aws:cdk:path: BatchXrayStack/VPC/VPCGW
+  LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:
+        UserData:
+          Fn::Base64: |-
+            Content-Type: multipart/mixed; boundary="==XRAYDAEMON=="
+            MIME-Version: 1.0
+
+            --==XRAYDAEMON==
+            Content-Type: text/x-shellscript; charset="us-ascii"
+            MIME-Version: 1.0
+            Content-Transfer-Encoding: 7bit
+
+            #!/bin/bash
+
+            curl https://s3.us-east-2.amazonaws.com/aws-xray-assets.us-east-2/xray-daemon/aws-xray-daemon-3.x.rpm -o /home/ec2-user/xray.rpm
+            yum install -y /home/ec2-user/xray.rpm
+            --==XRAYDAEMON==--
+      LaunchTemplateName: BatchXrayStackLaunchTemplate
+    Metadata:
+      aws:cdk:path: BatchXrayStack/LaunchTemplate
+  ComputeEnvironmentResourceSecurityGroup3E96E6FC:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: BatchXrayStack/ComputeEnvironment/Resource-Security-Group
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: VPCB9E5F0B4
+    DependsOn:
+      - VPCIGWB7E252D3
+      - VPCPrivateSubnet1DefaultRouteAE1D6490
+      - VPCPrivateSubnet1RouteTableBE8A6027
+      - VPCPrivateSubnet1RouteTableAssociation347902D1
+      - VPCPrivateSubnet1Subnet8BCA10E0
+      - VPCPrivateSubnet2DefaultRouteF4F5CFD2
+      - VPCPrivateSubnet2RouteTable0A19E10E
+      - VPCPrivateSubnet2RouteTableAssociation0C73D413
+      - VPCPrivateSubnet2SubnetCFCDAA7A
+      - VPCPublicSubnet1DefaultRoute91CEF279
+      - VPCPublicSubnet1EIP6AD938E8
+      - VPCPublicSubnet1NATGatewayE0556630
+      - VPCPublicSubnet1RouteTableFEE4B781
+      - VPCPublicSubnet1RouteTableAssociation0B0896DC
+      - VPCPublicSubnet1SubnetB4246D30
+      - VPCPublicSubnet2DefaultRouteB7481BBA
+      - VPCPublicSubnet2EIP4947BC00
+      - VPCPublicSubnet2NATGateway3C070193
+      - VPCPublicSubnet2RouteTable6F1A15F1
+      - VPCPublicSubnet2RouteTableAssociation5A808732
+      - VPCPublicSubnet2Subnet74179F39
+      - VPCB9E5F0B4
+      - VPCVPCGW99B986DC
+    Metadata:
+      aws:cdk:path: BatchXrayStack/ComputeEnvironment/Resource-Security-Group/Resource
+  ComputeEnvironmentResourceServiceInstanceRoleDC6D4445:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: batch.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSBatchServiceRole
+    DependsOn:
+      - VPCIGWB7E252D3
+      - VPCPrivateSubnet1DefaultRouteAE1D6490
+      - VPCPrivateSubnet1RouteTableBE8A6027
+      - VPCPrivateSubnet1RouteTableAssociation347902D1
+      - VPCPrivateSubnet1Subnet8BCA10E0
+      - VPCPrivateSubnet2DefaultRouteF4F5CFD2
+      - VPCPrivateSubnet2RouteTable0A19E10E
+      - VPCPrivateSubnet2RouteTableAssociation0C73D413
+      - VPCPrivateSubnet2SubnetCFCDAA7A
+      - VPCPublicSubnet1DefaultRoute91CEF279
+      - VPCPublicSubnet1EIP6AD938E8
+      - VPCPublicSubnet1NATGatewayE0556630
+      - VPCPublicSubnet1RouteTableFEE4B781
+      - VPCPublicSubnet1RouteTableAssociation0B0896DC
+      - VPCPublicSubnet1SubnetB4246D30
+      - VPCPublicSubnet2DefaultRouteB7481BBA
+      - VPCPublicSubnet2EIP4947BC00
+      - VPCPublicSubnet2NATGateway3C070193
+      - VPCPublicSubnet2RouteTable6F1A15F1
+      - VPCPublicSubnet2RouteTableAssociation5A808732
+      - VPCPublicSubnet2Subnet74179F39
+      - VPCB9E5F0B4
+      - VPCVPCGW99B986DC
+    Metadata:
+      aws:cdk:path: BatchXrayStack/ComputeEnvironment/Resource-Service-Instance-Role/Resource
+  ComputeEnvironmentC570994D:
+    Type: AWS::Batch::ComputeEnvironment
+    Properties:
+      ServiceRole:
+        Fn::GetAtt:
+          - ComputeEnvironmentResourceServiceInstanceRoleDC6D4445
+          - Arn
+      Type: MANAGED
+      ComputeResources:
+        AllocationStrategy: BEST_FIT
+        ImageId:
+          Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinuxrecommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+        InstanceRole:
+          Fn::GetAtt:
+            - InstanceProfile
+            - Arn
+        InstanceTypes:
+          - optimal
+        LaunchTemplate:
+          LaunchTemplateName: BatchXrayStackLaunchTemplate
+        MaxvCpus: 256
+        MinvCpus: 2
+        SecurityGroupIds:
+          - Fn::GetAtt:
+              - ComputeEnvironmentResourceSecurityGroup3E96E6FC
+              - GroupId
+        Subnets:
+          - Ref: VPCPrivateSubnet1Subnet8BCA10E0
+          - Ref: VPCPrivateSubnet2SubnetCFCDAA7A
+        Type: EC2
+      State: ENABLED
+    DependsOn:
+      - VPCIGWB7E252D3
+      - VPCPrivateSubnet1DefaultRouteAE1D6490
+      - VPCPrivateSubnet1RouteTableBE8A6027
+      - VPCPrivateSubnet1RouteTableAssociation347902D1
+      - VPCPrivateSubnet1Subnet8BCA10E0
+      - VPCPrivateSubnet2DefaultRouteF4F5CFD2
+      - VPCPrivateSubnet2RouteTable0A19E10E
+      - VPCPrivateSubnet2RouteTableAssociation0C73D413
+      - VPCPrivateSubnet2SubnetCFCDAA7A
+      - VPCPublicSubnet1DefaultRoute91CEF279
+      - VPCPublicSubnet1EIP6AD938E8
+      - VPCPublicSubnet1NATGatewayE0556630
+      - VPCPublicSubnet1RouteTableFEE4B781
+      - VPCPublicSubnet1RouteTableAssociation0B0896DC
+      - VPCPublicSubnet1SubnetB4246D30
+      - VPCPublicSubnet2DefaultRouteB7481BBA
+      - VPCPublicSubnet2EIP4947BC00
+      - VPCPublicSubnet2NATGateway3C070193
+      - VPCPublicSubnet2RouteTable6F1A15F1
+      - VPCPublicSubnet2RouteTableAssociation5A808732
+      - VPCPublicSubnet2Subnet74179F39
+      - VPCB9E5F0B4
+      - VPCVPCGW99B986DC
+    Metadata:
+      aws:cdk:path: BatchXrayStack/ComputeEnvironment/Resource
+  JobQueueEE3AD499:
+    Type: AWS::Batch::JobQueue
+    Properties:
+      ComputeEnvironmentOrder:
+        - ComputeEnvironment:
+            Ref: ComputeEnvironmentC570994D
+          Order: 1
+      Priority: 1
+      State: ENABLED
+    Metadata:
+      aws:cdk:path: BatchXrayStack/JobQueue/Resource
+  BatchJob743C9ABD:
+    Type: AWS::Batch::JobDefinition
+    Properties:
+      Type: container
+      ContainerProperties:
+        Environment:
+          - Name: AWS_XRAY_SDK_ENABLED
+            Value: "true"
+          - Name: DST_BUCKET
+            Value:
+              Ref: Bucket83908E77
+          - Name: IMAGE_URL
+            Value: https://www.python.org/static/img/python-logo@2x.png
+          - Name: AWS_DEFAULT_REGION
+            Value:
+              Ref: AWS::Region
+        Image:
+          Fn::Join:
+            - ""
+            - - Ref: AWS::AccountId
+              - .dkr.ecr.
+              - Ref: AWS::Region
+              - "."
+              - Ref: AWS::URLSuffix
+              - /aws-cdk/assets:8c85c4ad9d6c278470108efb1bf2e17c93970de397f358a54a5e948876bf6191
+        JobRoleArn:
+          Fn::GetAtt:
+            - JobRole014917C6
+            - Arn
+        Memory: 1024
+        Privileged: false
+        ReadonlyRootFilesystem: false
+        Vcpus: 1
+      RetryStrategy:
+        Attempts: 1
+      Timeout:
+        AttemptDurationSeconds: 120
+    Metadata:
+      aws:cdk:path: BatchXrayStack/BatchJob/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.63.0,@aws-cdk/aws-applicationautoscaling=1.63.0,@aws-cdk/aws-autoscaling=1.63.0,@aws-cdk/aws-autoscaling-common=1.63.0,@aws-cdk/aws-autoscaling-hooktargets=1.63.0,@aws-cdk/aws-batch=1.63.0,@aws-cdk/aws-cloudwatch=1.63.0,@aws-cdk/aws-codeguruprofiler=1.63.0,@aws-cdk/aws-ec2=1.63.0,@aws-cdk/aws-ecr=1.63.0,@aws-cdk/aws-ecr-assets=1.63.0,@aws-cdk/aws-ecs=1.63.0,@aws-cdk/aws-elasticloadbalancingv2=1.63.0,@aws-cdk/aws-events=1.63.0,@aws-cdk/aws-iam=1.63.0,@aws-cdk/aws-kms=1.63.0,@aws-cdk/aws-lambda=1.63.0,@aws-cdk/aws-logs=1.63.0,@aws-cdk/aws-s3=1.63.0,@aws-cdk/aws-s3-assets=1.63.0,@aws-cdk/aws-servicediscovery=1.63.0,@aws-cdk/aws-sns=1.63.0,@aws-cdk/aws-sns-subscriptions=1.63.0,@aws-cdk/aws-sqs=1.63.0,@aws-cdk/aws-ssm=1.63.0,@aws-cdk/cloud-assembly-schema=1.63.0,@aws-cdk/core=1.63.0,@aws-cdk/custom-resources=1.63.0,@aws-cdk/cx-api=1.63.0,@aws-cdk/region-info=1.63.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  SsmParameterValueawsserviceecsoptimizedamiamazonlinuxrecommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ecs/optimized-ami/amazon-linux/recommended/image_id
+Outputs:
+  JobQueueArn:
+    Description: The job queue for the Batch environment
+    Value:
+      Ref: JobQueueEE3AD499
+    Export:
+      Name: JobQueueArn
+  JobDefinitionArn:
+    Description: The job definition with X-Ray configured
+    Value:
+      Ref: BatchJob743C9ABD
+    Export:
+      Name: JobDefinitionArn
+  BucketForBatchJob:
+    Description: Bucket that Batch Job uploads images
+    Value:
+      Ref: Bucket83908E77
+    Export:
+      Name: BucketForBatchJob
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

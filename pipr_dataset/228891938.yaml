@@ -1,0 +1,390 @@
+Transform:
+  - AWS::Serverless-2016-10-31
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+  LogLevel:
+    Type: String
+    Default: INFO
+  RetentionInDays:
+    Type: Number
+    Default: 30
+Resources:
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: prod
+      EndpointConfiguration: REGIONAL
+      TracingEnabled: true
+    Metadata:
+      aws:cdk:path: Payment3PStack/Api
+  ApiUrlParameterF80EB5D4:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Fn::Join:
+          - ""
+          - - https://
+            - Ref: Api
+            - .execute-api.
+            - Ref: AWS::Region
+            - .amazonaws.com/prod
+      Name:
+        Fn::Join:
+          - ""
+          - - /ecommerce/
+            - Ref: Environment
+            - /payment-3p/api/url
+    Metadata:
+      aws:cdk:path: Payment3PStack/ApiUrlParameter/Resource
+  TableCD117FA1:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: paymentToken
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: paymentToken
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: Payment3PStack/Table/Resource
+  TableNameParameter8411BB4B:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Ref: TableCD117FA1
+      Name:
+        Fn::Join:
+          - ""
+          - - /ecommerce/
+            - Ref: Environment
+            - /payment-3p/table/name
+    Metadata:
+      aws:cdk:path: Payment3PStack/TableNameParameter/Resource
+  CheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/check/
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TableCD117FA1
+          ENVIRONMENT:
+            Ref: Environment
+          LOG_LEVEL:
+            Ref: LogLevel
+          POWERTOOLS_SERVICE_NAME: payment-3p
+          POWERTOOLS_TRACE_DISABLED: "false"
+      Events:
+        Api:
+          Properties:
+            Method: POST
+            Path: /check
+            RestApiId:
+              Ref: Api
+          Type: Api
+      Handler: index.handler
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action: dynamodb:GetItem
+            Resource:
+              Fn::GetAtt:
+                - TableCD117FA1
+                - Arn
+      Runtime: nodejs12.x
+    Metadata:
+      aws:cdk:path: Payment3PStack/CheckFunction
+  CheckLogGroup83027D61:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: CheckFunction
+      RetentionInDays: 30
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Payment3PStack/CheckLogGroup/Resource
+  PreAuthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/preauth/
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TableCD117FA1
+          ENVIRONMENT:
+            Ref: Environment
+          LOG_LEVEL:
+            Ref: LogLevel
+          POWERTOOLS_SERVICE_NAME: payment-3p
+          POWERTOOLS_TRACE_DISABLED: "false"
+      Events:
+        Api:
+          Properties:
+            Method: POST
+            Path: /preauth
+            RestApiId:
+              Ref: Api
+          Type: Api
+      Handler: index.handler
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action: dynamodb:PutItem
+            Resource:
+              Fn::GetAtt:
+                - TableCD117FA1
+                - Arn
+      Runtime: nodejs12.x
+    Metadata:
+      aws:cdk:path: Payment3PStack/PreAuthFunction
+  PreAuthLogGroupDBEA2DB0:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: PreAuthFunction
+      RetentionInDays: 30
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Payment3PStack/PreAuthLogGroup/Resource
+  CancelPaymentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/cancelPayment/
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TableCD117FA1
+          ENVIRONMENT:
+            Ref: Environment
+          LOG_LEVEL:
+            Ref: LogLevel
+          POWERTOOLS_SERVICE_NAME: payment-3p
+          POWERTOOLS_TRACE_DISABLED: "false"
+      Events:
+        Api:
+          Properties:
+            Method: POST
+            Path: /cancelPayment
+            RestApiId:
+              Ref: Api
+          Type: Api
+      Handler: index.handler
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:DeleteItem
+            Resource:
+              Fn::GetAtt:
+                - TableCD117FA1
+                - Arn
+      Runtime: nodejs12.x
+    Metadata:
+      aws:cdk:path: Payment3PStack/CancelPaymentFunction
+  CancelPaymentLogGroup3F7821DB:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: CancelPaymentFunction
+      RetentionInDays: 30
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Payment3PStack/CancelPaymentLogGroup/Resource
+  ProcessPaymentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/processPayment/
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TableCD117FA1
+          ENVIRONMENT:
+            Ref: Environment
+          LOG_LEVEL:
+            Ref: LogLevel
+          POWERTOOLS_SERVICE_NAME: payment-3p
+          POWERTOOLS_TRACE_DISABLED: "false"
+      Events:
+        Api:
+          Properties:
+            Method: POST
+            Path: /processPayment
+            RestApiId:
+              Ref: Api
+          Type: Api
+      Handler: index.handler
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:DeleteItem
+            Resource:
+              Fn::GetAtt:
+                - TableCD117FA1
+                - Arn
+      Runtime: nodejs12.x
+    Metadata:
+      aws:cdk:path: Payment3PStack/ProcessPaymentFunction
+  ProcessPaymentLogGroupA7ED749E:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: ProcessPaymentFunction
+      RetentionInDays: 30
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Payment3PStack/ProcessPaymentLogGroup/Resource
+  UpdateAmountFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/updateAmount/
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TableCD117FA1
+          ENVIRONMENT:
+            Ref: Environment
+          LOG_LEVEL:
+            Ref: LogLevel
+          POWERTOOLS_SERVICE_NAME: payment-3p
+          POWERTOOLS_TRACE_DISABLED: "false"
+      Events:
+        Api:
+          Properties:
+            Method: POST
+            Path: /updateAmount
+            RestApiId:
+              Ref: Api
+          Type: Api
+      Handler: index.handler
+      Policies:
+        - Statement:
+            Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+            Resource:
+              Fn::GetAtt:
+                - TableCD117FA1
+                - Arn
+      Runtime: nodejs12.x
+    Metadata:
+      aws:cdk:path: Payment3PStack/UpdateAmountFunction
+  UpdateAmountLogGroup3B79BB84:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: UpdateAmountFunction
+      RetentionInDays: 30
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Payment3PStack/UpdateAmountLogGroup/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02NsQoCMRBEv8U+7hltLBVBGwtRfyAm8Yia3SObKBLy71485KxmmAdvJMjFHGaTlXrxVJt7kzUFC/kUlb6LzRUPKihvow3iaJlS0FZsCDmGpGPl43rFHhgXHWERVZdZecj9vu5cxduEeqDMvl4Eh+3o/z8rwrxReTIXyGd1eXz131LEg1qGvKd2Fyh1Ffx6KUUgGQs3bp5yCXIOcnJj56YhYXTewnHIDxV98cX2AAAA
+    Metadata:
+      aws:cdk:path: Payment3PStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

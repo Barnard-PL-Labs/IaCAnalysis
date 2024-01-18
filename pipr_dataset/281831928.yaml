@@ -1,0 +1,568 @@
+Resources:
+  DemoImageRepoDBFA8BE2:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: demo-image-repo
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/DemoImageRepo/Resource
+  DemoSourceRepo0878B40E:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: demo-source-repo
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/DemoSourceRepo/Resource
+  DemoBuildRole93A42752:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/DemoBuild/Role/Resource
+  DemoBuildRoleDefaultPolicy084EC494:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:us-east-1:"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: DemoBuildD112B9D5
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:us-east-1:"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: DemoBuildD112B9D5
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:us-east-1:"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: DemoBuildD112B9D5
+                  - -*
+          - Action:
+              - codecommit:ListBranches
+              - codecommit:ListRepositories
+              - codecommit:BatchGetRepositories
+              - codecommit:GitPull
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DemoSourceRepo0878B40E
+                - Arn
+          - Action:
+              - ecr:GetAuthorizationToken
+              - ecr:InitiateLayerUpload
+              - ecr:UploadLayerPart
+              - ecr:CompleteLayerUpload
+              - ecr:BatchCheckLayerAvailability
+              - ecr:PutImage
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DemoBuildRoleDefaultPolicy084EC494
+      Roles:
+        - Ref: DemoBuildRole93A42752
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/DemoBuild/Role/DefaultPolicy/Resource
+  DemoBuildD112B9D5:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: AWS_ACCOUNT_ID
+            Type: PLAINTEXT
+            Value:
+              Ref: AWS::AccountId
+          - Name: AWS_DEFAULT_REGION
+            Type: PLAINTEXT
+            Value:
+              Ref: AWS::Region
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - DemoBuildRole93A42752
+          - Arn
+      Source:
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - PipelineArtifactsBucketEncryptionKey01D58D69
+          - Arn
+      Name: demo-build
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/DemoBuild/Resource
+  PipelineArtifactsBucketEncryptionKey01D58D69:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:GenerateDataKey
+              - kms:TagResource
+              - kms:UntagResource
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - PipelineRoleD68726F7
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - PipelineSourceSourceCodeCommitCodePipelineActionRole5E2D9CBE
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - DemoBuildRole93A42752
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - DemoBuildRole93A42752
+                  - Arn
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/Pipeline/ArtifactsBucketEncryptionKey/Resource
+  PipelineArtifactsBucket22248F97:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - PipelineArtifactsBucketEncryptionKey01D58D69
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/Pipeline/ArtifactsBucket/Resource
+  PipelineArtifactsBucketEncryptionKeyAlias5C510EEE:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-cdkecrpipelinestackpipeline8d27fa6b
+      TargetKeyId:
+        Fn::GetAtt:
+          - PipelineArtifactsBucketEncryptionKey01D58D69
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/Pipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  PipelineRoleD68726F7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/Pipeline/Role/Resource
+  PipelineRoleDefaultPolicyC7A05455:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineSourceSourceCodeCommitCodePipelineActionRole5E2D9CBE
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineBuildCodePipelineActionRoleD77A08E6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineRoleDefaultPolicyC7A05455
+      Roles:
+        - Ref: PipelineRoleD68726F7
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/Pipeline/Role/DefaultPolicy/Resource
+  PipelineC660917D:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - PipelineRoleD68726F7
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::GetAtt:
+                    - DemoSourceRepo0878B40E
+                    - Name
+                BranchName: master
+                PollForSourceChanges: true
+              Name: Source-CodeCommit
+              OutputArtifacts:
+                - Name: Artifact_Source_Source-CodeCommit
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineSourceSourceCodeCommitCodePipelineActionRole5E2D9CBE
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: DemoBuildD112B9D5
+              InputArtifacts:
+                - Name: Artifact_Source_Source-CodeCommit
+              Name: Build
+              OutputArtifacts:
+                - Name: Artifact_Build_Build
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineBuildCodePipelineActionRoleD77A08E6
+                  - Arn
+              RunOrder: 1
+          Name: Build
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - PipelineArtifactsBucketEncryptionKey01D58D69
+              - Arn
+          Type: KMS
+        Location:
+          Ref: PipelineArtifactsBucket22248F97
+        Type: S3
+      Name: demo-pipeline
+    DependsOn:
+      - PipelineRoleDefaultPolicyC7A05455
+      - PipelineRoleD68726F7
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/Pipeline/Resource
+  PipelineSourceSourceCodeCommitCodePipelineActionRole5E2D9CBE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/Pipeline/Source/Source-CodeCommit/CodePipelineActionRole/Resource
+  PipelineSourceSourceCodeCommitCodePipelineActionRoleDefaultPolicy50FEBD5F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+          - Action:
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:UploadArchive
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:CancelUploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DemoSourceRepo0878B40E
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineSourceSourceCodeCommitCodePipelineActionRoleDefaultPolicy50FEBD5F
+      Roles:
+        - Ref: PipelineSourceSourceCodeCommitCodePipelineActionRole5E2D9CBE
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/Pipeline/Source/Source-CodeCommit/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineBuildCodePipelineActionRoleD77A08E6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/Pipeline/Build/Build/CodePipelineActionRole/Resource
+  PipelineBuildCodePipelineActionRoleDefaultPolicyC9CB73F8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DemoBuildD112B9D5
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineBuildCodePipelineActionRoleDefaultPolicyC9CB73F8
+      Roles:
+        - Ref: PipelineBuildCodePipelineActionRoleD77A08E6
+    Metadata:
+      aws:cdk:path: CdkEcrPipelineStack/Pipeline/Build/Build/CodePipelineActionRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.54.0,@aws-cdk/aws-applicationautoscaling=1.54.0,@aws-cdk/aws-autoscaling=1.54.0,@aws-cdk/aws-autoscaling-common=1.54.0,@aws-cdk/aws-autoscaling-hooktargets=1.54.0,@aws-cdk/aws-cloudformation=1.54.0,@aws-cdk/aws-cloudwatch=1.54.0,@aws-cdk/aws-codebuild=1.54.0,@aws-cdk/aws-codecommit=1.54.0,@aws-cdk/aws-codeguruprofiler=1.54.0,@aws-cdk/aws-codepipeline=1.54.0,@aws-cdk/aws-codepipeline-actions=1.54.0,@aws-cdk/aws-ec2=1.54.0,@aws-cdk/aws-ecr=1.54.0,@aws-cdk/aws-ecr-assets=1.54.0,@aws-cdk/aws-ecs=1.54.0,@aws-cdk/aws-elasticloadbalancingv2=1.54.0,@aws-cdk/aws-events=1.54.0,@aws-cdk/aws-events-targets=1.54.0,@aws-cdk/aws-iam=1.54.0,@aws-cdk/aws-kms=1.54.0,@aws-cdk/aws-lambda=1.54.0,@aws-cdk/aws-logs=1.54.0,@aws-cdk/aws-s3=1.54.0,@aws-cdk/aws-s3-assets=1.54.0,@aws-cdk/aws-servicediscovery=1.54.0,@aws-cdk/aws-sns=1.54.0,@aws-cdk/aws-sns-subscriptions=1.54.0,@aws-cdk/aws-sqs=1.54.0,@aws-cdk/aws-ssm=1.54.0,@aws-cdk/cloud-assembly-schema=1.54.0,@aws-cdk/core=1.54.0,@aws-cdk/custom-resources=1.54.0,@aws-cdk/cx-api=1.54.0,@aws-cdk/region-info=1.54.0,jsii-runtime=node.js/v18.12.1
+Outputs:
+  CodeCommitCloneUrlHttp:
+    Description: CodeCommit Repo CloneUrl HTTP
+    Value:
+      Fn::GetAtt:
+        - DemoSourceRepo0878B40E
+        - CloneUrlHttp
+  CodeCommitCloneUrlSsh:
+    Description: CodeCommit Repo CloneUrl SSH
+    Value:
+      Fn::GetAtt:
+        - DemoSourceRepo0878B40E
+        - CloneUrlSsh
+  EcrRepositoryUri:
+    Description: ECR Repository URI
+    Value:
+      Fn::Join:
+        - ""
+        - - Fn::Select:
+              - 4
+              - Fn::Split:
+                  - ":"
+                  - Fn::GetAtt:
+                      - DemoImageRepoDBFA8BE2
+                      - Arn
+          - .dkr.ecr.
+          - Fn::Select:
+              - 3
+              - Fn::Split:
+                  - ":"
+                  - Fn::GetAtt:
+                      - DemoImageRepoDBFA8BE2
+                      - Arn
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: DemoImageRepoDBFA8BE2
+

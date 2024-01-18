@@ -1,0 +1,479 @@
+Resources:
+  backupsRole57DB0C6B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupsRole/Resource
+  backupsRoleDefaultPolicy278F6CB4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - backupsBucketD03A9597
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - backupsBucketD03A9597
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: backupsRoleDefaultPolicy278F6CB4
+      Roles:
+        - Ref: backupsRole57DB0C6B
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupsRole/DefaultPolicy/Resource
+  backupsBucketD03A9597:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupsBucket/Resource
+  googleDriveCredentials853C60CB:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString: {}
+      Name: /google-drive-backup/RCLONE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/googleDriveCredentials/Resource
+  backupTaskDefinition01EFE0FA:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: HEALTHCHECKS_URL
+              Value: ""
+            - Name: GOOGLE_DRIVE_IMPERSONATION_EMAIL
+              Value: ""
+            - Name: GOOGLE_DRIVE_FOLDER
+              Value: ""
+            - Name: S3_BUCKET_NAME
+              Value:
+                Ref: backupsBucketD03A9597
+            - Name: RCLONE_S3_REGION
+              Value: ""
+          Essential: true
+          Image:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::AccountId
+                - .dkr.ecr.
+                - Ref: AWS::Region
+                - "."
+                - Ref: AWS::URLSuffix
+                - /aws-cdk/assets:2594ae562a30d35beb64e692a5448a87c520553372744d66b99aec0b21c3be8b
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: backupTaskDefinitionbackupTaskContainerLogGroupBF7E4791
+              awslogs-stream-prefix: GoogleDriveBackupStack
+              awslogs-region:
+                Ref: AWS::Region
+          Name: backupTaskContainer
+          Secrets:
+            - Name: RCLONE_DRIVE_SERVICE_ACCOUNT_CREDENTIALS
+              ValueFrom:
+                Ref: googleDriveCredentials853C60CB
+      Cpu: "4096"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - backupTaskDefinitionExecutionRoleFEF1B5F1
+          - Arn
+      Family: GoogleDriveBackupStackbackupTaskDefinition332AACD0
+      Memory: "16384"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - backupsRole57DB0C6B
+          - Arn
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupTaskDefinition/Resource
+  backupTaskDefinitionbackupTaskContainerLogGroupBF7E4791:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupTaskDefinition/backupTaskContainer/LogGroup/Resource
+  backupTaskDefinitionExecutionRoleFEF1B5F1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupTaskDefinition/ExecutionRole/Resource
+  backupTaskDefinitionExecutionRoleDefaultPolicy65CDDDCB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ecr:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :repository/aws-cdk/assets
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - backupTaskDefinitionbackupTaskContainerLogGroupBF7E4791
+                - Arn
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Ref: googleDriveCredentials853C60CB
+        Version: "2012-10-17"
+      PolicyName: backupTaskDefinitionExecutionRoleDefaultPolicy65CDDDCB
+      Roles:
+        - Ref: backupTaskDefinitionExecutionRoleFEF1B5F1
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupTaskDefinition/ExecutionRole/DefaultPolicy/Resource
+  backupTaskDefinitionEventsRole567AC55E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupTaskDefinition/EventsRole/Resource
+  backupTaskDefinitionEventsRoleDefaultPolicy3ECA0BCD:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ecs:RunTask
+            Condition:
+              ArnEquals:
+                ecs:cluster:
+                  Fn::GetAtt:
+                    - cluster611F8AFF
+                    - Arn
+            Effect: Allow
+            Resource:
+              Ref: backupTaskDefinition01EFE0FA
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - backupTaskDefinitionExecutionRoleFEF1B5F1
+                - Arn
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - backupsRole57DB0C6B
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: backupTaskDefinitionEventsRoleDefaultPolicy3ECA0BCD
+      Roles:
+        - Ref: backupTaskDefinitionEventsRole567AC55E
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupTaskDefinition/EventsRole/DefaultPolicy/Resource
+  backupTaskDefinitionSecurityGroup07990698:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: GoogleDriveBackupStack/backupTaskDefinition/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: vpcA2121C38
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupTaskDefinition/SecurityGroup/Resource
+  vpcA2121C38:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: GoogleDriveBackupStack/vpc
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/Resource
+  vpcpublicSubnet1SubnetA635257E:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId:
+        Ref: vpcA2121C38
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: GoogleDriveBackupStack/vpc/publicSubnet1
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/publicSubnet1/Subnet
+  vpcpublicSubnet1RouteTableA38152FE:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: vpcA2121C38
+      Tags:
+        - Key: Name
+          Value: GoogleDriveBackupStack/vpc/publicSubnet1
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/publicSubnet1/RouteTable
+  vpcpublicSubnet1RouteTableAssociationB46101B8:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: vpcpublicSubnet1RouteTableA38152FE
+      SubnetId:
+        Ref: vpcpublicSubnet1SubnetA635257E
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/publicSubnet1/RouteTableAssociation
+  vpcpublicSubnet1DefaultRouteF0973989:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: vpcpublicSubnet1RouteTableA38152FE
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: vpcIGWE57CBDCA
+    DependsOn:
+      - vpcVPCGW7984C166
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/publicSubnet1/DefaultRoute
+  vpcpublicSubnet2Subnet027D165B:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      VpcId:
+        Ref: vpcA2121C38
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: GoogleDriveBackupStack/vpc/publicSubnet2
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/publicSubnet2/Subnet
+  vpcpublicSubnet2RouteTableA6135437:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: vpcA2121C38
+      Tags:
+        - Key: Name
+          Value: GoogleDriveBackupStack/vpc/publicSubnet2
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/publicSubnet2/RouteTable
+  vpcpublicSubnet2RouteTableAssociation73F6478A:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: vpcpublicSubnet2RouteTableA6135437
+      SubnetId:
+        Ref: vpcpublicSubnet2Subnet027D165B
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/publicSubnet2/RouteTableAssociation
+  vpcpublicSubnet2DefaultRoute13685A07:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: vpcpublicSubnet2RouteTableA6135437
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: vpcIGWE57CBDCA
+    DependsOn:
+      - vpcVPCGW7984C166
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/publicSubnet2/DefaultRoute
+  vpcIGWE57CBDCA:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: GoogleDriveBackupStack/vpc
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/IGW
+  vpcVPCGW7984C166:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: vpcA2121C38
+      InternetGatewayId:
+        Ref: vpcIGWE57CBDCA
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/vpc/VPCGW
+  cluster611F8AFF:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/cluster/Resource
+  backupTaskScheduledEventRule554E21CF:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: cron(* * * * ? *)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - cluster611F8AFF
+              - Arn
+          EcsParameters:
+            LaunchType: FARGATE
+            NetworkConfiguration:
+              AwsVpcConfiguration:
+                AssignPublicIp: ENABLED
+                SecurityGroups:
+                  - Fn::GetAtt:
+                      - backupTaskDefinitionSecurityGroup07990698
+                      - GroupId
+                Subnets:
+                  - Ref: vpcpublicSubnet1SubnetA635257E
+                  - Ref: vpcpublicSubnet2Subnet027D165B
+            TaskCount: 1
+            TaskDefinitionArn:
+              Ref: backupTaskDefinition01EFE0FA
+          Id: Target0
+          Input: "{}"
+          RoleArn:
+            Fn::GetAtt:
+              - backupTaskDefinitionEventsRole567AC55E
+              - Arn
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/backupTask/ScheduledEventRule/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE11STW/CMAz9LbunQTBN2m7jQ0NIO6AycQ+pV0LbuIoTUFX1v89pgLGd8vz8ZD/bmcq3Fzl9elcXynRRTXqNDmS/80pXYomWvAvaixwIg9Mglt/2EbOiMN6gHUSs0BvVyD7HOgnju8Xa6C6GCQ2CnmW/CLoCH9mEmAXtwFOjrCrBsYMxjoqEBgGaZP+hXKk8fCmqVvBt7Ng8qv4zaL0yFtwjVwfy4EbfCcaiLlNE3FmukJ24TcP955GJOZlDi2Q8um6hCESNJZv4xHLtMLSx0g3HUrPRdnDGd/f8X2Lf6kjut0uxDQfexy4c7HXMO8oxxAkPaYuJ/+XYG2qjbnOPiQg2lgdi5ZrXc1Hdtc01mns+6LEBm/aYtcpHNcmdPkIRaigeFivgzEKeMw/XQ/I78IXTnvhvlMaWg7BYgDzR5Dx9ldMZ/6ITGZO5YL1pQObp/QGN+cyYYQIAAA==
+    Metadata:
+      aws:cdk:path: GoogleDriveBackupStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

@@ -1,0 +1,239 @@
+Resources:
+  TweetLambdaFunctionServiceRoleD71F4AB7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: HonyakutterTsStack/TweetLambdaFunction/ServiceRole/Resource
+  TweetLambdaFunction3A70A05C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 9bd7422204afcc52d66c043ef407e9c52cb6af777adf6f17ffb6163cd463d9a2.zip
+      Role:
+        Fn::GetAtt:
+          - TweetLambdaFunctionServiceRoleD71F4AB7
+          - Arn
+      Description: Tweet text.
+      Environment:
+        Variables: {}
+      FunctionName: honyakutter-ts-tweet-function
+      Handler: main
+      MemorySize: 128
+      Runtime: go1.x
+      Timeout: 60
+    DependsOn:
+      - TweetLambdaFunctionServiceRoleD71F4AB7
+    Metadata:
+      aws:cdk:path: HonyakutterTsStack/TweetLambdaFunction/Resource
+      aws:asset:path: asset.9bd7422204afcc52d66c043ef407e9c52cb6af777adf6f17ffb6163cd463d9a2
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/rest/435537893/resources/lambdaFunctions/tweet/bin
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  StateMachineLogGroup15B91BCB:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: TranslateTweetStateMachineLogGroup
+      RetentionInDays: 731
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: HonyakutterTsStack/StateMachineLogGroup/Resource
+  TranslateTweetStateMaschineRole6C330867:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: HonyakutterTsStack/TranslateTweetStateMaschine/Role/Resource
+  TranslateTweetStateMaschineRoleDefaultPolicy0574A0A8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogDelivery
+              - logs:GetLogDelivery
+              - logs:UpdateLogDelivery
+              - logs:DeleteLogDelivery
+              - logs:ListLogDeliveries
+              - logs:PutResourcePolicy
+              - logs:DescribeResourcePolicies
+              - logs:DescribeLogGroups
+            Effect: Allow
+            Resource: "*"
+          - Action: translate:TranslateText
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TweetLambdaFunction3A70A05C
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TranslateTweetStateMaschineRoleDefaultPolicy0574A0A8
+      Roles:
+        - Ref: TranslateTweetStateMaschineRole6C330867
+    Metadata:
+      aws:cdk:path: HonyakutterTsStack/TranslateTweetStateMaschine/Role/DefaultPolicy/Resource
+  TranslateTweetStateMaschine396ECBE3:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - TranslateTweetStateMaschineRole6C330867
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"init","States":{"init":{"Type":"Pass","Comment":"init state","Next":"TranslateByAmazonTranslate"},"TranslateByAmazonTranslate":{"Next":"'
+            - Ref: TweetLambdaFunction3A70A05C
+            - '","Type":"Task","ResultSelector":{"inputText.$":"$.TranslatedText"},"Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::aws-sdk:translate:translateText","Parameters":{"SourceLanguageCode.$":"$.sourceLang","TargetLanguageCode.$":"$.targetLang","Text.$":"$.inputText"}},"
+            - Ref: TweetLambdaFunction3A70A05C
+            - '":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","TimeoutSeconds":60,"ResultSelector":{},"Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - TweetLambdaFunction3A70A05C
+                - Arn
+            - '","Payload.$":"$","InvocationType":"RequestResponse"}}},"TimeoutSeconds":300}'
+      LoggingConfiguration:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn:
+                Fn::GetAtt:
+                  - StateMachineLogGroup15B91BCB
+                  - Arn
+        Level: ALL
+      StateMachineName: honyakutter-ts-translate-tweet-state-maschine
+      StateMachineType: EXPRESS
+    DependsOn:
+      - TranslateTweetStateMaschineRoleDefaultPolicy0574A0A8
+      - TranslateTweetStateMaschineRole6C330867
+    Metadata:
+      aws:cdk:path: HonyakutterTsStack/TranslateTweetStateMaschine/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VP0WrDMAz8lr47WtO97LUNbBQ6KO0HBNdRM9WOXSI7ZRj/+xxnhe3p7oTuTtrAGtYr+eBKdboydIF49lJpkUdtNHK4dBLie7DKk7OiudonT4LkAPHkDM7jgkdnSH3PcmFJ8GsrmdEzbGfIGnZBafQ7ySjY4/36m8cQj3lV5HqPn1J9kS3Bf3X672i9ZJ19jTRm++AzjhMpFIdy9d5OTmeHcX1eObj+Y3ThPic+eUqiHJUberJ9+QLZhVGV4sbZjpZPresQbvwy1W9Qb6Be3ZioGoP1NCCcFvwB6zBJkksBAAA=
+    Metadata:
+      aws:cdk:path: HonyakutterTsStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

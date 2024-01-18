@@ -1,0 +1,334 @@
+Resources:
+  AWSSDKV3FE048A04:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: d54f2381442d9bab34485de279c7220899e98418396b6758505e4dfa943e2b5e.zip
+      CompatibleRuntimes:
+        - nodejs14.x
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/AWSSDKV3/Resource
+      aws:asset:path: asset.d54f2381442d9bab34485de279c7220899e98418396b6758505e4dfa943e2b5e
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  MyDomainLanguageLambdaServiceRole21F2C121:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/MyDomainLanguageLambda/ServiceRole/Resource
+  MyDomainLanguageLambdaServiceRoleDefaultPolicyE5218BC0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: comprehend:DetectDominantLanguage
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: MyDomainLanguageLambdaServiceRoleDefaultPolicyE5218BC0
+      Roles:
+        - Ref: MyDomainLanguageLambdaServiceRole21F2C121
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/MyDomainLanguageLambda/ServiceRole/DefaultPolicy/Resource
+  MyDomainLanguageLambda661AC446:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 04ad7e272228f9bdf586a354aa891f9777ecdd1f3dea08b9548bffa153cd5c47.zip
+      Role:
+        Fn::GetAtt:
+          - MyDomainLanguageLambdaServiceRole21F2C121
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: AWSSDKV3FE048A04
+      Runtime: nodejs14.x
+    DependsOn:
+      - MyDomainLanguageLambdaServiceRoleDefaultPolicyE5218BC0
+      - MyDomainLanguageLambdaServiceRole21F2C121
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/MyDomainLanguageLambda/Resource
+      aws:asset:path: asset.04ad7e272228f9bdf586a354aa891f9777ecdd1f3dea08b9548bffa153cd5c47
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  TextStateMachineRoleA1896FF6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: states.us-east-1.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextStateMachine/Role/Resource
+  TextStateMachineRoleDefaultPolicy7A727CB5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MyDomainLanguageLambda661AC446
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TextStateMachineRoleDefaultPolicy7A727CB5
+      Roles:
+        - Ref: TextStateMachineRoleA1896FF6
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextStateMachine/Role/DefaultPolicy/Resource
+  TextStateMachine95BF0DB2:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - TextStateMachineRoleA1896FF6
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"WaitUntil","States":{"WaitUntil":{"Type":"Wait","Seconds":10,"Next":"LambdaInvoke"},"LambdaInvoke":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - MyDomainLanguageLambda661AC446
+                - Arn
+            - '","Payload.$":"$"}}}}'
+    DependsOn:
+      - TextStateMachineRoleDefaultPolicy7A727CB5
+      - TextStateMachineRoleA1896FF6
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextStateMachine/Resource
+  TextStateMachineEventsRole7E52DA46:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextStateMachine/EventsRole/Resource
+  TextStateMachineEventsRoleDefaultPolicyC69D252C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: TextStateMachine95BF0DB2
+        Version: "2012-10-17"
+      PolicyName: TextStateMachineEventsRoleDefaultPolicyC69D252C
+      Roles:
+        - Ref: TextStateMachineEventsRole7E52DA46
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextStateMachine/EventsRole/DefaultPolicy/Resource
+  TextEventBus50F77630:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: TextEventBus
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextEventBus/Resource
+  LambdaProcessorRuleC28EF8EB:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Ref: TextEventBus50F77630
+      EventPattern:
+        source:
+          - apigateway
+        detail-type:
+          - text
+      State: ENABLED
+      Targets:
+        - Arn:
+            Ref: TextStateMachine95BF0DB2
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - TextStateMachineEventsRole7E52DA46
+              - Arn
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/LambdaProcessorRule/Resource
+  ApiGatewayEventBusRole78CD632E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: events:PutEvents
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - TextEventBus50F77630
+                    - Arn
+            Version: "2012-10-17"
+          PolicyName: putEvents
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/ApiGatewayEventBusRole/Resource
+  TextApiGateway437DBC5F:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: TextApiGateway
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextApiGateway/Resource
+  TextApiGatewayCloudWatchRoleE5030C8C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextApiGateway/CloudWatchRole/Resource
+  TextApiGatewayAccount54FA72E1:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - TextApiGatewayCloudWatchRoleE5030C8C
+          - Arn
+    DependsOn:
+      - TextApiGateway437DBC5F
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextApiGateway/Account
+  TextApiGatewayDeployment754CD196fbe7698c687c37c3927f9ef6319c6df2:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: TextApiGateway437DBC5F
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - TextApiGatewayPOST0201D577
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextApiGateway/Deployment/Resource
+  TextApiGatewayDeploymentStagedev47E27826:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: TextApiGateway437DBC5F
+      DeploymentId:
+        Ref: TextApiGatewayDeployment754CD196fbe7698c687c37c3927f9ef6319c6df2
+      StageName: dev
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextApiGateway/DeploymentStage.dev/Resource
+  TextApiGatewayPOST0201D577:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Fn::GetAtt:
+          - TextApiGateway437DBC5F
+          - RootResourceId
+      RestApiId:
+        Ref: TextApiGateway437DBC5F
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - ApiGatewayEventBusRole78CD632E
+            - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: ""
+            StatusCode: "200"
+          - ResponseTemplates:
+              application/json: "{\"state\":\"error\",\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            StatusCode: "400"
+        RequestParameters:
+          integration.request.header.X-Amz-Target: "'AWSEvents.PutEvents'"
+          integration.request.header.Content-Type: "'application/x-amz-json-1.1'"
+        RequestTemplates:
+          application/json:
+            Fn::Join:
+              - ""
+              - - |-
+                  {"Entries": [
+                            {"Source": "apigateway", 
+                            "Detail": "$util.escapeJavaScript($input.body)", 
+                            "DetailType": "text", 
+                            "EventBusName": "
+                - Ref: TextEventBus50F77630
+                - '"}]}'
+        Type: AWS
+        Uri: arn:aws:apigateway:us-east-1:events:path//
+      MethodResponses:
+        - StatusCode: "200"
+        - StatusCode: "400"
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/TextApiGateway/Default/POST/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/11Qy27CMBD8Fu5mW+DSa+hDqgRqRaX2iBZnAZPEjrJ2UBTl37s2oaU9zcyuZzz2HBZwP8EzT3VeTEuzg/7Doy6UjLZ9idUuR+hX2FHzSQ0bZ9Xj3v7RL8FqPy6ufFC82CIzeYYsgmhYBl2QXyKTMlhBv3ElRVPCd1ca3UV5YZLgqd6PeQz9FxqvpJunNeqjscl6q/85th65YFilJ7za1hWkqCUrjfrniMvAMeKHb8JYR3BQWJuDZJ+xk6LEPqtNWv7STGsXrFdPVJeuqyQlTm+UlDtcWwoRqwuNpvQBa/JHl8flhQ2DSv8Ujxp7iIu34Ovgx0uTc1DW5QQnvmtnDzCbw2xyYmOmjdQwFcHmgt/iudWS1AEAAA==
+    Metadata:
+      aws:cdk:path: ComprehendExampleStack/CDKMetadata/Default
+Outputs:
+  TextApiGatewayEndpoint1B713D84:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: TextApiGateway437DBC5F
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: TextApiGatewayDeploymentStagedev47E27826
+          - /
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

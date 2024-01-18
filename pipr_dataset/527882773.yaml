@@ -1,0 +1,83 @@
+Resources:
+  DeployServiceRole8F9A81BA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: cdk-lambda-deploy/Deploy/ServiceRole/Resource
+  DeployServiceRoleDefaultPolicyED8785CC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: "*"
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: DeployServiceRoleDefaultPolicyED8785CC
+      Roles:
+        - Ref: DeployServiceRole8F9A81BA
+    Metadata:
+      aws:cdk:path: cdk-lambda-deploy/Deploy/ServiceRole/DefaultPolicy/Resource
+  Deploy7B206E61:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          Fn::Sub: 036406153779.dkr.ecr.us-east-1.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-036406153779-us-east-1:8cc86a3c0e54b7a2c0769d59f67a96a6880f68f5aab07fdb87c112769aecda28
+      Role:
+        Fn::GetAtt:
+          - DeployServiceRole8F9A81BA
+          - Arn
+      MemorySize: 4096
+      PackageType: Image
+      Timeout: 900
+    DependsOn:
+      - DeployServiceRoleDefaultPolicyED8785CC
+      - DeployServiceRole8F9A81BA
+    Metadata:
+      aws:cdk:path: cdk-lambda-deploy/Deploy/Resource
+      aws:asset:path: asset.8cc86a3c0e54b7a2c0769d59f67a96a6880f68f5aab07fdb87c112769aecda28
+      aws:asset:dockerfile-path: Dockerfile
+      aws:asset:property: Code.ImageUri
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01Pyw6CMBD8Fu9lDXrx6iMmnjT4AaSUlSzQlnRbDSH8uy3ExNPMzmxmd3awP0C+kR/OVN1lPVUwPb1UnYhSOfVSV7WE6WJVh+6mZYPXYJQna8T5ZX58FiQ1TIXtMckLPmxPakzjymaBypWSGT3DX94xKcmDAgfL5K0bT5JxFosTn2nINCnnHvwQ/HIA2Qan4o6xNULL23cea+xik5aJMheMJ41QrPgF1lvjCOUAAAA=
+    Metadata:
+      aws:cdk:path: cdk-lambda-deploy/CDKMetadata/Default
+Outputs:
+  DeployName:
+    Value:
+      Ref: Deploy7B206E61
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

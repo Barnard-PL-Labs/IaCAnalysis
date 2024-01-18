@@ -1,0 +1,200 @@
+Parameters:
+  conformityAPIHost:
+    Type: String
+    Description: Conformity API host
+  conformityAPIKey:
+    Type: String
+    Description: Conformity API Key
+  conformityExternalId:
+    Type: String
+    Description: Conformity External Id
+  subscriptionType:
+    Type: String
+    Description: Conformity subscription type (Essentials or Advanced)
+  AssetParameters57b0d14b2d4ba29b00076bd711b03a156193b58d1c8f3a962af095315168f020S3Bucket3AAF4971:
+    Type: String
+    Description: S3 bucket for asset "57b0d14b2d4ba29b00076bd711b03a156193b58d1c8f3a962af095315168f020"
+  AssetParameters57b0d14b2d4ba29b00076bd711b03a156193b58d1c8f3a962af095315168f020S3VersionKey2EAAE6D9:
+    Type: String
+    Description: S3 key for asset version "57b0d14b2d4ba29b00076bd711b03a156193b58d1c8f3a962af095315168f020"
+  AssetParameters57b0d14b2d4ba29b00076bd711b03a156193b58d1c8f3a962af095315168f020ArtifactHashC3BDC4ED:
+    Type: String
+    Description: Artifact hash for asset "57b0d14b2d4ba29b00076bd711b03a156193b58d1c8f3a962af095315168f020"
+Resources:
+  ConformityAddAccountTopicD0A54F28:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: ConformityAddAccountTopic
+    Metadata:
+      aws:cdk:path: OnAccountCreationStack/ConformityAddAccountTopic/Resource
+  ConformityAddAccountRole5D1DFA64:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AWSXRayDaemonWriteAccess
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      RoleName: ConformityAddAccountRole
+    Metadata:
+      aws:cdk:path: OnAccountCreationStack/ConformityAddAccountRole/Resource
+  ConformityAddAccountD64A138E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters57b0d14b2d4ba29b00076bd711b03a156193b58d1c8f3a962af095315168f020S3Bucket3AAF4971
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters57b0d14b2d4ba29b00076bd711b03a156193b58d1c8f3a962af095315168f020S3VersionKey2EAAE6D9
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters57b0d14b2d4ba29b00076bd711b03a156193b58d1c8f3a962af095315168f020S3VersionKey2EAAE6D9
+      Role:
+        Fn::GetAtt:
+          - ConformityAddAccountRole5D1DFA64
+          - Arn
+      Description: Calls Conformity to add an AWS account
+      Environment:
+        Variables:
+          ConformityAPIHost:
+            Ref: conformityAPIHost
+          ConformityAPIKey:
+            Ref: conformityAPIKey
+          ConformityExternalId:
+            Ref: conformityExternalId
+          SubscriptionType: advanced
+      FunctionName: ConformityAddAccount
+      Handler: ConformityAddAccount.handler
+      Runtime: nodejs12.x
+    DependsOn:
+      - ConformityAddAccountRole5D1DFA64
+    Metadata:
+      aws:cdk:path: OnAccountCreationStack/ConformityAddAccount/Resource
+      aws:asset:path: asset.57b0d14b2d4ba29b00076bd711b03a156193b58d1c8f3a962af095315168f020
+      aws:asset:property: Code
+  ConformityAddAccountAllowInvokeOnAccountCreationStackConformityAddAccountTopicD6FA2E8F86D7BC65:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ConformityAddAccountD64A138E
+          - Arn
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: ConformityAddAccountTopicD0A54F28
+    Metadata:
+      aws:cdk:path: OnAccountCreationStack/ConformityAddAccount/AllowInvoke:OnAccountCreationStackConformityAddAccountTopicD6FA2E8F
+  ConformityAddAccountConformityAddAccountTopicF4836305:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn:
+        Ref: ConformityAddAccountTopicD0A54F28
+      Endpoint:
+        Fn::GetAtt:
+          - ConformityAddAccountD64A138E
+          - Arn
+    Metadata:
+      aws:cdk:path: OnAccountCreationStack/ConformityAddAccount/ConformityAddAccountTopic/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01PQY7CMAx8C/fU3S5C4rgL0p5R4QOu60WmJEFxAocof6cpQuI04xmPNe6g+97A1+oHH9rQOLWZfGDIx4g0mf2/O2BAy5GD+VXlOOtncWez905jSBTrTs/qUyCufDZGieJdMfVkVqeQT/4mVN0XOaZBKcitrlX1cy5G0ELu/XU5V7GYK9phRMh/ydE79MkPHKyoLnFdN1ibKiyF5xl2iSaOO1QuxTg/Mly0vXfb+XfoVhcVaUJyUSxD/8InaOfyfxcBAAA=
+    Metadata:
+      aws:cdk:path: OnAccountCreationStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

@@ -1,0 +1,1210 @@
+Resources:
+  cloudfrontOAID153E53B:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Cloudfront OAI for LesscastBackendStack
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/cloudfront-OAI/Resource
+  s3queue13F8EB2E:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 86400
+      VisibilityTimeout: 3600
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/s3_queue/Resource
+  s3queuePolicy741FA5F1:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+            Condition:
+              ArnLike:
+                aws:SourceArn:
+                  Fn::GetAtt:
+                    - media54CBABFC
+                    - Arn
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - s3queue13F8EB2E
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: s3queue13F8EB2E
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/s3_queue/Policy/Resource
+  mediaNotifications6B0DB18F:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: media54CBABFC
+      NotificationConfiguration:
+        QueueConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: prefix
+                    Value: video/
+            QueueArn:
+              Fn::GetAtt:
+                - s3queue13F8EB2E
+                - Arn
+      Managed: true
+    DependsOn:
+      - s3queuePolicy741FA5F1
+      - s3queue13F8EB2E
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/media/Notifications/Resource
+  media54CBABFC:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/media/Resource
+  mediaPolicyA6C58619:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: media54CBABFC
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - cloudfrontOAID153E53B
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - media54CBABFC
+                      - Arn
+                  - /audio/*
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - cloudfrontOAID153E53B
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - media54CBABFC
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/media/Policy/Resource
+  lcvpc8FE3146A:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/Resource
+  lcvpcPublicSubnet1SubnetB4ABC0CE:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/18
+      VpcId:
+        Ref: lcvpc8FE3146A
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PublicSubnet1/Subnet
+  lcvpcPublicSubnet1RouteTable91CCDBDA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: lcvpc8FE3146A
+      Tags:
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PublicSubnet1/RouteTable
+  lcvpcPublicSubnet1RouteTableAssociation94848EE6:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: lcvpcPublicSubnet1RouteTable91CCDBDA
+      SubnetId:
+        Ref: lcvpcPublicSubnet1SubnetB4ABC0CE
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PublicSubnet1/RouteTableAssociation
+  lcvpcPublicSubnet1DefaultRoute4DDD580B:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: lcvpcPublicSubnet1RouteTable91CCDBDA
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: lcvpcIGW92609062
+    DependsOn:
+      - lcvpcVPCGWBC52DA57
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PublicSubnet1/DefaultRoute
+  lcvpcPublicSubnet1EIP63316B30:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PublicSubnet1/EIP
+  lcvpcPublicSubnet1NATGateway2A5D81DB:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId:
+        Ref: lcvpcPublicSubnet1SubnetB4ABC0CE
+      AllocationId:
+        Fn::GetAtt:
+          - lcvpcPublicSubnet1EIP63316B30
+          - AllocationId
+      Tags:
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PublicSubnet1/NATGateway
+  lcvpcPublicSubnet2SubnetB8B512D3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.64.0/18
+      VpcId:
+        Ref: lcvpc8FE3146A
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PublicSubnet2/Subnet
+  lcvpcPublicSubnet2RouteTableC2A9B356:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: lcvpc8FE3146A
+      Tags:
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PublicSubnet2/RouteTable
+  lcvpcPublicSubnet2RouteTableAssociationBD384940:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: lcvpcPublicSubnet2RouteTableC2A9B356
+      SubnetId:
+        Ref: lcvpcPublicSubnet2SubnetB8B512D3
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PublicSubnet2/RouteTableAssociation
+  lcvpcPublicSubnet2DefaultRoute6098896D:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: lcvpcPublicSubnet2RouteTableC2A9B356
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: lcvpcIGW92609062
+    DependsOn:
+      - lcvpcVPCGWBC52DA57
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PublicSubnet2/DefaultRoute
+  lcvpcPrivateSubnet1SubnetE61AD27E:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/18
+      VpcId:
+        Ref: lcvpc8FE3146A
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PrivateSubnet1/Subnet
+  lcvpcPrivateSubnet1RouteTableBAF0F4B9:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: lcvpc8FE3146A
+      Tags:
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PrivateSubnet1/RouteTable
+  lcvpcPrivateSubnet1RouteTableAssociationA6E59CBD:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: lcvpcPrivateSubnet1RouteTableBAF0F4B9
+      SubnetId:
+        Ref: lcvpcPrivateSubnet1SubnetE61AD27E
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PrivateSubnet1/RouteTableAssociation
+  lcvpcPrivateSubnet1DefaultRoute8BDF9B3F:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: lcvpcPrivateSubnet1RouteTableBAF0F4B9
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: lcvpcPublicSubnet1NATGateway2A5D81DB
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PrivateSubnet1/DefaultRoute
+  lcvpcPrivateSubnet2SubnetCCCBEB00:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.192.0/18
+      VpcId:
+        Ref: lcvpc8FE3146A
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PrivateSubnet2/Subnet
+  lcvpcPrivateSubnet2RouteTableB08B8228:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: lcvpc8FE3146A
+      Tags:
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PrivateSubnet2/RouteTable
+  lcvpcPrivateSubnet2RouteTableAssociation5477FD45:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: lcvpcPrivateSubnet2RouteTableB08B8228
+      SubnetId:
+        Ref: lcvpcPrivateSubnet2SubnetCCCBEB00
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PrivateSubnet2/RouteTableAssociation
+  lcvpcPrivateSubnet2DefaultRouteFC76D0BF:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: lcvpcPrivateSubnet2RouteTableB08B8228
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: lcvpcPublicSubnet1NATGateway2A5D81DB
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/PrivateSubnet2/DefaultRoute
+  lcvpcIGW92609062:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: LesscastBackendStack/lcvpc
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/IGW
+  lcvpcVPCGWBC52DA57:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: lcvpc8FE3146A
+      InternetGatewayId:
+        Ref: lcvpcIGW92609062
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/lcvpc/VPCGW
+  transcoderserviceQueueProcessingTaskDefTaskRoleDF5C0DD1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingTaskDef/TaskRole/Resource
+  transcoderserviceQueueProcessingTaskDefTaskRoleDefaultPolicy02D6A9A4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - s3queue13F8EB2E
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - media54CBABFC
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - media54CBABFC
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: transcoderserviceQueueProcessingTaskDefTaskRoleDefaultPolicy02D6A9A4
+      Roles:
+        - Ref: transcoderserviceQueueProcessingTaskDefTaskRoleDF5C0DD1
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingTaskDef/TaskRole/DefaultPolicy/Resource
+  transcoderserviceQueueProcessingTaskDefD98CB0B4:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: QUEUE_NAME
+              Value:
+                Fn::GetAtt:
+                  - s3queue13F8EB2E
+                  - QueueName
+          Essential: true
+          Image: ghcr.io/mraspberry/lesscast-transcoder:0.12
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: transcoderserviceQueueProcessingTaskDefQueueProcessingContainerLogGroupF13B187E
+              awslogs-stream-prefix: transcoder_service
+              awslogs-region:
+                Ref: AWS::Region
+          Name: QueueProcessingContainer
+      Cpu: "512"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - transcoderserviceQueueProcessingTaskDefExecutionRole37EB94EB
+          - Arn
+      Family: LesscastBackendStacktranscoderserviceQueueProcessingTaskDef2E421037
+      Memory: "2048"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - transcoderserviceQueueProcessingTaskDefTaskRoleDF5C0DD1
+          - Arn
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingTaskDef/Resource
+  transcoderserviceQueueProcessingTaskDefQueueProcessingContainerLogGroupF13B187E:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingTaskDef/QueueProcessingContainer/LogGroup/Resource
+  transcoderserviceQueueProcessingTaskDefExecutionRole37EB94EB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingTaskDef/ExecutionRole/Resource
+  transcoderserviceQueueProcessingTaskDefExecutionRoleDefaultPolicy8EA9E3E9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - transcoderserviceQueueProcessingTaskDefQueueProcessingContainerLogGroupF13B187E
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: transcoderserviceQueueProcessingTaskDefExecutionRoleDefaultPolicy8EA9E3E9
+      Roles:
+        - Ref: transcoderserviceQueueProcessingTaskDefExecutionRole37EB94EB
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingTaskDef/ExecutionRole/DefaultPolicy/Resource
+  transcoderserviceQueueProcessingFargateService4243A02E:
+    Type: AWS::ECS::Service
+    Properties:
+      CapacityProviderStrategy:
+        - CapacityProvider: FARGATE_SPOT
+          Weight: 4
+        - CapacityProvider: FARGATE
+          Weight: 1
+      Cluster:
+        Ref: EcsDefaultClusterMnL3mNNYNlcvpcC35E6A02
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      EnableECSManagedTags: false
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::GetAtt:
+                - transcoderserviceQueueProcessingFargateServiceSecurityGroupDC0C913C
+                - GroupId
+          Subnets:
+            - Ref: lcvpcPrivateSubnet1SubnetE61AD27E
+            - Ref: lcvpcPrivateSubnet2SubnetCCCBEB00
+      TaskDefinition:
+        Ref: transcoderserviceQueueProcessingTaskDefD98CB0B4
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingFargateService/Service
+  transcoderserviceQueueProcessingFargateServiceSecurityGroupDC0C913C:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: LesscastBackendStack/transcoder_service/QueueProcessingFargateService/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: lcvpc8FE3146A
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingFargateService/SecurityGroup/Resource
+  transcoderserviceQueueProcessingFargateServiceTaskCountTargetE1152176:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 2
+      MinCapacity: 1
+      ResourceId:
+        Fn::Join:
+          - ""
+          - - service/
+            - Ref: EcsDefaultClusterMnL3mNNYNlcvpcC35E6A02
+            - /
+            - Fn::GetAtt:
+                - transcoderserviceQueueProcessingFargateService4243A02E
+                - Name
+      RoleARN:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":iam::"
+            - Ref: AWS::AccountId
+            - :role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingFargateService/TaskCount/Target/Resource
+  transcoderserviceQueueProcessingFargateServiceTaskCountTargetCpuScaling02F94618:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: LesscastBackendStacktranscoderserviceQueueProcessingFargateServiceTaskCountTargetCpuScalingFFE616C8
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId:
+        Ref: transcoderserviceQueueProcessingFargateServiceTaskCountTargetE1152176
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 50
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingFargateService/TaskCount/Target/CpuScaling/Resource
+  transcoderserviceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerPolicy99CE3D72:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: LesscastBackendStacktranscoderserviceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerPolicy48B1DCF5
+      PolicyType: StepScaling
+      ScalingTargetId:
+        Ref: transcoderserviceQueueProcessingFargateServiceTaskCountTargetE1152176
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        MetricAggregationType: Maximum
+        StepAdjustments:
+          - MetricIntervalUpperBound: 0
+            ScalingAdjustment: -1
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/LowerPolicy/Resource
+  transcoderserviceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerAlarm9023AFA6:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: LessThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: transcoderserviceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerPolicy99CE3D72
+      AlarmDescription: Lower threshold scaling alarm
+      Dimensions:
+        - Name: QueueName
+          Value:
+            Fn::GetAtt:
+              - s3queue13F8EB2E
+              - QueueName
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 0
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/LowerAlarm/Resource
+  transcoderserviceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperPolicy9068372F:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: LesscastBackendStacktranscoderserviceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperPolicy6DB52785
+      PolicyType: StepScaling
+      ScalingTargetId:
+        Ref: transcoderserviceQueueProcessingFargateServiceTaskCountTargetE1152176
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        MetricAggregationType: Maximum
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            ScalingAdjustment: 1
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/UpperPolicy/Resource
+  transcoderserviceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperAlarm4C6495DD:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: transcoderserviceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperPolicy9068372F
+      AlarmDescription: Upper threshold scaling alarm
+      Dimensions:
+        - Name: QueueName
+          Value:
+            Fn::GetAtt:
+              - s3queue13F8EB2E
+              - QueueName
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 1
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/transcoder_service/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/UpperAlarm/Resource
+  EcsDefaultClusterMnL3mNNYNlcvpcC35E6A02:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/EcsDefaultClusterMnL3mNNYNlcvpc/Resource
+  backendapi06863267:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: API to interact with media
+      Name: backend-api
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/backend-api/Resource
+  backendapiCloudWatchRole14091C19:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/backend-api/CloudWatchRole/Resource
+  backendapiAccount678A8ED0:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - backendapiCloudWatchRole14091C19
+          - Arn
+    DependsOn:
+      - backendapi06863267
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/backend-api/Account
+  backendapiDeploymentE9537CDDcdd4622768950495a03e319875d20e10:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: backendapi06863267
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - backendapilistmediaGEtEFBFFB7B
+      - backendapilistmedia00551EA5
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/backend-api/Deployment/Resource
+  backendapiDeploymentStageprod895C5B03:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: backendapi06863267
+      DeploymentId:
+        Ref: backendapiDeploymentE9537CDDcdd4622768950495a03e319875d20e10
+      StageName: prod
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/backend-api/DeploymentStage.prod/Resource
+  backendapilistmedia00551EA5:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - backendapi06863267
+          - RootResourceId
+      PathPart: list-media
+      RestApiId:
+        Ref: backendapi06863267
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/backend-api/Default/list-media/Resource
+  backendapilistmediaGEtApiPermissionLesscastBackendStackbackendapiA9C7D87AGETlistmediaF8829F46:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - listapihandler5B63F2A2
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: backendapi06863267
+            - /
+            - Ref: backendapiDeploymentStageprod895C5B03
+            - /GET/list-media
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/backend-api/Default/list-media/GEt/ApiPermission.LesscastBackendStackbackendapiA9C7D87A.GET..list-media
+  backendapilistmediaGEtApiPermissionTestLesscastBackendStackbackendapiA9C7D87AGETlistmedia22A1064D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - listapihandler5B63F2A2
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: backendapi06863267
+            - /test-invoke-stage/GET/list-media
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/backend-api/Default/list-media/GEt/ApiPermission.Test.LesscastBackendStackbackendapiA9C7D87A.GET..list-media
+  backendapilistmediaGEtEFBFFB7B:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: backendapilistmedia00551EA5
+      RestApiId:
+        Ref: backendapi06863267
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - listapihandler5B63F2A2
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/backend-api/Default/list-media/GEt/Resource
+  listapihandlerServiceRole58CEAA0E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/list-api-handler/ServiceRole/Resource
+  listapihandlerServiceRoleDefaultPolicy3178F70F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - media54CBABFC
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - media54CBABFC
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: listapihandlerServiceRoleDefaultPolicy3178F70F
+      Roles:
+        - Ref: listapihandlerServiceRole58CEAA0E
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/list-api-handler/ServiceRole/DefaultPolicy/Resource
+  listapihandler5B63F2A2:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters9d495449475d3635b963753ffc2e82ca33deedaec159f20259c2e70f5fb850deS3Bucket4319AC7F
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters9d495449475d3635b963753ffc2e82ca33deedaec159f20259c2e70f5fb850deS3VersionKey03D4B28D
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters9d495449475d3635b963753ffc2e82ca33deedaec159f20259c2e70f5fb850deS3VersionKey03D4B28D
+      Role:
+        Fn::GetAtt:
+          - listapihandlerServiceRole58CEAA0E
+          - Arn
+      Environment:
+        Variables:
+          MEDIA_BUCKET:
+            Ref: media54CBABFC
+          DIST_DOMAIN_NAME:
+            Fn::GetAtt:
+              - LesscastDistributionCFDistribution993B0430
+              - DomainName
+      Handler: handler.handle
+      Runtime: python3.9
+    DependsOn:
+      - listapihandlerServiceRoleDefaultPolicy3178F70F
+      - listapihandlerServiceRole58CEAA0E
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/list-api-handler/Resource
+      aws:asset:path: asset.9d495449475d3635b963753ffc2e82ca33deedaec159f20259c2e70f5fb850de
+      aws:asset:property: Code
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |
+          import boto3  # type: ignore
+          import json
+          import logging
+          import urllib.request
+
+          s3 = boto3.client("s3")
+
+          CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+          def handler(event: dict, context):
+              response_status = "SUCCESS"
+              error_message = ""
+              try:
+                  props = event["ResourceProperties"]
+                  bucket = props["BucketName"]
+                  notification_configuration = props["NotificationConfiguration"]
+                  request_type = event["RequestType"]
+                  managed = props.get('Managed', 'true').lower() == 'true'
+                  stack_id = event['StackId']
+
+                  if managed:
+                    config = handle_managed(request_type, notification_configuration)
+                  else:
+                    config = handle_unmanaged(bucket, stack_id, request_type, notification_configuration)
+
+                  put_bucket_notification_configuration(bucket, config)
+              except Exception as e:
+                  logging.exception("Failed to put bucket notification configuration")
+                  response_status = "FAILED"
+                  error_message = f"Error: {str(e)}. "
+              finally:
+                  submit_response(event, context, response_status, error_message)
+
+
+          def handle_managed(request_type, notification_configuration):
+            if request_type == 'Delete':
+              return {}
+            return notification_configuration
+
+
+          def handle_unmanaged(bucket, stack_id, request_type, notification_configuration):
+
+            # find external notifications
+            external_notifications = find_external_notifications(bucket, stack_id)
+
+            # if delete, that's all we need
+            if request_type == 'Delete':
+              return external_notifications
+
+            def with_id(notification):
+              notification['Id'] = f"{stack_id}-{hash(json.dumps(notification, sort_keys=True))}"
+              return notification
+
+            # otherwise, merge external with incoming config and augment with id
+            notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external = external_notifications.get(t, [])
+              incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+              notifications[t] = external + incoming
+            return notifications
+
+
+          def find_external_notifications(bucket, stack_id):
+            existing_notifications = get_bucket_notification_configuration(bucket)
+            external_notifications = {}
+            for t in CONFIGURATION_TYPES:
+              # if the notification was created by us, we know what id to expect
+              # so we can filter by it.
+              external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+
+            return external_notifications
+
+
+          def get_bucket_notification_configuration(bucket):
+            return s3.get_bucket_notification_configuration(Bucket=bucket)
+
+
+          def put_bucket_notification_configuration(bucket, notification_configuration):
+            s3.put_bucket_notification_configuration(Bucket=bucket, NotificationConfiguration=notification_configuration)
+
+
+          def submit_response(event: dict, context, response_status: str, error_message: str):
+              response_body = json.dumps(
+                  {
+                      "Status": response_status,
+                      "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                      "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                      "StackId": event["StackId"],
+                      "RequestId": event["RequestId"],
+                      "LogicalResourceId": event["LogicalResourceId"],
+                      "NoEcho": False,
+                  }
+              ).encode("utf-8")
+              headers = {"content-type": "", "content-length": str(len(response_body))}
+              try:
+                  req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+                  with urllib.request.urlopen(req) as response:
+                      print(response.read().decode("utf-8"))
+                  print("Status code: " + response.reason)
+              except Exception as e:
+                  print("send(..) failed executing request.urlopen(..): " + str(e))
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: python3.7
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  LesscastDistributionCFDistribution993B0430:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::GetAtt:
+                - media54CBABFC
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: cloudfrontOAID153E53B
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/LesscastDistribution/CFDistribution
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/3VUS3PaMBD+LbkLpSSXHutAkmGmbVzMpGdZXoyCLbl6wDAe//fuShhDpr1Y337e92o15/OHR/7l7ps4upms9ve9NBZ4X3gh92xhtPM2SM8WW70GZ4KVwC4Aybfgu+BZ5hx4tKmVronOhRUteLAkoJdKeWX0wChKLxsTqq012vP+zSq0yaQE51YVaK/8KdqQzgvp/Fvj8vs3lEuFSaoyUAiyvZYH5v443v8KEGK+CcRvbholTxcyiaj/yPunIPcQiz6jdEwWN3ISnoSDgYF84P17J0npPV+wPJSoU4RSJ38TWpvgYSPKBiZ+4rChRioxlhR/EHhe5XT8FP5VeDiKE8utOiCcHK809h3xqJAyOUuZx8HuWmwjK0AGi818tSZ0MYdrgkpxs054cuZ4apE1NAWc8YuwNQUFe1B4EVCV92duI9x+CVul1Zj8ZwanJpQGe8V98heTSbCQoqGGkJOFCZj3ogluvFkJDkyJlvdrk3oZz2lW42AbU2OW3019KXjEeC+7DpViu0XwxmFQrBLX4BLd1ucB3jLp2FjcFjQokt0U+5YoPHT/ZTKZ7mvcjqPwcsf7rBG2JT8RUJqqTnPEasH5rFPnzRwh7kls0hK6xpzinGkjJomWNDU4gnGX6fbeLPYF/wC/MxVRCWEjRVtWgvfUW7CtwhtBIwxajhMfMW3TTNDb4Hh8IoaBaVMB/3D3h/lXfHv4/O7DKTWzmLRqga/T+RdyEmM7lwQAAA==
+    Metadata:
+      aws:cdk:path: LesscastBackendStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  transcoderserviceSQSQueue0BDB7F45:
+    Value:
+      Fn::GetAtt:
+        - s3queue13F8EB2E
+        - QueueName
+  transcoderserviceSQSQueueArn3324C521:
+    Value:
+      Fn::GetAtt:
+        - s3queue13F8EB2E
+        - Arn
+  backendapiEndpoint2DD67992:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: backendapi06863267
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: backendapiDeploymentStageprod895C5B03
+          - /
+  apiurl:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: backendapi06863267
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: backendapiDeploymentStageprod895C5B03
+          - /
+  DistributionId:
+    Value:
+      Ref: LesscastDistributionCFDistribution993B0430
+  DistributionDomainName:
+    Value:
+      Fn::GetAtt:
+        - LesscastDistributionCFDistribution993B0430
+        - DomainName
+Parameters:
+  AssetParameters9d495449475d3635b963753ffc2e82ca33deedaec159f20259c2e70f5fb850deS3Bucket4319AC7F:
+    Type: String
+    Description: S3 bucket for asset "9d495449475d3635b963753ffc2e82ca33deedaec159f20259c2e70f5fb850de"
+  AssetParameters9d495449475d3635b963753ffc2e82ca33deedaec159f20259c2e70f5fb850deS3VersionKey03D4B28D:
+    Type: String
+    Description: S3 key for asset version "9d495449475d3635b963753ffc2e82ca33deedaec159f20259c2e70f5fb850de"
+  AssetParameters9d495449475d3635b963753ffc2e82ca33deedaec159f20259c2e70f5fb850deArtifactHash6C38B2F0:
+    Type: String
+    Description: Artifact hash for asset "9d495449475d3635b963753ffc2e82ca33deedaec159f20259c2e70f5fb850de"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

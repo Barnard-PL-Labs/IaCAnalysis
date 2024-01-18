@@ -1,0 +1,277 @@
+Resources:
+  SpaceTradersIoProxy:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: SpaceTradersProxy
+      ProtocolType: HTTP
+    Metadata:
+      aws:cdk:path: CdkStack/SpaceTradersIoProxy
+  SpaceTradersHttpIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: SpaceTradersIoProxy
+      IntegrationType: HTTP_PROXY
+      IntegrationMethod: ANY
+      IntegrationUri: https://api.spacetraders.io
+      PayloadFormatVersion: "1.0"
+      RequestParameters:
+        overwrite:path: $request.path
+    Metadata:
+      aws:cdk:path: CdkStack/SpaceTradersHttpIntegration
+  SpaceTradersIntegrationRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: SpaceTradersIoProxy
+      RouteKey: $default
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: SpaceTradersHttpIntegration
+    Metadata:
+      aws:cdk:path: CdkStack/SpaceTradersIntegrationRoute
+  SpaceTradersApiStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: SpaceTradersIoProxy
+      StageName: $default
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: CdkStack/SpaceTradersApiStage
+  GetGameStatusGetGameStatusRequestStateMachineRole91981EE4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkStack/GetGameStatus/GetGameStatusRequestStateMachine/Role/Resource
+  GetGameStatusGetGameStatusRequestStateMachineRoleDefaultPolicy0CB63CAC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: execute-api:Invoke
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":execute-api:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: SpaceTradersIoProxy
+                  - /undefined/GET/game/status
+        Version: "2012-10-17"
+      PolicyName: GetGameStatusGetGameStatusRequestStateMachineRoleDefaultPolicy0CB63CAC
+      Roles:
+        - Ref: GetGameStatusGetGameStatusRequestStateMachineRole91981EE4
+    Metadata:
+      aws:cdk:path: CdkStack/GetGameStatus/GetGameStatusRequestStateMachine/Role/DefaultPolicy/Resource
+  GetGameStatusGetGameStatusRequestStateMachine5F5DF561:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - GetGameStatusGetGameStatusRequestStateMachineRole91981EE4
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"GetGameStatusRequest","States":{"GetGameStatusRequest":{"Next":"GetGameStatusRetry?","Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::apigateway:invoke","Parameters":{"ApiEndpoint":"
+            - Ref: SpaceTradersIoProxy
+            - .execute-api.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - "\",\"Method\":\"GET\",\"Path\":\"/game/status\",\"AuthType\":\"NO_AUTH\"}},\"GetGameStatusRetryWait\":{\"Type\":\"Wait\",\"SecondsPath\":\"$.Headers['retry-after']\",\"Next\":\"GetGameStatusRequest\"},\"GetGameStatusRetry?\":{\"Type\":\"Choice\",\"Choices\":[{\"Variable\":\"$.StatusCode\",\"NumericEquals\":429,\"Next\":\"GetGameStatusRetryWait\"},{\"Variable\":\"$.ResponseBody.status\",\"IsPresent\":true,\"Next\":\"GetGameStatusMapState\"}],\"Default\":\"GetGameStatusUnrecoverableHttpError\"},\"GetGameStatusUnrecoverableHttpError\":{\"Type\":\"Fail\",\"Error\":\"Everything failed\",\"Cause\":\"TOTAL FAILURE\"},\"GetGameStatusMapState\":{\"Type\":\"Pass\",\"Parameters\":{\"results.$\":\"$.ResponseBody.status\"},\"End\":true}},\"TimeoutSeconds\":180}"
+      StateMachineType: EXPRESS
+    DependsOn:
+      - GetGameStatusGetGameStatusRequestStateMachineRoleDefaultPolicy0CB63CAC
+      - GetGameStatusGetGameStatusRequestStateMachineRole91981EE4
+    Metadata:
+      aws:cdk:path: CdkStack/GetGameStatus/GetGameStatusRequestStateMachine/Resource
+  ShipLoopRoleB255506A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkStack/ShipLoop/Role/Resource
+  ShipLoopRoleDefaultPolicyCB237593:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: GetGameStatusGetGameStatusRequestStateMachine5F5DF561
+          - Action:
+              - states:DescribeExecution
+              - states:StopExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":states:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":execution:"
+                  - Fn::Select:
+                      - 6
+                      - Fn::Split:
+                          - ":"
+                          - Ref: GetGameStatusGetGameStatusRequestStateMachine5F5DF561
+                  - "*"
+          - Action:
+              - events:PutTargets
+              - events:PutRule
+              - events:DescribeRule
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":events:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :rule/StepFunctionsGetEventsForStepFunctionsExecutionRule
+        Version: "2012-10-17"
+      PolicyName: ShipLoopRoleDefaultPolicyCB237593
+      Roles:
+        - Ref: ShipLoopRoleB255506A
+    Metadata:
+      aws:cdk:path: CdkStack/ShipLoop/Role/DefaultPolicy/Resource
+  ShipLoopCB824359:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - ShipLoopRoleB255506A
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"GetGameStatusExecuteRequestStateMachine","States":{"GetGameStatusExecuteRequestStateMachine":{"Next":"Online?","Type":"Task","OutputPath":"$.Output.results","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::states:startExecution.sync:2","Parameters":{"Input":{"AWS_STEP_FUNCTIONS_STARTED_BY_EXECUTION_ID.$":"$$.Execution.Id"},"StateMachineArn":"
+            - Ref: GetGameStatusGetGameStatusRequestStateMachine5F5DF561
+            - '"}},"waitSeconds":{"Type":"Wait","Seconds":30,"Next":"GetGameStatusExecuteRequestStateMachine"},"Online?":{"Type":"Choice","Choices":[{"Variable":"$","StringMatches":"*online*","Next":"Success"}],"Default":"waitSeconds"},"Success":{"Type":"Pass","End":true}},"TimeoutSeconds":180}'
+    DependsOn:
+      - ShipLoopRoleDefaultPolicyCB237593
+      - ShipLoopRoleB255506A
+    Metadata:
+      aws:cdk:path: CdkStack/ShipLoop/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE12PQU/DMAyFf8vuabZOHDiCqhU4IE3dgbOVep3XNqkSZ2OK+t9xVkCIk2299z49l7rcPOjN6gmuoTBtv07GedTpwGB6VTkb2EfDqjraBoOL3mDeRWiJydlZ5WCCiTpgvMLtstVJDM8TZd+bZew8ZOcd4SLf84LvcFaBcTpGa7IedPoAYrWHEJTojO9gTmSx9tCNaFnVQIOqTo6kw1/DN/D3/sctGEIv9AqGQWq9LD1fmSe5dradHAn8IJH6JyI0z7tPNHH5kWDUqXEDLk/I3LuBzC2fyzbPs7KuRX0O60v5qMutLlfnQFT4aJlG1M0yvwBi+2nrcQEAAA==
+    Metadata:
+      aws:cdk:path: CdkStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

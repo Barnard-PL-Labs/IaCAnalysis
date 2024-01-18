@@ -1,0 +1,562 @@
+Resources:
+  EventsD32975C2:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: region
+          KeyType: HASH
+        - AttributeName: id
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: region
+          AttributeType: S
+        - AttributeName: id
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: Competitions
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AppStack/Events/Resource
+  IngestionTopic90D3C630:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Ingestion of Calendar Events
+    Metadata:
+      aws:cdk:path: AppStack/IngestionTopic/Resource
+  CrawlerServiceRole703983AB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AppStack/Crawler/ServiceRole/Resource
+  CrawlerServiceRoleDefaultPolicy7FA1D8E2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - EventsD32975C2
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: IngestionTopic90D3C630
+        Version: "2012-10-17"
+      PolicyName: CrawlerServiceRoleDefaultPolicy7FA1D8E2
+      Roles:
+        - Ref: CrawlerServiceRole703983AB
+    Metadata:
+      aws:cdk:path: AppStack/Crawler/ServiceRole/DefaultPolicy/Resource
+  Crawler8C39B76C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters42949e6ab24f59d80e29b1a3bd955eef98ee28af29c5e695177b56e0abc6c81dS3BucketD94F5794
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters42949e6ab24f59d80e29b1a3bd955eef98ee28af29c5e695177b56e0abc6c81dS3VersionKey01611E58
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters42949e6ab24f59d80e29b1a3bd955eef98ee28af29c5e695177b56e0abc6c81dS3VersionKey01611E58
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - CrawlerServiceRole703983AB
+          - Arn
+      Runtime: python3.6
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: EventsD32975C2
+          TOPIC_ARN:
+            Ref: IngestionTopic90D3C630
+      Timeout: 300
+    DependsOn:
+      - CrawlerServiceRoleDefaultPolicy7FA1D8E2
+      - CrawlerServiceRole703983AB
+    Metadata:
+      aws:cdk:path: AppStack/Crawler/Resource
+      aws:asset:path: asset.42949e6ab24f59d80e29b1a3bd955eef98ee28af29c5e695177b56e0abc6c81d
+      aws:asset:property: Code
+  CrawlerAllowEventRuleAppStackCrawlWCA4E71C2A4C3D19B5F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - Crawler8C39B76C
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - CrawlWCA95170E6E
+          - Arn
+    Metadata:
+      aws:cdk:path: AppStack/Crawler/AllowEventRuleAppStackCrawlWCA4E71C2A4
+  calDAVServiceRoleDFF1F2A9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AppStack/calDAV/ServiceRole/Resource
+  calDAVServiceRoleDefaultPolicy588D277A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - EventsD32975C2
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: calDAVServiceRoleDefaultPolicy588D277A
+      Roles:
+        - Ref: calDAVServiceRoleDFF1F2A9
+    Metadata:
+      aws:cdk:path: AppStack/calDAV/ServiceRole/DefaultPolicy/Resource
+  calDAV35CFEDD1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa8c9f0f73e3e42c18e1f931d33071c041d3db4e503a6df9e21240bc624624d46S3BucketE3D5B207
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa8c9f0f73e3e42c18e1f931d33071c041d3db4e503a6df9e21240bc624624d46S3VersionKeyFEC18559
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa8c9f0f73e3e42c18e1f931d33071c041d3db4e503a6df9e21240bc624624d46S3VersionKeyFEC18559
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - calDAVServiceRoleDFF1F2A9
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: EventsD32975C2
+          TABLE_PARTITION_KEY: region
+          TABLE_SORT_KEY: id
+      Timeout: 60
+    DependsOn:
+      - calDAVServiceRoleDefaultPolicy588D277A
+      - calDAVServiceRoleDFF1F2A9
+    Metadata:
+      aws:cdk:path: AppStack/calDAV/Resource
+      aws:asset:path: asset.a8c9f0f73e3e42c18e1f931d33071c041d3db4e503a6df9e21240bc624624d46
+      aws:asset:property: Code
+  calDAVapiDBB1050E:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: calDAV-api
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/Resource
+  calDAVapiDeployment68365E2D1a62f6610a38d5d7963ece8fc8c92de5:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: calDAVapiDBB1050E
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - calDAVapiproxyANY4884CDBD
+      - calDAVapiproxy4BEB73B9
+      - calDAVapiANY6AB495F7
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/Deployment/Resource
+  calDAVapiDeploymentStageprod9BFAA099:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: calDAVapiDBB1050E
+      DeploymentId:
+        Ref: calDAVapiDeployment68365E2D1a62f6610a38d5d7963ece8fc8c92de5
+      StageName: prod
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/DeploymentStage.prod/Resource
+  calDAVapiCloudWatchRole1FFEC8EE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/CloudWatchRole/Resource
+  calDAVapiAccountC7B207D6:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - calDAVapiCloudWatchRole1FFEC8EE
+          - Arn
+    DependsOn:
+      - calDAVapiDBB1050E
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/Account
+  calDAVapiproxy4BEB73B9:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - calDAVapiDBB1050E
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: calDAVapiDBB1050E
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/Default/{proxy+}/Resource
+  calDAVapiproxyANYApiPermissionAppStackcalDAVapi686653CCANYproxy4B6F551C:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - calDAV35CFEDD1
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: calDAVapiDBB1050E
+            - /
+            - Ref: calDAVapiDeploymentStageprod9BFAA099
+            - /*/{proxy+}
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/Default/{proxy+}/ANY/ApiPermission.AppStackcalDAVapi686653CC.ANY..{proxy+}
+  calDAVapiproxyANYApiPermissionTestAppStackcalDAVapi686653CCANYproxyFDF342ED:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - calDAV35CFEDD1
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: calDAVapiDBB1050E
+            - /test-invoke-stage/*/{proxy+}
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/Default/{proxy+}/ANY/ApiPermission.Test.AppStackcalDAVapi686653CC.ANY..{proxy+}
+  calDAVapiproxyANY4884CDBD:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: calDAVapiproxy4BEB73B9
+      RestApiId:
+        Ref: calDAVapiDBB1050E
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - calDAV35CFEDD1
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/Default/{proxy+}/ANY/Resource
+  calDAVapiANYApiPermissionAppStackcalDAVapi686653CCANY32ECA6B7:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - calDAV35CFEDD1
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: calDAVapiDBB1050E
+            - /
+            - Ref: calDAVapiDeploymentStageprod9BFAA099
+            - /*/
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/Default/ANY/ApiPermission.AppStackcalDAVapi686653CC.ANY..
+  calDAVapiANYApiPermissionTestAppStackcalDAVapi686653CCANYD4A29697:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - calDAV35CFEDD1
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: calDAVapiDBB1050E
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/Default/ANY/ApiPermission.Test.AppStackcalDAVapi686653CC.ANY..
+  calDAVapiANY6AB495F7:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - calDAVapiDBB1050E
+          - RootResourceId
+      RestApiId:
+        Ref: calDAVapiDBB1050E
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - calDAV35CFEDD1
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: AppStack/calDAV-api/Default/ANY/Resource
+  CrawlWCA95170E6E:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: cron(11 */6 * * ? *)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - Crawler8C39B76C
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: AppStack/CrawlWCA/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.22.0,@aws-cdk/aws-apigateway=1.22.0,@aws-cdk/aws-applicationautoscaling=1.22.0,@aws-cdk/aws-autoscaling=1.22.0,@aws-cdk/aws-autoscaling-common=1.22.0,@aws-cdk/aws-autoscaling-hooktargets=1.22.0,@aws-cdk/aws-cloudwatch=1.22.0,@aws-cdk/aws-dynamodb=1.22.0,@aws-cdk/aws-ec2=1.22.0,@aws-cdk/aws-ecr=1.22.0,@aws-cdk/aws-ecr-assets=1.22.0,@aws-cdk/aws-ecs=1.22.0,@aws-cdk/aws-elasticloadbalancingv2=1.22.0,@aws-cdk/aws-events=1.22.0,@aws-cdk/aws-events-targets=1.22.0,@aws-cdk/aws-iam=1.22.0,@aws-cdk/aws-kms=1.22.0,@aws-cdk/aws-lambda=1.22.0,@aws-cdk/aws-logs=1.22.0,@aws-cdk/aws-s3=1.22.0,@aws-cdk/aws-s3-assets=1.22.0,@aws-cdk/aws-servicediscovery=1.22.0,@aws-cdk/aws-sns=1.22.0,@aws-cdk/aws-sns-subscriptions=1.22.0,@aws-cdk/aws-sqs=1.22.0,@aws-cdk/aws-ssm=1.22.0,@aws-cdk/core=1.22.0,@aws-cdk/cx-api=1.22.0,@aws-cdk/region-info=1.22.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters42949e6ab24f59d80e29b1a3bd955eef98ee28af29c5e695177b56e0abc6c81dS3BucketD94F5794:
+    Type: String
+    Description: S3 bucket for asset "42949e6ab24f59d80e29b1a3bd955eef98ee28af29c5e695177b56e0abc6c81d"
+  AssetParameters42949e6ab24f59d80e29b1a3bd955eef98ee28af29c5e695177b56e0abc6c81dS3VersionKey01611E58:
+    Type: String
+    Description: S3 key for asset version "42949e6ab24f59d80e29b1a3bd955eef98ee28af29c5e695177b56e0abc6c81d"
+  AssetParameters42949e6ab24f59d80e29b1a3bd955eef98ee28af29c5e695177b56e0abc6c81dArtifactHash8F64E237:
+    Type: String
+    Description: Artifact hash for asset "42949e6ab24f59d80e29b1a3bd955eef98ee28af29c5e695177b56e0abc6c81d"
+  AssetParametersa8c9f0f73e3e42c18e1f931d33071c041d3db4e503a6df9e21240bc624624d46S3BucketE3D5B207:
+    Type: String
+    Description: S3 bucket for asset "a8c9f0f73e3e42c18e1f931d33071c041d3db4e503a6df9e21240bc624624d46"
+  AssetParametersa8c9f0f73e3e42c18e1f931d33071c041d3db4e503a6df9e21240bc624624d46S3VersionKeyFEC18559:
+    Type: String
+    Description: S3 key for asset version "a8c9f0f73e3e42c18e1f931d33071c041d3db4e503a6df9e21240bc624624d46"
+  AssetParametersa8c9f0f73e3e42c18e1f931d33071c041d3db4e503a6df9e21240bc624624d46ArtifactHash076D951E:
+    Type: String
+    Description: Artifact hash for asset "a8c9f0f73e3e42c18e1f931d33071c041d3db4e503a6df9e21240bc624624d46"
+Outputs:
+  calDAVapiEndpointE2461F6E:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: calDAVapiDBB1050E
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: calDAVapiDeploymentStageprod9BFAA099
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

@@ -1,0 +1,253 @@
+Resources:
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action: "*"
+                Effect: Allow
+                Resource: "*"
+          PolicyName: root
+      RoleName:
+        Ref: AWS::StackName
+    Metadata:
+      aws:cdk:path: Ec2InstanceStack/Role
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: Role
+      InstanceProfileName:
+        Ref: AWS::StackName
+    Metadata:
+      aws:cdk:path: Ec2InstanceStack/InstanceProfile
+  SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription:
+        Fn::Join:
+          - ""
+          - - "Used by "
+            - Ref: AWS::StackName
+            - " EC2 instance"
+      GroupName:
+        Ref: AWS::StackName
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: All traffic
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: HTTP
+          FromPort: 80
+          IpProtocol: TCP
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          Description: HTTPS
+          FromPort: 443
+          IpProtocol: TCP
+          ToPort: 443
+        - CidrIp: 0.0.0.0/0
+          Description: SSH
+          FromPort: 22
+          IpProtocol: TCP
+          ToPort: 22
+      VpcId: vpc-12345678
+    Metadata:
+      aws:cdk:path: Ec2InstanceStack/SecurityGroup
+  Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      IamInstanceProfile:
+        Ref: InstanceProfile
+      ImageId: ami-0947d2ba12ee1ff75
+      InstanceType: t3.micro
+      KeyName: skeleton
+      SecurityGroupIds:
+        - Ref: SecurityGroup
+      SubnetId: subnet-12345678
+      Tags:
+        - Key: Application
+          Value: example-ec2-instance
+        - Key: Name
+          Value:
+            Ref: AWS::StackName
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+            - ""
+            - - |-
+                #!/bin/bash -xe
+                yum update -y
+                yum install -y aws-cfn-bootstrap
+                # Install the files and packages from the metadata
+                /opt/aws/bin/cfn-init --verbose --stack 
+              - Ref: AWS::StackId
+              - " --resource Instance --configsets init --region "
+              - Ref: AWS::Region
+              - |-
+                
+                # Signal the status from cfn-init
+                /opt/aws/bin/cfn-signal -e $? --stack 
+              - Ref: AWS::StackId
+              - " --resource Instance --region "
+              - Ref: AWS::Region
+              - "\n"
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M
+    Metadata:
+      AWS::CloudFormation::Init:
+        configSets:
+          init:
+            - installCfnHup
+            - installDependencies
+        installCfnHup:
+          files:
+            /etc/cfn/cfn-hup.conf:
+              content:
+                Fn::Join:
+                  - "\n"
+                  - - "[main]"
+                    - Fn::Join:
+                        - ""
+                        - - stack=
+                          - Ref: AWS::StackId
+                    - Fn::Join:
+                        - ""
+                        - - region=
+                          - Ref: AWS::Region
+              group: root
+              owner: root
+              mode: "000400"
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content:
+                Fn::Join:
+                  - "\n"
+                  - - |-
+                      [cfn-auto-reloader-hook]
+                      triggers=post.update
+                      path=Resources.Instance.Metadata.AWS::CloudFormation::Init
+                    - Fn::Join:
+                        - ""
+                        - - "action=/opt/aws/bin/cfn-init --resource Instance --configsets init --verbose --stack "
+                          - Ref: AWS::StackId
+                          - " --region "
+                          - Ref: AWS::Region
+                    - runas=root
+              group: root
+              owner: root
+              mode: "000400"
+          services:
+            sysvint:
+              cfn-hup:
+                enabled: true
+                ensureRunning: true
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+        installDependencies:
+          packages:
+            yum:
+              python3: []
+          commands:
+            01_install_awscli:
+              command: pip3 install awscli --upgrade
+            02_install_docker:
+              command: amazon-linux-extras install docker -y
+            03_start_docker:
+              command: service docker start
+            04_give_docker_priv:
+              command: usermod -a -G docker ec2-user
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE02OzQrCMBCEn8V7ujU9eRR6EG/SPkHYbmH7k5VNokjIu9vWi6cZmO+DsWDtGezp6t6hwmGuM4oS5D46nE0rPkRNGE07+o6CJEXa+zYMHFl8MbuY2a2Qd0aWY79vnvNID5WRFyqGsDmAnjApx89NJT3/yVKK8TIQTKF+2QvYZns1BeZKk4+8EnS//AKh3IvtsgAAAA==
+    Metadata:
+      aws:cdk:path: Ec2InstanceStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

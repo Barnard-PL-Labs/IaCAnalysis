@@ -1,0 +1,332 @@
+Resources:
+  asyncrequests5F318332:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 172800
+      QueueName: async-requests
+      ReceiveMessageWaitTimeSeconds: 20
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/async-requests/Resource
+  requesthandlerServiceRole31304738:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/request-handler/ServiceRole/Resource
+  requesthandlerServiceRoleDefaultPolicyA9579214:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - asyncrequests5F318332
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: requesthandlerServiceRoleDefaultPolicyA9579214
+      Roles:
+        - Ref: requesthandlerServiceRole31304738
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/request-handler/ServiceRole/DefaultPolicy/Resource
+  requesthandlerE5B4BEFF:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-us-east-1
+        S3Key: f5d972180d7c6b41e6408e38b5f9447f271f70f1d3db791d2387ea5bed61f27d.zip
+      Role:
+        Fn::GetAtt:
+          - requesthandlerServiceRole31304738
+          - Arn
+      Handler: index.handler
+      MemorySize: 256
+      ReservedConcurrentExecutions: 5
+      Runtime: nodejs14.x
+      Timeout: 5
+    DependsOn:
+      - requesthandlerServiceRoleDefaultPolicyA9579214
+      - requesthandlerServiceRole31304738
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/request-handler/Resource
+      aws:asset:path: asset.f5d972180d7c6b41e6408e38b5f9447f271f70f1d3db791d2387ea5bed61f27d
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  requesthandlerSqsEventSourceApiGatewaySqsLambdaStackasyncrequests6C2951539BEAB2A9:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: requesthandlerE5B4BEFF
+      BatchSize: 1
+      EventSourceArn:
+        Fn::GetAtt:
+          - asyncrequests5F318332
+          - Arn
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/request-handler/SqsEventSource:ApiGatewaySqsLambdaStackasyncrequests6C295153/Resource
+  asyncapiE5CAE3A5:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: async-api
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/async-api/Resource
+  asyncapiCloudWatchRole0D674BEC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/async-api/CloudWatchRole/Resource
+  asyncapiAccountE50DD9BB:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - asyncapiCloudWatchRole0D674BEC
+          - Arn
+    DependsOn:
+      - asyncapiE5CAE3A5
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/async-api/Account
+  asyncapiDeployment500901D871ffec207f732511f7796416e0006ea0:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: asyncapiE5CAE3A5
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - asyncapiOPTIONS4ADB7904
+      - asyncapiPOSTF7C60C59
+      - asyncapivalidator3FB6634E
+      - sqspayload2A52E23C
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/async-api/Deployment/Resource
+  asyncapiDeploymentStagedevAF7CC34D:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: asyncapiE5CAE3A5
+      DeploymentId:
+        Ref: asyncapiDeployment500901D871ffec207f732511f7796416e0006ea0
+      MethodSettings:
+        - DataTraceEnabled: false
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          ResourcePath: /*
+      StageName: dev
+    DependsOn:
+      - asyncapiAccountE50DD9BB
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/async-api/DeploymentStage.dev/Resource
+  asyncapiOPTIONS4ADB7904:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - asyncapiE5CAE3A5
+          - RootResourceId
+      RestApiId:
+        Ref: asyncapiE5CAE3A5
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'POST'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/async-api/Default/OPTIONS/Resource
+  asyncapiPOSTF7C60C59:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Fn::GetAtt:
+          - asyncapiE5CAE3A5
+          - RootResourceId
+      RestApiId:
+        Ref: asyncapiE5CAE3A5
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - asyncApiApigRole9BA470E6
+            - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: '{"success":true}'
+            StatusCode: "200"
+          - ResponseTemplates:
+              application/json: '{"success":false,"error":"Server Error!"}'
+            SelectionPattern: "500"
+            StatusCode: "500"
+        RequestParameters:
+          integration.request.header.Content-Type: "'application/json'"
+          integration.request.querystring.QueueUrl:
+            Fn::Join:
+              - ""
+              - - "'"
+                - Ref: asyncrequests5F318332
+                - "'"
+        RequestTemplates:
+          application/json: $context.requestOverride.querystring.MessageBody=$input.json('$')
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:sqs:action/SendMessage
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Content-Type: true
+          StatusCode: "200"
+        - ResponseParameters:
+            method.response.header.Content-Type: true
+          StatusCode: "500"
+      RequestModels:
+        application/json:
+          Ref: sqspayload2A52E23C
+      RequestValidatorId:
+        Ref: asyncapivalidator3FB6634E
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/async-api/Default/POST/Resource
+  asyncapivalidator3FB6634E:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: asyncapiE5CAE3A5
+      ValidateRequestBody: true
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/async-api/validator/Resource
+  asyncApiApigRole9BA470E6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/asyncApiApigRole/Resource
+  asyncApiApigRoleDefaultPolicy0C168878:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - asyncrequests5F318332
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: asyncApiApigRoleDefaultPolicy0C168878
+      Roles:
+        - Ref: asyncApiApigRole9BA470E6
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/asyncApiApigRole/DefaultPolicy/Resource
+  sqspayload2A52E23C:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: asyncapiE5CAE3A5
+      ContentType: application/json
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: SQS Payload
+        type: object
+        required:
+          - data
+        properties:
+          data:
+            type: string
+            minLength: 1
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/sqs-payload/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2WQQU/DMAyFf8vuWUZBAo50A24V0EncTWpK1jbpamdTVeW/k6QdQnDy52fl+TmZzG7v5NXqAc60VlWzmZQdUE57BtWInAg5YK1NLXaf5sVx71jsrCEenOKolUjWDQq9iBYTHUlObw4dxmECL1roPiqQ07MzirU1cfTDTyc0vE8eBfT9suq/6oWGTk6lbZN1qq+21WqM7Uxe0M0aYmqSKXzo5dapBnkLhAJ6XQPjGcZghMR5r5cbLpgrZZ1h8Yh9a8cuhIjqry5+Rwoww+X8ZF8gf9kqDhcq8eiC9zu0ugK2w7zsj1bYCtv0KIL3XpgA8kCbU3Yvs2uZrQ6k9XoIuXSHspzrNxQRd5u7AQAA
+    Metadata:
+      aws:cdk:path: ApiGatewaySqsLambdaStack/CDKMetadata/Default
+Outputs:
+  asyncapiEndpointF7E30DBA:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: asyncapiE5CAE3A5
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: asyncapiDeploymentStagedevAF7CC34D
+          - /
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

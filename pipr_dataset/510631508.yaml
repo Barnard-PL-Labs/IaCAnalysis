@@ -1,0 +1,200 @@
+Resources:
+  DynamoTableB2B22E15:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/DynamoTable/Resource
+  HandlerServiceRoleFCDC14AE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/Handler/ServiceRole/Resource
+  HandlerServiceRoleDefaultPolicyCBD0CC91:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:ListStreams
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:DescribeStream
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DynamoTableB2B22E15
+                - StreamArn
+        Version: "2012-10-17"
+      PolicyName: HandlerServiceRoleDefaultPolicyCBD0CC91
+      Roles:
+        - Ref: HandlerServiceRoleFCDC14AE
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/Handler/ServiceRole/DefaultPolicy/Resource
+  Handler886CB40B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: d25e8756337ab122ba1aa1a47d067b674dce577d72a374d40778ff5318aa95cd.zip
+      Role:
+        Fn::GetAtt:
+          - HandlerServiceRoleFCDC14AE
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.main
+      Runtime: nodejs14.x
+    DependsOn:
+      - HandlerServiceRoleDefaultPolicyCBD0CC91
+      - HandlerServiceRoleFCDC14AE
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/Handler/Resource
+      aws:asset:path: asset.d25e8756337ab122ba1aa1a47d067b674dce577d72a374d40778ff5318aa95cd
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  SourceMappingD26ED6E2:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: Handler886CB40B
+      BatchSize: 1
+      BisectBatchOnFunctionError: true
+      EventSourceArn:
+        Fn::GetAtt:
+          - DynamoTableB2B22E15
+          - StreamArn
+      FilterCriteria:
+        Filters:
+          - Pattern: '{"eventName":["INSERT"]}'
+      MaximumRetryAttempts: 3
+      StartingPosition: TRIM_HORIZON
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/SourceMapping/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2WPzY7CMAyEn4V76qXlstcFwY3VqnCv3CSL3B8H4RSEqrz7JinisqcZj+1Pmgo2a1iv8CGFNn0xUAvzyaPuVYya2TwZR2dieMZ2sGr3y9kENeDYGmzYGdsJfGc5TKw9OVaEI8y1Wx6y/riB9DONiwtKNg2KWC/wlSTOsJ10b/0Wxb7wMMeHN3V/t+xPbrppe8TrlfiSeP/TEFRtJScqs2Ohy+v6vYh+59hQIgeVakAnH/fyE8oKylUnRMVtYk+jhXrRPyhma8wsAQAA
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

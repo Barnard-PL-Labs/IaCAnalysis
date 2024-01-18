@@ -1,0 +1,737 @@
+Resources:
+  webappbucket0CDF0BF4:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/web-app-bucket/Resource
+  webappbucketPolicy0D7ABA4C:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: webappbucket0CDF0BF4
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - webappcloudfrontOrigin1S3Origin5442D246
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - webappbucket0CDF0BF4
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/web-app-bucket/Policy/Resource
+  webappcloudfrontOrigin1S3Origin5442D246:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Identity for simplewebauthnexamplecognitowebappcloudfrontOrigin177EB81C3
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/web-app-cloudfront/Origin1/S3Origin/Resource
+  webappcloudfront3EEA77BF:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          Compress: true
+          TargetOriginId: simplewebauthnexamplecognitowebappcloudfrontOrigin177EB81C3
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - webappbucket0CDF0BF4
+                - RegionalDomainName
+            Id: simplewebauthnexamplecognitowebappcloudfrontOrigin177EB81C3
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: webappcloudfrontOrigin1S3Origin5442D246
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/web-app-cloudfront/Resource
+  webauthnuserpool09900A09:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      LambdaConfig:
+        CreateAuthChallenge:
+          Fn::GetAtt:
+            - createauthC0A52306
+            - Arn
+        DefineAuthChallenge:
+          Fn::GetAtt:
+            - defineauth2AB1CE69
+            - Arn
+        PreSignUp:
+          Fn::GetAtt:
+            - presignupC4B68F6D
+            - Arn
+        VerifyAuthChallengeResponse:
+          Fn::GetAtt:
+            - verifyauth3CDE5FE2
+            - Arn
+      Schema:
+        - AttributeDataType: String
+          Mutable: true
+          Name: authCreds
+      SmsVerificationMessage: The verification code to your new account is {####}
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/webauthn-user-pool/Resource
+  webauthnuserpoolclient1157E258:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: webauthnuserpool09900A09
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ExplicitAuthFlows:
+        - ALLOW_CUSTOM_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      ReadAttributes:
+        - email
+      SupportedIdentityProviders:
+        - COGNITO
+      WriteAttributes:
+        - email
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/webauthn-user-pool-client/Resource
+  webappdeploymentAwsCliLayerFCBAAFB2:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/web-app-deployment/AwsCliLayer/Resource
+      aws:asset:path: asset.e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68.zip
+      aws:asset:property: Content
+  webappdeploymentCustomResource72DC21F0:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameters68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259S3Bucket8E90A060
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259S3VersionKeyE2B2ACE9
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259S3VersionKeyE2B2ACE9
+      DestinationBucketName:
+        Ref: webappbucket0CDF0BF4
+      Prune: true
+      UserMetadata:
+        userpoolid:
+          Ref: webauthnuserpool09900A09
+        clientid:
+          Ref: webauthnuserpoolclient1157E258
+      SystemMetadata:
+        cache-control: must-revalidate
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/web-app-deployment/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259S3Bucket8E90A060
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259S3Bucket8E90A060
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - webappbucket0CDF0BF4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - webappbucket0CDF0BF4
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1f6de40da10b415b255c07df709f791e772ffb9f7bdd14ad81fb75643aad24eaS3BucketD8D20B9A
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f6de40da10b415b255c07df709f791e772ffb9f7bdd14ad81fb75643aad24eaS3VersionKeyCD2774D3
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f6de40da10b415b255c07df709f791e772ffb9f7bdd14ad81fb75643aad24eaS3VersionKeyCD2774D3
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: webappdeploymentAwsCliLayerFCBAAFB2
+      Runtime: python3.6
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.1f6de40da10b415b255c07df709f791e772ffb9f7bdd14ad81fb75643aad24ea
+      aws:asset:property: Code
+  presignupServiceRole1B9E6391:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/pre-sign-up/ServiceRole/Resource
+  presignupC4B68F6D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: "
+
+          \        exports.handler = (event, context, callback) => {
+
+          \          event.response.autoConfirmUser = true;
+
+          \          event.response.autoVerifyEmail = event.request.userAttributes.hasOwnProperty(\"email\") ? true : false;
+
+          \          callback(null, event);
+
+          \        }
+
+          \      "
+      Role:
+        Fn::GetAtt:
+          - presignupServiceRole1B9E6391
+          - Arn
+      Handler: index.handler
+      MemorySize: 1024
+      Runtime: nodejs12.x
+      Timeout: 5
+    DependsOn:
+      - presignupServiceRole1B9E6391
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/pre-sign-up/Resource
+  presignupPreSignUpCognito9AFC91BC:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - presignupC4B68F6D
+          - Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - webauthnuserpool09900A09
+          - Arn
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/pre-sign-up/PreSignUpCognito
+  defineauthServiceRole7ED40526:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/define-auth/ServiceRole/Resource
+  defineauth2AB1CE69:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersfc55675eb0cf9bab72ca0cbf2594b328cd2ef8781d8fa5b58f47b67dc877dfa1S3Bucket1F96407B
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersfc55675eb0cf9bab72ca0cbf2594b328cd2ef8781d8fa5b58f47b67dc877dfa1S3VersionKeyA33446C9
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersfc55675eb0cf9bab72ca0cbf2594b328cd2ef8781d8fa5b58f47b67dc877dfa1S3VersionKeyA33446C9
+      Role:
+        Fn::GetAtt:
+          - defineauthServiceRole7ED40526
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Timeout: 5
+    DependsOn:
+      - defineauthServiceRole7ED40526
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/define-auth/Resource
+      aws:asset:path: asset.fc55675eb0cf9bab72ca0cbf2594b328cd2ef8781d8fa5b58f47b67dc877dfa1
+      aws:asset:property: Code
+  defineauthDefineAuthChallengeCognitoC8DD0A6C:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - defineauth2AB1CE69
+          - Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - webauthnuserpool09900A09
+          - Arn
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/define-auth/DefineAuthChallengeCognito
+  createauthServiceRole271FCF1F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/create-auth/ServiceRole/Resource
+  createauthC0A52306:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersee205e53f565322df13fc19a84e34c10d82a2640f241c19052687d011dae7426S3Bucket3E17BE15
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersee205e53f565322df13fc19a84e34c10d82a2640f241c19052687d011dae7426S3VersionKey71D23356
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersee205e53f565322df13fc19a84e34c10d82a2640f241c19052687d011dae7426S3VersionKey71D23356
+      Role:
+        Fn::GetAtt:
+          - createauthServiceRole271FCF1F
+          - Arn
+      Environment:
+        Variables:
+          ORIGIN_DOMAIN_NAME:
+            Fn::GetAtt:
+              - webappcloudfront3EEA77BF
+              - DomainName
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Timeout: 5
+    DependsOn:
+      - createauthServiceRole271FCF1F
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/create-auth/Resource
+      aws:asset:path: asset.ee205e53f565322df13fc19a84e34c10d82a2640f241c19052687d011dae7426
+      aws:asset:property: Code
+  createauthCreateAuthChallengeCognito1531F625:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - createauthC0A52306
+          - Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - webauthnuserpool09900A09
+          - Arn
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/create-auth/CreateAuthChallengeCognito
+  verifyauthServiceRole52D10D3F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/verify-auth/ServiceRole/Resource
+  verifyauthServiceRoleDefaultPolicy1B4803B7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cognito-idp:AdminUpdateUserAttributes
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: verifyauthServiceRoleDefaultPolicy1B4803B7
+      Roles:
+        - Ref: verifyauthServiceRole52D10D3F
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/verify-auth/ServiceRole/DefaultPolicy/Resource
+  verifyauth3CDE5FE2:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters26f30a99b48c3e715605882c28155c3604e9995573866ce2852726b90d5721fcS3Bucket1AF5CFE9
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters26f30a99b48c3e715605882c28155c3604e9995573866ce2852726b90d5721fcS3VersionKey868B1951
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters26f30a99b48c3e715605882c28155c3604e9995573866ce2852726b90d5721fcS3VersionKey868B1951
+      Role:
+        Fn::GetAtt:
+          - verifyauthServiceRole52D10D3F
+          - Arn
+      Environment:
+        Variables:
+          ORIGIN_DOMAIN_NAME:
+            Fn::GetAtt:
+              - webappcloudfront3EEA77BF
+              - DomainName
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Timeout: 5
+    DependsOn:
+      - verifyauthServiceRoleDefaultPolicy1B4803B7
+      - verifyauthServiceRole52D10D3F
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/verify-auth/Resource
+      aws:asset:path: asset.26f30a99b48c3e715605882c28155c3604e9995573866ce2852726b90d5721fc
+      aws:asset:property: Code
+  verifyauthVerifyAuthChallengeResponseCognito0AEF08CC:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - verifyauth3CDE5FE2
+          - Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - webauthnuserpool09900A09
+          - Arn
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/verify-auth/VerifyAuthChallengeResponseCognito
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/3VSTW/CMAz9LdxTM8Zlx0ER0qRpVKDtHlKDAmmM4mQIRf3vS1oovezk56/nZyczmL3O4WXyLq9cqPo8jYocQtx5qc6iJMveBeXFghl9Ch61PYoysKdmi0zBKRTlwY5xJZ1s0KPLzib4S/AZJa5ae022FXlW5DnEZVBn7LJ31JuKjFa3Z/ju985SMrZCGQr1wZH1EFc6idT7kMnFxumkcaEUMn/UaL32HVOZG9a54b+KMU0aQEerPUH8ZnQVkcklA36A0uhEME71kVbwvIg1XgzdmuRDr301BITMB2Xo7toKI5t9LSEmok95Q/eDjvM2u3Rug57sOljV7TeAVDrGFbpGM3fatWwgbsn0T5Pt86I9ekwsLNV4YvjqzINvyJqspUjPpYyGxZXTcp28VuQ+OPH0d/aWfhDMJifWunAhXbNB2Pb2D+R0DmZdAgAA
+    Metadata:
+      aws:cdk:path: simplewebauthn-example-cognito/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7:
+    Type: String
+    Description: S3 bucket for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F:
+    Type: String
+    Description: S3 key for asset version "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68ArtifactHashD9A515C3:
+    Type: String
+    Description: Artifact hash for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameters1f6de40da10b415b255c07df709f791e772ffb9f7bdd14ad81fb75643aad24eaS3BucketD8D20B9A:
+    Type: String
+    Description: S3 bucket for asset "1f6de40da10b415b255c07df709f791e772ffb9f7bdd14ad81fb75643aad24ea"
+  AssetParameters1f6de40da10b415b255c07df709f791e772ffb9f7bdd14ad81fb75643aad24eaS3VersionKeyCD2774D3:
+    Type: String
+    Description: S3 key for asset version "1f6de40da10b415b255c07df709f791e772ffb9f7bdd14ad81fb75643aad24ea"
+  AssetParameters1f6de40da10b415b255c07df709f791e772ffb9f7bdd14ad81fb75643aad24eaArtifactHash3943F7F3:
+    Type: String
+    Description: Artifact hash for asset "1f6de40da10b415b255c07df709f791e772ffb9f7bdd14ad81fb75643aad24ea"
+  AssetParameters68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259S3Bucket8E90A060:
+    Type: String
+    Description: S3 bucket for asset "68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259"
+  AssetParameters68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259S3VersionKeyE2B2ACE9:
+    Type: String
+    Description: S3 key for asset version "68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259"
+  AssetParameters68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259ArtifactHashAF38B677:
+    Type: String
+    Description: Artifact hash for asset "68de5127b722afe66b077496378517923c9f75715e899ad9499ea6ab37810259"
+  AssetParametersfc55675eb0cf9bab72ca0cbf2594b328cd2ef8781d8fa5b58f47b67dc877dfa1S3Bucket1F96407B:
+    Type: String
+    Description: S3 bucket for asset "fc55675eb0cf9bab72ca0cbf2594b328cd2ef8781d8fa5b58f47b67dc877dfa1"
+  AssetParametersfc55675eb0cf9bab72ca0cbf2594b328cd2ef8781d8fa5b58f47b67dc877dfa1S3VersionKeyA33446C9:
+    Type: String
+    Description: S3 key for asset version "fc55675eb0cf9bab72ca0cbf2594b328cd2ef8781d8fa5b58f47b67dc877dfa1"
+  AssetParametersfc55675eb0cf9bab72ca0cbf2594b328cd2ef8781d8fa5b58f47b67dc877dfa1ArtifactHashCC40EFD2:
+    Type: String
+    Description: Artifact hash for asset "fc55675eb0cf9bab72ca0cbf2594b328cd2ef8781d8fa5b58f47b67dc877dfa1"
+  AssetParametersee205e53f565322df13fc19a84e34c10d82a2640f241c19052687d011dae7426S3Bucket3E17BE15:
+    Type: String
+    Description: S3 bucket for asset "ee205e53f565322df13fc19a84e34c10d82a2640f241c19052687d011dae7426"
+  AssetParametersee205e53f565322df13fc19a84e34c10d82a2640f241c19052687d011dae7426S3VersionKey71D23356:
+    Type: String
+    Description: S3 key for asset version "ee205e53f565322df13fc19a84e34c10d82a2640f241c19052687d011dae7426"
+  AssetParametersee205e53f565322df13fc19a84e34c10d82a2640f241c19052687d011dae7426ArtifactHash066646E2:
+    Type: String
+    Description: Artifact hash for asset "ee205e53f565322df13fc19a84e34c10d82a2640f241c19052687d011dae7426"
+  AssetParameters26f30a99b48c3e715605882c28155c3604e9995573866ce2852726b90d5721fcS3Bucket1AF5CFE9:
+    Type: String
+    Description: S3 bucket for asset "26f30a99b48c3e715605882c28155c3604e9995573866ce2852726b90d5721fc"
+  AssetParameters26f30a99b48c3e715605882c28155c3604e9995573866ce2852726b90d5721fcS3VersionKey868B1951:
+    Type: String
+    Description: S3 key for asset version "26f30a99b48c3e715605882c28155c3604e9995573866ce2852726b90d5721fc"
+  AssetParameters26f30a99b48c3e715605882c28155c3604e9995573866ce2852726b90d5721fcArtifactHashA0AB1A4B:
+    Type: String
+    Description: Artifact hash for asset "26f30a99b48c3e715605882c28155c3604e9995573866ce2852726b90d5721fc"
+Outputs:
+  webappcloudfrontoutput:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Fn::GetAtt:
+              - webappcloudfront3EEA77BF
+              - DomainName
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

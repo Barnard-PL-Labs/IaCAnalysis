@@ -1,0 +1,1020 @@
+Parameters:
+  CurBucketName:
+    Type: String
+    Description: name of the bucket that contains the cost and usage reports
+  ReportPathPrefix:
+    Type: String
+    Description: prefix prepended to the cost and usage report files as displayed in the report's edit view
+  ReportName:
+    Type: String
+    Description: name of the report
+  databaseName:
+    Type: String
+    Default: aws_usage_queries_database
+    AllowedPattern: ^[a-z0-9_]*$
+    Description: Name for the AWS Glue database
+    MaxLength: 30
+    MinLength: 1
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Resources:
+  databaseEBDE4557:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseInput:
+        Name:
+          Ref: databaseName
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/database/Resource
+  referenceDataBucketD60E5102:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/referenceDataBucket/Resource
+  referenceDataBucketPolicyC31544C0:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: referenceDataBucketD60E5102
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - referenceDataBucketD60E5102
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - referenceDataBucketD60E5102
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/referenceDataBucket/Policy/Resource
+  DeployUsageQueriesReferenceDataAssetCodelayer2ACA10B3:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 1ab2846ed73dc91f7efa0591429304ae78728fa28d6d2f57a8b0f9d083460654.zip
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/AssetCodelayer/Resource
+      aws:asset:path: asset.1ab2846ed73dc91f7efa0591429304ae78728fa28d6d2f57a8b0f9d083460654
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  DeployUsageQueriesReferenceDataCliLayer40C5144E:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 92c405c4551a308bcdd55823f8b16268bd3c38fd2a011edaaf3ed72a80f557c4.zip
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/CliLayer/Resource
+      aws:asset:path: asset.92c405c4551a308bcdd55823f8b16268bd3c38fd2a011edaaf3ed72a80f557c4.zip
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  DeployUsageQueriesReferenceDataBucketDeplomentFnServiceRole3AEDC3E1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/BucketDeplomentFn/ServiceRole/Resource
+  DeployUsageQueriesReferenceDataBucketDeplomentFnServiceRoleDefaultPolicy2223DC40:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - referenceDataBucketD60E5102
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - referenceDataBucketD60E5102
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: DeployUsageQueriesReferenceDataBucketDeplomentFnServiceRoleDefaultPolicy2223DC40
+      Roles:
+        - Ref: DeployUsageQueriesReferenceDataBucketDeplomentFnServiceRole3AEDC3E1
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/BucketDeplomentFn/ServiceRole/DefaultPolicy/Resource
+  DeployUsageQueriesReferenceDataBucketDeplomentFn733EE9BB:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 0c36248bed96b1b36beef057fdc62e136293c6b049b728e8cec7408315d2bae1.zip
+      Role:
+        Fn::GetAtt:
+          - DeployUsageQueriesReferenceDataBucketDeplomentFnServiceRole3AEDC3E1
+          - Arn
+      Handler: deploy.on_event
+      Layers:
+        - Ref: DeployUsageQueriesReferenceDataAssetCodelayer2ACA10B3
+        - Ref: DeployUsageQueriesReferenceDataCliLayer40C5144E
+      MemorySize: 512
+      Runtime: python3.7
+      Timeout: 60
+    DependsOn:
+      - DeployUsageQueriesReferenceDataBucketDeplomentFnServiceRoleDefaultPolicy2223DC40
+      - DeployUsageQueriesReferenceDataBucketDeplomentFnServiceRole3AEDC3E1
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/BucketDeplomentFn/Resource
+      aws:asset:path: asset.0c36248bed96b1b36beef057fdc62e136293c6b049b728e8cec7408315d2bae1
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  DeployUsageQueriesReferenceDataBucketDeplomentFnLogRetention6A802F14:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: DeployUsageQueriesReferenceDataBucketDeplomentFn733EE9BB
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/BucketDeplomentFn/LogRetention/Resource
+  DeployUsageQueriesReferenceDataBucketDeplomentFnCurrentVersion8380B7D91cee700b62c7136558416eb451933bf0:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName:
+        Ref: DeployUsageQueriesReferenceDataBucketDeplomentFn733EE9BB
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/BucketDeplomentFn/CurrentVersion/Resource
+  DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEventServiceRole2FE73343:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/BucketDeploymentProvider/framework-onEvent/ServiceRole/Resource
+  DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEventServiceRoleDefaultPolicyEFB8E40C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - DeployUsageQueriesReferenceDataBucketDeplomentFn733EE9BB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - DeployUsageQueriesReferenceDataBucketDeplomentFn733EE9BB
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEventServiceRoleDefaultPolicyEFB8E40C
+      Roles:
+        - Ref: DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEventServiceRole2FE73343
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/BucketDeploymentProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEvent4D90490D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 543c7a94b144a6259669eaf884305607b7a9abe85c43e4bfe62f9190ace37916.zip
+      Role:
+        Fn::GetAtt:
+          - DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEventServiceRole2FE73343
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (AwsUsageQueriesStack/DeployUsageQueriesReferenceData/BucketDeploymentProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - DeployUsageQueriesReferenceDataBucketDeplomentFn733EE9BB
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEventServiceRoleDefaultPolicyEFB8E40C
+      - DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEventServiceRole2FE73343
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/BucketDeploymentProvider/framework-onEvent/Resource
+      aws:asset:path: asset.543c7a94b144a6259669eaf884305607b7a9abe85c43e4bfe62f9190ace37916
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEventLogRetentionF52DE0D1:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEvent4D90490D
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/BucketDeploymentProvider/framework-onEvent/LogRetention/Resource
+  DeployUsageQueriesReferenceDataDeploymentCustomResourceB986FD5A:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - DeployUsageQueriesReferenceDataBucketDeploymentProviderframeworkonEvent4D90490D
+          - Arn
+      bucketName:
+        Ref: referenceDataBucketD60E5102
+      dummyVersion:
+        Fn::GetAtt:
+          - DeployUsageQueriesReferenceDataBucketDeplomentFnCurrentVersion8380B7D91cee700b62c7136558416eb451933bf0
+          - Version
+      wipeWholeBucket: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/DeployUsageQueriesReferenceData/DeploymentCustomResource/Default
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: c13434f8f1aa2ea30fa577b2feb208a41368b11787b752e10bfc71fe8eb919d5.zip
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+      aws:asset:path: asset.c13434f8f1aa2ea30fa577b2feb208a41368b11787b752e10bfc71fe8eb919d5
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CurHourlyTableDE313A07:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseName:
+        Ref: databaseEBDE4557
+      TableInput:
+        Description: Hourly cost and usage reports delivered as parquet data
+        Name: cur_hourly
+        Parameters:
+          classification: parquet
+          has_encrypted_data: false
+          projection.enabled: "true"
+          projection.year.type: integer
+          projection.year.range: 2020,2022
+          projection.month.type: integer
+          projection.month.range: 1,12
+        PartitionKeys:
+          - Name: year
+            Type: int
+          - Name: month
+            Type: int
+        StorageDescriptor:
+          Columns:
+            - Name: identity_line_item_id
+              Type: string
+            - Name: identity_time_interval
+              Type: string
+            - Name: bill_invoice_id
+              Type: string
+            - Name: bill_billing_entity
+              Type: string
+            - Name: bill_bill_type
+              Type: string
+            - Name: bill_payer_account_id
+              Type: string
+            - Name: bill_billing_period_start_date
+              Type: timestamp
+            - Name: bill_billing_period_end_date
+              Type: timestamp
+            - Name: line_item_usage_account_id
+              Type: string
+            - Name: line_item_line_item_type
+              Type: string
+            - Name: line_item_usage_start_date
+              Type: timestamp
+            - Name: line_item_usage_end_date
+              Type: timestamp
+            - Name: line_item_product_code
+              Type: string
+            - Name: line_item_usage_type
+              Type: string
+            - Name: line_item_operation
+              Type: string
+            - Name: line_item_availability_zone
+              Type: string
+            - Name: line_item_resource_id
+              Type: string
+            - Name: line_item_usage_amount
+              Type: double
+            - Name: line_item_normalization_factor
+              Type: double
+            - Name: line_item_normalized_usage_amount
+              Type: double
+            - Name: line_item_currency_code
+              Type: string
+            - Name: line_item_unblended_rate
+              Type: string
+            - Name: line_item_unblended_cost
+              Type: double
+            - Name: line_item_blended_rate
+              Type: string
+            - Name: line_item_blended_cost
+              Type: double
+            - Name: line_item_line_item_description
+              Type: string
+            - Name: line_item_tax_type
+              Type: string
+            - Name: line_item_legal_entity
+              Type: string
+            - Name: product_product_name
+              Type: string
+            - Name: product_activity_type
+              Type: string
+            - Name: product_alarm_type
+              Type: string
+            - Name: product_availability
+              Type: string
+            - Name: product_capacitystatus
+              Type: string
+            - Name: product_category
+              Type: string
+            - Name: product_clock_speed
+              Type: string
+            - Name: product_current_generation
+              Type: string
+            - Name: product_data_type
+              Type: string
+            - Name: product_datatransferout
+              Type: string
+            - Name: product_dedicated_ebs_throughput
+              Type: string
+            - Name: product_description
+              Type: string
+            - Name: product_durability
+              Type: string
+            - Name: product_ecu
+              Type: string
+            - Name: product_edition
+              Type: string
+            - Name: product_endpoint_type
+              Type: string
+            - Name: product_enhanced_networking_supported
+              Type: string
+            - Name: product_event_type
+              Type: string
+            - Name: product_fee_code
+              Type: string
+            - Name: product_fee_description
+              Type: string
+            - Name: product_finding_group
+              Type: string
+            - Name: product_finding_source
+              Type: string
+            - Name: product_finding_storage
+              Type: string
+            - Name: product_from_location
+              Type: string
+            - Name: product_from_location_type
+              Type: string
+            - Name: product_group
+              Type: string
+            - Name: product_group_description
+              Type: string
+            - Name: product_instance_family
+              Type: string
+            - Name: product_instance_type
+              Type: string
+            - Name: product_instance_type_family
+              Type: string
+            - Name: product_intel_avx2_available
+              Type: string
+            - Name: product_intel_avx_available
+              Type: string
+            - Name: product_intel_turbo_available
+              Type: string
+            - Name: product_license_model
+              Type: string
+            - Name: product_location
+              Type: string
+            - Name: product_location_type
+              Type: string
+            - Name: product_logs_destination
+              Type: string
+            - Name: product_logs_source
+              Type: string
+            - Name: product_logs_type
+              Type: string
+            - Name: product_max_iops_burst_performance
+              Type: string
+            - Name: product_max_iopsvolume
+              Type: string
+            - Name: product_max_throughputvolume
+              Type: string
+            - Name: product_max_volume_size
+              Type: string
+            - Name: product_maximum_extended_storage
+              Type: string
+            - Name: product_memory
+              Type: string
+            - Name: product_memory_gib
+              Type: string
+            - Name: product_message_delivery_frequency
+              Type: string
+            - Name: product_message_delivery_order
+              Type: string
+            - Name: product_network_performance
+              Type: string
+            - Name: product_normalization_size_factor
+              Type: string
+            - Name: product_operating_system
+              Type: string
+            - Name: product_operation
+              Type: string
+            - Name: product_physical_processor
+              Type: string
+            - Name: product_pre_installed_sw
+              Type: string
+            - Name: product_processor_architecture
+              Type: string
+            - Name: product_processor_features
+              Type: string
+            - Name: product_product_family
+              Type: string
+            - Name: product_protocol
+              Type: string
+            - Name: product_queue_type
+              Type: string
+            - Name: product_region
+              Type: string
+            - Name: product_request_description
+              Type: string
+            - Name: product_request_type
+              Type: string
+            - Name: product_resource_price_group
+              Type: string
+            - Name: product_routing_target
+              Type: string
+            - Name: product_routing_type
+              Type: string
+            - Name: product_servicecode
+              Type: string
+            - Name: product_servicename
+              Type: string
+            - Name: product_sku
+              Type: string
+            - Name: product_standard_group
+              Type: string
+            - Name: product_standard_storage
+              Type: string
+            - Name: product_standard_storage_retention_included
+              Type: string
+            - Name: product_storage
+              Type: string
+            - Name: product_storage_class
+              Type: string
+            - Name: product_storage_media
+              Type: string
+            - Name: product_storage_type
+              Type: string
+            - Name: product_subscription_type
+              Type: string
+            - Name: product_tenancy
+              Type: string
+            - Name: product_to_location
+              Type: string
+            - Name: product_to_location_type
+              Type: string
+            - Name: product_transfer_type
+              Type: string
+            - Name: product_usagetype
+              Type: string
+            - Name: product_vcpu
+              Type: string
+            - Name: product_version
+              Type: string
+            - Name: product_volume_api_name
+              Type: string
+            - Name: product_volume_type
+              Type: string
+            - Name: pricing_rate_id
+              Type: string
+            - Name: pricing_currency
+              Type: string
+            - Name: pricing_public_on_demand_cost
+              Type: double
+            - Name: pricing_public_on_demand_rate
+              Type: string
+            - Name: pricing_term
+              Type: string
+            - Name: pricing_unit
+              Type: string
+            - Name: reservation_amortized_upfront_cost_for_usage
+              Type: double
+            - Name: reservation_amortized_upfront_fee_for_billing_period
+              Type: double
+            - Name: reservation_effective_cost
+              Type: double
+            - Name: reservation_end_time
+              Type: string
+            - Name: reservation_modification_status
+              Type: string
+            - Name: reservation_normalized_units_per_reservation
+              Type: string
+            - Name: reservation_number_of_reservations
+              Type: string
+            - Name: reservation_recurring_fee_for_usage
+              Type: double
+            - Name: reservation_start_time
+              Type: string
+            - Name: reservation_subscription_id
+              Type: string
+            - Name: reservation_total_reserved_normalized_units
+              Type: string
+            - Name: reservation_total_reserved_units
+              Type: string
+            - Name: reservation_units_per_reservation
+              Type: string
+            - Name: reservation_unused_amortized_upfront_fee_for_billing_period
+              Type: double
+            - Name: reservation_unused_normalized_unit_quantity
+              Type: double
+            - Name: reservation_unused_quantity
+              Type: double
+            - Name: reservation_unused_recurring_fee
+              Type: double
+            - Name: reservation_upfront_value
+              Type: double
+            - Name: savings_plan_total_commitment_to_date
+              Type: double
+            - Name: savings_plan_savings_plan_a_r_n
+              Type: string
+            - Name: savings_plan_savings_plan_rate
+              Type: double
+            - Name: savings_plan_used_commitment
+              Type: double
+            - Name: savings_plan_savings_plan_effective_cost
+              Type: double
+            - Name: savings_plan_amortized_upfront_commitment_for_billing_period
+              Type: double
+            - Name: savings_plan_recurring_commitment_for_billing_period
+              Type: double
+            - Name: resource_tags_aws_cloudformation_logical_id
+              Type: string
+            - Name: resource_tags_aws_cloudformation_stack_id
+              Type: string
+            - Name: resource_tags_aws_cloudformation_stack_name
+              Type: string
+            - Name: resource_tags_user_name
+              Type: string
+          Compressed: false
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          Location:
+            Fn::Join:
+              - ""
+              - - s3://
+                - Ref: CurBucketName
+                - /
+                - Ref: ReportPathPrefix
+                - /
+                - Ref: ReportName
+                - /
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          SerdeInfo:
+            Parameters:
+              serialization.format: "1"
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          StoredAsSubDirectories: false
+        TableType: EXTERNAL_TABLE
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/CurHourly/Table
+  CurMonthlyInstanceHoursByInstanceTable4F402491:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseName:
+        Ref: databaseEBDE4557
+      TableInput:
+        Description: Monthly instance hours, grouped by instance
+        Name: monthly_instance_hours_by_instance
+        Parameters:
+          presto_view: true
+        PartitionKeys: []
+        StorageDescriptor:
+          Columns:
+            - Name: account_id
+              Type: string
+            - Name: region
+              Type: string
+            - Name: instance_id
+              Type: string
+            - Name: instance_type
+              Type: string
+            - Name: instance_family
+              Type: string
+            - Name: purchase_option
+              Type: string
+            - Name: instance_hours
+              Type: double
+            - Name: year
+              Type: int
+            - Name: month
+              Type: int
+          SerdeInfo: {}
+        TableType: VIRTUAL_VIEW
+        ViewOriginalText:
+          Fn::Join:
+            - ""
+            - - "/* Presto View: "
+              - Fn::Base64:
+                  Fn::Sub:
+                    - "{\"originalSql\":\"SELECT line_item_usage_account_id AS account_id,\\n    product_region AS region,\\n    line_item_resource_id AS instance_id,\\n    IF(\\n        (product_instance_type <> ''),\\n        product_instance_type,\\n        SPLIT_PART(\\n            line_item_line_item_description,\\n            ' ',\\n            1\\n        )\\n    ) AS instance_type,\\n    IF(\\n        (\\n            SPLIT_PART(product_instance_type, '.', 2) = 'metal'\\n        ),\\n        product_instance_type,\\n        IF(\\n            (product_instance_type_family <> ''),\\n            product_instance_type_family,\\n            IF(\\n                (product_instance_type <> ''),\\n                SPLIT_PART(product_instance_type, '.', 1),\\n                SPLIT_PART(\\n                    line_item_line_item_description,\\n                    '.',\\n                    1\\n                )\\n            )\\n        )\\n    ) AS instance_family,\\n    IF(\\n        (pricing_term = ''),\\n        'Spot',\\n        pricing_term\\n    ) AS purchase_option,\\n    SUM(line_item_usage_amount) AS instance_hours,\\n    year,\\n    month\\nFROM ${sourceTable}\\nWHERE (\\n        (\\n            (\\n                product_product_name = 'Amazon Elastic Compute Cloud'\\n            )\\n            AND (\\n                line_item_operation LIKE 'RunInstance%'\\n            )\\n        )\\n        AND (\\n            (\\n                line_item_usage_type LIKE '%BoxUsage%'\\n            )\\n            OR (\\n                line_item_usage_type LIKE '%SpotUsage%'\\n            )\\n        )\\n    )\\nGROUP BY 1,\\n    2,\\n    3,\\n    4,\\n    5,\\n    6,\\n    8,\\n    9\",\"catalog\":\"awsdatacatalog\",\"columns\":[{\"name\":\"account_id\",\"type\":\"varchar\"},{\"name\":\"region\",\"type\":\"varchar\"},{\"name\":\"instance_id\",\"type\":\"varchar\"},{\"name\":\"instance_type\",\"type\":\"varchar\"},{\"name\":\"instance_family\",\"type\":\"varchar\"},{\"name\":\"purchase_option\",\"type\":\"varchar\"},{\"name\":\"instance_hours\",\"type\":\"double\"},{\"name\":\"year\",\"type\":\"int\"},{\"name\":\"month\",\"type\":\"int\"}],\"schema\":\"${database}\"}"
+                    - database:
+                        Ref: databaseEBDE4557
+                      sourceTable:
+                        Ref: CurHourlyTableDE313A07
+              - " */"
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/CurMonthlyInstanceHoursByInstance/Table
+  referenceInstanceTypesTable8EEE4F16:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseName:
+        Ref: databaseEBDE4557
+      TableInput:
+        Description: EC2 Instance Types, their clock speed and vCPU count
+        Name: ref_instance_types
+        Parameters:
+          has_encrypted_data: false
+        StorageDescriptor:
+          Columns:
+            - Name: instance_family
+              Type: string
+            - Name: instance_type
+              Type: string
+            - Name: clock_speed_in_ghz
+              Type: double
+            - Name: vcpu_count
+              Type: double
+          Compressed: false
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          Location:
+            Fn::Join:
+              - ""
+              - - s3://
+                - Ref: referenceDataBucketD60E5102
+                - /instanceTypes
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          SerdeInfo:
+            Parameters:
+              skip.header.line.count: "1"
+              separatorChar: ","
+              quoteChar: '"'
+              escapeChar: \
+            SerializationLibrary: org.apache.hadoop.hive.serde2.OpenCSVSerde
+          StoredAsSubDirectories: false
+        TableType: EXTERNAL_TABLE
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/referenceInstanceTypes/Table
+  CurMonthlyVcpuHoursByAccountTable4824105A:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseName:
+        Ref: databaseEBDE4557
+      TableInput:
+        Description: Monthly vcpu hours, grouped by account
+        Name: monthly_vcpu_hours_by_account
+        Parameters:
+          presto_view: true
+        PartitionKeys: []
+        StorageDescriptor:
+          Columns:
+            - Name: account_id
+              Type: string
+            - Name: region
+              Type: string
+            - Name: instance_type
+              Type: string
+            - Name: instance_family
+              Type: string
+            - Name: purchase_option
+              Type: string
+            - Name: instance_hours
+              Type: double
+            - Name: vcpu_hours
+              Type: double
+            - Name: year
+              Type: int
+            - Name: month
+              Type: int
+          SerdeInfo: {}
+        TableType: VIRTUAL_VIEW
+        ViewOriginalText:
+          Fn::Join:
+            - ""
+            - - "/* Presto View: "
+              - Fn::Base64:
+                  Fn::Sub:
+                    - '{"originalSql":"SELECT h.account_id,\n    h.region,\n    instance_type,\n    h.instance_family,\n    h.purchase_option,\n    SUM(h.instance_hours) instance_hours,\n    SUM(t.vcpu_count * h.instance_hours) vcpu_hours,\n    h.year,\n    h.month\nFROM ${instanceHours} h\nJOIN ${instanceTypes} t USING (instance_type)\nGROUP BY h.account_id,\n    h.region,\n    instance_type,\n    h.instance_family,\n    h.purchase_option,\n    h.year,\n    h.month\n","catalog":"awsdatacatalog","columns":[{"name":"account_id","type":"varchar"},{"name":"region","type":"varchar"},{"name":"instance_type","type":"varchar"},{"name":"instance_family","type":"varchar"},{"name":"purchase_option","type":"varchar"},{"name":"instance_hours","type":"double"},{"name":"vcpu_hours","type":"double"},{"name":"year","type":"int"},{"name":"month","type":"int"}],"schema":"${database}"}'
+                    - database:
+                        Ref: databaseEBDE4557
+                      instanceHours:
+                        Ref: CurMonthlyInstanceHoursByInstanceTable4F402491
+                      instanceTypes:
+                        Ref: referenceInstanceTypesTable8EEE4F16
+              - " */"
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/CurMonthlyVcpuHoursByAccount/Table
+  spotVcpuHoursByAccountViewTable047ADFC4:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseName:
+        Ref: databaseEBDE4557
+      TableInput:
+        Description: Monthly vcpu hours share of spot by account
+        Name: monthly_spot_vcpu_hours_by_account
+        Parameters:
+          presto_view: true
+        PartitionKeys: []
+        StorageDescriptor:
+          Columns:
+            - Name: account_id
+              Type: string
+            - Name: vcpu_hours
+              Type: double
+            - Name: other_vcpu_hours
+              Type: double
+            - Name: spot_vcpu_hours
+              Type: double
+            - Name: year
+              Type: int
+            - Name: month
+              Type: int
+          SerdeInfo: {}
+        TableType: VIRTUAL_VIEW
+        ViewOriginalText:
+          Fn::Join:
+            - ""
+            - - "/* Presto View: "
+              - Fn::Base64:
+                  Fn::Sub:
+                    - "{\"originalSql\":\"SELECT account_id,\\n    SUM(vcpu_hours) vcpu_hours,\\n    SUM(\\n        case\\n            WHEN purchase_option != 'Spot' THEN vcpu_hours\\n            ELSE 0\\n        end\\n    ) AS other_vcpu_hours,\\n    SUM(\\n        case\\n            WHEN purchase_option = 'Spot' THEN vcpu_hours\\n            ELSE 0\\n        end\\n    ) AS spot_vcpu_hours,\\n    year,\\n    month\\nFROM ${vcpuHoursByAccount}\\nGROUP BY account_id,\\n    year,\\n    month\",\"catalog\":\"awsdatacatalog\",\"columns\":[{\"name\":\"account_id\",\"type\":\"varchar\"},{\"name\":\"vcpu_hours\",\"type\":\"double\"},{\"name\":\"other_vcpu_hours\",\"type\":\"double\"},{\"name\":\"spot_vcpu_hours\",\"type\":\"double\"},{\"name\":\"year\",\"type\":\"int\"},{\"name\":\"month\",\"type\":\"int\"}],\"schema\":\"${database}\"}"
+                    - database:
+                        Ref: databaseEBDE4557
+                      vcpuHoursByAccount:
+                        Ref: CurMonthlyVcpuHoursByAccountTable4824105A
+              - " */"
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/spotVcpuHoursByAccountView/Table
+  s3StorageByAccountViewTable99D53D2F:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseName:
+        Ref: databaseEBDE4557
+      TableInput:
+        Description: Monthly S3 storage by storage class and account
+        Name: monthly_s3_storage_by_account
+        Parameters:
+          presto_view: true
+        PartitionKeys: []
+        StorageDescriptor:
+          Columns:
+            - Name: account_id
+              Type: string
+            - Name: storage_class
+              Type: string
+            - Name: usage_gb
+              Type: double
+            - Name: year
+              Type: int
+            - Name: month
+              Type: int
+          SerdeInfo: {}
+        TableType: VIRTUAL_VIEW
+        ViewOriginalText:
+          Fn::Join:
+            - ""
+            - - "/* Presto View: "
+              - Fn::Base64:
+                  Fn::Sub:
+                    - "{\"originalSql\":\"SELECT line_item_usage_account_id account_id,\\n    product_volume_type storage_class,\\n    sum(line_item_usage_amount) as usage_gb,\\n    year,\\n    month\\nFROM ${sourceTable}\\nWHERE product_servicename LIKE '%Amazon Simple Storage Service%'\\n    AND product_volume_type not like ''\\n    AND product_volume_type not like 'Tags'\\nGROUP BY line_item_usage_account_id,\\n    product_volume_type,\\n    year,\\n    month\",\"catalog\":\"awsdatacatalog\",\"columns\":[{\"name\":\"account_id\",\"type\":\"varchar\"},{\"name\":\"storage_class\",\"type\":\"varchar\"},{\"name\":\"usage_gb\",\"type\":\"double\"},{\"name\":\"year\",\"type\":\"int\"},{\"name\":\"month\",\"type\":\"int\"}],\"schema\":\"${database}\"}"
+                    - database:
+                        Ref: databaseEBDE4557
+                      sourceTable:
+                        Ref: CurHourlyTableDE313A07
+              - " */"
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/s3StorageByAccountView/Table
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VQy26DMBD8ltzNpqSq1GMTop5yQLTqfTEOcjC25LUTRYh/rx8I2tPOrGd3x1NC+XaAl90HPqjg3bCfuLECpi+HfGDVVddocRROWFYZTc567tiRSLig6KXuo6YRZLzlgq2g8uTMuNGrDtOddNLomcVTU698OHNGhy1SUqz4G1uVOgnMjF5hOnk+CBebC8qlNkry59ZeeCansGxmCse2Q5gu+BT2R1gKHuLAP/7pNXfLw4r/iBcYvRQYf0+QQmASR5gak/2mulnKKDgwPcHF9E2IUecIsqlCRQ9FyIMrCccHVUomW4yn/Aq7BEhQW3OXnbAz06YTcKP9vXyH8gDl7kZSFtaHzaOAJtdfSzS2YtcBAAA=
+    Metadata:
+      aws:cdk:path: AwsUsageQueriesStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

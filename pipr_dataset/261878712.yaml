@@ -1,0 +1,868 @@
+Description: (SO0109) Live Streaming on AWS with Amazon S3 Solution %%VERSION%%
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: LIVE STREAM SOURCE
+        Parameters:
+          - InputType
+      - Label:
+          default: URL_PULL CONFIGURATION
+        Parameters:
+          - PullUrl
+          - PullUser
+          - PullPass
+      - Label:
+          default: RTP_PUSH / RTMP_PUSH CONFIGURATION
+        Parameters:
+          - InputCIDR
+      - Label:
+          default: INPUT_DEVICE CONFIGURATION
+        Parameters:
+          - InputDeviceId
+      - Label:
+          default: ENCODING OPTIONS
+        Parameters:
+          - EncodingProfile
+          - ChannelStart
+    ParameterLabels:
+      InputType:
+        default: Source Input Type
+      EncodingProfile:
+        default: Encoding Profile
+      InputDeviceId:
+        default: Elemental Link Input Device ID
+      InputCIDR:
+        default: Input Security Group CIDR Block (REQUIRED)
+      PullUrl:
+        default: Source URL (REQUIRED)
+      PullUser:
+        default: Source Username (OPTIONAL)
+      pullPass:
+        default: Source Password (REQUIRED)
+      ChannelStart:
+        default: Start MediaLive Channel
+Parameters:
+  InputType:
+    Type: String
+    Default: URL_PULL
+    AllowedValues:
+      - RTP_PUSH
+      - RTMP_PUSH
+      - URL_PULL
+      - INPUT_DEVICE
+    Description: Specify the input type for MediaLive (default parameters are for the demo video).  For details on setting up each input type, see https://docs.aws.amazon.com/solutions/latest/live-streaming-on-aws-with-amazon-s3/appendix-a.html.
+  InputDeviceId:
+    Type: String
+    Default: ""
+    Description: Specify the ID for your Elemental Link Input device (please note a Link device can only be attached to one input at a time)
+  InputCIDR:
+    Type: String
+    Default: ""
+    Description: For RTP and RTMP PUSH input types ONLY, specify the CIDR Block for the MediaLive SecurityGroup. Input security group restricts access to the input and prevents unauthorized third parties from pushing content into a channel that is associated with that input.
+  PullUrl:
+    Type: String
+    Default: https://d15an60oaeed9r.cloudfront.net/live_stream_v2/sports_reel_with_markers.m3u8
+    Description: For URL PULL input type ONLY, specify the primary source URL, this should be a HTTP or HTTPS link to the stream manifest file.
+  PullUser:
+    Type: String
+    Default: ""
+    Description: For URL PULL input type ONLY, if basic authentication is enabled on the source stream enter the username
+  PullPass:
+    Type: String
+    Default: ""
+    Description: For URL PULL input type ONLY, if basic authentication is enabled on the source stream enter the password
+  EncodingProfile:
+    Type: String
+    Default: HD-720p
+    AllowedValues:
+      - HD-1080p
+      - HD-720p
+      - SD-540p
+    Description: Select an encoding profile. HD 1080p [1920x1080, 1280x720, 960x540, 768x432, 640x360, 512x288] HD 720p [1280x720, 960x540, 768x432, 640x360, 512x288] SD 540p [960x540, 768x432, 640x360, 512x288]  See the implementation guide for details https://docs.aws.amazon.com/solutions/latest/live-streaming/considerations.html
+  ChannelStart:
+    Type: String
+    Default: "No"
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Description: If your source is ready to stream select true, this wil start the MediaLive Channel as part of the deployment. If you select false you will need to manually start the MediaLive Channel when your source is ready.
+  AssetParametersb3ea98ffdd308ac63ce50ac6911728f510f002107dc538b75826a7e1ec296375S3BucketBCB3688A:
+    Type: String
+    Description: S3 bucket for asset "b3ea98ffdd308ac63ce50ac6911728f510f002107dc538b75826a7e1ec296375"
+  AssetParametersb3ea98ffdd308ac63ce50ac6911728f510f002107dc538b75826a7e1ec296375S3VersionKey222217A9:
+    Type: String
+    Description: S3 key for asset version "b3ea98ffdd308ac63ce50ac6911728f510f002107dc538b75826a7e1ec296375"
+  AssetParametersb3ea98ffdd308ac63ce50ac6911728f510f002107dc538b75826a7e1ec296375ArtifactHash53DB24D1:
+    Type: String
+    Description: Artifact hash for asset "b3ea98ffdd308ac63ce50ac6911728f510f002107dc538b75826a7e1ec296375"
+Mappings:
+  AnonymousData:
+    SendAnonymousData:
+      Data: "Yes"
+Resources:
+  CachePolicy26D8A535:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        DefaultTTL: 86400
+        MaxTTL: 31536000
+        MinTTL: 0
+        Name:
+          Fn::Join:
+            - ""
+            - - LiveStreamingCachePolicy36FCA70B-
+              - Ref: AWS::Region
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: false
+          EnableAcceptEncodingGzip: false
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - Origin
+          QueryStringsConfig:
+            QueryStringBehavior: none
+    Metadata:
+      aws:cdk:path: LiveStreaming/CachePolicy/Resource
+  CloudFrontToS3S3LoggingBucketEF5CD8B2:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: LiveStreaming/CloudFrontToS3/S3LoggingBucket/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: This S3 bucket is used as the access logging bucket for another bucket
+  CloudFrontToS3S3LoggingBucketPolicy360F3875:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: CloudFrontToS3S3LoggingBucketEF5CD8B2
+      PolicyDocument:
+        Statement:
+          - Action: "*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CloudFrontToS3S3LoggingBucketEF5CD8B2
+                        - Arn
+                    - /*
+              - Fn::GetAtt:
+                  - CloudFrontToS3S3LoggingBucketEF5CD8B2
+                  - Arn
+            Sid: HttpsOnly
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LiveStreaming/CloudFrontToS3/S3LoggingBucket/Policy/Resource
+  CloudFrontToS3S3Bucket9CE6AB04:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - NoncurrentVersionTransitions:
+              - StorageClass: GLACIER
+                TransitionInDays: 90
+            Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName:
+          Ref: CloudFrontToS3S3LoggingBucketEF5CD8B2
+      MetricsConfigurations:
+        - Id: EntireBucket
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: LiveStreaming/CloudFrontToS3/S3Bucket/Resource
+  CloudFrontToS3S3BucketPolicy2495300D:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: CloudFrontToS3S3Bucket9CE6AB04
+      PolicyDocument:
+        Statement:
+          - Action: "*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CloudFrontToS3S3Bucket9CE6AB04
+                        - Arn
+                    - /*
+              - Fn::GetAtt:
+                  - CloudFrontToS3S3Bucket9CE6AB04
+                  - Arn
+            Sid: HttpsOnly
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - CloudFrontToS3CloudFrontDistributionOrigin1S3OriginB0637B8F
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - CloudFrontToS3S3Bucket9CE6AB04
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LiveStreaming/CloudFrontToS3/S3Bucket/Policy/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: F16
+            reason: Public website bucket policy requires a wildcard principal
+  CloudFrontToS3CloudfrontLoggingBucket8350BE9B:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: LiveStreaming/CloudFrontToS3/CloudfrontLoggingBucket/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: This S3 bucket is used as the access logging bucket for CloudFront Distribution
+  CloudFrontToS3CloudfrontLoggingBucketPolicy416B82D9:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: CloudFrontToS3CloudfrontLoggingBucket8350BE9B
+      PolicyDocument:
+        Statement:
+          - Action: "*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CloudFrontToS3CloudfrontLoggingBucket8350BE9B
+                        - Arn
+                    - /*
+              - Fn::GetAtt:
+                  - CloudFrontToS3CloudfrontLoggingBucket8350BE9B
+                  - Arn
+            Sid: HttpsOnly
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LiveStreaming/CloudFrontToS3/CloudfrontLoggingBucket/Policy/Resource
+  CloudFrontToS3CloudFrontDistributionOrigin1S3OriginB0637B8F:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Identity for LiveStreamingCloudFrontToS3CloudFrontDistributionOrigin1940508AB
+    Metadata:
+      aws:cdk:path: LiveStreaming/CloudFrontToS3/CloudFrontDistribution/Origin1/S3Origin/Resource
+  CloudFrontToS3CloudFrontDistribution241D9866:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 400
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 403
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 404
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 405
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 414
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 416
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 500
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 501
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 502
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 503
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 504
+        DefaultCacheBehavior:
+          CachePolicyId:
+            Ref: CachePolicy26D8A535
+          Compress: true
+          TargetOriginId: LiveStreamingCloudFrontToS3CloudFrontDistributionOrigin1940508AB
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Logging:
+          Bucket:
+            Fn::GetAtt:
+              - CloudFrontToS3CloudfrontLoggingBucket8350BE9B
+              - RegionalDomainName
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - CloudFrontToS3S3Bucket9CE6AB04
+                - RegionalDomainName
+            Id: LiveStreamingCloudFrontToS3CloudFrontDistributionOrigin1940508AB
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: CloudFrontToS3CloudFrontDistributionOrigin1S3OriginB0637B8F
+    Metadata:
+      aws:cdk:path: LiveStreaming/CloudFrontToS3/CloudFrontDistribution/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W70
+            reason: Since the distribution uses the CloudFront domain name, CloudFront automatically sets the security policy to TLSv1 regardless of the value of MinimumProtocolVersion
+  MediaLiveRole1149D189:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: medialive.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LiveStreaming/MediaLiveRole/Resource
+  mediaLivePolicyA0AA0DF7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:ListBucket
+              - s3:PutObject
+              - s3:GetObject
+              - s3:DeleteObject
+            Condition:
+              StringEquals:
+                s3:ResourceAccount:
+                  Ref: AWS::AccountId
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: CloudFrontToS3S3Bucket9CE6AB04
+                  - /*
+          - Action:
+              - ssm:DescribeParameters
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - ssm:PutParameter
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/*
+          - Action:
+              - mediaconnect:ManagedDescribeFlow
+              - mediaconnect:ManagedAddOutput
+              - mediaconnect:ManagedRemoveOutput
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":mediaconnect:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action:
+              - ec2:describeSubnets
+              - ec2:describeNetworkInterfaces
+              - ec2:createNetworkInterface
+              - ec2:createNetworkInterfacePermission
+              - ec2:deleteNetworkInterface
+              - ec2:deleteNetworkInterfacePermission
+              - ec2:describeSecurityGroups
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ec2:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogStreams
+              - logs:DescribeLogGroups
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :logs:*:*:*
+        Version: "2012-10-17"
+      PolicyName: mediaLivePolicyA0AA0DF7
+      Roles:
+        - Ref: MediaLiveRole1149D189
+    Metadata:
+      aws:cdk:path: LiveStreaming/mediaLivePolicy/Resource
+  CustomResourceServiceRoleE774390D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: LiveStreaming/CustomResource/ServiceRole/Resource
+  CustomResourceServiceRoleDefaultPolicy62213138:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - medialive:DescribeInputSecurityGroup
+              - medialive:createInputSecurityGroup
+              - medialive:describeInput
+              - medialive:createInput
+              - medialive:deleteInput
+              - medialive:stopChannel
+              - medialive:createChannel
+              - medialive:deleteChannel
+              - medialive:deleteInputSecurityGroup
+              - medialive:describeChannel
+              - medialive:startChannel
+              - medialive:createTags
+              - medialive:deleteTags
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":medialive:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action: ssm:PutParameter
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/*
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MediaLiveRole1149D189
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CustomResourceServiceRoleDefaultPolicy62213138
+      Roles:
+        - Ref: CustomResourceServiceRoleE774390D
+    Metadata:
+      aws:cdk:path: LiveStreaming/CustomResource/ServiceRole/DefaultPolicy/Resource
+  CustomResource8CDCD7A7:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersb3ea98ffdd308ac63ce50ac6911728f510f002107dc538b75826a7e1ec296375S3BucketBCB3688A
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb3ea98ffdd308ac63ce50ac6911728f510f002107dc538b75826a7e1ec296375S3VersionKey222217A9
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb3ea98ffdd308ac63ce50ac6911728f510f002107dc538b75826a7e1ec296375S3VersionKey222217A9
+      Role:
+        Fn::GetAtt:
+          - CustomResourceServiceRoleE774390D
+          - Arn
+      Description: CFN Custom resource to copy assets to S3 and get the MediaConvert endpoint
+      Environment:
+        Variables:
+          SOLUTION_IDENTIFIER: AwsSolution/SO0109/%%VERSION%%
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 30
+    DependsOn:
+      - CustomResourceServiceRoleDefaultPolicy62213138
+      - CustomResourceServiceRoleE774390D
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Invalid warning: function has access to cloudwatch"
+          - id: W89
+            reason: This CustomResource does not need to be deployed inside a VPC
+          - id: W92
+            reason: This CustomResource does not need to define ReservedConcurrentExecutions to reserve simultaneous executions
+  MediaLiveInput:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomResource8CDCD7A7
+          - Arn
+      StreamName:
+        Ref: AWS::StackName
+      Type:
+        Ref: InputType
+      InputDeviceId:
+        Ref: InputDeviceId
+      Cidr:
+        Ref: InputCIDR
+      PullUrl:
+        Ref: PullUrl
+      PullUser:
+        Ref: PullUser
+      PullPass:
+        Ref: PullPass
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LiveStreaming/MediaLiveInput/Default
+  MediaLiveChannel:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomResource8CDCD7A7
+          - Arn
+      StreamName:
+        Ref: AWS::StackName
+      EncodingProfile:
+        Ref: EncodingProfile
+      Codec: AVC
+      Role:
+        Fn::GetAtt:
+          - MediaLiveRole1149D189
+          - Arn
+      InputId:
+        Fn::GetAtt:
+          - MediaLiveInput
+          - Id
+      Type:
+        Ref: InputType
+      S3Bucket:
+        Ref: CloudFrontToS3S3Bucket9CE6AB04
+    DependsOn:
+      - CloudFrontToS3CloudFrontDistributionOrigin1S3OriginB0637B8F
+      - CloudFrontToS3CloudFrontDistribution241D9866
+      - CloudFrontToS3CloudfrontLoggingBucketPolicy416B82D9
+      - CloudFrontToS3CloudfrontLoggingBucket8350BE9B
+      - CloudFrontToS3S3BucketPolicy2495300D
+      - CloudFrontToS3S3Bucket9CE6AB04
+      - CloudFrontToS3S3LoggingBucketPolicy360F3875
+      - CloudFrontToS3S3LoggingBucketEF5CD8B2
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LiveStreaming/MediaLiveChannel/Default
+  MediaLiveChannelStart:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomResource8CDCD7A7
+          - Arn
+      ChannelId:
+        Fn::GetAtt:
+          - MediaLiveChannel
+          - ChannelId
+      ChannelStart:
+        Ref: ChannelStart
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LiveStreaming/MediaLiveChannelStart/Default
+  UUID:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomResource8CDCD7A7
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LiveStreaming/UUID/Default
+  AnonymousMetric:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomResource8CDCD7A7
+          - Arn
+      SolutionId: SO0109
+      UUID:
+        Fn::GetAtt:
+          - UUID
+          - UUID
+      Version: "%%VERSION%%"
+      Type:
+        Ref: InputType
+      Cidr:
+        Ref: InputCIDR
+      EncodingProfile:
+        Ref: EncodingProfile
+      ChannelStart:
+        Ref: ChannelStart
+      SendAnonymousMetric:
+        Fn::FindInMap:
+          - AnonymousData
+          - SendAnonymousData
+          - Data
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LiveStreaming/AnonymousMetric/Default
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/3VRTU/DMAz9LbunKWVC4shWNIkD2tTxB7LE27K2SRUnIBTlv5MPppYDJz87fvbzS0Obxyf6sHphX1h5Lvrac22A+qNlvCftWR2YYSNYMCl5Z9Mk1YW0WqE1jluyQQQbmy+57NDqsQPUznBIhCXeOzs5m1CkC2mlVoGUvYN24my0stS3jF/hoAfJv3PrIn2Vcak8ucQkeyPjzg3ngPgmQFlpCyHN2qVZ/3UsxwSCa+q3jveQlf2iEmYVf/KSbBlCIJKN1Hd6KMemOJMKCmRg40kw6ndO8Sw9vt1x2l+x5CHSbGWIFT1kbVjxu81YJ59mm6qoej70Qx/XgSgtgN6w/mye46fSZnVDKSvj4t0j0K7EHyaO+WjwAQAA
+    Metadata:
+      aws:cdk:path: LiveStreaming/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  LiveStreamUrl:
+    Description: CloudFront Live Stream URL
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Fn::GetAtt:
+              - CloudFrontToS3CloudFrontDistribution241D9866
+              - DomainName
+          - /stream/index.m3u8
+    Export:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -LiveStreamUrl
+  MediaLiveConsole:
+    Description: MediaLive Channel
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: AWS::Region
+          - .console.aws.amazon.com/medialive/home?region=
+          - Ref: AWS::Region
+          - "#!/channels"
+    Export:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -MediaLiveConsole
+  LiveStreamBucket:
+    Description: Live Stream Destination Bucket
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: AWS::Region
+          - .console.aws.amazon.com/s3/buckets/
+          - Ref: CloudFrontToS3S3Bucket9CE6AB04
+          - ?region=
+          - Ref: AWS::Region
+    Export:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -LiveStreamBucket
+  BucketMetrics:
+    Description: Bucket Request Metrics
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: AWS::Region
+          - .console.aws.amazon.com/s3/bucket/
+          - Ref: CloudFrontToS3S3Bucket9CE6AB04
+          - /metrics/bucket_metrics?region=
+          - Ref: AWS::Region
+          - "&tab=request&period=1h"
+    Export:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -BucketMetrics
+  MediaLivePushEndpoint:
+    Description: The MediaLive Input ingress endpoint for push input types
+    Value:
+      Fn::GetAtt:
+        - MediaLiveInput
+        - EndPoint
+    Export:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -MediaLiveEndpoint
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

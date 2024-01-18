@@ -1,0 +1,325 @@
+Resources:
+  Key961B73FD:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Archive/Key/Resource
+  KeyAlias910D852D:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/archive
+      TargetKeyId:
+        Fn::GetAtt:
+          - Key961B73FD
+          - Arn
+    Metadata:
+      aws:cdk:path: Archive/Key/Alias/Resource
+  Bucket83908E77:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - BucketKeyEnabled: true
+            ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":kms:eu-central-1:"
+                    - Ref: AWS::AccountId
+                    - :alias/archive
+              SSEAlgorithm: aws:kms
+      BucketName: sbstjn-archive
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      ReplicationConfiguration:
+        Role:
+          Fn::GetAtt:
+            - ReplicationRoleCE149CEC
+            - Arn
+        Rules:
+          - DeleteMarkerReplication:
+              Status: Enabled
+            Destination:
+              Bucket: arn:aws:s3:::sbstjn-archive-replication-eu-west-1
+              EncryptionConfiguration:
+                ReplicaKmsKeyID:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:kms:eu-west-1:"
+                      - Ref: AWS::AccountId
+                      - :alias/archive/replication
+            Filter:
+              Prefix: ""
+            Id: eu-west-1
+            Priority: 0
+            SourceSelectionCriteria:
+              SseKmsEncryptedObjects:
+                Status: Enabled
+            Status: Enabled
+          - DeleteMarkerReplication:
+              Status: Enabled
+            Destination:
+              Bucket: arn:aws:s3:::sbstjn-archive-replication-eu-north-1
+              EncryptionConfiguration:
+                ReplicaKmsKeyID:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:kms:eu-north-1:"
+                      - Ref: AWS::AccountId
+                      - :alias/archive/replication
+            Filter:
+              Prefix: ""
+            Id: eu-north-1
+            Priority: 1
+            SourceSelectionCriteria:
+              SseKmsEncryptedObjects:
+                Status: Enabled
+            Status: Enabled
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Archive/Bucket/Resource
+  BucketPolicyE9A3008A:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: Bucket83908E77
+      PolicyDocument:
+        Statement:
+          - Action: s3:DeleteBucket
+            Effect: Deny
+            Principal: "*"
+            Resource:
+              Fn::GetAtt:
+                - Bucket83908E77
+                - Arn
+          - Action: s3:DeleteObjectVersion
+            Effect: Deny
+            Principal: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - Bucket83908E77
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Archive/Bucket/Policy/Resource
+  ReplicationRoleCE149CEC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+        Version: "2012-10-17"
+      Path: /service-role/
+    Metadata:
+      aws:cdk:path: Archive/ReplicationRole/Resource
+  ReplicationRoleDefaultPolicy80AD15BB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetReplicationConfiguration
+              - s3:ListBucket
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Bucket83908E77
+                - Arn
+          - Action:
+              - s3:GetObjectVersion
+              - s3:GetObjectVersionAcl
+              - s3:GetObjectVersionForReplication
+              - s3:GetObjectVersionTagging
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - Bucket83908E77
+                      - Arn
+                  - /*
+          - Action: kms:Decrypt
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Key961B73FD
+                - Arn
+          - Action: kms:Encrypt
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:kms:eu-west-1:"
+                    - Ref: AWS::AccountId
+                    - :alias/archive/replication
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:kms:eu-north-1:"
+                    - Ref: AWS::AccountId
+                    - :alias/archive/replication
+          - Action:
+              - s3:ReplicateDelete
+              - s3:ReplicateObject
+              - s3:ReplicateTags
+            Effect: Allow
+            Resource:
+              - arn:aws:s3:::sbstjn-archive-replication-eu-west-1/*
+              - arn:aws:s3:::sbstjn-archive-replication-eu-north-1/*
+          - Action:
+              - s3:List*
+              - s3:GetBucketVersioning
+              - s3:PutBucketVersioning
+            Effect: Allow
+            Resource:
+              - arn:aws:s3:::sbstjn-archive-replication-eu-west-1
+              - arn:aws:s3:::sbstjn-archive-replication-eu-north-1
+        Version: "2012-10-17"
+      PolicyName: ReplicationRoleDefaultPolicy80AD15BB
+      Roles:
+        - Ref: ReplicationRoleCE149CEC
+    Metadata:
+      aws:cdk:path: Archive/ReplicationRole/DefaultPolicy/Resource
+  StackSet:
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      PermissionModel: SELF_MANAGED
+      StackSetName: sbstjn-archive-replication
+      Parameters:
+        - ParameterKey: Prefix
+          ParameterValue: sbstjn
+        - ParameterKey: ReplicationRole
+          ParameterValue:
+            Fn::GetAtt:
+              - ReplicationRoleCE149CEC
+              - Arn
+      StackInstancesGroup:
+        - DeploymentTargets:
+            Accounts:
+              - Ref: AWS::AccountId
+          Regions:
+            - eu-west-1
+            - eu-north-1
+      TemplateBody: |-
+        Parameters:
+          Prefix:
+            Type: String
+          ReplicationRole:
+            Type: String
+
+        Resources:
+          Key:
+            Type: AWS::KMS::Key
+            Properties:
+              KeyPolicy:
+                Version: 2012-10-17
+                Id: access-account
+                Statement:
+                  - Sid: Enable IAM User Permissions
+                    Effect: Allow
+                    Principal:
+                      AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+                    Action: kms:*
+                    Resource: '*'
+                  - Sid: Replication
+                    Effect: Allow
+                    Principal:
+                      AWS: !Ref ReplicationRole
+                    Action:
+                      - kms:Encrypt
+                      - kms:ReEncrypt*
+                      - kms:GenerateDataKey*
+                      - kms:DescribeKey
+                    Resource: '*'
+
+          KeyAlias:
+            Type: AWS::KMS::Alias
+            Properties:
+              AliasName: alias/archive/replication
+              TargetKeyId: !Ref Key
+
+          Bucket:
+            Type: AWS::S3::Bucket
+            DeletionPolicy: Retain
+            Properties:
+              BucketName: !Sub ${Prefix}-archive-replication-${AWS::Region}
+              AccessControl: Private
+              PublicAccessBlockConfiguration:
+                BlockPublicAcls: Yes
+                BlockPublicPolicy: Yes
+                IgnorePublicAcls: Yes
+                RestrictPublicBuckets: Yes
+              VersioningConfiguration:
+                Status: Enabled
+              BucketEncryption:
+                ServerSideEncryptionConfiguration:
+                - BucketKeyEnabled: Yes
+                  ServerSideEncryptionByDefault:
+                    SSEAlgorithm: aws:kms
+                    KMSMasterKeyID: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:${KeyAlias}
+
+          BucketPolicy:
+            Type: AWS::S3::BucketPolicy
+            Properties:
+              Bucket: !Ref Bucket
+              PolicyDocument:
+                Statement:
+                  - Action:
+                      - s3:DeleteBucket
+                    Effect: Deny
+                    Resource:
+                      - !Sub ${Bucket.Arn}
+                    Principal: '*'
+                  - Action:
+                      - s3:DeleteObjectVersion
+                    Effect: Deny
+                    Resource:
+                      - !Sub ${Bucket.Arn}/*
+                    Principal: '*'
+    Metadata:
+      aws:cdk:path: Archive/StackSet
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE0WNwQrCMBBEv6X3dNsogke1Rw9K+wUhXSFN20g2UUrIv0sSoac3MzvMcuDtCdrqIr5Uy1E3QRqLEAYnpGadWclZLx3rXmuOBsz64d3bZ9UjGW8lRpYWgl4Iwh23dEq4zkpQMllERkcINy91mfmrgqeZldz2uPjIlFgg9GbG/C5xb/47MbLVjAgTNR9+Bn4AXk2kVG396tSC0Bf+AJpqFKbuAAAA
+    Metadata:
+      aws:cdk:path: Archive/CDKMetadata/Default
+Outputs:
+  BucketName:
+    Value:
+      Ref: Bucket83908E77
+  BucketRegion:
+    Value: eu-central-1
+  BucketReplications:
+    Value: eu-west-1, eu-north-1
+

@@ -1,0 +1,297 @@
+{"openapi":"3.0.3","info":{"version":"0.0.1","title":"aws-cdk-api-example"},"paths":{"/lambda/{id}":{"get":{"x-aws-cdk-api":{"handler":"lambda.handler"},"summary":"get lambda message","parameters":[{"in":"path","name":"id","description":"a number","example":1313,"schema":{"type":"number"},"required":true}],"responses":{"200":{"description":"a message response","content":{"application/json":{"schema":{"type":"object","properties":{"message":{"type":"string","description":"a simple text","example":"Id received: 1313"}}}}}}}}}}}
+Resources:
+  JvCdkTestApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Body:
+        openapi: 3.0.3
+        info:
+          version: 0.0.1
+          title: aws-cdk-api-example
+        paths:
+          "/lambda/{id}":
+            get:
+              summary: get lambda message
+              parameters:
+                - in: path
+                  name: id
+                  description: a number
+                  example: 1313
+                  schema:
+                    type: number
+                  required: true
+              responses:
+                "200":
+                  description: a message response
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          message:
+                            type: string
+                            description: a simple text
+                            example: "Id received: 1313"
+              x-amazon-apigateway-integration:
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${JvCdkTestLambdaHandler.Arn}/invocations
+                httpMethod: POST
+                type: aws
+                requestTemplates:
+                  application/json: "{ \"id\": $input.params().path.get('id')#if($input.body != \"{}\"), \"body\": $input.json('$') #end }"
+                responses:
+                  default:
+                    statusCode: 200
+                  .*ERROR_404.*:
+                    statusCode: 404
+                  .*ERROR.*:
+                    statusCode: 500
+      Name: jv-cdk-test-api
+    Metadata:
+      aws:cdk:path: jv-cdk-test/jv-cdk-test-api/Resource
+  jvcdktestapiDeployment444A9038465c2dbaaaa803dc04768edd57b9abee:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: JvCdkTestApi
+      Description: Automatically created by the RestApi construct
+    Metadata:
+      aws:cdk:path: jv-cdk-test/jv-cdk-test-api/Deployment/Resource
+  jvcdktestapiDeploymentStageapi53FCDA65:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: JvCdkTestApi
+      DeploymentId:
+        Ref: jvcdktestapiDeployment444A9038465c2dbaaaa803dc04768edd57b9abee
+      StageName: api
+      TracingEnabled: true
+    Metadata:
+      aws:cdk:path: jv-cdk-test/jv-cdk-test-api/DeploymentStage.api/Resource
+  jvcdktestFunctionLogGroup5B0D97D5:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/lambda/jv-cdk-test-lambda-handler
+      RetentionInDays: 7
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: jv-cdk-test/jv-cdk-test/FunctionLogGroup/Resource
+  jvcdktestjvcdktestlambdahandlerServiceRole01B26466:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: jv-cdk-test/jv-cdk-test/jv-cdk-test-lambda-handler/ServiceRole/Resource
+  jvcdktestjvcdktestlambdahandlerServiceRoleDefaultPolicyFD725737:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - jvcdktestFunctionLogGroup5B0D97D5
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: jvcdktestjvcdktestlambdahandlerServiceRoleDefaultPolicyFD725737
+      Roles:
+        - Ref: jvcdktestjvcdktestlambdahandlerServiceRole01B26466
+    Metadata:
+      aws:cdk:path: jv-cdk-test/jv-cdk-test/jv-cdk-test-lambda-handler/ServiceRole/DefaultPolicy/Resource
+  JvCdkTestLambdaHandler:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters979f3a4bc0b641bf7f1e1930f04bd2210d19bf7b8109957f43936c57efe7e899S3Bucket44DB5C34
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters979f3a4bc0b641bf7f1e1930f04bd2210d19bf7b8109957f43936c57efe7e899S3VersionKeyCC6DF582
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters979f3a4bc0b641bf7f1e1930f04bd2210d19bf7b8109957f43936c57efe7e899S3VersionKeyCC6DF582
+      Role:
+        Fn::GetAtt:
+          - jvcdktestjvcdktestlambdahandlerServiceRole01B26466
+          - Arn
+      FunctionName: jv-cdk-test-lambda-handler
+      Handler: lambda.handler
+      Runtime: nodejs12.x
+      Timeout: 5
+    DependsOn:
+      - jvcdktestjvcdktestlambdahandlerServiceRoleDefaultPolicyFD725737
+      - jvcdktestjvcdktestlambdahandlerServiceRole01B26466
+    Metadata:
+      aws:cdk:path: jv-cdk-test/jv-cdk-test/jv-cdk-test-lambda-handler/Resource
+      aws:asset:path: asset.979f3a4bc0b641bf7f1e1930f04bd2210d19bf7b8109957f43936c57efe7e899
+      aws:asset:property: Code
+  jvcdktestjvcdktestlambdahandlerCurrentVersion61CEA7E961f6b8af6d71adaef2490ee4b9d29292:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName:
+        Ref: JvCdkTestLambdaHandler
+    Metadata:
+      aws:cdk:path: jv-cdk-test/jv-cdk-test/jv-cdk-test-lambda-handler/CurrentVersion/Resource
+  jvcdktestjvcdktestlambdahandlerInvokeServicePrincipalapigatewayamazonawscom39DA5D6D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - JvCdkTestLambdaHandler
+          - Arn
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      aws:cdk:path: jv-cdk-test/jv-cdk-test/jv-cdk-test-lambda-handler/InvokeServicePrincipal(apigateway.amazonaws.com)
+  jvcdktestjvcdktestfnalias0B5FB35A:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName:
+        Ref: JvCdkTestLambdaHandler
+      FunctionVersion:
+        Fn::GetAtt:
+          - jvcdktestjvcdktestlambdahandlerCurrentVersion61CEA7E961f6b8af6d71adaef2490ee4b9d29292
+          - Version
+      Name: last
+    Metadata:
+      aws:cdk:path: jv-cdk-test/jv-cdk-test/jv-cdk-test-fn-alias/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE02QT0/DMAzFP8vuWbaOC0fK0LggURWJu0lNla35o9hhqqJ8d5qwoZ78s5+fnuVGNvuD3G+e4EpbNVx2SbmAMn0wqIs4ftv3yD6yODpLHKJi0RIhL/Ko7Sh6JBeDwrLZQQCDjKE0a2HxDpq1s1mUlARej8B4hXnJ8aiWXW69vtkq3u3PQChe0E9uNmi5rKy6ckVNqJDF5EaS6c2Nr8FFX4Q7LxqYrwFkOkWryi1F/edPDHSbrbDDYDTVrp00UJlVyEKDkal3U02vtXOTVnO1VcqCHrZQfkWyvixnYd2A8ky7n+ZRNgfZbM6k9TZEy9qg7P/qL34DDbeSAQAA
+    Metadata:
+      aws:cdk:path: jv-cdk-test/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  jvcdktestapiEndpointA2A1B479:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: JvCdkTestApi
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: jvcdktestapiDeploymentStageapi53FCDA65
+          - /
+  restApiUrl:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: JvCdkTestApi
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: jvcdktestapiDeploymentStageapi53FCDA65
+          - /
+Parameters:
+  AssetParameters979f3a4bc0b641bf7f1e1930f04bd2210d19bf7b8109957f43936c57efe7e899S3Bucket44DB5C34:
+    Type: String
+    Description: S3 bucket for asset "979f3a4bc0b641bf7f1e1930f04bd2210d19bf7b8109957f43936c57efe7e899"
+  AssetParameters979f3a4bc0b641bf7f1e1930f04bd2210d19bf7b8109957f43936c57efe7e899S3VersionKeyCC6DF582:
+    Type: String
+    Description: S3 key for asset version "979f3a4bc0b641bf7f1e1930f04bd2210d19bf7b8109957f43936c57efe7e899"
+  AssetParameters979f3a4bc0b641bf7f1e1930f04bd2210d19bf7b8109957f43936c57efe7e899ArtifactHashAC25AA02:
+    Type: String
+    Description: Artifact hash for asset "979f3a4bc0b641bf7f1e1930f04bd2210d19bf7b8109957f43936c57efe7e899"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

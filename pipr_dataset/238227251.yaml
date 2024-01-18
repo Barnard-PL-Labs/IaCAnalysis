@@ -1,0 +1,1033 @@
+Resources:
+  GameTable0C79FC62:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: code
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: gameCodeGSI
+          KeySchema:
+            - AttributeName: code
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TableName: ToPlayTv-Games
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/GameTable/Resource
+  ToPlayTvApiApiLogsRoleA942FBDC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/ApiLogsRole/Resource
+  ToPlayTvApiA5A19B3D:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: ToPlayTvApi
+      LogConfig:
+        CloudWatchLogsRoleArn:
+          Fn::GetAtt:
+            - ToPlayTvApiApiLogsRoleA942FBDC
+            - Arn
+        FieldLogLevel: ALL
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/Resource
+  ToPlayTvApiSchemaDE35DF83:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      Definition: |
+        enum GameStatus {
+        	LOBBY
+        	INGAME
+        	COMPLETE
+        }
+
+        enum Color {
+        	RED
+        	ORANGE
+        	YELLOW
+        	GREEN
+        	TEAL
+        	BLUE
+        	PURPLE
+        	PINK
+        }
+
+        type GameState {
+        	status: GameStatus!
+        }
+
+        type Game {
+        	id: ID!
+        	code: String!
+        	createdAt: Int
+        	state: GameState!
+        	players: [Player]
+        }
+
+        type Player {
+        	id: ID!
+        	gameId: ID!
+        	name: String!
+        	color: Color
+        	team: Int
+        }
+
+        input PlayerInput {
+        	color: Color
+        	team: Int
+        }
+
+        type Mutation {
+        	createGame(gameType: GameType!): Game!
+        	joinGame(code: String!, name: String!): Player!
+        	# updateGame(id: ID!, input: GameInput!): Game!
+        	updatePlayer(id: ID!, gameId: ID!, input: PlayerInput!): Player!
+        }
+
+        type Query {
+        	getGame(id: ID!): Game!
+        	getPlayer(id: ID!, gameId: ID!): Player!
+        }
+
+        type Subscription {
+        	playerJoined(gameId: ID!): Player @aws_subscribe(mutations: ["joinGame"])
+        	playerUpdated(gameId: ID!): Player @aws_subscribe(mutations: ["updatePlayer"])
+        	# gameUpdated(gameId: ID!): Game! @aws_subscribe(mutations: ["updateGame"])
+        }
+
+        schema {
+        	query: Query
+        	mutation: Mutation
+        	subscription: Subscription
+        }
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/Schema
+  ToPlayTvApiDefaultApiKey321E90AB:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+    DependsOn:
+      - ToPlayTvApiSchemaDE35DF83
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/DefaultApiKey
+  ToPlayTvApicreateGameServiceRole31F687CA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/createGame/ServiceRole/Resource
+  ToPlayTvApicreateGameServiceRoleDefaultPolicy8D09A28A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - createGameLambdaAF1C51DA
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ToPlayTvApicreateGameServiceRoleDefaultPolicy8D09A28A
+      Roles:
+        - Ref: ToPlayTvApicreateGameServiceRole31F687CA
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/createGame/ServiceRole/DefaultPolicy/Resource
+  ToPlayTvApicreateGame03543E92:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      Name: createGame
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - createGameLambdaAF1C51DA
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ToPlayTvApicreateGameServiceRole31F687CA
+          - Arn
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/createGame/Resource
+  ToPlayTvApicreateGameMutationcreateGameResolver88CEC98E:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      FieldName: createGame
+      TypeName: Mutation
+      DataSourceName: createGame
+      Kind: UNIT
+      RequestMappingTemplate: '{"version": "2017-02-28", "operation": "Invoke", "payload": $util.toJson($ctx.args)}'
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - ToPlayTvApicreateGame03543E92
+      - ToPlayTvApiSchemaDE35DF83
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/createGame/MutationcreateGameResolver/Resource
+  ToPlayTvApijoinGameServiceRole7331E9BE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/joinGame/ServiceRole/Resource
+  ToPlayTvApijoinGameServiceRoleDefaultPolicy5A336FF8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - joinGameLambdaD7CDF2F9
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ToPlayTvApijoinGameServiceRoleDefaultPolicy5A336FF8
+      Roles:
+        - Ref: ToPlayTvApijoinGameServiceRole7331E9BE
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/joinGame/ServiceRole/DefaultPolicy/Resource
+  ToPlayTvApijoinGameFCD4D7CA:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      Name: joinGame
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - joinGameLambdaD7CDF2F9
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ToPlayTvApijoinGameServiceRole7331E9BE
+          - Arn
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/joinGame/Resource
+  ToPlayTvApijoinGameMutationjoinGameResolver2FF508AA:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      FieldName: joinGame
+      TypeName: Mutation
+      DataSourceName: joinGame
+      Kind: UNIT
+      RequestMappingTemplate: '{"version": "2017-02-28", "operation": "Invoke", "payload": $util.toJson($ctx.args)}'
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - ToPlayTvApijoinGameFCD4D7CA
+      - ToPlayTvApiSchemaDE35DF83
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/joinGame/MutationjoinGameResolver/Resource
+  ToPlayTvApiupdatePlayerServiceRole6522B612:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/updatePlayer/ServiceRole/Resource
+  ToPlayTvApiupdatePlayerServiceRoleDefaultPolicyBE23C097:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - updatePlayerLambda2011C2F6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ToPlayTvApiupdatePlayerServiceRoleDefaultPolicyBE23C097
+      Roles:
+        - Ref: ToPlayTvApiupdatePlayerServiceRole6522B612
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/updatePlayer/ServiceRole/DefaultPolicy/Resource
+  ToPlayTvApiupdatePlayerFF323451:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      Name: updatePlayer
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - updatePlayerLambda2011C2F6
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ToPlayTvApiupdatePlayerServiceRole6522B612
+          - Arn
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/updatePlayer/Resource
+  ToPlayTvApiupdatePlayerMutationupdatePlayerResolver67FF675C:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      FieldName: updatePlayer
+      TypeName: Mutation
+      DataSourceName: updatePlayer
+      Kind: UNIT
+      RequestMappingTemplate: '{"version": "2017-02-28", "operation": "Invoke", "payload": $util.toJson($ctx.args)}'
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - ToPlayTvApiSchemaDE35DF83
+      - ToPlayTvApiupdatePlayerFF323451
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/updatePlayer/MutationupdatePlayerResolver/Resource
+  ToPlayTvApigetGameServiceRole88FA94BC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/getGame/ServiceRole/Resource
+  ToPlayTvApigetGameServiceRoleDefaultPolicy0D27953B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - getGameLambdaC140D1E8
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ToPlayTvApigetGameServiceRoleDefaultPolicy0D27953B
+      Roles:
+        - Ref: ToPlayTvApigetGameServiceRole88FA94BC
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/getGame/ServiceRole/DefaultPolicy/Resource
+  ToPlayTvApigetGame9A1CF78B:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      Name: getGame
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - getGameLambdaC140D1E8
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ToPlayTvApigetGameServiceRole88FA94BC
+          - Arn
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/getGame/Resource
+  ToPlayTvApigetGameQuerygetGameResolver71B003CE:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      FieldName: getGame
+      TypeName: Query
+      DataSourceName: getGame
+      Kind: UNIT
+      RequestMappingTemplate: '{"version": "2017-02-28", "operation": "Invoke", "payload": $util.toJson($ctx.args)}'
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - ToPlayTvApigetGame9A1CF78B
+      - ToPlayTvApiSchemaDE35DF83
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/getGame/QuerygetGameResolver/Resource
+  ToPlayTvApigetPlayerServiceRoleFC004C06:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/getPlayer/ServiceRole/Resource
+  ToPlayTvApigetPlayerServiceRoleDefaultPolicyD847EA2B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - getPlayerLambda58996B06
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ToPlayTvApigetPlayerServiceRoleDefaultPolicyD847EA2B
+      Roles:
+        - Ref: ToPlayTvApigetPlayerServiceRoleFC004C06
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/getPlayer/ServiceRole/DefaultPolicy/Resource
+  ToPlayTvApigetPlayer54F6555D:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      Name: getPlayer
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - getPlayerLambda58996B06
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ToPlayTvApigetPlayerServiceRoleFC004C06
+          - Arn
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/getPlayer/Resource
+  ToPlayTvApigetPlayerQuerygetPlayerResolver1AC966AE:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ToPlayTvApiA5A19B3D
+          - ApiId
+      FieldName: getPlayer
+      TypeName: Query
+      DataSourceName: getPlayer
+      Kind: UNIT
+      RequestMappingTemplate: '{"version": "2017-02-28", "operation": "Invoke", "payload": $util.toJson($ctx.args)}'
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - ToPlayTvApigetPlayer54F6555D
+      - ToPlayTvApiSchemaDE35DF83
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/ToPlayTvApi/getPlayer/QuerygetPlayerResolver/Resource
+  createGameLambdaServiceRole1654B112:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/createGameLambda/ServiceRole/Resource
+  createGameLambdaServiceRoleDefaultPolicy8BF6CB1D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - GameTable0C79FC62
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - GameTable0C79FC62
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: createGameLambdaServiceRoleDefaultPolicy8BF6CB1D
+      Roles:
+        - Ref: createGameLambdaServiceRole1654B112
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/createGameLambda/ServiceRole/DefaultPolicy/Resource
+  createGameLambdaAF1C51DA:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersd3d1d293a8e3e1d1385bb16e78608ae3e39237f768e8d30b2221bcccb8e8b8a4S3Bucket8A8F3ADB
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd3d1d293a8e3e1d1385bb16e78608ae3e39237f768e8d30b2221bcccb8e8b8a4S3VersionKeyF6552873
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd3d1d293a8e3e1d1385bb16e78608ae3e39237f768e8d30b2221bcccb8e8b8a4S3VersionKeyF6552873
+      Role:
+        Fn::GetAtt:
+          - createGameLambdaServiceRole1654B112
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+    DependsOn:
+      - createGameLambdaServiceRoleDefaultPolicy8BF6CB1D
+      - createGameLambdaServiceRole1654B112
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/createGameLambda/Resource
+      aws:asset:path: asset.d3d1d293a8e3e1d1385bb16e78608ae3e39237f768e8d30b2221bcccb8e8b8a4
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/238227251/functions/createGame
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  joinGameLambdaServiceRole76BFE025:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/joinGameLambda/ServiceRole/Resource
+  joinGameLambdaServiceRoleDefaultPolicy4F48C750:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - GameTable0C79FC62
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - GameTable0C79FC62
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: joinGameLambdaServiceRoleDefaultPolicy4F48C750
+      Roles:
+        - Ref: joinGameLambdaServiceRole76BFE025
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/joinGameLambda/ServiceRole/DefaultPolicy/Resource
+  joinGameLambdaD7CDF2F9:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters0b479b36980b9bf7a1acbae6b79eb08448f2266e0d59f82e7f3336cf29889b6eS3Bucket3A108160
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters0b479b36980b9bf7a1acbae6b79eb08448f2266e0d59f82e7f3336cf29889b6eS3VersionKey2EC86936
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters0b479b36980b9bf7a1acbae6b79eb08448f2266e0d59f82e7f3336cf29889b6eS3VersionKey2EC86936
+      Role:
+        Fn::GetAtt:
+          - joinGameLambdaServiceRole76BFE025
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+    DependsOn:
+      - joinGameLambdaServiceRoleDefaultPolicy4F48C750
+      - joinGameLambdaServiceRole76BFE025
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/joinGameLambda/Resource
+      aws:asset:path: asset.0b479b36980b9bf7a1acbae6b79eb08448f2266e0d59f82e7f3336cf29889b6e
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/238227251/functions/joinGame
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  updatePlayerLambdaServiceRole6509F52A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/updatePlayerLambda/ServiceRole/Resource
+  updatePlayerLambdaServiceRoleDefaultPolicy05452010:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - GameTable0C79FC62
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - GameTable0C79FC62
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: updatePlayerLambdaServiceRoleDefaultPolicy05452010
+      Roles:
+        - Ref: updatePlayerLambdaServiceRole6509F52A
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/updatePlayerLambda/ServiceRole/DefaultPolicy/Resource
+  updatePlayerLambda2011C2F6:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameterscff0bec9083d2a5eaa5c876dd67096493cde52ae07d0b1f49a589a6a18035c62S3Bucket7942B176
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterscff0bec9083d2a5eaa5c876dd67096493cde52ae07d0b1f49a589a6a18035c62S3VersionKey34D9708E
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterscff0bec9083d2a5eaa5c876dd67096493cde52ae07d0b1f49a589a6a18035c62S3VersionKey34D9708E
+      Role:
+        Fn::GetAtt:
+          - updatePlayerLambdaServiceRole6509F52A
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+    DependsOn:
+      - updatePlayerLambdaServiceRoleDefaultPolicy05452010
+      - updatePlayerLambdaServiceRole6509F52A
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/updatePlayerLambda/Resource
+      aws:asset:path: asset.cff0bec9083d2a5eaa5c876dd67096493cde52ae07d0b1f49a589a6a18035c62
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/238227251/functions/updatePlayer
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  getGameLambdaServiceRoleB6B5B78D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/getGameLambda/ServiceRole/Resource
+  getGameLambdaServiceRoleDefaultPolicy935B7B96:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - GameTable0C79FC62
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - GameTable0C79FC62
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: getGameLambdaServiceRoleDefaultPolicy935B7B96
+      Roles:
+        - Ref: getGameLambdaServiceRoleB6B5B78D
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/getGameLambda/ServiceRole/DefaultPolicy/Resource
+  getGameLambdaC140D1E8:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4f5fcbfb2c696d5ef3fbd3fae0321e763330bb679eef53023d656e9f0110acc7S3BucketD15EAB4F
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4f5fcbfb2c696d5ef3fbd3fae0321e763330bb679eef53023d656e9f0110acc7S3VersionKeyB7467E15
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4f5fcbfb2c696d5ef3fbd3fae0321e763330bb679eef53023d656e9f0110acc7S3VersionKeyB7467E15
+      Role:
+        Fn::GetAtt:
+          - getGameLambdaServiceRoleB6B5B78D
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+    DependsOn:
+      - getGameLambdaServiceRoleDefaultPolicy935B7B96
+      - getGameLambdaServiceRoleB6B5B78D
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/getGameLambda/Resource
+      aws:asset:path: asset.4f5fcbfb2c696d5ef3fbd3fae0321e763330bb679eef53023d656e9f0110acc7
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/238227251/functions/getGame
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  getPlayerLambdaServiceRole3E69869F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/getPlayerLambda/ServiceRole/Resource
+  getPlayerLambdaServiceRoleDefaultPolicy9E1501B3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - GameTable0C79FC62
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - GameTable0C79FC62
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: getPlayerLambdaServiceRoleDefaultPolicy9E1501B3
+      Roles:
+        - Ref: getPlayerLambdaServiceRole3E69869F
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/getPlayerLambda/ServiceRole/DefaultPolicy/Resource
+  getPlayerLambda58996B06:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersad301e1c47ba667d885c83fa2e306fa10763ec3bffa566ac349ec08221758598S3Bucket436D8858
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersad301e1c47ba667d885c83fa2e306fa10763ec3bffa566ac349ec08221758598S3VersionKeyEAC26F51
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersad301e1c47ba667d885c83fa2e306fa10763ec3bffa566ac349ec08221758598S3VersionKeyEAC26F51
+      Role:
+        Fn::GetAtt:
+          - getPlayerLambdaServiceRole3E69869F
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+    DependsOn:
+      - getPlayerLambdaServiceRoleDefaultPolicy9E1501B3
+      - getPlayerLambdaServiceRole3E69869F
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/getPlayerLambda/Resource
+      aws:asset:path: asset.ad301e1c47ba667d885c83fa2e306fa10763ec3bffa566ac349ec08221758598
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/238227251/functions/getPlayer
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VQy1LDMAz8lt4dlVAOHOlj4EAPJeEHFFu0bmI72E6ZjMf/ju0OBU7aXe1IK9VQrx7gbvGEX67iol8GbixBaD3ynjXkzGQ5sbVz5JN2lPrItkY7byfu2fZDH9CiIk82k5s/4eQS0kujI8uzg5g1KiM6CO/YDcVSQGqPo5s1h/BicTx9DutR5m5hb/v/rOUnUpiFpL/SzPaoOoE79NjeVv9hOdFw+U2XcWQSFYTGXFOUejCD5HM5qKDIhjIYwvOkeT4j935wZG5VYf6Jg/KaxGEz8Z78Bh3FyLQRBGe3vNSPUN9DvTg7KSs7aS8VQXOt36b6U3p9AQAA
+    Metadata:
+      aws:cdk:path: ToPlayTv-Api/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParametersd3d1d293a8e3e1d1385bb16e78608ae3e39237f768e8d30b2221bcccb8e8b8a4S3Bucket8A8F3ADB:
+    Type: String
+    Description: S3 bucket for asset "d3d1d293a8e3e1d1385bb16e78608ae3e39237f768e8d30b2221bcccb8e8b8a4"
+  AssetParametersd3d1d293a8e3e1d1385bb16e78608ae3e39237f768e8d30b2221bcccb8e8b8a4S3VersionKeyF6552873:
+    Type: String
+    Description: S3 key for asset version "d3d1d293a8e3e1d1385bb16e78608ae3e39237f768e8d30b2221bcccb8e8b8a4"
+  AssetParametersd3d1d293a8e3e1d1385bb16e78608ae3e39237f768e8d30b2221bcccb8e8b8a4ArtifactHashF27F9D72:
+    Type: String
+    Description: Artifact hash for asset "d3d1d293a8e3e1d1385bb16e78608ae3e39237f768e8d30b2221bcccb8e8b8a4"
+  AssetParameters0b479b36980b9bf7a1acbae6b79eb08448f2266e0d59f82e7f3336cf29889b6eS3Bucket3A108160:
+    Type: String
+    Description: S3 bucket for asset "0b479b36980b9bf7a1acbae6b79eb08448f2266e0d59f82e7f3336cf29889b6e"
+  AssetParameters0b479b36980b9bf7a1acbae6b79eb08448f2266e0d59f82e7f3336cf29889b6eS3VersionKey2EC86936:
+    Type: String
+    Description: S3 key for asset version "0b479b36980b9bf7a1acbae6b79eb08448f2266e0d59f82e7f3336cf29889b6e"
+  AssetParameters0b479b36980b9bf7a1acbae6b79eb08448f2266e0d59f82e7f3336cf29889b6eArtifactHashC320806B:
+    Type: String
+    Description: Artifact hash for asset "0b479b36980b9bf7a1acbae6b79eb08448f2266e0d59f82e7f3336cf29889b6e"
+  AssetParameterscff0bec9083d2a5eaa5c876dd67096493cde52ae07d0b1f49a589a6a18035c62S3Bucket7942B176:
+    Type: String
+    Description: S3 bucket for asset "cff0bec9083d2a5eaa5c876dd67096493cde52ae07d0b1f49a589a6a18035c62"
+  AssetParameterscff0bec9083d2a5eaa5c876dd67096493cde52ae07d0b1f49a589a6a18035c62S3VersionKey34D9708E:
+    Type: String
+    Description: S3 key for asset version "cff0bec9083d2a5eaa5c876dd67096493cde52ae07d0b1f49a589a6a18035c62"
+  AssetParameterscff0bec9083d2a5eaa5c876dd67096493cde52ae07d0b1f49a589a6a18035c62ArtifactHash5E54185C:
+    Type: String
+    Description: Artifact hash for asset "cff0bec9083d2a5eaa5c876dd67096493cde52ae07d0b1f49a589a6a18035c62"
+  AssetParameters4f5fcbfb2c696d5ef3fbd3fae0321e763330bb679eef53023d656e9f0110acc7S3BucketD15EAB4F:
+    Type: String
+    Description: S3 bucket for asset "4f5fcbfb2c696d5ef3fbd3fae0321e763330bb679eef53023d656e9f0110acc7"
+  AssetParameters4f5fcbfb2c696d5ef3fbd3fae0321e763330bb679eef53023d656e9f0110acc7S3VersionKeyB7467E15:
+    Type: String
+    Description: S3 key for asset version "4f5fcbfb2c696d5ef3fbd3fae0321e763330bb679eef53023d656e9f0110acc7"
+  AssetParameters4f5fcbfb2c696d5ef3fbd3fae0321e763330bb679eef53023d656e9f0110acc7ArtifactHash8E894C97:
+    Type: String
+    Description: Artifact hash for asset "4f5fcbfb2c696d5ef3fbd3fae0321e763330bb679eef53023d656e9f0110acc7"
+  AssetParametersad301e1c47ba667d885c83fa2e306fa10763ec3bffa566ac349ec08221758598S3Bucket436D8858:
+    Type: String
+    Description: S3 bucket for asset "ad301e1c47ba667d885c83fa2e306fa10763ec3bffa566ac349ec08221758598"
+  AssetParametersad301e1c47ba667d885c83fa2e306fa10763ec3bffa566ac349ec08221758598S3VersionKeyEAC26F51:
+    Type: String
+    Description: S3 key for asset version "ad301e1c47ba667d885c83fa2e306fa10763ec3bffa566ac349ec08221758598"
+  AssetParametersad301e1c47ba667d885c83fa2e306fa10763ec3bffa566ac349ec08221758598ArtifactHashCCC4682F:
+    Type: String
+    Description: Artifact hash for asset "ad301e1c47ba667d885c83fa2e306fa10763ec3bffa566ac349ec08221758598"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

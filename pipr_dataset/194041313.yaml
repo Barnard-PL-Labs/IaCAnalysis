@@ -1,0 +1,598 @@
+Resources:
+  chriswlucascom31626EA1:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: chriswlucas.com.
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.com/Resource
+  chriswlucasorgF075171D:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: chriswlucas.org.
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.org/Resource
+  chriswlucasnet7D01FF8E:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: chriswlucas.net.
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.net/Resource
+  accesslogsbucketDBD108A3:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName: personalwebsitestack-access-logs
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays: 30
+            Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/access-logs-bucket/Resource
+  wwwchriswlucascomoriginbucket584B48DF:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: www.chriswlucas.com
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/www.chriswlucas.com-origin-bucket/Resource
+  wwwchriswlucascomoriginbucketPolicyE4B8300F:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: wwwchriswlucascomoriginbucket584B48DF
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - wwwchriswlucascomdistOrigin1S3OriginFA98963D
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - wwwchriswlucascomoriginbucket584B48DF
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/www.chriswlucas.com-origin-bucket/Policy/Resource
+  wwwchriswlucascomcert1EECAF60:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: www.chriswlucas.com
+      DomainValidationOptions:
+        - DomainName: www.chriswlucas.com
+          HostedZoneId:
+            Ref: chriswlucascom31626EA1
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/www.chriswlucas.com-cert/Resource
+  urlrewritefn8F6E7B7D:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: us-east-1PersonalWebsiteStackurlrewritefn37D6DE89
+      AutoPublish: true
+      FunctionCode: |
+        // from https://github.com/aws-samples/amazon-cloudfront-functions/blob/main/url-rewrite-single-page-apps/index.js
+        function handler(event) {
+            var request = event.request;
+            var uri = request.uri;
+            
+            // Check whether the URI is missing a file name.
+            if (uri.endsWith('/')) {
+                request.uri += 'index.html';
+            } 
+            // Check whether the URI is missing a file extension.
+            else if (!uri.includes('.')) {
+                request.uri += '/index.html';
+            }
+
+            return request;
+        }
+      FunctionConfig:
+        Comment: re-writes urls for single page web apps.
+        Runtime: cloudfront-js-1.0
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/url-rewrite-fn/Resource
+  wwwchriswlucascomdistOrigin1S3OriginFA98963D:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Identity for PersonalWebsiteStackwwwchriswlucascomdistOrigin114EB63FE
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/www.chriswlucas.com-dist/Origin1/S3Origin/Resource
+  wwwchriswlucascomdist7C882C63:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - www.chriswlucas.com
+        Comment: website hosting for www.chriswlucas.com
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 1800
+            ErrorCode: 403
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+          - ErrorCachingMinTTL: 1800
+            ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404.html
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN:
+                Fn::GetAtt:
+                  - urlrewritefn8F6E7B7D
+                  - FunctionARN
+          TargetOriginId: PersonalWebsiteStackwwwchriswlucascomdistOrigin114EB63FE
+          ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Logging:
+          Bucket:
+            Fn::GetAtt:
+              - accesslogsbucketDBD108A3
+              - RegionalDomainName
+          IncludeCookies: false
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - wwwchriswlucascomoriginbucket584B48DF
+                - RegionalDomainName
+            Id: PersonalWebsiteStackwwwchriswlucascomdistOrigin114EB63FE
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: wwwchriswlucascomdistOrigin1S3OriginFA98963D
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: wwwchriswlucascomcert1EECAF60
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/www.chriswlucas.com-dist/Resource
+  wwwchriswlucascomtocf9A01D5DC:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: www.chriswlucas.com.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - wwwchriswlucascomdist7C882C63
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId:
+        Ref: chriswlucascom31626EA1
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/www.chriswlucas.com-to-cf/Resource
+  chriswlucascomredirectbucketE2355230:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: chriswlucas.com
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: www.chriswlucas.com
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.com-redirect-bucket/Resource
+  chriswlucascomcert85BC4525:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: chriswlucas.com
+      DomainValidationOptions:
+        - DomainName: chriswlucas.com
+          HostedZoneId:
+            Ref: chriswlucascom31626EA1
+      SubjectAlternativeNames: []
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.com-cert/Resource
+  chriswlucascomdistD6F1C345:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - chriswlucas.com
+        Comment: http/https redirection for chriswlucas.com
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: PersonalWebsiteStackchriswlucascomdistOrigin196CF4BF0
+          ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Logging:
+          Bucket:
+            Fn::GetAtt:
+              - accesslogsbucketDBD108A3
+              - RegionalDomainName
+          IncludeCookies: false
+        Origins:
+          - CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            DomainName:
+              Fn::Select:
+                - 2
+                - Fn::Split:
+                    - /
+                    - Fn::GetAtt:
+                        - chriswlucascomredirectbucketE2355230
+                        - WebsiteURL
+            Id: PersonalWebsiteStackchriswlucascomdistOrigin196CF4BF0
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: chriswlucascomcert85BC4525
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.com-dist/Resource
+  chriswlucascomtocf6C734BBE:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: chriswlucas.com.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - chriswlucascomdistD6F1C345
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId:
+        Ref: chriswlucascom31626EA1
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.com-to-cf/Resource
+  chriswlucascommx26C1E750:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: chriswlucas.com.
+      Type: MX
+      HostedZoneId:
+        Ref: chriswlucascom31626EA1
+      ResourceRecords:
+        - 10 mx01.mail.icloud.com.
+        - 10 mx02.mail.icloud.com.
+      TTL: "86400"
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.com-mx/Resource
+  sig1domainkeychriswlucascomcname1A1C018F:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: sig1._domainkey.chriswlucas.com.
+      Type: CNAME
+      HostedZoneId:
+        Ref: chriswlucascom31626EA1
+      ResourceRecords:
+        - sig1.dkim.chriswlucas.com.at.icloudmailadmin.com.
+      TTL: "86400"
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/sig1._domainkey.chriswlucas.com-cname/Resource
+  chriswlucascomtxtFEB4AE6D:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: chriswlucas.com.
+      Type: TXT
+      HostedZoneId:
+        Ref: chriswlucascom31626EA1
+      ResourceRecords:
+        - '"v=spf1 include:icloud.com ~all"'
+        - '"apple-domain=DdleKqlDev7mc5xo"'
+        - '"keybase-site-verification=74xSzNnFzF37JGsYtlTgQ5ip70dKbUvAQLpHnaxiEp4"'
+        - '"google-site-verification=-y6CXohbao4xigEBlFXanLydR90TZ1mO5gFMBzVtBsY"'
+      TTL: "3600"
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.com-txt/Resource
+  chriswlucasorgredirectbucket9BB592E0:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: chriswlucas.org
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: www.chriswlucas.com
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.org-redirect-bucket/Resource
+  chriswlucasorgcert0214DCBD:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: chriswlucas.org
+      DomainValidationOptions:
+        - DomainName: chriswlucas.org
+          HostedZoneId:
+            Ref: chriswlucasorgF075171D
+        - DomainName: www.chriswlucas.org
+          HostedZoneId:
+            Ref: chriswlucasorgF075171D
+      SubjectAlternativeNames:
+        - www.chriswlucas.org
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.org-cert/Resource
+  chriswlucasorgdistFE858DEB:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - chriswlucas.org
+          - www.chriswlucas.org
+        Comment: http/https redirection for chriswlucas.org
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: PersonalWebsiteStackchriswlucasorgdistOrigin10B06EA98
+          ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Logging:
+          Bucket:
+            Fn::GetAtt:
+              - accesslogsbucketDBD108A3
+              - RegionalDomainName
+          IncludeCookies: false
+        Origins:
+          - CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            DomainName:
+              Fn::Select:
+                - 2
+                - Fn::Split:
+                    - /
+                    - Fn::GetAtt:
+                        - chriswlucasorgredirectbucket9BB592E0
+                        - WebsiteURL
+            Id: PersonalWebsiteStackchriswlucasorgdistOrigin10B06EA98
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: chriswlucasorgcert0214DCBD
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.org-dist/Resource
+  chriswlucasorgtocfAD9D1D68:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: chriswlucas.org.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - chriswlucasorgdistFE858DEB
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId:
+        Ref: chriswlucasorgF075171D
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.org-to-cf/Resource
+  wwwchriswlucasorgtocfAAF0EB74:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: www.chriswlucas.org.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - chriswlucasorgdistFE858DEB
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId:
+        Ref: chriswlucasorgF075171D
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/www.chriswlucas.org-to-cf/Resource
+  chriswlucasorgtxt643F0867:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: chriswlucas.org.
+      Type: TXT
+      HostedZoneId:
+        Ref: chriswlucasorgF075171D
+      ResourceRecords:
+        - '"google-site-verification=eum67Zs46nv_NLwhZ0PV6aPdTIoJIv2cjnrd3t6VO5o"'
+      TTL: "3600"
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.org-txt/Resource
+  chriswlucasnetredirectbucketCB8D465A:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: chriswlucas.net
+      WebsiteConfiguration:
+        RedirectAllRequestsTo:
+          HostName: www.chriswlucas.com
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.net-redirect-bucket/Resource
+  chriswlucasnetcertBBF71ABA:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: chriswlucas.net
+      DomainValidationOptions:
+        - DomainName: chriswlucas.net
+          HostedZoneId:
+            Ref: chriswlucasnet7D01FF8E
+        - DomainName: www.chriswlucas.net
+          HostedZoneId:
+            Ref: chriswlucasnet7D01FF8E
+      SubjectAlternativeNames:
+        - www.chriswlucas.net
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.net-cert/Resource
+  chriswlucasnetdist30A5C3BD:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - chriswlucas.net
+          - www.chriswlucas.net
+        Comment: http/https redirection for chriswlucas.net
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: PersonalWebsiteStackchriswlucasnetdistOrigin1B3DAE014
+          ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Logging:
+          Bucket:
+            Fn::GetAtt:
+              - accesslogsbucketDBD108A3
+              - RegionalDomainName
+          IncludeCookies: false
+        Origins:
+          - CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            DomainName:
+              Fn::Select:
+                - 2
+                - Fn::Split:
+                    - /
+                    - Fn::GetAtt:
+                        - chriswlucasnetredirectbucketCB8D465A
+                        - WebsiteURL
+            Id: PersonalWebsiteStackchriswlucasnetdistOrigin1B3DAE014
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: chriswlucasnetcertBBF71ABA
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.net-dist/Resource
+  chriswlucasnettocf603AB20A:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: chriswlucas.net.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - chriswlucasnetdist30A5C3BD
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId:
+        Ref: chriswlucasnet7D01FF8E
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.net-to-cf/Resource
+  wwwchriswlucasnettocf1591112B:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: www.chriswlucas.net.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - chriswlucasnetdist30A5C3BD
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId:
+        Ref: chriswlucasnet7D01FF8E
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/www.chriswlucas.net-to-cf/Resource
+  chriswlucasnettxt7C9335F5:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: chriswlucas.net.
+      Type: TXT
+      HostedZoneId:
+        Ref: chriswlucasnet7D01FF8E
+      ResourceRecords:
+        - '"google-site-verification=oenFzY8fj0pDqA1DebjDT38z49YkQjccTzaXAXtN1A8"'
+      TTL: "3600"
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/chriswlucas.net-txt/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/3WQwU7DMBBEv6X3xDRBSFxLUFUOFVXLiQty7E20TbKu7DUURfl37LrQXDjtzNPseOVSlEuxXMgvlyvd5T3WYjywVF0W0MdojWd4uBfjztc9qo1xDPrdEGRVQzO32oMyVkea1AE4255/KckBrvrtzElNmQu9T151IRr2riqNnQmvfd9w8lOmwDI2qCTDIEm2YMVY3VhcmNmQ743XjTXEYlx7UoyGYuhPP6Nji7W/mFeLLdJKKXDuRQMx8uWGKrasY8t/iXnNNEWylacTUpt+xBlvVTiHjAZxdHefxaMoSlEsjg4xtz70DCD2af4A2FzNn5MBAAA=
+    Metadata:
+      aws:cdk:path: PersonalWebsiteStack/CDKMetadata/Default
+Mappings:
+  AWSCloudFrontPartitionHostedZoneIdMap:
+    aws:
+      zoneId: Z2FDTNDATAQYW2
+    aws-cn:
+      zoneId: Z3RFFRIM2A3IF5
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

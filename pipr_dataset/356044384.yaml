@@ -1,0 +1,646 @@
+Resources:
+  StorageNewsletterTableC41800D3:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Storage/NewsletterTable/Resource
+  StateMachineemailConfirmationServiceRole408259FB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/StateMachine/emailConfirmation/ServiceRole/Resource
+  StateMachineemailConfirmationServiceRoleDefaultPolicy50E12080:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ses:SendEmail
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:ses:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :identity/*
+        Version: "2012-10-17"
+      PolicyName: StateMachineemailConfirmationServiceRoleDefaultPolicy50E12080
+      Roles:
+        - Ref: StateMachineemailConfirmationServiceRole408259FB
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/StateMachine/emailConfirmation/ServiceRole/DefaultPolicy/Resource
+  StateMachineemailConfirmation5D262A06:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 6c32b3cda07a1b62e93e003ea203c0265ebc4a9e2920887251f562bfdbf803dc.zip
+      Role:
+        Fn::GetAtt:
+          - StateMachineemailConfirmationServiceRole408259FB
+          - Arn
+      Environment:
+        Variables:
+          FROM_EMAIL_ADDRESS: henrikfricke@web.de
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - StateMachineemailConfirmationServiceRoleDefaultPolicy50E12080
+      - StateMachineemailConfirmationServiceRole408259FB
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/StateMachine/emailConfirmation/Resource
+      aws:asset:path: asset.6c32b3cda07a1b62e93e003ea203c0265ebc4a9e2920887251f562bfdbf803dc
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  StateMachineNewsletterRole93DB247E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::FindInMap:
+                  - ServiceprincipalMap
+                  - Ref: AWS::Region
+                  - states
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/StateMachine/Newsletter/Role/Resource
+  StateMachineNewsletterRoleDefaultPolicy6C7D08C3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:GetItem
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":dynamodb:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :table/
+                  - Ref: StorageNewsletterTableC41800D3
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - StateMachineemailConfirmation5D262A06
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - StateMachineemailConfirmation5D262A06
+                        - Arn
+                    - :*
+          - Action: dynamodb:PutItem
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":dynamodb:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :table/
+                  - Ref: StorageNewsletterTableC41800D3
+          - Action: dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":dynamodb:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :table/
+                  - Ref: StorageNewsletterTableC41800D3
+        Version: "2012-10-17"
+      PolicyName: StateMachineNewsletterRoleDefaultPolicy6C7D08C3
+      Roles:
+        - Ref: StateMachineNewsletterRole93DB247E
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/StateMachine/Newsletter/Role/DefaultPolicy/Resource
+  StateMachineNewsletter669F4611:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - StateMachineNewsletterRole93DB247E
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"GetEmail","States":{"GetEmail":{"Next":"IsValidRequest?","Type":"Task","ResultPath":"$.emailItem","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::dynamodb:getItem","Parameters":{"Key":{"email":{"S.$":"$.email"}},"TableName":"
+            - Ref: StorageNewsletterTableC41800D3
+            - '","ConsistentRead":false}},"IsValidRequest?":{"Type":"Choice","Choices":[{"Or":[{"And":[{"Variable":"$.type","StringEquals":"subscribe"},{"Variable":"$.emailItem.Item","IsPresent":false}]},{"And":[{"Variable":"$.type","StringEquals":"unsubscribe"},{"Variable":"$.emailItem.Item","IsPresent":true}]}],"Next":"SendEmailConfirmation"}],"Default":"Do nothing"},"Do nothing":{"Type":"Pass","Result":{"status":"SKIPPED"},"End":true},"SendEmailConfirmation":{"Next":"SubscribeOrUnsubscribe?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","HeartbeatSeconds":86400,"ResultPath":"$.sendEmailConfirmation","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke.waitForTaskToken","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - StateMachineemailConfirmation5D262A06
+                - Arn
+            - '","Payload":{"email.$":"$.email","confirmationEndpoint.$":"$.confirmationEndpoint","token.$":"$$.Task.Token","type.$":"$.type"}}},"SubscribeOrUnsubscribe?":{"Type":"Choice","Choices":[{"Variable":"$.type","StringEquals":"subscribe","Next":"Subscribe"},{"Variable":"$.type","StringEquals":"unsubscribe","Next":"Unsubscribe"}]},"Subscribe":{"End":true,"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::dynamodb:putItem","Parameters":{"Item":{"email":{"S.$":"$.email"},"createdAt":{"S.$":"$$.State.EnteredTime"}},"TableName":"
+            - Ref: StorageNewsletterTableC41800D3
+            - '"}},"Unsubscribe":{"End":true,"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::dynamodb:deleteItem","Parameters":{"Key":{"email":{"S.$":"$.email"}},"TableName":"
+            - Ref: StorageNewsletterTableC41800D3
+            - '"}}}}'
+    DependsOn:
+      - StateMachineNewsletterRoleDefaultPolicy6C7D08C3
+      - StateMachineNewsletterRole93DB247E
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/StateMachine/Newsletter/Resource
+  ApiNewsletterApiED899079:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: NewsletterApi
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/Resource
+  ApiNewsletterApiCloudWatchRole4030F873:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/CloudWatchRole/Resource
+  ApiNewsletterApiAccountFD80A6E8:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - ApiNewsletterApiCloudWatchRole4030F873
+          - Arn
+    DependsOn:
+      - ApiNewsletterApiED899079
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/Account
+  ApiNewsletterApiDeploymentCA99A4B29e6511dfc67ba6151146f04f46d34629:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: ApiNewsletterApiED899079
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - ApiNewsletterApiconfirmGET3772EA83
+      - ApiNewsletterApiconfirm577A2102
+      - ApiNewsletterApisubscribePOSTA4AE1D5D
+      - ApiNewsletterApisubscribe53AD229B
+      - ApiNewsletterApiunsubscribePOST40842F58
+      - ApiNewsletterApiunsubscribe53A561F3
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/Deployment/Resource
+  ApiNewsletterApiDeploymentStageprodF898551A:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: ApiNewsletterApiED899079
+      DeploymentId:
+        Ref: ApiNewsletterApiDeploymentCA99A4B29e6511dfc67ba6151146f04f46d34629
+      StageName: prod
+    DependsOn:
+      - ApiNewsletterApiAccountFD80A6E8
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/DeploymentStage.prod/Resource
+  ApiNewsletterApisubscribe53AD229B:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - ApiNewsletterApiED899079
+          - RootResourceId
+      PathPart: subscribe
+      RestApiId:
+        Ref: ApiNewsletterApiED899079
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/Default/subscribe/Resource
+  ApiNewsletterApisubscribePOSTA4AE1D5D:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: ApiNewsletterApisubscribe53AD229B
+      RestApiId:
+        Ref: ApiNewsletterApiED899079
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - ApiApiIntegrationRoleD67A9B83
+            - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: '{"ok":true}'
+            StatusCode: "200"
+        RequestTemplates:
+          application/json:
+            Fn::Join:
+              - ""
+              - - '{"stateMachineArn":"'
+                - Ref: StateMachineNewsletter669F4611
+                - "\",\"input\":\"{\\\"email\\\":\\\"$input.params('email')\\\",\\\"confirmationEndpoint\\\":\\\"https://$context.domainName/$context.stage/confirm\\\",\\\"type\\\":\\\"$context.resourcePath.substring(1)\\\"}\"}"
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :states:action/StartExecution
+      MethodResponses:
+        - StatusCode: "200"
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/Default/subscribe/POST/Resource
+  ApiNewsletterApiunsubscribe53A561F3:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - ApiNewsletterApiED899079
+          - RootResourceId
+      PathPart: unsubscribe
+      RestApiId:
+        Ref: ApiNewsletterApiED899079
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/Default/unsubscribe/Resource
+  ApiNewsletterApiunsubscribePOST40842F58:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: ApiNewsletterApiunsubscribe53A561F3
+      RestApiId:
+        Ref: ApiNewsletterApiED899079
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - ApiApiIntegrationRoleD67A9B83
+            - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: '{"ok":true}'
+            StatusCode: "200"
+        RequestTemplates:
+          application/json:
+            Fn::Join:
+              - ""
+              - - '{"stateMachineArn":"'
+                - Ref: StateMachineNewsletter669F4611
+                - "\",\"input\":\"{\\\"email\\\":\\\"$input.params('email')\\\",\\\"confirmationEndpoint\\\":\\\"https://$context.domainName/$context.stage/confirm\\\",\\\"type\\\":\\\"$context.resourcePath.substring(1)\\\"}\"}"
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :states:action/StartExecution
+      MethodResponses:
+        - StatusCode: "200"
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/Default/unsubscribe/POST/Resource
+  ApiNewsletterApiconfirm577A2102:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - ApiNewsletterApiED899079
+          - RootResourceId
+      PathPart: confirm
+      RestApiId:
+        Ref: ApiNewsletterApiED899079
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/Default/confirm/Resource
+  ApiNewsletterApiconfirmGET3772EA83:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: ApiNewsletterApiconfirm577A2102
+      RestApiId:
+        Ref: ApiNewsletterApiED899079
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - ApiApiIntegrationRoleD67A9B83
+            - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: "
+
+                \                  #set ($type = $input.params('type'))
+
+                \                  #if( $input.path('$.message') == \"Task Timed Out: 'Provided task does not exist anymore'\" )
+
+                \                    #set($context.responseOverride.header.location = \"https://example.com/expired\")
+
+                \                  #elseif( $type == 'subscribe' )
+
+                \                    #set($context.responseOverride.header.location = \"https://example.com/subscribed\")
+
+                \                  #elseif( $type == 'unsubscribe' )
+
+                \                    #set($context.responseOverride.header.location = \"https://example.com/unsubscribed\")
+
+                \                  #else
+
+                \                    #set($context.responseOverride.header.location = \"https://example.com/ohno\")
+
+                \                  #end
+
+                \                "
+            StatusCode: "301"
+        RequestTemplates:
+          application/json: "{\"taskToken\":\"$util.base64Decode($input.params('token'))\",\"output\":\"{}\"}"
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :states:action/SendTaskSuccess
+      MethodResponses:
+        - StatusCode: "301"
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/NewsletterApi/Default/confirm/GET/Resource
+  ApiApiIntegrationRoleD67A9B83:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/ApiIntegrationRole/Resource
+  ApiApiIntegrationRoleDefaultPolicyF9652ABC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - states:SendTaskSuccess
+              - states:SendTaskFailure
+              - states:SendTaskHeartbeat
+            Effect: Allow
+            Resource:
+              Ref: StateMachineNewsletter669F4611
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: StateMachineNewsletter669F4611
+        Version: "2012-10-17"
+      PolicyName: ApiApiIntegrationRoleDefaultPolicyF9652ABC
+      Roles:
+        - Ref: ApiApiIntegrationRoleD67A9B83
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/Api/ApiIntegrationRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VQy27CMBD8Fu5mC/TSKw+1Qiotor1Hxl7AJLEtvAZFUf69awcKnHZmNDue9QQmIxgN5CUMlS6HldlC+0NSlYKlotWNlbXTLP7KbYVivrMZdCIQ+l20ioyzoSAZygDtIts/kJaEtejZOj6yBVZImIVPWW+1XNqzKzmvyqywTuMxwFce79d8YWQN7cb1BfJcu8qoJtEecaHXQoaAFGCaBnOYRVUizWTAazyw/z/06QJo17wt5gdnFAr+AcKVVAdj85OPvBPSmz3zi2y4FAaaepN73eFUKRctiQX6yjU1MmT1gXHg/pbMgFddPCnMVW/kmtnjFdLB6ST1qOvuvnxvCjJ2nxzfkXykp3XGc2e1yYenEOk9uzuR/huO4eU8foPxBMaDYzBmeOLypkbY9PMPo5ZNVyUCAAA=
+    Metadata:
+      aws:cdk:path: aws-cdk-newsletter/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  ApiNewsletterApiEndpoint5C468236:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: ApiNewsletterApiED899079
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: ApiNewsletterApiDeploymentStageprodF898551A
+          - /
+  ApiEndpoint:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: ApiNewsletterApiED899079
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: ApiNewsletterApiDeploymentStageprodF898551A
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Mappings:
+  ServiceprincipalMap:
+    af-south-1:
+      states: states.af-south-1.amazonaws.com
+    ap-east-1:
+      states: states.ap-east-1.amazonaws.com
+    ap-northeast-1:
+      states: states.ap-northeast-1.amazonaws.com
+    ap-northeast-2:
+      states: states.ap-northeast-2.amazonaws.com
+    ap-northeast-3:
+      states: states.ap-northeast-3.amazonaws.com
+    ap-south-1:
+      states: states.ap-south-1.amazonaws.com
+    ap-southeast-1:
+      states: states.ap-southeast-1.amazonaws.com
+    ap-southeast-2:
+      states: states.ap-southeast-2.amazonaws.com
+    ap-southeast-3:
+      states: states.ap-southeast-3.amazonaws.com
+    ca-central-1:
+      states: states.ca-central-1.amazonaws.com
+    cn-north-1:
+      states: states.cn-north-1.amazonaws.com
+    cn-northwest-1:
+      states: states.cn-northwest-1.amazonaws.com
+    eu-central-1:
+      states: states.eu-central-1.amazonaws.com
+    eu-north-1:
+      states: states.eu-north-1.amazonaws.com
+    eu-south-1:
+      states: states.eu-south-1.amazonaws.com
+    eu-south-2:
+      states: states.eu-south-2.amazonaws.com
+    eu-west-1:
+      states: states.eu-west-1.amazonaws.com
+    eu-west-2:
+      states: states.eu-west-2.amazonaws.com
+    eu-west-3:
+      states: states.eu-west-3.amazonaws.com
+    me-south-1:
+      states: states.me-south-1.amazonaws.com
+    sa-east-1:
+      states: states.sa-east-1.amazonaws.com
+    us-east-1:
+      states: states.us-east-1.amazonaws.com
+    us-east-2:
+      states: states.us-east-2.amazonaws.com
+    us-gov-east-1:
+      states: states.us-gov-east-1.amazonaws.com
+    us-gov-west-1:
+      states: states.us-gov-west-1.amazonaws.com
+    us-iso-east-1:
+      states: states.amazonaws.com
+    us-iso-west-1:
+      states: states.amazonaws.com
+    us-isob-east-1:
+      states: states.amazonaws.com
+    us-west-1:
+      states: states.us-west-1.amazonaws.com
+    us-west-2:
+      states: states.us-west-2.amazonaws.com
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

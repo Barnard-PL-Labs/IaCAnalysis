@@ -1,0 +1,117 @@
+Resources:
+  GithubProvider1CDE27EB:
+    Type: Custom::AWSCDKOpenIdConnectProvider
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomAWSCDKOpenIdConnectProviderCustomResourceProviderHandlerF2C543E0
+          - Arn
+      ClientIDList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - a031c46782e6e6c662c2c87c76da9aa62ccabd8e
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+      Url: https://token.actions.githubusercontent.com
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: bootstrap-dev/GithubProvider/Resource/Default
+  CustomAWSCDKOpenIdConnectProviderCustomResourceProviderRole517FED65:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: Inline
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Resource: "*"
+                Action:
+                  - iam:CreateOpenIDConnectProvider
+                  - iam:DeleteOpenIDConnectProvider
+                  - iam:UpdateOpenIDConnectProviderThumbprint
+                  - iam:AddClientIDToOpenIDConnectProvider
+                  - iam:RemoveClientIDFromOpenIDConnectProvider
+    Metadata:
+      aws:cdk:path: bootstrap-dev/Custom::AWSCDKOpenIdConnectProviderCustomResourceProvider/Role
+  CustomAWSCDKOpenIdConnectProviderCustomResourceProviderHandlerF2C543E0:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: e87ed7caf70963cf8fd827aa2d9795431f6e07a2d25d1dbac646437e0e0761ab.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomAWSCDKOpenIdConnectProviderCustomResourceProviderRole517FED65
+          - Arn
+      Runtime: nodejs12.x
+    DependsOn:
+      - CustomAWSCDKOpenIdConnectProviderCustomResourceProviderRole517FED65
+    Metadata:
+      aws:cdk:path: bootstrap-dev/Custom::AWSCDKOpenIdConnectProviderCustomResourceProvider/Handler
+      aws:asset:path: asset.e87ed7caf70963cf8fd827aa2d9795431f6e07a2d25d1dbac646437e0e0761ab
+      aws:asset:property: Code
+  GithubDeployRoleB0CF66A5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub: repo:jingood2/monorepo-cdk-project:*
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+            Effect: Allow
+            Principal:
+              Federated:
+                Ref: GithubProvider1CDE27EB
+        Version: "2012-10-17"
+      Description: This role deploys stuff to AWS
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AdministratorAccess
+      MaxSessionDuration: 7200
+      RoleName: github-deploy-role
+    Metadata:
+      aws:cdk:path: bootstrap-dev/GithubDeployRole/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/zPSMzLRM1RMLC/WTU7J1s3JTNKrDi5JTM7WcS4tLsnPDUotzi8tSk7VcU7LQ7BRpAKK8ssyU1KLdByLi1NLgJrTM/PSdYAmxmcm5uqB9OXnpNbq5OWnpOplFeuXGVroGRoB7cwqzszULSrNK8nMTdULgtAACthGYI8AAAA=
+    Metadata:
+      aws:cdk:path: bootstrap-dev/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

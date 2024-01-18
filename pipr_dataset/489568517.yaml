@@ -1,0 +1,372 @@
+Resources:
+  HelloHandlerServiceRole11EF7C63:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DeeplDirStack/HelloHandler/ServiceRole/Resource
+  HelloHandler2E4FBA4D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: d9cb6b19382317fa1c7e22f61cb5135af2a3b629d9f2a96df05412fd963d1161.zip
+      Role:
+        Fn::GetAtt:
+          - HelloHandlerServiceRole11EF7C63
+          - Arn
+      Handler: hello.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - HelloHandlerServiceRole11EF7C63
+    Metadata:
+      aws:cdk:path: DeeplDirStack/HelloHandler/Resource
+      aws:asset:path: asset.d9cb6b19382317fa1c7e22f61cb5135af2a3b629d9f2a96df05412fd963d1161
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  EndpointEEF1FD8F:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: Endpoint
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/Resource
+  EndpointCloudWatchRoleC3C64E0F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/CloudWatchRole/Resource
+  EndpointAccountB8304247:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - EndpointCloudWatchRoleC3C64E0F
+          - Arn
+    DependsOn:
+      - EndpointEEF1FD8F
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/Account
+  EndpointDeployment318525DA80bac3be5b9405045c020f18547f2cdd:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: EndpointEEF1FD8F
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - EndpointproxyANYC09721C5
+      - Endpointproxy39E2174E
+      - EndpointANY485C938B
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/Deployment/Resource
+  EndpointDeploymentStageprodB78BEEA0:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: EndpointEEF1FD8F
+      DeploymentId:
+        Ref: EndpointDeployment318525DA80bac3be5b9405045c020f18547f2cdd
+      StageName: prod
+    DependsOn:
+      - EndpointAccountB8304247
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/DeploymentStage.prod/Resource
+  Endpointproxy39E2174E:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - EndpointEEF1FD8F
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: EndpointEEF1FD8F
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/Default/{proxy+}/Resource
+  EndpointproxyANYApiPermissionDeeplDirStackEndpoint23A46873ANYproxy479E69A8:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - HelloHandler2E4FBA4D
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: EndpointEEF1FD8F
+            - /
+            - Ref: EndpointDeploymentStageprodB78BEEA0
+            - /*/*
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/Default/{proxy+}/ANY/ApiPermission.DeeplDirStackEndpoint23A46873.ANY..{proxy+}
+  EndpointproxyANYApiPermissionTestDeeplDirStackEndpoint23A46873ANYproxy44F26848:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - HelloHandler2E4FBA4D
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: EndpointEEF1FD8F
+            - /test-invoke-stage/*/*
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/Default/{proxy+}/ANY/ApiPermission.Test.DeeplDirStackEndpoint23A46873.ANY..{proxy+}
+  EndpointproxyANYC09721C5:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: Endpointproxy39E2174E
+      RestApiId:
+        Ref: EndpointEEF1FD8F
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - HelloHandler2E4FBA4D
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/Default/{proxy+}/ANY/Resource
+  EndpointANYApiPermissionDeeplDirStackEndpoint23A46873ANY86378800:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - HelloHandler2E4FBA4D
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: EndpointEEF1FD8F
+            - /
+            - Ref: EndpointDeploymentStageprodB78BEEA0
+            - /*/
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/Default/ANY/ApiPermission.DeeplDirStackEndpoint23A46873.ANY..
+  EndpointANYApiPermissionTestDeeplDirStackEndpoint23A46873ANY46F7F5CC:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - HelloHandler2E4FBA4D
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: EndpointEEF1FD8F
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/Default/ANY/ApiPermission.Test.DeeplDirStackEndpoint23A46873.ANY..
+  EndpointANY485C938B:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - EndpointEEF1FD8F
+          - RootResourceId
+      RestApiId:
+        Ref: EndpointEEF1FD8F
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - HelloHandler2E4FBA4D
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: DeeplDirStack/Endpoint/Default/ANY/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WPwU7DMAyGn2X31NDusms3xAnE1D3AlKWmeG2TqnYYVdV3J0lBjJO//7fs3y6g2MLjRt84M3WbdXSB+STatCpY57nT/aXWMD97a4ScVYd3e89HHHtiDmpRpHuYK9dhbMS6KN6eNTMKQxlL0LD3pkXZa0alB2q04E1PML+koApZyoHSgj8sjXHeinrCoXNTjwGDe6fCwU1KXSGMOj8aTCHH0X1Nv87P4pVfUT5cHa2VlkWlK+MSsk1svHkZvPybCnxwtiZJP1tXI1z54TPfQV5AvrkyUTaGa6lHqNb6DYnStvNkAQAA
+    Metadata:
+      aws:cdk:path: DeeplDirStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  Endpoint8024A810:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: EndpointEEF1FD8F
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: EndpointDeploymentStageprodB78BEEA0
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

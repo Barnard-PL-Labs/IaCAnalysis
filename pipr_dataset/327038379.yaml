@@ -1,0 +1,278 @@
+Resources:
+  apigwproxys3bucket6F97C343:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      BucketName: apigw-proxy-s3-bucket
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkApigatewayProxyS3Stack/apigw-proxy-s3-bucket/Resource
+  apigwproxys3roleBB04391E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      Description: CDK for API Gateway Proxy for S3
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: s3:PutObject
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - Fn::GetAtt:
+                          - apigwproxys3bucket6F97C343
+                          - Arn
+                      - /*
+            Version: "2012-10-17"
+          PolicyName: policy
+      RoleName: apigw-proxy-s3-role
+    Metadata:
+      aws:cdk:path: CdkApigatewayProxyS3Stack/apigw-proxy-s3-role/Resource
+  apigwproxys3apigateway1039763E:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: CDK for API Gateway Proxy for S3
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: apigw-proxy-s3-apigw
+    Metadata:
+      aws:cdk:path: CdkApigatewayProxyS3Stack/apigw-proxy-s3-apigateway/Resource
+  apigwproxys3apigatewayCloudWatchRole0F47558E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: CdkApigatewayProxyS3Stack/apigw-proxy-s3-apigateway/CloudWatchRole/Resource
+  apigwproxys3apigatewayAccountF29E25B0:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - apigwproxys3apigatewayCloudWatchRole0F47558E
+          - Arn
+    DependsOn:
+      - apigwproxys3apigateway1039763E
+    Metadata:
+      aws:cdk:path: CdkApigatewayProxyS3Stack/apigw-proxy-s3-apigateway/Account
+  apigwproxys3apigatewayDeployment1E2E46F43c8f2242992e11ba4923ff6d185eba41:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: apigwproxys3apigateway1039763E
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - apigwproxys3apigatewaybucketnameobjectkeyPUT61535285
+      - apigwproxys3apigatewaybucketnameobjectkey9BC3DF4C
+      - apigwproxys3apigatewaybucketnameC28BDFC0
+    Metadata:
+      aws:cdk:path: CdkApigatewayProxyS3Stack/apigw-proxy-s3-apigateway/Deployment/Resource
+  apigwproxys3apigatewayDeploymentStageprodEAD4A925:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: apigwproxys3apigateway1039763E
+      DeploymentId:
+        Ref: apigwproxys3apigatewayDeployment1E2E46F43c8f2242992e11ba4923ff6d185eba41
+      StageName: prod
+    Metadata:
+      aws:cdk:path: CdkApigatewayProxyS3Stack/apigw-proxy-s3-apigateway/DeploymentStage.prod/Resource
+  apigwproxys3apigatewaybucketnameC28BDFC0:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - apigwproxys3apigateway1039763E
+          - RootResourceId
+      PathPart: "{bucket_name}"
+      RestApiId:
+        Ref: apigwproxys3apigateway1039763E
+    Metadata:
+      aws:cdk:path: CdkApigatewayProxyS3Stack/apigw-proxy-s3-apigateway/Default/{bucket_name}/Resource
+  apigwproxys3apigatewaybucketnameobjectkey9BC3DF4C:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: apigwproxys3apigatewaybucketnameC28BDFC0
+      PathPart: "{object_key}"
+      RestApiId:
+        Ref: apigwproxys3apigateway1039763E
+    Metadata:
+      aws:cdk:path: CdkApigatewayProxyS3Stack/apigw-proxy-s3-apigateway/Default/{bucket_name}/{object_key}/Resource
+  apigwproxys3apigatewaybucketnameobjectkeyPUT61535285:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: PUT
+      ResourceId:
+        Ref: apigwproxys3apigatewaybucketnameobjectkey9BC3DF4C
+      RestApiId:
+        Ref: apigwproxys3apigateway1039763E
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - apigwproxys3roleBB04391E
+            - Arn
+        IntegrationHttpMethod: PUT
+        IntegrationResponses:
+          - StatusCode: "200"
+        RequestParameters:
+          integration.request.path.bucket_name: method.request.path.bucket_name
+          integration.request.path.object_key: method.request.path.object_key
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :s3:path/{bucket_name}/{object_key}
+      MethodResponses:
+        - ResponseModels:
+            application/json: Empty
+          StatusCode: "200"
+      RequestParameters:
+        method.request.path.bucket_name: true
+        method.request.path.object_key: true
+    Metadata:
+      aws:cdk:path: CdkApigatewayProxyS3Stack/apigw-proxy-s3-apigateway/Default/{bucket_name}/{object_key}/PUT/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.63.0,@aws-cdk/aws-apigateway=1.63.0,@aws-cdk/aws-applicationautoscaling=1.63.0,@aws-cdk/aws-autoscaling-common=1.63.0,@aws-cdk/aws-cloudwatch=1.63.0,@aws-cdk/aws-codeguruprofiler=1.63.0,@aws-cdk/aws-ec2=1.63.0,@aws-cdk/aws-events=1.63.0,@aws-cdk/aws-iam=1.63.0,@aws-cdk/aws-kms=1.63.0,@aws-cdk/aws-lambda=1.63.0,@aws-cdk/aws-logs=1.63.0,@aws-cdk/aws-s3=1.63.0,@aws-cdk/aws-s3-assets=1.63.0,@aws-cdk/aws-sqs=1.63.0,@aws-cdk/aws-ssm=1.63.0,@aws-cdk/cloud-assembly-schema=1.63.0,@aws-cdk/core=1.63.0,@aws-cdk/cx-api=1.63.0,@aws-cdk/region-info=1.63.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Outputs:
+  apigwproxys3apigatewayEndpoint1070FD3F:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: apigwproxys3apigateway1039763E
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: apigwproxys3apigatewayDeploymentStageprodEAD4A925
+          - /
+  S3Bucket:
+    Value:
+      Ref: apigwproxys3bucket6F97C343
+  PutURL:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: apigwproxys3apigateway1039763E
+          - .execute-api.
+          - Ref: AWS::Region
+          - .amazonaws.com/prod/
+          - Ref: apigwproxys3bucket6F97C343
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

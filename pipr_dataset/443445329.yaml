@@ -1,0 +1,199 @@
+Resources:
+  CICDBucketC147AE2C:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: rdok-cicd-aws-sam-ts-graphql
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: rdok-cicd-aws-sam-ts-graphql/CICDBucket/Resource
+  CICDUser60E098AD:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: rdok-cicd-aws-sam-ts-graphql
+    Metadata:
+      aws:cdk:path: rdok-cicd-aws-sam-ts-graphql/CICDUser/Resource
+  CICDRole54F46174:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CICDUser60E098AD
+                  - Arn
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: rdok-cicd-aws-sam-ts-graphql/CICDRole/Resource
+  SAMPolicy4EE154F7:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - cloudformation:CreateChangeSet
+              - cloudformation:GetTemplateSummary
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DeleteStack
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ExecuteChangeSet
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:cloudformation:eu-west-1:"
+                    - Ref: AWS::AccountId
+                    - :stack/rdok-*-aws-sam-ts-g*/*
+              - arn:aws:cloudformation:eu-west-1:aws:transform/Serverless-2016-10-31
+          - Action:
+              - s3:PutObject
+              - s3:GetObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: CICDBucketC147AE2C
+                  - /*
+          - Action:
+              - iam:AttachRolePolicy
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:DeleteRolePolicy
+              - iam:UpdateAssumeRolePolicy
+              - iam:GetRole
+              - iam:UntagRole
+              - iam:ListRoleTags
+              - iam:TagRole
+              - iam:PassRole
+              - iam:DetachRolePolicy
+              - iam:PutRolePolicy
+              - iam:getRolePolicy
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:iam::"
+                  - Ref: AWS::AccountId
+                  - :role/rdok-*-aws-sam-ts-g*
+          - Action: iam:ListPolicies
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      Description: "The minimum required policies for the AWS SAM: rdok-cicd-aws-sam-ts-graphql"
+      Path: /
+      Roles:
+        - Ref: CICDRole54F46174
+    Metadata:
+      aws:cdk:path: rdok-cicd-aws-sam-ts-graphql/SAMPolicy/Resource
+  LambdaPolicy7FF67BE6:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - lambda:ListTags
+              - lambda:TagResource
+              - lambda:UntagResource
+              - lambda:UpdateFunctionCode
+              - lambda:GetFunction
+              - lambda:CreateFunction
+              - lambda:DeleteFunction
+              - lambda:GetFunctionConfiguration
+              - lambda:UpdateFunctionConfiguration
+              - lambda:PutFunctionEventInvokeConfig
+              - lambda:UpdateFunctionEventInvokeConfig
+              - lambda:DeleteFunctionEventInvokeConfig
+              - lambda:AddPermission
+              - lambda:RemovePermission
+              - lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:lambda:eu-west-1:"
+                  - Ref: AWS::AccountId
+                  - :function:rdok-*-aws-sam-ts-g*
+        Version: "2012-10-17"
+      Description: "Policy to manage lambda functions: rdok-cicd-aws-sam-ts-graphql"
+      Path: /
+      Roles:
+        - Ref: CICDRole54F46174
+    Metadata:
+      aws:cdk:path: rdok-cicd-aws-sam-ts-graphql/LambdaPolicy/Resource
+  DescribeCloudFormationPolicyE045E5A0:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cloudformation:DescribeStacks
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:cloudformation:eu-west-1:"
+                  - Ref: AWS::AccountId
+                  - :stack/rdok-cicd-aws-sam-ts-graphql/*
+        Version: "2012-10-17"
+      Description: "Policy to manage Cloudformation describe: rdok-cicd-aws-sam-ts-graphql"
+      Path: /
+      Users:
+        - Ref: CICDUser60E098AD
+    Metadata:
+      aws:cdk:path: rdok-cicd-aws-sam-ts-graphql/DescribeCloudFormationPolicy/Resource
+  ApiGatewayPolicyA65EA393:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: apigateway:*
+            Effect: Allow
+            Resource: arn:aws:apigateway:eu-west-1::/tags/*
+          - Action: apigateway:POST
+            Effect: Allow
+            Resource: arn:aws:apigateway:eu-west-1::/restapis
+          - Action: apigateway:*
+            Condition:
+              StringLike:
+                aws:ResourceTag/aws:cloudformation:stack-name: rdok-*-aws-sam-ts-g*
+            Effect: Allow
+            Resource: arn:aws:apigateway:eu-west-1::/restapis/*
+        Version: "2012-10-17"
+      Description: "Policy to manage API Gateway: rdok-cicd-aws-sam-ts-graphql"
+      Path: /
+      Roles:
+        - Ref: CICDRole54F46174
+    Metadata:
+      aws:cdk:path: rdok-cicd-aws-sam-ts-graphql/ApiGatewayPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WLywrCMBBFv6X7dGrURZdi11KJ+AFhOkr6SCSTKBLy75J25epczuVIkMcWdtVJf7jGYWoSOk+QbkHjJLqH7WN4xSA6Zzn4iKE4ReyiR8qiVIkPkM4RJ1rPbWVh9ALpzuSLXKncTGteeNFWP2m4utngt9g/kXMW1g0EIzdv2YLcg6xGNqb20QazEKiNP2tDrHvAAAAA
+    Metadata:
+      aws:cdk:path: rdok-cicd-aws-sam-ts-graphql/CDKMetadata/Default
+Outputs:
+  CICDBucketName:
+    Value:
+      Ref: CICDBucketC147AE2C
+  CICDIAMUserLink:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://console.aws.amazon.com/iam/home?#/users/
+          - Ref: CICDUser60E098AD
+          - ?section=security_credentials
+  CICDRoleARN:
+    Value:
+      Fn::GetAtt:
+        - CICDRole54F46174
+        - Arn
+

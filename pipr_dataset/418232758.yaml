@@ -1,0 +1,1419 @@
+Resources:
+  userpool2D38B7E37:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 6
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameAttributes:
+        - email
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/userpool2/Resource
+  userpoolclientDA356A8E:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: userpool2D38B7E37
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_CUSTOM_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/userpool-client/Resource
+  booksAuthorizer2AC100DF:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      RestApiId:
+        Ref: myapi4C7BF186
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      Name: CdkApiStandardStackbooksAuthorizer27EF17ED
+      ProviderARNs:
+        - Fn::GetAtt:
+            - userpool2D38B7E37
+            - Arn
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/booksAuthorizer/Resource
+  myapi4C7BF186:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: This service serves servings.
+      Name: My Service
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Resource
+  myapiCloudWatchRole095452E5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/CloudWatchRole/Resource
+  myapiAccountEC421A0A:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - myapiCloudWatchRole095452E5
+          - Arn
+    DependsOn:
+      - myapi4C7BF186
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Account
+  myapiDeployment92F2CB49457cd2b1d8746f6082f6c15c4164e8c6:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: myapi4C7BF186
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - myapiOPTIONSBD367452
+      - myapitodosidGETFF4369A8
+      - myapitodosidOPTIONS937B2263
+      - myapitodosid70D3A011
+      - myapitodosGET284ED175
+      - myapitodosOPTIONS255D3329
+      - myapitodosPOST8C227F7D
+      - myapitodos4C111DB1
+      - myapiTodoRequest52A4EAC6
+      - myapiTodoResponseDCA92DE8
+      - myapivalidaterequest1EF16F89
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Deployment/Resource
+  myapiDeploymentStageprod298F01AF:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: myapi4C7BF186
+      DeploymentId:
+        Ref: myapiDeployment92F2CB49457cd2b1d8746f6082f6c15c4164e8c6
+      StageName: prod
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/DeploymentStage.prod/Resource
+  myapiOPTIONSBD367452:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - myapi4C7BF186
+          - RootResourceId
+      RestApiId:
+        Ref: myapi4C7BF186
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/OPTIONS/Resource
+  myapitodos4C111DB1:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - myapi4C7BF186
+          - RootResourceId
+      PathPart: todos
+      RestApiId:
+        Ref: myapi4C7BF186
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/Resource
+  myapitodosOPTIONS255D3329:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: myapitodos4C111DB1
+      RestApiId:
+        Ref: myapi4C7BF186
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/OPTIONS/Resource
+  myapitodosGETApiPermissionCdkApiStandardStackmyapi722BE3A4GETtodosAC5A9777:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - getTodosfuncBC848A18
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: myapi4C7BF186
+            - /
+            - Ref: myapiDeploymentStageprod298F01AF
+            - /GET/todos
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/GET/ApiPermission.CdkApiStandardStackmyapi722BE3A4.GET..todos
+  myapitodosGETApiPermissionTestCdkApiStandardStackmyapi722BE3A4GETtodos943EA665:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - getTodosfuncBC848A18
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: myapi4C7BF186
+            - /test-invoke-stage/GET/todos
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/GET/ApiPermission.Test.CdkApiStandardStackmyapi722BE3A4.GET..todos
+  myapitodosGET284ED175:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: myapitodos4C111DB1
+      RestApiId:
+        Ref: myapi4C7BF186
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: booksAuthorizer2AC100DF
+      Integration:
+        IntegrationHttpMethod: POST
+        RequestTemplates:
+          application/json: '{ "statusCode": "200" }'
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - getTodosfuncBC848A18
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: myapiTodoResponseDCA92DE8
+          StatusCode: "200"
+      RequestParameters:
+        method.request.querystring.cache: true
+      RequestValidatorId:
+        Ref: myapivalidaterequest1EF16F89
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/GET/Resource
+  myapitodosid70D3A011:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: myapitodos4C111DB1
+      PathPart: "{id}"
+      RestApiId:
+        Ref: myapi4C7BF186
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/{id}/Resource
+  myapitodosidOPTIONS937B2263:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: myapitodosid70D3A011
+      RestApiId:
+        Ref: myapi4C7BF186
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/{id}/OPTIONS/Resource
+  myapitodosidGETApiPermissionCdkApiStandardStackmyapi722BE3A4GETtodosid744FCEA8:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - getTodofunc2BF1E423
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: myapi4C7BF186
+            - /
+            - Ref: myapiDeploymentStageprod298F01AF
+            - /GET/todos/*
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/{id}/GET/ApiPermission.CdkApiStandardStackmyapi722BE3A4.GET..todos.{id}
+  myapitodosidGETApiPermissionTestCdkApiStandardStackmyapi722BE3A4GETtodosid0BC74A6B:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - getTodofunc2BF1E423
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: myapi4C7BF186
+            - /test-invoke-stage/GET/todos/*
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/{id}/GET/ApiPermission.Test.CdkApiStandardStackmyapi722BE3A4.GET..todos.{id}
+  myapitodosidGETFF4369A8:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: myapitodosid70D3A011
+      RestApiId:
+        Ref: myapi4C7BF186
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: booksAuthorizer2AC100DF
+      Integration:
+        IntegrationHttpMethod: POST
+        RequestTemplates:
+          application/json: '{ "statusCode": "200" }'
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - getTodofunc2BF1E423
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: myapiTodoResponseDCA92DE8
+          StatusCode: "200"
+      RequestParameters: {}
+      RequestValidatorId:
+        Ref: myapivalidaterequest1EF16F89
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/{id}/GET/Resource
+  myapitodosPOSTApiPermissionCdkApiStandardStackmyapi722BE3A4POSTtodos00261296:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - addTodofunc1BCF6634
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: myapi4C7BF186
+            - /
+            - Ref: myapiDeploymentStageprod298F01AF
+            - /POST/todos
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/POST/ApiPermission.CdkApiStandardStackmyapi722BE3A4.POST..todos
+  myapitodosPOSTApiPermissionTestCdkApiStandardStackmyapi722BE3A4POSTtodosD56E4736:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - addTodofunc1BCF6634
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: myapi4C7BF186
+            - /test-invoke-stage/POST/todos
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/POST/ApiPermission.Test.CdkApiStandardStackmyapi722BE3A4.POST..todos
+  myapitodosPOST8C227F7D:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: myapitodos4C111DB1
+      RestApiId:
+        Ref: myapi4C7BF186
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: booksAuthorizer2AC100DF
+      Integration:
+        IntegrationHttpMethod: POST
+        RequestTemplates:
+          application/json: '{ "statusCode": "200" }'
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - addTodofunc1BCF6634
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: myapiTodoResponseDCA92DE8
+          StatusCode: "200"
+      RequestModels:
+        application/json:
+          Ref: myapiTodoRequest52A4EAC6
+      RequestParameters: {}
+      RequestValidatorId:
+        Ref: myapivalidaterequest1EF16F89
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/Default/todos/POST/Resource
+  myapiTodoResponseDCA92DE8:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: myapi4C7BF186
+      ContentType: application/json
+      Name: TodoResponse
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: TodoResponse
+        type: object
+        properties:
+          id:
+            type: string
+          body:
+            type: string
+          created:
+            type: string
+            format: date-time
+        required:
+          - body
+          - created
+          - id
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/TodoResponse/Resource
+  myapiTodoRequest52A4EAC6:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: myapi4C7BF186
+      ContentType: application/json
+      Name: TodoRequest
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: TodoRequest
+        type: object
+        properties:
+          body:
+            type: string
+        required:
+          - body
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/TodoRequest/Resource
+  myapivalidaterequest1EF16F89:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: myapi4C7BF186
+      Name: request-validator
+      ValidateRequestBody: true
+      ValidateRequestParameters: true
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/my-api/validate-request/Resource
+  getTodosfuncServiceRole8E4A2172:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/getTodos-func/ServiceRole/Resource
+  getTodosfuncBC848A18:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3Bucket30E9F6D2
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3VersionKey74DB1392
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3VersionKey74DB1392
+      Role:
+        Fn::GetAtt:
+          - getTodosfuncServiceRole8E4A2172
+          - Arn
+      Environment:
+        Variables:
+          CONTROLLER_CLASS: TodosController
+          CONTROLLER_METHOD: getTodos
+          RESPONSE_MODEL: TodoResponse
+          PARAMETERS: '[{"argumentIndex":0,"parameterType":"QUERY_STRING","valueType":"string","parameterName":"cache"}]'
+          DB_HOST: <your-host>
+          DB_USER: <your-username>
+          DB_PASSWORD: <your-password>
+          DB_DATABASE: <your-database>
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.main
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Timeout: 90
+    DependsOn:
+      - getTodosfuncServiceRole8E4A2172
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/getTodos-func/Resource
+      aws:asset:path: asset.adff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5
+      aws:asset:property: Code
+  getTodofuncServiceRoleB66D9DFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/getTodo-func/ServiceRole/Resource
+  getTodofunc2BF1E423:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3Bucket30E9F6D2
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3VersionKey74DB1392
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3VersionKey74DB1392
+      Role:
+        Fn::GetAtt:
+          - getTodofuncServiceRoleB66D9DFB
+          - Arn
+      Environment:
+        Variables:
+          CONTROLLER_CLASS: TodosController
+          CONTROLLER_METHOD: getTodo
+          RESPONSE_MODEL: TodoResponse
+          PARAMETERS: '[{"argumentIndex":0,"parameterType":"PATH","valueType":"string","parameterName":"id"}]'
+          DB_HOST: <your-host>
+          DB_USER: <your-username>
+          DB_PASSWORD: <your-password>
+          DB_DATABASE: <your-database>
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.main
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Timeout: 90
+    DependsOn:
+      - getTodofuncServiceRoleB66D9DFB
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/getTodo-func/Resource
+      aws:asset:path: asset.adff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5
+      aws:asset:property: Code
+  addTodofuncServiceRole94EDD355:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/addTodo-func/ServiceRole/Resource
+  addTodofunc1BCF6634:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3Bucket30E9F6D2
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3VersionKey74DB1392
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3VersionKey74DB1392
+      Role:
+        Fn::GetAtt:
+          - addTodofuncServiceRole94EDD355
+          - Arn
+      Environment:
+        Variables:
+          CONTROLLER_CLASS: TodosController
+          CONTROLLER_METHOD: addTodo
+          RESPONSE_MODEL: TodoResponse
+          PARAMETERS: '[{"argumentIndex":1,"parameterType":"PAYLOAD","valueType":"string"},{"argumentIndex":0,"parameterType":"USER","valueType":"string"}]'
+          DB_HOST: <your-host>
+          DB_USER: <your-username>
+          DB_PASSWORD: <your-password>
+          DB_DATABASE: <your-database>
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.main
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Timeout: 90
+    DependsOn:
+      - addTodofuncServiceRole94EDD355
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/addTodo-func/Resource
+      aws:asset:path: asset.adff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5
+      aws:asset:property: Code
+  apiswaggerui845411C2:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui/Resource
+  apiswaggeruiPolicyE30CFC9B:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: apiswaggerui845411C2
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - apiswaggerui845411C2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - apiswaggerui845411C2
+                        - Arn
+                    - /*
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - apiswaggeruidistOrigin1S3OriginAB5701CF
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - apiswaggerui845411C2
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui/Policy/Resource
+  apiswaggeruiAutoDeleteObjectsCustomResource3EF9922B:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: apiswaggerui845411C2
+    DependsOn:
+      - apiswaggeruiPolicyE30CFC9B
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: apiswaggerui845411C2
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+  apiswaggeruideploymentAwsCliLayer3BECA5C6:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-deployment/AwsCliLayer/Resource
+      aws:asset:path: asset.e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68.zip
+      aws:asset:property: Content
+  apiswaggeruideploymentCustomResourceE090709C:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameters68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1S3Bucket70B4186F
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1S3VersionKey1E3208C1
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1S3VersionKey1E3208C1
+      DestinationBucketName:
+        Ref: apiswaggerui845411C2
+      Prune: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-deployment/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1S3Bucket70B4186F
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1S3Bucket70B4186F
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - apiswaggerui845411C2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - apiswaggerui845411C2
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3BucketD1AD544E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: apiswaggeruideploymentAwsCliLayer3BECA5C6
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8
+      aws:asset:property: Code
+  apiswaggeruidistOrigin1S3OriginAB5701CF:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Identity for CdkApiStandardStackapiswaggeruidistOrigin1D1C9C1AA
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-dist/Origin1/S3Origin/Resource
+  apiswaggeruidist4F5BB00D:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: CdkApiStandardStackapiswaggeruidistOrigin1D1C9C1AA
+          ViewerProtocolPolicy: allow-all
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - apiswaggerui845411C2
+                - RegionalDomainName
+            Id: CdkApiStandardStackapiswaggeruidistOrigin1D1C9C1AA
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: apiswaggeruidistOrigin1S3OriginAB5701CF
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-dist/Resource
+  apiswaggeruiposttriggerServiceRole95672F97:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-post-trigger/ServiceRole/Resource
+  apiswaggeruiposttriggerF095031E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4f2b2f6cb76b29a04b2c2ef02a1cf94705926e613e5ca8c7cefb8278690a2fb9S3Bucket7E77EAD6
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4f2b2f6cb76b29a04b2c2ef02a1cf94705926e613e5ca8c7cefb8278690a2fb9S3VersionKey3038BB98
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4f2b2f6cb76b29a04b2c2ef02a1cf94705926e613e5ca8c7cefb8278690a2fb9S3VersionKey3038BB98
+      Role:
+        Fn::GetAtt:
+          - apiswaggeruiposttriggerServiceRole95672F97
+          - Arn
+      Environment:
+        Variables:
+          API_ID:
+            Ref: myapi4C7BF186
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+          BUCKET:
+            Ref: apiswaggerui845411C2
+          DISTRIBUTION_ID:
+            Ref: apiswaggeruidist4F5BB00D
+      FunctionName: swagger-ui-post-trigger-1705596464070
+      Handler: index.main
+      MemorySize: 128
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - apiswaggeruiposttriggerServiceRole95672F97
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-post-trigger/Resource
+      aws:asset:path: asset.4f2b2f6cb76b29a04b2c2ef02a1cf94705926e613e5ca8c7cefb8278690a2fb9
+      aws:asset:property: Code
+  apiswaggeruiposttriggerCurrentVersionC692F8BCe76c110934994ea4c9489a95dc419f36:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName:
+        Ref: apiswaggeruiposttriggerF095031E
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-post-trigger/CurrentVersion/Resource
+  apiswaggeruitriggerlambdapolicy06866771:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: apigateway:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: apiswaggeruitriggerlambdapolicy06866771
+      Roles:
+        - Ref: apiswaggeruiposttriggerServiceRole95672F97
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-trigger-lambda-policy/Resource
+  apiswaggeruitriggerlambdapolicycfE9F4D05A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cloudfront:CreateInvalidation
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: apiswaggeruitriggerlambdapolicycfE9F4D05A
+      Roles:
+        - Ref: apiswaggeruiposttriggerServiceRole95672F97
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-trigger-lambda-policy-cf/Resource
+  apiswaggeruitriggerlambdapolicys35EB86AC3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - apiswaggerui845411C2
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: apiswaggeruitriggerlambdapolicys35EB86AC3
+      Roles:
+        - Ref: apiswaggeruiposttriggerServiceRole95672F97
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-trigger-lambda-policy-s3/Resource
+  apiswaggeruiposttriggertriggers476ECE12:
+    Type: Custom::Trigger
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWSCDKTriggerCustomResourceProviderCustomResourceProviderHandler97BECD91
+          - Arn
+      HandlerArn:
+        Ref: apiswaggeruiposttriggerCurrentVersionC692F8BCe76c110934994ea4c9489a95dc419f36
+    DependsOn:
+      - myapiAccountEC421A0A
+      - myapiCloudWatchRole095452E5
+      - myapiOPTIONSBD367452
+      - myapitodosidGETApiPermissionCdkApiStandardStackmyapi722BE3A4GETtodosid744FCEA8
+      - myapitodosidGETApiPermissionTestCdkApiStandardStackmyapi722BE3A4GETtodosid0BC74A6B
+      - myapitodosidGETFF4369A8
+      - myapitodosidOPTIONS937B2263
+      - myapitodosid70D3A011
+      - myapitodosGETApiPermissionCdkApiStandardStackmyapi722BE3A4GETtodosAC5A9777
+      - myapitodosGETApiPermissionTestCdkApiStandardStackmyapi722BE3A4GETtodos943EA665
+      - myapitodosGET284ED175
+      - myapitodosOPTIONS255D3329
+      - myapitodosPOSTApiPermissionCdkApiStandardStackmyapi722BE3A4POSTtodos00261296
+      - myapitodosPOSTApiPermissionTestCdkApiStandardStackmyapi722BE3A4POSTtodosD56E4736
+      - myapitodosPOST8C227F7D
+      - myapitodos4C111DB1
+      - myapiDeployment92F2CB49457cd2b1d8746f6082f6c15c4164e8c6
+      - myapiDeploymentStageprod298F01AF
+      - myapi4C7BF186
+      - myapiTodoRequest52A4EAC6
+      - myapiTodoResponseDCA92DE8
+      - myapivalidaterequest1EF16F89
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/api-swagger-ui-post-trigger-triggers/Resource/Default
+  AWSCDKTriggerCustomResourceProviderCustomResourceProviderRoleE18FAF0A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: Inline
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource:
+                  - "*"
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/AWSCDK.TriggerCustomResourceProviderCustomResourceProvider/Role
+  AWSCDKTriggerCustomResourceProviderCustomResourceProviderHandler97BECD91:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa442e7f999fb578af28cce5aee09eec7238adf13be26c8d94656e5417c2f6e34S3BucketD10E50CE
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa442e7f999fb578af28cce5aee09eec7238adf13be26c8d94656e5417c2f6e34S3VersionKeyFF4DB90C
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa442e7f999fb578af28cce5aee09eec7238adf13be26c8d94656e5417c2f6e34S3VersionKeyFF4DB90C
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - AWSCDKTriggerCustomResourceProviderCustomResourceProviderRoleE18FAF0A
+          - Arn
+      Runtime: nodejs14.x
+    DependsOn:
+      - AWSCDKTriggerCustomResourceProviderCustomResourceProviderRoleE18FAF0A
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/AWSCDK.TriggerCustomResourceProviderCustomResourceProvider/Handler
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/3VTTW/bMAz9Lb3LarNdepzrosCAdQ1StHdVYjImspnpo0Fq+L+XkmzHBbaTnsjHrydqJVffbuXN1Q918pU2h+tekwPZPwelD6LZdk8xHGMQtfcQ2LjDbica6nxwUYdEWCunWgjgRBN9oHYDnqLTkHwX/MW1dvSOJkVsO85lMCB1g0gtcPldh4Fk/+LBrYlsIs14Ao1F6MLSVSyc5Ig7FeCkzrJvSq6J4usY/pDDj1J5cePGQn3EseUJ1lpT5Cr3cLR0bseCi1vSI89ZwDTenfIgHoGzm+Qc0T91eSQDecICNvA3cv1XZdGoQK5wv9oGgaqV/YZsSZXONVnU5/waGQ3CqvbNKJaATeBa9J4lToSH2Okw4l/qDO4VXPY988taCHRhzGCicMgIpwJVx33vvfydjznAf696lTbGy7w4wsyiybuoDxAuKg7Mln2xZuUKTMVGVI7LjMv7ILSlaLaOOHV/j7yX+BZzE08OeVv5EcH7n4YrYcjhTQp4SAH/YyzTDPOoNqlV8ZJqi7I+ed64LOAgkghy76/fV7f8neTqau8RK8e7gy3ITTk/AZHRSbBqAwAA
+    Metadata:
+      aws:cdk:path: CdkApiStandardStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  myapiEndpoint3628AFE3:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: myapi4C7BF186
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: myapiDeploymentStageprod298F01AF
+          - /
+Parameters:
+  AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3Bucket30E9F6D2:
+    Type: String
+    Description: S3 bucket for asset "adff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5"
+  AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5S3VersionKey74DB1392:
+    Type: String
+    Description: S3 key for asset version "adff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5"
+  AssetParametersadff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5ArtifactHash09375E02:
+    Type: String
+    Description: Artifact hash for asset "adff9ac800bcaa4b2e809b6834db4a3e822bc47c0d495eb08423dec97db85be5"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D:
+    Type: String
+    Description: S3 bucket for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A:
+    Type: String
+    Description: S3 key for asset version "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1ArtifactHash0128B949:
+    Type: String
+    Description: Artifact hash for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7:
+    Type: String
+    Description: S3 bucket for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F:
+    Type: String
+    Description: S3 key for asset version "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68ArtifactHashD9A515C3:
+    Type: String
+    Description: Artifact hash for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3BucketD1AD544E:
+    Type: String
+    Description: S3 bucket for asset "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70:
+    Type: String
+    Description: S3 key for asset version "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8ArtifactHash238275D6:
+    Type: String
+    Description: Artifact hash for asset "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParameters68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1S3Bucket70B4186F:
+    Type: String
+    Description: S3 bucket for asset "68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1"
+  AssetParameters68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1S3VersionKey1E3208C1:
+    Type: String
+    Description: S3 key for asset version "68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1"
+  AssetParameters68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1ArtifactHash7C8CC84D:
+    Type: String
+    Description: Artifact hash for asset "68694eceb5b74f7f1d83d76964b24116258656ffa7691462b7fe236c8d2782c1"
+  AssetParameters4f2b2f6cb76b29a04b2c2ef02a1cf94705926e613e5ca8c7cefb8278690a2fb9S3Bucket7E77EAD6:
+    Type: String
+    Description: S3 bucket for asset "4f2b2f6cb76b29a04b2c2ef02a1cf94705926e613e5ca8c7cefb8278690a2fb9"
+  AssetParameters4f2b2f6cb76b29a04b2c2ef02a1cf94705926e613e5ca8c7cefb8278690a2fb9S3VersionKey3038BB98:
+    Type: String
+    Description: S3 key for asset version "4f2b2f6cb76b29a04b2c2ef02a1cf94705926e613e5ca8c7cefb8278690a2fb9"
+  AssetParameters4f2b2f6cb76b29a04b2c2ef02a1cf94705926e613e5ca8c7cefb8278690a2fb9ArtifactHashA09E90E7:
+    Type: String
+    Description: Artifact hash for asset "4f2b2f6cb76b29a04b2c2ef02a1cf94705926e613e5ca8c7cefb8278690a2fb9"
+  AssetParametersa442e7f999fb578af28cce5aee09eec7238adf13be26c8d94656e5417c2f6e34S3BucketD10E50CE:
+    Type: String
+    Description: S3 bucket for asset "a442e7f999fb578af28cce5aee09eec7238adf13be26c8d94656e5417c2f6e34"
+  AssetParametersa442e7f999fb578af28cce5aee09eec7238adf13be26c8d94656e5417c2f6e34S3VersionKeyFF4DB90C:
+    Type: String
+    Description: S3 key for asset version "a442e7f999fb578af28cce5aee09eec7238adf13be26c8d94656e5417c2f6e34"
+  AssetParametersa442e7f999fb578af28cce5aee09eec7238adf13be26c8d94656e5417c2f6e34ArtifactHash21CD70B6:
+    Type: String
+    Description: Artifact hash for asset "a442e7f999fb578af28cce5aee09eec7238adf13be26c8d94656e5417c2f6e34"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

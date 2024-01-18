@@ -1,0 +1,1037 @@
+Resources:
+  LambdaLayerSource:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: lambda-layer-source
+      Code:
+        BranchName: main
+        S3:
+          Bucket:
+            Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+          Key: 2f26911e14d6e31f541a63b4622d6d30d9a81d19e25b2610b80a86a206998277.zip
+      RepositoryDescription: Contains the source code for a nodejs12+14 Lambda layer.
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/LambdaLayerSource
+  LambdaLayerSourceRepoLambdaLayerPipelineStackPipeline61C91B83mainEventRuleA744BAA1:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::GetAtt:
+              - LambdaLayerSource
+              - Arn
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - main
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":"
+                - Ref: PipelineC660917D
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - PipelineEventsRole46BEEA7C
+              - Arn
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/LambdaLayerSourceRepo/LambdaLayerPipelineStackPipeline61C91B83-main-EventRule/Resource
+  LambdaLayerBuilderRoleC83A80A9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/LambdaLayerBuilder/Role/Resource
+  LambdaLayerBuilderRoleDefaultPolicyBF4303C1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: LambdaLayerBuilder49F4141C
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: LambdaLayerBuilder49F4141C
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: LambdaLayerBuilder49F4141C
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: LambdaLayerBuilderRoleDefaultPolicyBF4303C1
+      Roles:
+        - Ref: LambdaLayerBuilderRoleC83A80A9
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/LambdaLayerBuilder/Role/DefaultPolicy/Resource
+  LambdaLayerBuilder49F4141C:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - LambdaLayerBuilderRoleC83A80A9
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "mkdir -p node_layer/nodejs",
+                  "cp package.json ./node_layer/nodejs/package.json",
+                  "cd ./node_layer/nodejs",
+                  "npm install"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "rm package-lock.json",
+                  "cd ..",
+                  "zip ../layer.zip * -r"
+                ]
+              }
+            },
+            "artifacts": {
+              "files": [
+                "layer.zip"
+              ]
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/LambdaLayerBuilder/Resource
+  LayerUpdaterRroleBFA87D8D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonS3ReadOnlyAccess
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AWSCodePipelineCustomActionAccess
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - lambda:PublishLayerVersion
+                  - lambda:AddLayerVersionPermission
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - "arn:aws:lambda:*:"
+                        - Ref: AWS::AccountId
+                        - :layer:*
+                  - Fn::Join:
+                      - ""
+                      - - "arn:aws:lambda:*:"
+                        - Ref: AWS::AccountId
+                        - :layer:*:*
+            Version: "2012-10-17"
+          PolicyName: PublishLambdaLayer
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/LayerUpdaterRrole/Resource
+  LayerUpdaterRroleDefaultPolicyE45554B0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codepipeline:PutJobSuccessResult
+              - codepipeline:PutJobFailureResult
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LayerUpdaterRroleDefaultPolicyE45554B0
+      Roles:
+        - Ref: LayerUpdaterRroleBFA87D8D
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/LayerUpdaterRrole/DefaultPolicy/Resource
+  LayerDistributor01D04F78:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 72fc28ceed5ec8c766f206e1d04d527c37e3b0849cceeaaeeb9fba93e9359c06.zip
+      Role:
+        Fn::GetAtt:
+          - LayerUpdaterRroleBFA87D8D
+          - Arn
+      Description: Distributes Lambda layers into multiple regions from a single ZIP archive.
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: LambdaLayerDistributor
+      Handler: index.handler
+      MemorySize: 512
+      Runtime: nodejs14.x
+      Timeout: 15
+    DependsOn:
+      - LayerUpdaterRroleDefaultPolicyE45554B0
+      - LayerUpdaterRroleBFA87D8D
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/LayerDistributor/Resource
+      aws:asset:path: asset.72fc28ceed5ec8c766f206e1d04d527c37e3b0849cceeaaeeb9fba93e9359c06
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  PipelineArtifactsBucket22248F97:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/ArtifactsBucket/Resource
+  PipelineArtifactsBucketPolicyD4F9712A:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: PipelineArtifactsBucket22248F97
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/ArtifactsBucket/Policy/Resource
+  PipelineRoleD68726F7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Role/Resource
+  PipelineRoleDefaultPolicyC7A05455:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineSourceCodeCommitCodePipelineActionRole0E96C592
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineBuildCodeBuildCodePipelineActionRoleEE1A2CE7
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineDistributedistributeeucentral1CodePipelineActionRole4367B4D6
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineDistributedistributeeuwest1CodePipelineActionRole99F028B1
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineDistributedistributeuswest1CodePipelineActionRole205CC31F
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineDistributedistributeuseast1CodePipelineActionRole2C656876
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineRoleDefaultPolicyC7A05455
+      Roles:
+        - Ref: PipelineRoleD68726F7
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Role/DefaultPolicy/Resource
+  PipelineC660917D:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - PipelineRoleD68726F7
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::Select:
+                    - 5
+                    - Fn::Split:
+                        - ":"
+                        - Fn::GetAtt:
+                            - LambdaLayerSource
+                            - Arn
+                BranchName: main
+                PollForSourceChanges: false
+              Name: CodeCommit
+              OutputArtifacts:
+                - Name: Artifact_Source_CodeCommit
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineSourceCodeCommitCodePipelineActionRole0E96C592
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: LambdaLayerBuilder49F4141C
+              InputArtifacts:
+                - Name: Artifact_Source_CodeCommit
+              Name: CodeBuild
+              OutputArtifacts:
+                - Name: Artifact_Build_CodeBuild
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineBuildCodeBuildCodePipelineActionRoleEE1A2CE7
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: "1"
+              Configuration:
+                FunctionName:
+                  Ref: LayerDistributor01D04F78
+                UserParameters:
+                  Fn::Join:
+                    - ""
+                    - - '{"region":"eu-central-1","layerPrincipal":"'
+                      - Ref: AWS::AccountId
+                      - '","organizationId":""}'
+              InputArtifacts:
+                - Name: Artifact_Build_CodeBuild
+              Name: distribute-eu-central-1
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineDistributedistributeeucentral1CodePipelineActionRole4367B4D6
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: "1"
+              Configuration:
+                FunctionName:
+                  Ref: LayerDistributor01D04F78
+                UserParameters:
+                  Fn::Join:
+                    - ""
+                    - - '{"region":"eu-west-1","layerPrincipal":"'
+                      - Ref: AWS::AccountId
+                      - '","organizationId":""}'
+              InputArtifacts:
+                - Name: Artifact_Build_CodeBuild
+              Name: distribute-eu-west-1
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineDistributedistributeeuwest1CodePipelineActionRole99F028B1
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: "1"
+              Configuration:
+                FunctionName:
+                  Ref: LayerDistributor01D04F78
+                UserParameters:
+                  Fn::Join:
+                    - ""
+                    - - '{"region":"us-west-1","layerPrincipal":"'
+                      - Ref: AWS::AccountId
+                      - '","organizationId":""}'
+              InputArtifacts:
+                - Name: Artifact_Build_CodeBuild
+              Name: distribute-us-west-1
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineDistributedistributeuswest1CodePipelineActionRole205CC31F
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: "1"
+              Configuration:
+                FunctionName:
+                  Ref: LayerDistributor01D04F78
+                UserParameters:
+                  Fn::Join:
+                    - ""
+                    - - '{"region":"us-east-1","layerPrincipal":"'
+                      - Ref: AWS::AccountId
+                      - '","organizationId":""}'
+              InputArtifacts:
+                - Name: Artifact_Build_CodeBuild
+              Name: distribute-us-east-1
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineDistributedistributeuseast1CodePipelineActionRole2C656876
+                  - Arn
+              RunOrder: 1
+          Name: Distribute
+      ArtifactStore:
+        Location:
+          Ref: PipelineArtifactsBucket22248F97
+        Type: S3
+      Name: LambdaLayerBuilderPipeline
+    DependsOn:
+      - PipelineRoleDefaultPolicyC7A05455
+      - PipelineRoleD68726F7
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Resource
+  PipelineSourceCodeCommitCodePipelineActionRole0E96C592:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Source/CodeCommit/CodePipelineActionRole/Resource
+  PipelineSourceCodeCommitCodePipelineActionRoleDefaultPolicy2C15316E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+          - Action:
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:UploadArchive
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:CancelUploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LambdaLayerSource
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineSourceCodeCommitCodePipelineActionRoleDefaultPolicy2C15316E
+      Roles:
+        - Ref: PipelineSourceCodeCommitCodePipelineActionRole0E96C592
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Source/CodeCommit/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineEventsRole46BEEA7C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/EventsRole/Resource
+  PipelineEventsRoleDefaultPolicyFF4FCCE0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codepipeline:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: PipelineC660917D
+        Version: "2012-10-17"
+      PolicyName: PipelineEventsRoleDefaultPolicyFF4FCCE0
+      Roles:
+        - Ref: PipelineEventsRole46BEEA7C
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/EventsRole/DefaultPolicy/Resource
+  PipelineBuildCodeBuildCodePipelineActionRoleEE1A2CE7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Build/CodeBuild/CodePipelineActionRole/Resource
+  PipelineBuildCodeBuildCodePipelineActionRoleDefaultPolicyD9C4A2F6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LambdaLayerBuilder49F4141C
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineBuildCodeBuildCodePipelineActionRoleDefaultPolicyD9C4A2F6
+      Roles:
+        - Ref: PipelineBuildCodeBuildCodePipelineActionRoleEE1A2CE7
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Build/CodeBuild/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineDistributedistributeeucentral1CodePipelineActionRole4367B4D6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Distribute/distribute-eu-central-1/CodePipelineActionRole/Resource
+  PipelineDistributedistributeeucentral1CodePipelineActionRoleDefaultPolicy2E7869BD:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:ListFunctions
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LayerDistributor01D04F78
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - LayerDistributor01D04F78
+                        - Arn
+                    - :*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PipelineDistributedistributeeucentral1CodePipelineActionRoleDefaultPolicy2E7869BD
+      Roles:
+        - Ref: PipelineDistributedistributeeucentral1CodePipelineActionRole4367B4D6
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Distribute/distribute-eu-central-1/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineDistributedistributeeuwest1CodePipelineActionRole99F028B1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Distribute/distribute-eu-west-1/CodePipelineActionRole/Resource
+  PipelineDistributedistributeeuwest1CodePipelineActionRoleDefaultPolicy91B7F3C7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:ListFunctions
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LayerDistributor01D04F78
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - LayerDistributor01D04F78
+                        - Arn
+                    - :*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PipelineDistributedistributeeuwest1CodePipelineActionRoleDefaultPolicy91B7F3C7
+      Roles:
+        - Ref: PipelineDistributedistributeeuwest1CodePipelineActionRole99F028B1
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Distribute/distribute-eu-west-1/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineDistributedistributeuswest1CodePipelineActionRole205CC31F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Distribute/distribute-us-west-1/CodePipelineActionRole/Resource
+  PipelineDistributedistributeuswest1CodePipelineActionRoleDefaultPolicyCC3A1D27:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:ListFunctions
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LayerDistributor01D04F78
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - LayerDistributor01D04F78
+                        - Arn
+                    - :*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PipelineDistributedistributeuswest1CodePipelineActionRoleDefaultPolicyCC3A1D27
+      Roles:
+        - Ref: PipelineDistributedistributeuswest1CodePipelineActionRole205CC31F
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Distribute/distribute-us-west-1/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineDistributedistributeuseast1CodePipelineActionRole2C656876:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Distribute/distribute-us-east-1/CodePipelineActionRole/Resource
+  PipelineDistributedistributeuseast1CodePipelineActionRoleDefaultPolicyC36354F3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:ListFunctions
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LayerDistributor01D04F78
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - LayerDistributor01D04F78
+                        - Arn
+                    - :*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PipelineDistributedistributeuseast1CodePipelineActionRoleDefaultPolicyC36354F3
+      Roles:
+        - Ref: PipelineDistributedistributeuseast1CodePipelineActionRole2C656876
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/Pipeline/Distribute/distribute-us-east-1/CodePipelineActionRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/0WP0W7DIAxFv6XvxB2rJu1xa6U+TlH2BZS4ldMEIgydKsS/LwS2PN2Lje+xJcg3CS+7D/XDje7v+6itQ4jfXum7+GRGv9gbmZvokG1wGsXJGvYuaC9OV7NVr2Zp9OTJmiRyXORDo3ICwxok+ADxGPQd/VEximLzYHVFWjuSfm7l8k5C2x61nSbysHJny+Stewp8oFkYsQvjukbW8v0SaOwhtjTjSAZbZwcsa1ebBKlpmbR1MuvG/yOParr0qjFL4sDwtco5GJ1Prc280n8po+fK3OhrYvUpJZHjYOD9Q76DfAW5G5ioccF4mhC6or+K9kU2oAEAAA==
+    Metadata:
+      aws:cdk:path: LambdaLayerPipelineStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,697 @@
+Resources:
+  RecipeUserPool41E2C757:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Schema:
+        - Mutable: true
+          Name: email
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UserPoolName: RecipeUserPool
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Andys-Recipes/RecipeUserPool/Resource
+  UserPoolClient2F5918F7:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: RecipeUserPool41E2C757
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_CUSTOM_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: Andys-Recipes/UserPoolClient/Resource
+  identitypool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: UserPoolClient2F5918F7
+          ProviderName:
+            Fn::GetAtt:
+              - RecipeUserPool41E2C757
+              - ProviderName
+      IdentityPoolName: my-identity-pool
+    Metadata:
+      aws:cdk:path: Andys-Recipes/identity-pool
+  anonymousgrouprole4CF2AF7A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: identitypool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Description: Default role for anonymous users
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Andys-Recipes/anonymous-group-role/Resource
+  usersgrouprole5142F148:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: identitypool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Description: Default role for authenticated users
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Andys-Recipes/users-group-role/Resource
+  usersgroupadminrole093A41F3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: identitypool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Description: Admin role for authenticated users
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Andys-Recipes/users-group-admin-role/Resource
+  usersgroupadminroleDefaultPolicyA99F30A7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - recipesphotos69457A9D
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: usersgroupadminroleDefaultPolicyA99F30A7
+      Roles:
+        - Ref: usersgroupadminrole093A41F3
+    Metadata:
+      aws:cdk:path: Andys-Recipes/users-group-admin-role/DefaultPolicy/Resource
+  identitypoolroleattachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: identitypool
+      RoleMappings:
+        mapping:
+          AmbiguousRoleResolution: AuthenticatedRole
+          IdentityProvider:
+            Fn::Join:
+              - ""
+              - - cognito-idp.
+                - Ref: AWS::Region
+                - .amazonaws.com/
+                - Ref: RecipeUserPool41E2C757
+                - ":"
+                - Ref: UserPoolClient2F5918F7
+          Type: Token
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - usersgrouprole5142F148
+            - Arn
+        unauthenticated:
+          Fn::GetAtt:
+            - anonymousgrouprole4CF2AF7A
+            - Arn
+    Metadata:
+      aws:cdk:path: Andys-Recipes/identity-pool-role-attachment
+  adminRole:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId:
+        Ref: RecipeUserPool41E2C757
+      GroupName: Admin
+    Metadata:
+      aws:cdk:path: Andys-Recipes/adminRole
+  cdkrecipeappApiLogsRole4F351211:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/ApiLogsRole/Resource
+  cdkrecipeapp9DD32FB1:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: cdk-recipe-api
+      AdditionalAuthenticationProviders:
+        - AuthenticationType: AMAZON_COGNITO_USER_POOLS
+          UserPoolConfig:
+            AwsRegion:
+              Ref: AWS::Region
+            UserPoolId:
+              Ref: RecipeUserPool41E2C757
+      LogConfig:
+        CloudWatchLogsRoleArn:
+          Fn::GetAtt:
+            - cdkrecipeappApiLogsRole4F351211
+            - Arn
+        FieldLogLevel: ALL
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/Resource
+  cdkrecipeappSchemaF0C79CF6:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - cdkrecipeapp9DD32FB1
+          - ApiId
+      Definition: |-
+        type Recipe @aws_api_key @aws_cognito_user_pools {
+          id: ID!
+          name: String!
+          description: String!
+          directions: String!
+          cuisine: String!
+          ingredients: [String]! 
+          photoURL: String
+        }
+
+        input RecipeInput {
+          id: ID!
+          name: String!
+          description: String!
+          directions: String!
+          cuisine: String!
+          ingredients: [String]! 
+          photoURL: String
+        }
+
+        input UpdateRecipeInput {
+          id: ID!
+          name: String!
+          description: String!
+          directions: String!
+          cuisine: String!
+          ingredients: [String]!
+          photoURL: String
+        }
+
+        type Query {
+          getRecipeById(recipeId: ID!): Recipe
+            @aws_api_key @aws_cognito_user_pools
+          listRecipes: [Recipe]
+            @aws_api_key @aws_cognito_user_pools
+          recipesByCuisine(cuisine: String!): [Recipe]
+            @aws_api_key @aws_cognito_user_pools
+        }
+
+        type Mutation {
+          createRecipe(recipe: RecipeInput!): Recipe
+            @aws_cognito_user_pools(cognito_groups: ["Admin"])
+          deleteRecipe(recipeId: ID!): ID
+            @aws_cognito_user_pools(cognito_groups: ["Admin"])
+          updateRecipe(recipe: UpdateRecipeInput!): Recipe
+            @aws_cognito_user_pools(cognito_groups: ["Admin"])
+        }
+
+        type Subscription {
+          onCreateRecipe: Recipe
+            @aws_subscribe(mutations: ["createRecipe"])
+        }
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/Schema
+  cdkrecipeappDefaultApiKey97D63CA3:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - cdkrecipeapp9DD32FB1
+          - ApiId
+      Expires: 1737151653
+    DependsOn:
+      - cdkrecipeappSchemaF0C79CF6
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/DefaultApiKey
+  cdkrecipeapplambdaDatasourceServiceRole960A854B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/lambdaDatasource/ServiceRole/Resource
+  cdkrecipeapplambdaDatasourceServiceRoleDefaultPolicy37625B21:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - AppSyncRecipeHandler2B3A2EC7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - AppSyncRecipeHandler2B3A2EC7
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: cdkrecipeapplambdaDatasourceServiceRoleDefaultPolicy37625B21
+      Roles:
+        - Ref: cdkrecipeapplambdaDatasourceServiceRole960A854B
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/lambdaDatasource/ServiceRole/DefaultPolicy/Resource
+  cdkrecipeapplambdaDatasource374C4694:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - cdkrecipeapp9DD32FB1
+          - ApiId
+      Name: lambdaDatasource
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - AppSyncRecipeHandler2B3A2EC7
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - cdkrecipeapplambdaDatasourceServiceRole960A854B
+          - Arn
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/lambdaDatasource/Resource
+  cdkrecipeapplambdaDatasourceQuerygetRecipeByIdResolver582F869C:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - cdkrecipeapp9DD32FB1
+          - ApiId
+      FieldName: getRecipeById
+      TypeName: Query
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - cdkrecipeapplambdaDatasource374C4694
+      - cdkrecipeappSchemaF0C79CF6
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/lambdaDatasource/QuerygetRecipeByIdResolver/Resource
+  cdkrecipeapplambdaDatasourceQuerylistRecipesResolverB644619F:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - cdkrecipeapp9DD32FB1
+          - ApiId
+      FieldName: listRecipes
+      TypeName: Query
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - cdkrecipeapplambdaDatasource374C4694
+      - cdkrecipeappSchemaF0C79CF6
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/lambdaDatasource/QuerylistRecipesResolver/Resource
+  cdkrecipeapplambdaDatasourceQueryrecipesByCuisineResolverDAC78F38:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - cdkrecipeapp9DD32FB1
+          - ApiId
+      FieldName: recipesByCuisine
+      TypeName: Query
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - cdkrecipeapplambdaDatasource374C4694
+      - cdkrecipeappSchemaF0C79CF6
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/lambdaDatasource/QueryrecipesByCuisineResolver/Resource
+  cdkrecipeapplambdaDatasourceMutationcreateRecipeResolver61D3F832:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - cdkrecipeapp9DD32FB1
+          - ApiId
+      FieldName: createRecipe
+      TypeName: Mutation
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - cdkrecipeapplambdaDatasource374C4694
+      - cdkrecipeappSchemaF0C79CF6
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/lambdaDatasource/MutationcreateRecipeResolver/Resource
+  cdkrecipeapplambdaDatasourceMutationdeleteRecipeResolverB4096758:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - cdkrecipeapp9DD32FB1
+          - ApiId
+      FieldName: deleteRecipe
+      TypeName: Mutation
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - cdkrecipeapplambdaDatasource374C4694
+      - cdkrecipeappSchemaF0C79CF6
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/lambdaDatasource/MutationdeleteRecipeResolver/Resource
+  cdkrecipeapplambdaDatasourceMutationupdateRecipeResolverC5B43738:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - cdkrecipeapp9DD32FB1
+          - ApiId
+      FieldName: updateRecipe
+      TypeName: Mutation
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - cdkrecipeapplambdaDatasource374C4694
+      - cdkrecipeappSchemaF0C79CF6
+    Metadata:
+      aws:cdk:path: Andys-Recipes/cdk-recipe-app/lambdaDatasource/MutationupdateRecipeResolver/Resource
+  CDKRecipeTableFF0FE4DA:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: cuisine
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: recipesByCuisine
+          KeySchema:
+            - AttributeName: cuisine
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Andys-Recipes/CDKRecipeTable/Resource
+  AppSyncRecipeHandlerServiceRole435F9D67:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Andys-Recipes/AppSyncRecipeHandler/ServiceRole/Resource
+  AppSyncRecipeHandlerServiceRoleDefaultPolicy611D3465:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CDKRecipeTableFF0FE4DA
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CDKRecipeTableFF0FE4DA
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: AppSyncRecipeHandlerServiceRoleDefaultPolicy611D3465
+      Roles:
+        - Ref: AppSyncRecipeHandlerServiceRole435F9D67
+    Metadata:
+      aws:cdk:path: Andys-Recipes/AppSyncRecipeHandler/ServiceRole/DefaultPolicy/Resource
+  AppSyncRecipeHandler2B3A2EC7:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 4dc70c53bc34af99dcaad6acc5974975817f5dee894e69f9cb187bca7a1b5af6.zip
+      Role:
+        Fn::GetAtt:
+          - AppSyncRecipeHandlerServiceRole435F9D67
+          - Arn
+      Environment:
+        Variables:
+          RECIPE_TABLE:
+            Ref: CDKRecipeTableFF0FE4DA
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 1024
+      Runtime: nodejs16.x
+    DependsOn:
+      - AppSyncRecipeHandlerServiceRoleDefaultPolicy611D3465
+      - AppSyncRecipeHandlerServiceRole435F9D67
+    Metadata:
+      aws:cdk:path: Andys-Recipes/AppSyncRecipeHandler/Resource
+      aws:asset:path: asset.4dc70c53bc34af99dcaad6acc5974975817f5dee894e69f9cb187bca7a1b5af6
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  recipesphotos69457A9D:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Join:
+          - ""
+          - - recipes-photos-
+            - Fn::Select:
+                - 4
+                - Fn::Split:
+                    - "-"
+                    - Fn::Select:
+                        - 2
+                        - Fn::Split:
+                            - /
+                            - Ref: AWS::StackId
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - HEAD
+              - GET
+              - PUT
+            AllowedOrigins:
+              - "*"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Andys-Recipes/recipes-photos/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/11RTU8CMRD9Ldy7w4cHPQoYiZEogp7J0Fa20G3rtovZNPvf7QcLxNO8edN5M30zgck9+NEAf21B2bGQYgd+45AeSaC2nuq9Ek6D/7K8XmktyfxbXXAP5lJw5W5LV+aFBSBc2zff5mst+dSFaWX1r39R68Z0RGAFPr6KtRRXWgraxjSjjqAxtlUUfOAWNZryYzk1glyzDS15hZEI/CtPzU/ocKObmmZlbrU88bojrFVYaRZM+MRdHptARyRWO4ZbpRk/WHhL4blR1AmtiL3borXcWZjGEHLws4YeuZuh5STDKJZRrwaB6TU6ErdIGyWNcIS9UPvY9N4407h+0X7puVZM5M5RgdKUCKPB4/mQwxjPzpyLPtnxI6M5yzT+xoSLAx2JP4SDHZ7GDzCewHhwsEIUdROuVnFY5/gHswZzGDgCAAA=
+    Metadata:
+      aws:cdk:path: Andys-Recipes/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  userPoolId:
+    Value:
+      Ref: RecipeUserPool41E2C757
+  userPoolClientId:
+    Value:
+      Ref: UserPoolClient2F5918F7
+  identityPoolId:
+    Value:
+      Ref: identitypool
+  graphQlApiEndpoint:
+    Value:
+      Fn::GetAtt:
+        - cdkrecipeapp9DD32FB1
+        - GraphQLUrl
+  recipesphotosbucketname:
+    Value:
+      Ref: recipesphotos69457A9D
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

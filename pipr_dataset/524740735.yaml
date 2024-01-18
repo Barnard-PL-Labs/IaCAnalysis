@@ -1,0 +1,311 @@
+Resources:
+  buckets3bucket56202DBF:
+    Type: AWS::S3::Bucket
+    Properties:
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - HEAD
+              - GET
+              - POST
+              - PUT
+              - DELETE
+            AllowedOrigins:
+              - http://localhost:3000
+            ExposedHeaders:
+              - ETag
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: project
+          Value: cognito-user-tracking
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CognitoUserTracking/bucket/s3-bucket/Resource
+  cognitocognitouserpool2F5A27D5:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AliasAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+          TemporaryPasswordValidityDays: 7
+      Schema:
+        - Mutable: false
+          Name: email
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameConfiguration:
+        CaseSensitive: false
+      UserPoolName: cognito-user-tracking-user-pool
+      UserPoolTags:
+        project: cognito-user-tracking
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CognitoUserTracking/cognito/cognito-user-pool/Resource
+  cognitocognitouserpoolcognitodomainE03049E2:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: please-set-unique-domain-name
+      UserPoolId:
+        Ref: cognitocognitouserpool2F5A27D5
+    Metadata:
+      aws:cdk:path: CognitoUserTracking/cognito/cognito-user-pool/cognito-domain/Resource
+  cognitocognitoappclient54CE54DA:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: cognitocognitouserpool2F5A27D5
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      CallbackURLs:
+        - http://localhost:3000/auth
+      ClientName: cognito-user-tracking
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+      GenerateSecret: false
+      LogoutURLs:
+        - http://localhost:3000/auth
+      PreventUserExistenceErrors: ENABLED
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: CognitoUserTracking/cognito/cognito-app-client/Resource
+  cognitocognitoidpool46F253B6:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      AllowClassicFlow: true
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: cognitocognitoappclient54CE54DA
+          ProviderName:
+            Fn::GetAtt:
+              - cognitocognitouserpool2F5A27D5
+              - ProviderName
+      IdentityPoolName: cognito-user-tracking-id-pool
+    Metadata:
+      aws:cdk:path: CognitoUserTracking/cognito/cognito-id-pool
+  cognitoidpauthenticatedrole62DE343B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: cognitocognitoidpool46F253B6
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Description: Cognito identity pool authenticated role
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - cognito-identity:*
+                  - s3:PutObject
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: policy
+      RoleName: cognito-user-tracking-idp-auth-role
+      Tags:
+        - Key: project
+          Value: cognito-user-tracking
+    Metadata:
+      aws:cdk:path: CognitoUserTracking/cognito/idp-authenticated-role/Resource
+  cognitoidpunauthenticatedrole1CC62233:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: cognitocognitoidpool46F253B6
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Description: Cognito identity pool unahthenticated role
+      RoleName: cognito-user-tracking-idp-unauth-role
+      Tags:
+        - Key: project
+          Value: cognito-user-tracking
+    Metadata:
+      aws:cdk:path: CognitoUserTracking/cognito/idp-unauthenticated-role/Resource
+  cognitocognitoidpoolroleattachmentECB0A3F0:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: cognitocognitoidpool46F253B6
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - cognitoidpauthenticatedrole62DE343B
+            - Arn
+        unauthenticated:
+          Fn::GetAtt:
+            - cognitoidpunauthenticatedrole1CC62233
+            - Arn
+    Metadata:
+      aws:cdk:path: CognitoUserTracking/cognito/cognito-id-pool-role-attachment
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02OTQ+CMAyGf4v3UQVi4lXx4kmD8WxwTC0fq2Gbxiz7724gyqlPn7dpm0C6hMWseKmIl3XU4AXsURe8Zl6drUrBbgyvhWbZVQ7kGKebRE1gT0p0B6ImhD8eYUttgXIafc3YZg0KqacDf7MrPaB+j9unfU6NWGv/5L310jEsWrBBhsFQnQu0N/ph+mW5UGQ63ucZyRI1knRMUimgUvNnvII4gXhWKcSoM/5QKyAf6gd/vhyJIQEAAA==
+    Metadata:
+      aws:cdk:path: CognitoUserTracking/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  bucketoutputs3bucket3A076B1B:
+    Description: S3 Bucket Name
+    Value:
+      Ref: buckets3bucket56202DBF
+  cognitooutputUserPoolId4531F3C7:
+    Description: User Pool ID
+    Value:
+      Ref: cognitocognitouserpool2F5A27D5
+  cognitooutputidentitypoolidC7822C12:
+    Description: Identity Pool ID
+    Value:
+      Ref: cognitocognitoidpool46F253B6
+  cognitooutputuserpoolclientidF96E0229:
+    Description: User Pool Client ID
+    Value:
+      Ref: cognitocognitoappclient54CE54DA
+  cognitooutputdomainname4BAE3CA6:
+    Description: Cognito Domain Name
+    Value:
+      Ref: cognitocognitouserpoolcognitodomainE03049E2
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

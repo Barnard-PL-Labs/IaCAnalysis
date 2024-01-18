@@ -1,0 +1,345 @@
+Resources:
+  conformitytos3bucket429759A4:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-bucket/Resource
+  conformitytos3key07AB9AA2:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::717210094962:root
+            Resource: "*"
+          - Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:GenerateDataKey
+              - kms:TagResource
+              - kms:UntagResource
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+        Version: "2012-10-17"
+      Description: Key used for the Conformity to SNS integration.
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-key/Resource
+  conformitytos3topicFAC3B128:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId:
+        Fn::GetAtt:
+          - conformitytos3key07AB9AA2
+          - Arn
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-topic/Resource
+  conformitytos3topicPolicyC724D756:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: SNS:Publish
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::717210094962:root
+            Resource:
+              Ref: conformitytos3topicFAC3B128
+            Sid: "0"
+        Version: "2012-10-17"
+      Topics:
+        - Ref: conformitytos3topicFAC3B128
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-topic/Policy/Resource
+  conformitytos3deadLetterQueue65D0EF22:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId:
+        Fn::GetAtt:
+          - conformitytos3key07AB9AA2
+          - Arn
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-deadLetterQueue/Resource
+  conformitytos3deadLetterQueuePolicy823A1F4A:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Ref: conformitytos3topicFAC3B128
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - conformitytos3deadLetterQueue65D0EF22
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: conformitytos3deadLetterQueue65D0EF22
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-deadLetterQueue/Policy/Resource
+  conformitytos3functionServiceRoleEF7F4913:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-function/ServiceRole/Resource
+  conformitytos3functionServiceRoleDefaultPolicyE3294945:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:PutObject
+              - s3:PutBucketAcl
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:s3:::"
+                    - Ref: conformitytos3bucket429759A4
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:s3:::"
+                    - Ref: conformitytos3bucket429759A4
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: conformitytos3functionServiceRoleDefaultPolicyE3294945
+      Roles:
+        - Ref: conformitytos3functionServiceRoleEF7F4913
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-function/ServiceRole/DefaultPolicy/Resource
+  conformitytos3function7643C39B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: "
+
+          \        const AWS = require( 'aws-sdk' );
+
+          \        const S3  = new AWS.S3();
+
+          \       \ 
+
+          \        exports.handler = async (event) => {
+
+          \       \ 
+
+          \            if (!process.env.DESTINATION_BUCKET) {
+
+          \                throw \"DESTINATION_BUCKET env variable missing\";
+
+          \            }
+
+          \       \ 
+
+          \            let message = JSON.parse(event.Records[0].Sns.Message);
+
+          \                message = [message]; // keep the format as Array so the file format can cater for multiple checks
+
+          \                message = JSON.stringify(message, null, 2);
+
+          \       \ 
+
+          \            const params = {
+
+          \                 Bucket: process.env.DESTINATION_BUCKET,
+
+          \                 Key: `${Date.now()}.json`,
+
+          \                 Body: message
+
+          \            };
+
+          \       \ 
+
+          \            return S3.putObject(params).promise();
+
+          \       \ 
+
+          \        };
+
+          \       \ 
+
+          \        "
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - conformitytos3functionServiceRoleEF7F4913
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          DESTINATION_BUCKET:
+            Ref: conformitytos3bucket429759A4
+    DependsOn:
+      - conformitytos3functionServiceRoleDefaultPolicyE3294945
+      - conformitytos3functionServiceRoleEF7F4913
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-function/Resource
+  conformitytos3functionAllowInvokeConformityToS3Stackconformitytos3topic378E144FAB7065D7:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - conformitytos3function7643C39B
+          - Arn
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: conformitytos3topicFAC3B128
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-function/AllowInvoke:ConformityToS3Stackconformitytos3topic378E144F
+  conformitytos3functionconformitytos3topicC0C57F7B:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn:
+        Ref: conformitytos3topicFAC3B128
+      Endpoint:
+        Fn::GetAtt:
+          - conformitytos3function7643C39B
+          - Arn
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - conformitytos3deadLetterQueue65D0EF22
+            - Arn
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/conformity-to-s3-function/conformity-to-s3-topic/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.66.0,@aws-cdk/aws-apigateway=1.66.0,@aws-cdk/aws-applicationautoscaling=1.66.0,@aws-cdk/aws-autoscaling-common=1.66.0,@aws-cdk/aws-cloudwatch=1.66.0,@aws-cdk/aws-codeguruprofiler=1.66.0,@aws-cdk/aws-ec2=1.66.0,@aws-cdk/aws-events=1.66.0,@aws-cdk/aws-iam=1.66.0,@aws-cdk/aws-kms=1.66.0,@aws-cdk/aws-lambda=1.66.0,@aws-cdk/aws-lambda-event-sources=1.66.0,@aws-cdk/aws-logs=1.66.0,@aws-cdk/aws-s3=1.66.0,@aws-cdk/aws-s3-assets=1.66.0,@aws-cdk/aws-s3-notifications=1.66.0,@aws-cdk/aws-sns=1.66.0,@aws-cdk/aws-sns-subscriptions=1.66.0,@aws-cdk/aws-sqs=1.66.0,@aws-cdk/aws-ssm=1.66.0,@aws-cdk/cloud-assembly-schema=1.66.0,@aws-cdk/core=1.66.0,@aws-cdk/cx-api=1.66.0,@aws-cdk/region-info=1.66.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: ConformityToS3Stack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  EventsBucket:
+    Description: Bucket name that hosts all events
+    Value:
+      Ref: conformitytos3bucket429759A4
+  TopicARN:
+    Description: SNS Topic ARN to be used in Conformity dashboard
+    Value:
+      Ref: conformitytos3topicFAC3B128
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

@@ -1,0 +1,838 @@
+Resources:
+  ClusterDeletionProtectionEnabled3B9C712F:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      Source:
+        Owner: AWS
+        SourceIdentifier: RDS_CLUSTER_DELETION_PROTECTION_ENABLED
+      ConfigRuleName: documentdb-cluster-deletion-protection-enabled
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::RDS::DBCluster
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ClusterDeletionProtectionEnabled/Resource
+  StorageEncryptedD1B5829B:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      Source:
+        Owner: AWS
+        SourceIdentifier: RDS_STORAGE_ENCRYPTED
+      ConfigRuleName: documentdb-cluster-storage-encrypted
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::RDS::DBInstance
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/StorageEncrypted/Resource
+  ClusterParameterGroupRoleE4E128DA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSConfigRulesExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ClusterParameterGroupRole/Resource
+  ClusterParameterGroupFn274D3E4D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersd332b9c0fdd9ab2c7d51d666621a94a7ae59ce1bd6f9ee0afca703fe590ec97bS3Bucket98AF8F0B
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd332b9c0fdd9ab2c7d51d666621a94a7ae59ce1bd6f9ee0afca703fe590ec97bS3VersionKey977A812B
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd332b9c0fdd9ab2c7d51d666621a94a7ae59ce1bd6f9ee0afca703fe590ec97bS3VersionKey977A812B
+      Role:
+        Fn::GetAtt:
+          - ClusterParameterGroupRoleE4E128DA
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - ClusterParameterGroupRoleE4E128DA
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ClusterParameterGroupFn/Resource
+      aws:asset:path: asset.d332b9c0fdd9ab2c7d51d666621a94a7ae59ce1bd6f9ee0afca703fe590ec97b
+      aws:asset:property: Code
+  ClusterParameterGroupFnPermission9F0365F7:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ClusterParameterGroupFn274D3E4D
+          - Arn
+      Principal: config.amazonaws.com
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ClusterParameterGroupFn/Permission
+  ClusterParameterGroupRuleC57B86A6:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      Source:
+        Owner: CUSTOM_LAMBDA
+        SourceDetails:
+          - EventSource: aws.config
+            MessageType: ConfigurationItemChangeNotification
+          - EventSource: aws.config
+            MessageType: OversizedConfigurationItemChangeNotification
+        SourceIdentifier:
+          Fn::GetAtt:
+            - ClusterParameterGroupFn274D3E4D
+            - Arn
+      ConfigRuleName: documentdb-cluster-parameter-group
+      Description: Evaluates whether the cluster parameter group is the one provided to the rule as a parameter
+      InputParameters:
+        desiredClusterParameterGroup: blogpost-param-group
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::RDS::DBCluster
+    DependsOn:
+      - ClusterParameterGroupFnPermission9F0365F7
+      - ClusterParameterGroupFn274D3E4D
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ClusterParameterGroupRule/Resource
+  ClusterBackupRetentionRoleB7F0B33B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSConfigRulesExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ClusterBackupRetentionRole/Resource
+  ClusterBackupRetentionFnAE2A9DB3:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersd22be05377b9c7d25c08a54f9ccfea59644fd19fff2316c831da6eb0f24c9a71S3Bucket6C0240C1
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd22be05377b9c7d25c08a54f9ccfea59644fd19fff2316c831da6eb0f24c9a71S3VersionKeyBBBAB93D
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd22be05377b9c7d25c08a54f9ccfea59644fd19fff2316c831da6eb0f24c9a71S3VersionKeyBBBAB93D
+      Role:
+        Fn::GetAtt:
+          - ClusterBackupRetentionRoleB7F0B33B
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - ClusterBackupRetentionRoleB7F0B33B
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ClusterBackupRetentionFn/Resource
+      aws:asset:path: asset.d22be05377b9c7d25c08a54f9ccfea59644fd19fff2316c831da6eb0f24c9a71
+      aws:asset:property: Code
+  ClusterBackupRetentionFnPermissionEBD90393:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ClusterBackupRetentionFnAE2A9DB3
+          - Arn
+      Principal: config.amazonaws.com
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ClusterBackupRetentionFn/Permission
+  ClusterBackupRetentionRuleC6CFCBFF:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      Source:
+        Owner: CUSTOM_LAMBDA
+        SourceDetails:
+          - EventSource: aws.config
+            MessageType: ConfigurationItemChangeNotification
+          - EventSource: aws.config
+            MessageType: OversizedConfigurationItemChangeNotification
+        SourceIdentifier:
+          Fn::GetAtt:
+            - ClusterBackupRetentionFnAE2A9DB3
+            - Arn
+      ConfigRuleName: documentdb-cluster-backup-retention
+      Description: Evaluates whether the backup retention policy has been set to a greater value than the one provided to the as parameter
+      InputParameters:
+        minBackupRetentionPeriod: 7
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::RDS::DBCluster
+    DependsOn:
+      - ClusterBackupRetentionFnPermissionEBD90393
+      - ClusterBackupRetentionFnAE2A9DB3
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ClusterBackupRetentionRule/Resource
+  InstancesHomogeneousRole3752AA5D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSConfigRulesExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/InstancesHomogeneousRole/Resource
+  InstancesHomogeneousRoleDefaultPolicy78971E74:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: rds:DescribeDBInstances
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: InstancesHomogeneousRoleDefaultPolicy78971E74
+      Roles:
+        - Ref: InstancesHomogeneousRole3752AA5D
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/InstancesHomogeneousRole/DefaultPolicy/Resource
+  InstancesHomogeneousFn24A0423F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersff9c6ad10f5e9901dba18d008582638ebdbfc048ea8f0e4416f15d158af2b8beS3Bucket0649B997
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersff9c6ad10f5e9901dba18d008582638ebdbfc048ea8f0e4416f15d158af2b8beS3VersionKeyAF880D7C
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersff9c6ad10f5e9901dba18d008582638ebdbfc048ea8f0e4416f15d158af2b8beS3VersionKeyAF880D7C
+      Role:
+        Fn::GetAtt:
+          - InstancesHomogeneousRole3752AA5D
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - InstancesHomogeneousRoleDefaultPolicy78971E74
+      - InstancesHomogeneousRole3752AA5D
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/InstancesHomogeneousFn/Resource
+      aws:asset:path: asset.ff9c6ad10f5e9901dba18d008582638ebdbfc048ea8f0e4416f15d158af2b8be
+      aws:asset:property: Code
+  InstancesHomogeneousFnPermission9C8F6C4F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - InstancesHomogeneousFn24A0423F
+          - Arn
+      Principal: config.amazonaws.com
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/InstancesHomogeneousFn/Permission
+  InstancesHomogeneousRule75A3E33B:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      Source:
+        Owner: CUSTOM_LAMBDA
+        SourceDetails:
+          - EventSource: aws.config
+            MessageType: ConfigurationItemChangeNotification
+          - EventSource: aws.config
+            MessageType: OversizedConfigurationItemChangeNotification
+        SourceIdentifier:
+          Fn::GetAtt:
+            - InstancesHomogeneousFn24A0423F
+            - Arn
+      ConfigRuleName: documentdb-cluster-instances-homogeneous
+      Description: Evaluates whether all instances within an Amazon DocumentDB cluster belong to the same instance family and size.
+      Scope:
+        ComplianceResourceTypes:
+          - AWS::RDS::DBInstance
+    DependsOn:
+      - InstancesHomogeneousFnPermission9C8F6C4F
+      - InstancesHomogeneousFn24A0423F
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/InstancesHomogeneousRule/Resource
+  Key961B73FD:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:GenerateDataKey
+              - kms:Decrypt
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/Key/Resource
+  ComplianceNotificationsTopic3217DC3D:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Compliance Notifications
+      KmsMasterKeyId:
+        Fn::GetAtt:
+          - Key961B73FD
+          - Arn
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ComplianceNotificationsTopic/Resource
+  ComplianceNotificationsTopicPolicyE22A1090:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Resource:
+              Ref: ComplianceNotificationsTopic3217DC3D
+            Sid: "0"
+        Version: "2012-10-17"
+      Topics:
+        - Ref: ComplianceNotificationsTopic3217DC3D
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ComplianceNotificationsTopic/Policy/Resource
+  AuditLogGroup6D13791A:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/events/documentdb-config-events
+      RetentionInDays: 7
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/AuditLogGroup/Resource
+  ComplianceNotificationRule5C45E8B4:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.config
+        detail-type:
+          - Config Rules Compliance Change
+        detail:
+          messageType:
+            - ComplianceChangeNotification
+          newEvaluationResult:
+            complianceType:
+              - NON_COMPLIANT
+            evaluationResultIdentifier:
+              evaluationResultQualifier:
+                configRuleName:
+                  - prefix: documentdb-
+          resourceType:
+            - AWS::RDS::DBCluster
+            - AWS::RDS::DBInstance
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":logs:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":log-group:"
+                - Ref: AuditLogGroup6D13791A
+          Id: Target0
+        - Arn:
+            Ref: ComplianceNotificationsTopic3217DC3D
+          Id: Target1
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ComplianceNotificationRule/Resource
+  EventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763CCustomResourcePolicy74D0C6B8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: logs:PutResourcePolicy
+            Effect: Allow
+            Resource: "*"
+          - Action: logs:DeleteResourcePolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: EventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763CCustomResourcePolicy74D0C6B8
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/EventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763C/CustomResourcePolicy/Resource
+  EventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763CECE3776C:
+    Type: Custom::CloudwatchLogResourcePolicy
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"CloudWatchLogs","action":"putResourcePolicy","parameters":{"policyName":"AmazonDocumentDbAwsConfigStackEventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763C66A2F267","policyDocument":"{\"Statement\":[{\"Action\":[\"logs:PutLogEvents\",\"logs:CreateLogStream\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Resource\":\"'
+            - Fn::GetAtt:
+                - AuditLogGroup6D13791A
+                - Arn
+            - \"}],\"Version\":\"2012-10-17\"}"},"physicalResourceId":{"id":"EventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763C"}}
+      Update:
+        Fn::Join:
+          - ""
+          - - '{"service":"CloudWatchLogs","action":"putResourcePolicy","parameters":{"policyName":"AmazonDocumentDbAwsConfigStackEventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763C66A2F267","policyDocument":"{\"Statement\":[{\"Action\":[\"logs:PutLogEvents\",\"logs:CreateLogStream\"],\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"events.amazonaws.com\"},\"Resource\":\"'
+            - Fn::GetAtt:
+                - AuditLogGroup6D13791A
+                - Arn
+            - \"}],\"Version\":\"2012-10-17\"}"},"physicalResourceId":{"id":"EventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763C"}}
+      Delete: '{"service":"CloudWatchLogs","action":"deleteResourcePolicy","parameters":{"policyName":"AmazonDocumentDbAwsConfigStackEventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763C66A2F267"},"ignoreErrorCodesMatching":"400"}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - EventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763CCustomResourcePolicy74D0C6B8
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/EventsLogGroupPolicyAmazonDocumentDbAwsConfigStackComplianceNotificationRuleAAAD763C/Resource/Default
+  AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource
+  AWS679f53fac002430cb0da5b7982bd22872D164C4C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa5a55f40f05c1031f30cc935c76b58b0b7dbc81e70845edf4ef615d6580ae04dS3BucketDDD15B67
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa5a55f40f05c1031f30cc935c76b58b0b7dbc81e70845edf4ef615d6580ae04dS3VersionKey76284988
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa5a55f40f05c1031f30cc935c76b58b0b7dbc81e70845edf4ef615d6580ae04dS3VersionKey76284988
+      Role:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 120
+    DependsOn:
+      - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/AWS679f53fac002430cb0da5b7982bd2287/Resource
+      aws:asset:path: asset.a5a55f40f05c1031f30cc935c76b58b0b7dbc81e70845edf4ef615d6580ae04d
+      aws:asset:property: Code
+  ParameterGroupRemediationRoleE2C02B6C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ParameterGroupRemediationRole/Resource
+  ParameterGroupRemediationRoleDefaultPolicy12C84A40:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - rds:DescribeDBClusters
+              - rds:ModifyDBCluster
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: ParameterGroupRemediationRoleDefaultPolicy12C84A40
+      Roles:
+        - Ref: ParameterGroupRemediationRoleE2C02B6C
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ParameterGroupRemediationRole/DefaultPolicy/Resource
+  ParameterGroupRemediationFnAFEFB7AF:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersd16738177432fe8e8b871bbcedd188e9684b6c752a36e7c8305bdf956b1adf9eS3Bucket7A656B13
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd16738177432fe8e8b871bbcedd188e9684b6c752a36e7c8305bdf956b1adf9eS3VersionKey48ACBD19
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd16738177432fe8e8b871bbcedd188e9684b6c752a36e7c8305bdf956b1adf9eS3VersionKey48ACBD19
+      Role:
+        Fn::GetAtt:
+          - ParameterGroupRemediationRoleE2C02B6C
+          - Arn
+      Environment:
+        Variables:
+          DESIRED_CLUSTER_PARAMETER_GROUP: blogpost-param-group
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - ParameterGroupRemediationRoleDefaultPolicy12C84A40
+      - ParameterGroupRemediationRoleE2C02B6C
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ParameterGroupRemediationFn/Resource
+      aws:asset:path: asset.d16738177432fe8e8b871bbcedd188e9684b6c752a36e7c8305bdf956b1adf9e
+      aws:asset:property: Code
+  ParameterGroupRule9EF5462F:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.config
+        detail-type:
+          - Config Rules Compliance Change
+        detail:
+          messageType:
+            - ComplianceChangeNotification
+          newEvaluationResult:
+            evaluationResultIdentifier:
+              evaluationResultQualifier:
+                configRuleName:
+                  - documentdb-cluster-parameter-group
+            complianceType:
+              - NON_COMPLIANT
+          resourceType:
+            - AWS::RDS::DBCluster
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - ParameterGroupRemediationFnAFEFB7AF
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ParameterGroupRule/Resource
+  ParameterGroupRuleAllowEventRuleAmazonDocumentDbAwsConfigStackParameterGroupRemediationFnECF89C3E092E7125:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ParameterGroupRemediationFnAFEFB7AF
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - ParameterGroupRule9EF5462F
+          - Arn
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/ParameterGroupRule/AllowEventRuleAmazonDocumentDbAwsConfigStackParameterGroupRemediationFnECF89C3E
+  DeletionProtectionRemediationFnC00C3DC8:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters40946c7982d631253f5937247db90e789ed59944328b40b4f9168cf837a929cfS3BucketBD896E3B
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters40946c7982d631253f5937247db90e789ed59944328b40b4f9168cf837a929cfS3VersionKeyD15B0968
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters40946c7982d631253f5937247db90e789ed59944328b40b4f9168cf837a929cfS3VersionKeyD15B0968
+      Role:
+        Fn::GetAtt:
+          - ParameterGroupRemediationRoleE2C02B6C
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - ParameterGroupRemediationRoleDefaultPolicy12C84A40
+      - ParameterGroupRemediationRoleE2C02B6C
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/DeletionProtectionRemediationFn/Resource
+      aws:asset:path: asset.40946c7982d631253f5937247db90e789ed59944328b40b4f9168cf837a929cf
+      aws:asset:property: Code
+  DelectionProtectionRule8D9AB2AE:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.config
+        detail-type:
+          - Config Rules Compliance Change
+        detail:
+          messageType:
+            - ComplianceChangeNotification
+          newEvaluationResult:
+            evaluationResultIdentifier:
+              evaluationResultQualifier:
+                configRuleName:
+                  - documentdb-cluster-deletion-protection-enabled
+            complianceType:
+              - NON_COMPLIANT
+          resourceType:
+            - AWS::RDS::DBCluster
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - DeletionProtectionRemediationFnC00C3DC8
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/DelectionProtectionRule/Resource
+  DelectionProtectionRuleAllowEventRuleAmazonDocumentDbAwsConfigStackDeletionProtectionRemediationFn2F5B0299A5C3D6EE:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DeletionProtectionRemediationFnC00C3DC8
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - DelectionProtectionRule8D9AB2AE
+          - Arn
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/DelectionProtectionRule/AllowEventRuleAmazonDocumentDbAwsConfigStackDeletionProtectionRemediationFn2F5B0299
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE1VRy07DMBD8Fu6Oq4CQ4AaqBAdAilJ+wDjbyE3srbx2K2T531k7lIaLd/blmbFb+Xgv25sndaZGD9MmafQg0y4oPYlnIggMR+NG0QNh9BrEFh0FH3UQ273rlFcWAnixjRTQXqf2bo15aTDBoMuiUDGN25tRpg/l1AhDH+fLGJeXbLmPYRZGWZl6XGZq7HA2+rsqqCiLWdmvQcn0Ep0uRKW3xh14a4hKtmM/MwT862dBd40qbklW02KyJNMbVAYOPOC48IlHo0tpAfW8KlmlLAdHXnjH8dVjPJb2BWcBJ3DMlC6uq8ksdHXc+N9nYyln+v+qWTgcQB5oc2ofZHvLP3cgYxofXTAWZL/EHyObRSPVAQAA
+    Metadata:
+      aws:cdk:path: AmazonDocumentDbAwsConfigStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParametersd332b9c0fdd9ab2c7d51d666621a94a7ae59ce1bd6f9ee0afca703fe590ec97bS3Bucket98AF8F0B:
+    Type: String
+    Description: S3 bucket for asset "d332b9c0fdd9ab2c7d51d666621a94a7ae59ce1bd6f9ee0afca703fe590ec97b"
+  AssetParametersd332b9c0fdd9ab2c7d51d666621a94a7ae59ce1bd6f9ee0afca703fe590ec97bS3VersionKey977A812B:
+    Type: String
+    Description: S3 key for asset version "d332b9c0fdd9ab2c7d51d666621a94a7ae59ce1bd6f9ee0afca703fe590ec97b"
+  AssetParametersd332b9c0fdd9ab2c7d51d666621a94a7ae59ce1bd6f9ee0afca703fe590ec97bArtifactHash3C2962C7:
+    Type: String
+    Description: Artifact hash for asset "d332b9c0fdd9ab2c7d51d666621a94a7ae59ce1bd6f9ee0afca703fe590ec97b"
+  AssetParametersd22be05377b9c7d25c08a54f9ccfea59644fd19fff2316c831da6eb0f24c9a71S3Bucket6C0240C1:
+    Type: String
+    Description: S3 bucket for asset "d22be05377b9c7d25c08a54f9ccfea59644fd19fff2316c831da6eb0f24c9a71"
+  AssetParametersd22be05377b9c7d25c08a54f9ccfea59644fd19fff2316c831da6eb0f24c9a71S3VersionKeyBBBAB93D:
+    Type: String
+    Description: S3 key for asset version "d22be05377b9c7d25c08a54f9ccfea59644fd19fff2316c831da6eb0f24c9a71"
+  AssetParametersd22be05377b9c7d25c08a54f9ccfea59644fd19fff2316c831da6eb0f24c9a71ArtifactHash2D2C8FB3:
+    Type: String
+    Description: Artifact hash for asset "d22be05377b9c7d25c08a54f9ccfea59644fd19fff2316c831da6eb0f24c9a71"
+  AssetParametersff9c6ad10f5e9901dba18d008582638ebdbfc048ea8f0e4416f15d158af2b8beS3Bucket0649B997:
+    Type: String
+    Description: S3 bucket for asset "ff9c6ad10f5e9901dba18d008582638ebdbfc048ea8f0e4416f15d158af2b8be"
+  AssetParametersff9c6ad10f5e9901dba18d008582638ebdbfc048ea8f0e4416f15d158af2b8beS3VersionKeyAF880D7C:
+    Type: String
+    Description: S3 key for asset version "ff9c6ad10f5e9901dba18d008582638ebdbfc048ea8f0e4416f15d158af2b8be"
+  AssetParametersff9c6ad10f5e9901dba18d008582638ebdbfc048ea8f0e4416f15d158af2b8beArtifactHash2CB7513F:
+    Type: String
+    Description: Artifact hash for asset "ff9c6ad10f5e9901dba18d008582638ebdbfc048ea8f0e4416f15d158af2b8be"
+  AssetParametersa5a55f40f05c1031f30cc935c76b58b0b7dbc81e70845edf4ef615d6580ae04dS3BucketDDD15B67:
+    Type: String
+    Description: S3 bucket for asset "a5a55f40f05c1031f30cc935c76b58b0b7dbc81e70845edf4ef615d6580ae04d"
+  AssetParametersa5a55f40f05c1031f30cc935c76b58b0b7dbc81e70845edf4ef615d6580ae04dS3VersionKey76284988:
+    Type: String
+    Description: S3 key for asset version "a5a55f40f05c1031f30cc935c76b58b0b7dbc81e70845edf4ef615d6580ae04d"
+  AssetParametersa5a55f40f05c1031f30cc935c76b58b0b7dbc81e70845edf4ef615d6580ae04dArtifactHashBC261AD6:
+    Type: String
+    Description: Artifact hash for asset "a5a55f40f05c1031f30cc935c76b58b0b7dbc81e70845edf4ef615d6580ae04d"
+  AssetParametersd16738177432fe8e8b871bbcedd188e9684b6c752a36e7c8305bdf956b1adf9eS3Bucket7A656B13:
+    Type: String
+    Description: S3 bucket for asset "d16738177432fe8e8b871bbcedd188e9684b6c752a36e7c8305bdf956b1adf9e"
+  AssetParametersd16738177432fe8e8b871bbcedd188e9684b6c752a36e7c8305bdf956b1adf9eS3VersionKey48ACBD19:
+    Type: String
+    Description: S3 key for asset version "d16738177432fe8e8b871bbcedd188e9684b6c752a36e7c8305bdf956b1adf9e"
+  AssetParametersd16738177432fe8e8b871bbcedd188e9684b6c752a36e7c8305bdf956b1adf9eArtifactHashC5BC864B:
+    Type: String
+    Description: Artifact hash for asset "d16738177432fe8e8b871bbcedd188e9684b6c752a36e7c8305bdf956b1adf9e"
+  AssetParameters40946c7982d631253f5937247db90e789ed59944328b40b4f9168cf837a929cfS3BucketBD896E3B:
+    Type: String
+    Description: S3 bucket for asset "40946c7982d631253f5937247db90e789ed59944328b40b4f9168cf837a929cf"
+  AssetParameters40946c7982d631253f5937247db90e789ed59944328b40b4f9168cf837a929cfS3VersionKeyD15B0968:
+    Type: String
+    Description: S3 key for asset version "40946c7982d631253f5937247db90e789ed59944328b40b4f9168cf837a929cf"
+  AssetParameters40946c7982d631253f5937247db90e789ed59944328b40b4f9168cf837a929cfArtifactHashBD60EE2D:
+    Type: String
+    Description: Artifact hash for asset "40946c7982d631253f5937247db90e789ed59944328b40b4f9168cf837a929cf"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

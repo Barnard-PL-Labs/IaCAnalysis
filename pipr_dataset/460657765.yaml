@@ -1,0 +1,328 @@
+Resources:
+  LambdaNodeJsMiddyServiceRole022058C8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Middy-Serverless/LambdaNodeJsMiddy/ServiceRole/Resource
+  LambdaNodeJsMiddy0708CB76:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: ed7ecfa1f057e887b79af374db1b11439e4e613ad6f6f0cf001248460205ee49.zip
+      Role:
+        Fn::GetAtt:
+          - LambdaNodeJsMiddyServiceRole022058C8
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 1024
+      Runtime: nodejs16.x
+      Timeout: 300
+    DependsOn:
+      - LambdaNodeJsMiddyServiceRole022058C8
+    Metadata:
+      aws:cdk:path: Middy-Serverless/LambdaNodeJsMiddy/Resource
+      aws:asset:path: asset.ed7ecfa1f057e887b79af374db1b11439e4e613ad6f6f0cf001248460205ee49
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  LambdaNodeJsMiddyCurrentVersion2B4182A9db01e386dada26ed62fba3c8d23650ef:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName:
+        Ref: LambdaNodeJsMiddy0708CB76
+    Metadata:
+      aws:cdk:path: Middy-Serverless/LambdaNodeJsMiddy/CurrentVersion/Resource
+  LambdaNodeJsMiddyFunctionUrl35710E72:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      TargetFunctionArn:
+        Fn::GetAtt:
+          - LambdaNodeJsMiddy0708CB76
+          - Arn
+      Cors:
+        AllowCredentials: true
+        AllowHeaders:
+          - Content-Type
+        AllowMethods:
+          - "*"
+        AllowOrigins:
+          - "*"
+    Metadata:
+      aws:cdk:path: Middy-Serverless/LambdaNodeJsMiddy/FunctionUrl/Resource
+  LambdaNodeJsMiddyinvokefunctionurlD986B64F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunctionUrl
+      FunctionName:
+        Fn::GetAtt:
+          - LambdaNodeJsMiddy0708CB76
+          - Arn
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+    Metadata:
+      aws:cdk:path: Middy-Serverless/LambdaNodeJsMiddy/invoke-function-url
+  LambdaAlias9C15A666:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName:
+        Ref: LambdaNodeJsMiddy0708CB76
+      FunctionVersion:
+        Fn::GetAtt:
+          - LambdaNodeJsMiddyCurrentVersion2B4182A9db01e386dada26ed62fba3c8d23650ef
+          - Version
+      Name: Prod
+    UpdatePolicy:
+      CodeDeployLambdaAliasUpdate:
+        ApplicationName:
+          Ref: DeploymentGroupApplication7B89ABEB
+        DeploymentGroupName:
+          Ref: DeploymentGroup6D277AF0
+    Metadata:
+      aws:cdk:path: Middy-Serverless/LambdaAlias/Resource
+  DeploymentGroupApplication7B89ABEB:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ComputePlatform: Lambda
+    Metadata:
+      aws:cdk:path: Middy-Serverless/DeploymentGroup/Application/Resource
+  DeploymentGroupServiceRoleA00955F3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::FindInMap:
+                  - ServiceprincipalMap
+                  - Ref: AWS::Region
+                  - codedeploy
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSCodeDeployRoleForLambdaLimited
+    Metadata:
+      aws:cdk:path: Middy-Serverless/DeploymentGroup/ServiceRole/Resource
+  DeploymentGroup6D277AF0:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    Properties:
+      ApplicationName:
+        Ref: DeploymentGroupApplication7B89ABEB
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - DeploymentGroupServiceRoleA00955F3
+          - Arn
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - DEPLOYMENT_FAILURE
+      DeploymentConfigName: CodeDeployDefault.LambdaLinear10PercentEvery1Minute
+      DeploymentStyle:
+        DeploymentOption: WITH_TRAFFIC_CONTROL
+        DeploymentType: BLUE_GREEN
+    Metadata:
+      aws:cdk:path: Middy-Serverless/DeploymentGroup/Resource
+  MyLogGroup5C0DAD85:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: LambdaNodeJsMiddy0708CB76
+      RetentionInDays: 7
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: Middy-Serverless/MyLogGroup/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/11RwU7DMAz9Fu5p0LbLrt0QXAZDRXCtstRUadMkihMQqvLvOOmK0E7PfrGfnect3+355k58YyW7sdLqwue3IOTIiGpnLaZLJ1pjOxiQvxR4jEYGZQ1TYuJzYzWw46fJmBjuWoEIAXmdgXJ+iHKEcBAIbFHjM5X/iXyAx4zEreH69u51pq/wCn5SWApqrQRmrgSJSdqrA6ftD59PZcZDySYw4cnb6NjC1s5pJUW4zrtJb3oS07ZHErT9okEla5wSK/8jp3pletYA2uhlMeIcg4uhWPKPPVrTqXXSs3CO2hLLvvIB7782dIQt3WFApSofTVAT8GbBX7QSXBijAQAA
+    Metadata:
+      aws:cdk:path: Middy-Serverless/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  FunctionURLCommand:
+    Value:
+      Fn::Join:
+        - ""
+        - - "curl "
+          - Fn::GetAtt:
+              - LambdaNodeJsMiddyFunctionUrl35710E72
+              - FunctionUrl
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Mappings:
+  ServiceprincipalMap:
+    af-south-1:
+      codedeploy: codedeploy.af-south-1.amazonaws.com
+    ap-east-1:
+      codedeploy: codedeploy.ap-east-1.amazonaws.com
+    ap-northeast-1:
+      codedeploy: codedeploy.ap-northeast-1.amazonaws.com
+    ap-northeast-2:
+      codedeploy: codedeploy.ap-northeast-2.amazonaws.com
+    ap-northeast-3:
+      codedeploy: codedeploy.ap-northeast-3.amazonaws.com
+    ap-south-1:
+      codedeploy: codedeploy.ap-south-1.amazonaws.com
+    ap-southeast-1:
+      codedeploy: codedeploy.ap-southeast-1.amazonaws.com
+    ap-southeast-2:
+      codedeploy: codedeploy.ap-southeast-2.amazonaws.com
+    ap-southeast-3:
+      codedeploy: codedeploy.ap-southeast-3.amazonaws.com
+    ca-central-1:
+      codedeploy: codedeploy.ca-central-1.amazonaws.com
+    cn-north-1:
+      codedeploy: codedeploy.cn-north-1.amazonaws.com.cn
+    cn-northwest-1:
+      codedeploy: codedeploy.cn-northwest-1.amazonaws.com.cn
+    eu-central-1:
+      codedeploy: codedeploy.eu-central-1.amazonaws.com
+    eu-north-1:
+      codedeploy: codedeploy.eu-north-1.amazonaws.com
+    eu-south-1:
+      codedeploy: codedeploy.eu-south-1.amazonaws.com
+    eu-south-2:
+      codedeploy: codedeploy.eu-south-2.amazonaws.com
+    eu-west-1:
+      codedeploy: codedeploy.eu-west-1.amazonaws.com
+    eu-west-2:
+      codedeploy: codedeploy.eu-west-2.amazonaws.com
+    eu-west-3:
+      codedeploy: codedeploy.eu-west-3.amazonaws.com
+    me-south-1:
+      codedeploy: codedeploy.me-south-1.amazonaws.com
+    sa-east-1:
+      codedeploy: codedeploy.sa-east-1.amazonaws.com
+    us-east-1:
+      codedeploy: codedeploy.us-east-1.amazonaws.com
+    us-east-2:
+      codedeploy: codedeploy.us-east-2.amazonaws.com
+    us-gov-east-1:
+      codedeploy: codedeploy.us-gov-east-1.amazonaws.com
+    us-gov-west-1:
+      codedeploy: codedeploy.us-gov-west-1.amazonaws.com
+    us-iso-east-1:
+      codedeploy: codedeploy.amazonaws.com
+    us-iso-west-1:
+      codedeploy: codedeploy.amazonaws.com
+    us-isob-east-1:
+      codedeploy: codedeploy.amazonaws.com
+    us-west-1:
+      codedeploy: codedeploy.us-west-1.amazonaws.com
+    us-west-2:
+      codedeploy: codedeploy.us-west-2.amazonaws.com
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

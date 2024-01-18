@@ -1,0 +1,1587 @@
+Resources:
+  serverlesschatappbucket4077972B:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Join:
+          - ""
+          - - serverless-chat-app-
+            - Fn::Select:
+                - 4
+                - Fn::Split:
+                    - "-"
+                    - Fn::Select:
+                        - 2
+                        - Fn::Split:
+                            - /
+                            - Ref: AWS::StackId
+      WebsiteConfiguration:
+        IndexDocument: index.hmtml
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: serverless-chat-app/serverless-chat-app-bucket/Resource
+  serverlesschatappbucketPolicy3260654F:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: serverlesschatappbucket4077972B
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - serverlesschatappbucket4077972B
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: serverless-chat-app/serverless-chat-app-bucket/Policy/Resource
+  ServerlessChatApp149C7EE0:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AliasAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UserPoolName: ServerlessChatApp
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApp/Resource
+  ServerlessChatAppServerlessChatAppWebsiteA10EF8C0:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: ServerlessChatApp149C7EE0
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ClientName: ServerlessChatApp-Website
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      GenerateSecret: false
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApp/ServerlessChatApp-Website/Resource
+  serverlesschatapplistusersrole7DEA959A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Description: grant lambda rights to list users of ServerlessChatApp user pool
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: serverless-chat-app/serverless-chat-app-list-users-role/Resource
+  serverlesschatapplistusersC66CE207:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cognito-idp:ListUsers
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ServerlessChatApp149C7EE0
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: serverless-chat-app-list-users
+      Roles:
+        - Ref: serverlesschatapplistusersrole7DEA959A
+    Metadata:
+      aws:cdk:path: serverless-chat-app/serverless-chat-app-list-users/Resource
+  ChatAppAuthorizerAA8FCD79:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: ChatAppAuthorizer
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      ProviderARNs:
+        - Fn::GetAtt:
+            - ServerlessChatApp149C7EE0
+            - Arn
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ChatAppAuthorizer/Resource
+  chatconversationsgetServiceRoleD6F1DD29:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-conversations-get/ServiceRole/Resource
+  chatconversationsgetServiceRoleDefaultPolicy1A6E4D32:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - chatmessagestable4C103CB3
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - chatconversationstableF193DF63
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - chatconversationstableF193DF63
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: chatconversationsgetServiceRoleDefaultPolicy1A6E4D32
+      Roles:
+        - Ref: chatconversationsgetServiceRoleD6F1DD29
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-conversations-get/ServiceRole/DefaultPolicy/Resource
+  chatconversationsget9AD6A0B0:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 5be0580d85c60c273bf5c6ea11caed5badcdeb5d27a4e0925b8dc6d94072baee.zip
+      Role:
+        Fn::GetAtt:
+          - chatconversationsgetServiceRoleD6F1DD29
+          - Arn
+      Environment:
+        Variables:
+          ORIGIN:
+            Fn::GetAtt:
+              - serverlesschatappbucket4077972B
+              - WebsiteURL
+          USER_POOL_ID:
+            Ref: ServerlessChatApp149C7EE0
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: chat-conversations-get
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - chatconversationsgetServiceRoleDefaultPolicy1A6E4D32
+      - chatconversationsgetServiceRoleD6F1DD29
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-conversations-get/Resource
+      aws:asset:path: asset.5be0580d85c60c273bf5c6ea11caed5badcdeb5d27a4e0925b8dc6d94072baee
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  chatmessagesgetServiceRole4E9DBBB5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-messages-get/ServiceRole/Resource
+  chatmessagesgetServiceRoleDefaultPolicy80285CCE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - chatmessagestable4C103CB3
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - chatconversationstableF193DF63
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - chatconversationstableF193DF63
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: chatmessagesgetServiceRoleDefaultPolicy80285CCE
+      Roles:
+        - Ref: chatmessagesgetServiceRole4E9DBBB5
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-messages-get/ServiceRole/DefaultPolicy/Resource
+  chatmessagesget0439C58F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 25811913d2e63314ab467057859ac2c0ae0a93e644addd3b817338bbf23a9c22.zip
+      Role:
+        Fn::GetAtt:
+          - chatmessagesgetServiceRole4E9DBBB5
+          - Arn
+      Environment:
+        Variables:
+          ORIGIN:
+            Fn::GetAtt:
+              - serverlesschatappbucket4077972B
+              - WebsiteURL
+          USER_POOL_ID:
+            Ref: ServerlessChatApp149C7EE0
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: chat-messages-get
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - chatmessagesgetServiceRoleDefaultPolicy80285CCE
+      - chatmessagesgetServiceRole4E9DBBB5
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-messages-get/Resource
+      aws:asset:path: asset.25811913d2e63314ab467057859ac2c0ae0a93e644addd3b817338bbf23a9c22
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  chatmessagespostServiceRoleCFDDE85F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-messages-post/ServiceRole/Resource
+  chatmessagespostServiceRoleDefaultPolicy76510B06:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - chatmessagestable4C103CB3
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: chatmessagespostServiceRoleDefaultPolicy76510B06
+      Roles:
+        - Ref: chatmessagespostServiceRoleCFDDE85F
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-messages-post/ServiceRole/DefaultPolicy/Resource
+  chatmessagespost021FDB7D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 760fc3542cc7cff941fae4fe3980d2072cbee42de5f0406758532a1d02c73e8b.zip
+      Role:
+        Fn::GetAtt:
+          - chatmessagespostServiceRoleCFDDE85F
+          - Arn
+      Environment:
+        Variables:
+          ORIGIN:
+            Fn::GetAtt:
+              - serverlesschatappbucket4077972B
+              - WebsiteURL
+          USER_POOL_ID:
+            Ref: ServerlessChatApp149C7EE0
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: chat-messages-post
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - chatmessagespostServiceRoleDefaultPolicy76510B06
+      - chatmessagespostServiceRoleCFDDE85F
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-messages-post/Resource
+      aws:asset:path: asset.760fc3542cc7cff941fae4fe3980d2072cbee42de5f0406758532a1d02c73e8b
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  chatusersgetE59A0BDB:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 3238beb18a2e152d0d56bbc298ed03e7f7c06071aaf246ab81a4c66e1aabc8c7.zip
+      Role:
+        Fn::GetAtt:
+          - serverlesschatapplistusersrole7DEA959A
+          - Arn
+      Environment:
+        Variables:
+          ORIGIN:
+            Fn::GetAtt:
+              - serverlesschatappbucket4077972B
+              - WebsiteURL
+          USER_POOL_ID:
+            Ref: ServerlessChatApp149C7EE0
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: chat-users-get
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - serverlesschatapplistusersrole7DEA959A
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-users-get/Resource
+      aws:asset:path: asset.3238beb18a2e152d0d56bbc298ed03e7f7c06071aaf246ab81a4c66e1aabc8c7
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  chatconversationpostServiceRole02AE2452:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-conversation-post/ServiceRole/Resource
+  chatconversationpostServiceRoleDefaultPolicy93B74911:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - chatconversationstableF193DF63
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - chatconversationstableF193DF63
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: chatconversationpostServiceRoleDefaultPolicy93B74911
+      Roles:
+        - Ref: chatconversationpostServiceRole02AE2452
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-conversation-post/ServiceRole/DefaultPolicy/Resource
+  chatconversationpost521AD101:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 2d59da99a592cbe6d58be6c3086dc4e24ee3de500ba1c6072b1d27193da63a3f.zip
+      Role:
+        Fn::GetAtt:
+          - chatconversationpostServiceRole02AE2452
+          - Arn
+      Environment:
+        Variables:
+          ORIGIN:
+            Fn::GetAtt:
+              - serverlesschatappbucket4077972B
+              - WebsiteURL
+          USER_POOL_ID:
+            Ref: ServerlessChatApp149C7EE0
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: chat-conversation-post
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - chatconversationpostServiceRoleDefaultPolicy93B74911
+      - chatconversationpostServiceRole02AE2452
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-conversation-post/Resource
+      aws:asset:path: asset.2d59da99a592cbe6d58be6c3086dc4e24ee3de500ba1c6072b1d27193da63a3f
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  ServerlessChatApi0C54150D:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: A servers less rest api for chats
+      Name: ServerlessChatApp
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Resource
+  ServerlessChatApiCloudWatchRole394565C9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/CloudWatchRole/Resource
+  ServerlessChatApiAccount124C5C2D:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - ServerlessChatApiCloudWatchRole394565C9
+          - Arn
+    DependsOn:
+      - ServerlessChatApi0C54150D
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Account
+  ServerlessChatApiDeploymentEBE0EAA85cbced8f08b78afbe625d779753b52e3:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - ServerlessChatApiconversationidECAFA57F
+      - ServerlessChatApiconversationlist5FF5346C
+      - ServerlessChatApiconversation218D7169
+      - ServerlessChatApiconversationsidGET35D42ED6
+      - ServerlessChatApiconversationsidOPTIONS84CCA34A
+      - ServerlessChatApiconversationsidPOSTEAFD5F56
+      - ServerlessChatApiconversationsid68CF8DD8
+      - ServerlessChatApiconversationsGET320CD9CD
+      - ServerlessChatApiconversationsOPTIONSDB223A63
+      - ServerlessChatApiconversationsPOST57072D11
+      - ServerlessChatApiconversations84353A11
+      - ServerlessChatApiOPTIONS3240865B
+      - ServerlessChatApiusersGET9C76B587
+      - ServerlessChatApiusersOPTIONS7DEC4CDD
+      - ServerlessChatApiusers7DDCA2EA
+      - ServerlessChatApinewconversationDB9372BE
+      - ServerlessChatApinewmessage719E27EF
+      - ServerlessChatApiuserlistFD80CB56
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Deployment/Resource
+  ServerlessChatApiDeploymentStageprod019CA463:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      DeploymentId:
+        Ref: ServerlessChatApiDeploymentEBE0EAA85cbced8f08b78afbe625d779753b52e3
+      StageName: prod
+    DependsOn:
+      - ServerlessChatApiAccount124C5C2D
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/DeploymentStage.prod/Resource
+  ServerlessChatApiOPTIONS3240865B:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - ServerlessChatApi0C54150D
+          - RootResourceId
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin:
+                Fn::Join:
+                  - ""
+                  - - "'"
+                    - Fn::GetAtt:
+                        - serverlesschatappbucket4077972B
+                        - WebsiteURL
+                    - "'"
+              method.response.header.Vary: "'Origin'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Vary: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/OPTIONS/Resource
+  ServerlessChatApiconversations84353A11:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - ServerlessChatApi0C54150D
+          - RootResourceId
+      PathPart: conversations
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/Resource
+  ServerlessChatApiconversationsOPTIONSDB223A63:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: ServerlessChatApiconversations84353A11
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin:
+                Fn::Join:
+                  - ""
+                  - - "'"
+                    - Fn::GetAtt:
+                        - serverlesschatappbucket4077972B
+                        - WebsiteURL
+                    - "'"
+              method.response.header.Vary: "'Origin'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Vary: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/OPTIONS/Resource
+  ServerlessChatApiconversationsid68CF8DD8:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: ServerlessChatApiconversations84353A11
+      PathPart: "{id}"
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/{id}/Resource
+  ServerlessChatApiconversationsidOPTIONS84CCA34A:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: ServerlessChatApiconversationsid68CF8DD8
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin:
+                Fn::Join:
+                  - ""
+                  - - "'"
+                    - Fn::GetAtt:
+                        - serverlesschatappbucket4077972B
+                        - WebsiteURL
+                    - "'"
+              method.response.header.Vary: "'Origin'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Vary: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/{id}/OPTIONS/Resource
+  ServerlessChatApiconversationsidGETApiPermissionserverlesschatappServerlessChatApiE890FE1AGETconversationsid781700F3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - chatmessagesget0439C58F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ServerlessChatApi0C54150D
+            - /
+            - Ref: ServerlessChatApiDeploymentStageprod019CA463
+            - /GET/conversations/*
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/{id}/GET/ApiPermission.serverlesschatappServerlessChatApiE890FE1A.GET..conversations.{id}
+  ServerlessChatApiconversationsidGETApiPermissionTestserverlesschatappServerlessChatApiE890FE1AGETconversationsid8D133061:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - chatmessagesget0439C58F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ServerlessChatApi0C54150D
+            - /test-invoke-stage/GET/conversations/*
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/{id}/GET/ApiPermission.Test.serverlesschatappServerlessChatApiE890FE1A.GET..conversations.{id}
+  ServerlessChatApiconversationsidGET35D42ED6:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: ServerlessChatApiconversationsid68CF8DD8
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: ChatAppAuthorizerAA8FCD79
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin:
+                Fn::Join:
+                  - ""
+                  - - "'"
+                    - Fn::GetAtt:
+                        - serverlesschatappbucket4077972B
+                        - WebsiteURL
+                    - "'"
+            StatusCode: "200"
+          - SelectionPattern: .*Unauthorized.*
+            StatusCode: "401"
+        RequestTemplates:
+          application/json: |-
+            #set($inputRoot = $input.path('$'))
+                                        {
+                                          "cognitoUsername": "$context.authorizer.claims['cognito:username']",
+                                          "id": "$input.params('id')"
+                                        }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - chatmessagesget0439C58F
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: ServerlessChatApiconversation218D7169
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+        - ResponseModels:
+            application/json: Error
+          StatusCode: "401"
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/{id}/GET/Resource
+  ServerlessChatApiconversationsidPOSTApiPermissionserverlesschatappServerlessChatApiE890FE1APOSTconversationsidDAE8A021:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - chatmessagespost021FDB7D
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ServerlessChatApi0C54150D
+            - /
+            - Ref: ServerlessChatApiDeploymentStageprod019CA463
+            - /POST/conversations/*
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/{id}/POST/ApiPermission.serverlesschatappServerlessChatApiE890FE1A.POST..conversations.{id}
+  ServerlessChatApiconversationsidPOSTApiPermissionTestserverlesschatappServerlessChatApiE890FE1APOSTconversationsid6ACAEBFC:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - chatmessagespost021FDB7D
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ServerlessChatApi0C54150D
+            - /test-invoke-stage/POST/conversations/*
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/{id}/POST/ApiPermission.Test.serverlesschatappServerlessChatApiE890FE1A.POST..conversations.{id}
+  ServerlessChatApiconversationsidPOSTEAFD5F56:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: ServerlessChatApiconversationsid68CF8DD8
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: ChatAppAuthorizerAA8FCD79
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin:
+                Fn::Join:
+                  - ""
+                  - - "'"
+                    - Fn::GetAtt:
+                        - serverlesschatappbucket4077972B
+                        - WebsiteURL
+                    - "'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: |-
+            #set($inputRoot = $input.path('$'))
+                                        {
+                                            "id": "$input.params('id')",
+                                            "message": "$inputRoot",
+                                            "cognitoUsername": "$context.authorizer.claims['cognito:username']"
+                                        }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - chatmessagespost021FDB7D
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "204"
+      RequestModels:
+        application/json:
+          Ref: ServerlessChatApinewmessage719E27EF
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/{id}/POST/Resource
+  ServerlessChatApiconversationsGETApiPermissionserverlesschatappServerlessChatApiE890FE1AGETconversationsE11E5C23:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - chatconversationsget9AD6A0B0
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ServerlessChatApi0C54150D
+            - /
+            - Ref: ServerlessChatApiDeploymentStageprod019CA463
+            - /GET/conversations
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/GET/ApiPermission.serverlesschatappServerlessChatApiE890FE1A.GET..conversations
+  ServerlessChatApiconversationsGETApiPermissionTestserverlesschatappServerlessChatApiE890FE1AGETconversations406FB071:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - chatconversationsget9AD6A0B0
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ServerlessChatApi0C54150D
+            - /test-invoke-stage/GET/conversations
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/GET/ApiPermission.Test.serverlesschatappServerlessChatApiE890FE1A.GET..conversations
+  ServerlessChatApiconversationsGET320CD9CD:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: ServerlessChatApiconversations84353A11
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: ChatAppAuthorizerAA8FCD79
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin:
+                Fn::Join:
+                  - ""
+                  - - "'"
+                    - Fn::GetAtt:
+                        - serverlesschatappbucket4077972B
+                        - WebsiteURL
+                    - "'"
+            ResponseTemplates:
+              application/json: |-
+                #set($inputRoot = $input.path("$"))
+                                                      [
+                                                      #foreach($elem in $inputRoot)
+                                                        {
+                                                          "id" : "$elem.id",
+                                                          "last" : $elem.last,
+                                                          "participants": $elem.participants
+                                                        }#if($foreach.hasNext),#end
+                                                      
+                                                      #end
+                                                      ]
+            StatusCode: "200"
+        RequestTemplates:
+          application/json: |-
+            #set($inputRoot = $input.path('$'))
+                    {
+                        "cognitoUsername": "$context.authorizer.claims['cognito:username']"
+                    }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - chatconversationsget9AD6A0B0
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: ServerlessChatApiconversationlist5FF5346C
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/GET/Resource
+  ServerlessChatApiconversationsPOSTApiPermissionserverlesschatappServerlessChatApiE890FE1APOSTconversations1FFD1EDF:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - chatconversationpost521AD101
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ServerlessChatApi0C54150D
+            - /
+            - Ref: ServerlessChatApiDeploymentStageprod019CA463
+            - /POST/conversations
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/POST/ApiPermission.serverlesschatappServerlessChatApiE890FE1A.POST..conversations
+  ServerlessChatApiconversationsPOSTApiPermissionTestserverlesschatappServerlessChatApiE890FE1APOSTconversationsCD5BBEA9:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - chatconversationpost521AD101
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ServerlessChatApi0C54150D
+            - /test-invoke-stage/POST/conversations
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/POST/ApiPermission.Test.serverlesschatappServerlessChatApiE890FE1A.POST..conversations
+  ServerlessChatApiconversationsPOST57072D11:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: ServerlessChatApiconversations84353A11
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: ChatAppAuthorizerAA8FCD79
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin:
+                Fn::Join:
+                  - ""
+                  - - "'"
+                    - Fn::GetAtt:
+                        - serverlesschatappbucket4077972B
+                        - WebsiteURL
+                    - "'"
+            StatusCode: "200"
+        RequestTemplates:
+          application/json: |-
+            #set($inputRoot = $input.path('$'))
+                    {
+                      "cognitoUsername": "$context.authorizer.claims['cognito:username']",
+                      "users":
+                      [
+                        #foreach($elem in $inputRoot)
+                        "$elem"
+                        #if($foreach.hasNext),#end
+                        #end
+                      ]
+                    }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - chatconversationpost521AD101
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: ServerlessChatApiconversationidECAFA57F
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+      RequestModels:
+        application/json:
+          Ref: ServerlessChatApinewconversationDB9372BE
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/conversations/POST/Resource
+  ServerlessChatApiusers7DDCA2EA:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - ServerlessChatApi0C54150D
+          - RootResourceId
+      PathPart: users
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/users/Resource
+  ServerlessChatApiusersOPTIONS7DEC4CDD:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: ServerlessChatApiusers7DDCA2EA
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,Authorization'"
+              method.response.header.Access-Control-Allow-Origin:
+                Fn::Join:
+                  - ""
+                  - - "'"
+                    - Fn::GetAtt:
+                        - serverlesschatappbucket4077972B
+                        - WebsiteURL
+                    - "'"
+              method.response.header.Vary: "'Origin'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Vary: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/users/OPTIONS/Resource
+  ServerlessChatApiusersGETApiPermissionserverlesschatappServerlessChatApiE890FE1AGETusers098EA811:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - chatusersgetE59A0BDB
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ServerlessChatApi0C54150D
+            - /
+            - Ref: ServerlessChatApiDeploymentStageprod019CA463
+            - /GET/users
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/users/GET/ApiPermission.serverlesschatappServerlessChatApiE890FE1A.GET..users
+  ServerlessChatApiusersGETApiPermissionTestserverlesschatappServerlessChatApiE890FE1AGETusers0F028C6A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - chatusersgetE59A0BDB
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ServerlessChatApi0C54150D
+            - /test-invoke-stage/GET/users
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/users/GET/ApiPermission.Test.serverlesschatappServerlessChatApiE890FE1A.GET..users
+  ServerlessChatApiusersGET9C76B587:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: ServerlessChatApiusers7DDCA2EA
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: ChatAppAuthorizerAA8FCD79
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin:
+                Fn::Join:
+                  - ""
+                  - - "'"
+                    - Fn::GetAtt:
+                        - serverlesschatappbucket4077972B
+                        - WebsiteURL
+                    - "'"
+            StatusCode: "200"
+        RequestTemplates:
+          application/json: |-
+            #set($inputRoot = $input.path('$'))
+                    {
+                        "cognitoUsername": "$context.authorizer.claims['cognito:username']"
+                    }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - chatusersgetE59A0BDB
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: ServerlessChatApiuserlistFD80CB56
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/Default/users/GET/Resource
+  ServerlessChatApiconversationlist5FF5346C:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      ContentType: application/json
+      Description: list of conversations
+      Name: ConversationList
+      Schema:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            participants:
+              type: array
+              items:
+                type: string
+            last:
+              type: number
+              format: utc-millisec
+        $schema: http://json-schema.org/draft-04/schema#
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/conversation-list/Resource
+  ServerlessChatApiconversation218D7169:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      ContentType: application/json
+      Description: conversation with lists of participants and messages
+      Name: Conversation
+      Schema:
+        type: array
+        items:
+          type: object
+          properties:
+            id:
+              type: string
+            participants:
+              type: array
+              items:
+                type: string
+            last:
+              type: number
+              format: utc-millisec
+        $schema: http://json-schema.org/draft-04/schema#
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/conversation/Resource
+  ServerlessChatApinewmessage719E27EF:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      ContentType: application/json
+      Description: new chat message
+      Name: NewMessage
+      Schema:
+        type: string
+        $schema: http://json-schema.org/draft-04/schema#
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/new-message/Resource
+  ServerlessChatApiuserlistFD80CB56:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      ContentType: application/json
+      Description: list cognito users
+      Name: UserList
+      Schema:
+        type: array
+        items:
+          type: string
+        $schema: http://json-schema.org/draft-04/schema#
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/user-list/Resource
+  ServerlessChatApinewconversationDB9372BE:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      ContentType: application/json
+      Description: new conversation
+      Name: NewConversation
+      Schema:
+        type: array
+        items:
+          type: string
+        $schema: http://json-schema.org/draft-04/schema#
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/new-conversation/Resource
+  ServerlessChatApiconversationidECAFA57F:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: ServerlessChatApi0C54150D
+      ContentType: application/json
+      Description: id of a new conversation
+      Name: ConversationId
+      Schema:
+        type: string
+        $schema: http://json-schema.org/draft-04/schema#
+    Metadata:
+      aws:cdk:path: serverless-chat-app/ServerlessChatApi/conversation-id/Resource
+  chatmessagestable4C103CB3:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: ConversationId
+          KeyType: HASH
+        - AttributeName: Timestamp
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: ConversationId
+          AttributeType: S
+        - AttributeName: Timestamp
+          AttributeType: "N"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      TableName: Chat-Messages
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-messages-table/Resource
+  chatconversationstableF193DF63:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: ConversationId
+          KeyType: HASH
+        - AttributeName: Username
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: ConversationId
+          AttributeType: S
+        - AttributeName: Username
+          AttributeType: S
+      GlobalSecondaryIndexes:
+        - IndexName: Username-ConversationId-index
+          KeySchema:
+            - AttributeName: Username
+              KeyType: HASH
+            - AttributeName: ConversationId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      TableName: Chat-Conversations
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: serverless-chat-app/chat-conversations-table/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/22SyVLDMAyGn6V319D2wjUNw63QKXDuuLYIah07E9l0Qsbvjpd0OXDS90uytmTJF0/8cSbONJfqNNd44OO7E/LEoms/0oqPay9P4Fj9ZSYqZms1yuHmnnQRa0EQmLSNQWf5+EnQb63VKfvKF6g1gnH3oeIJDEXLx53VkILZ3poWCkx02AgHZzHwsS79LmWo8u7b9vgLfXpxp3ZAruowl71hJaX1cZJn6LQd2mmoOxUP0+RZCsSn1vcS0rJsA7G6SsGJLtGpSeGNVZCvkCEwLdqDEnsT1ZH4azYv3kiH1jBa7QUROOJVMlNyXPPLXHPSJaBvkSiqwNRgRGtV/Igf4lDuliGEhG/edd6xXC2tgKb5f8zItTUKXS6apuNHeviJv8piyRezIyHO+3gqbIHviv0Dzq2NdkkCAAA=
+    Metadata:
+      aws:cdk:path: serverless-chat-app/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  ServerlessChatAppS3Url:
+    Value:
+      Fn::GetAtt:
+        - serverlesschatappbucket4077972B
+        - WebsiteURL
+  UserPoolId:
+    Value:
+      Ref: ServerlessChatApp149C7EE0
+  UserPoolClientId:
+    Value:
+      Ref: ServerlessChatAppServerlessChatAppWebsiteA10EF8C0
+  ServerlessChatApiEndpointE84E2F0E:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: ServerlessChatApi0C54150D
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: ServerlessChatApiDeploymentStageprod019CA463
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,1447 @@
+Resources:
+  alarmnotificationalarmtopic414E1D04:
+    Type: AWS::SNS::Topic
+    Properties:
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/alarm-notification/alarm-topic/Resource
+  pooldatabasestestpoolDCBB54AF:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: tenant
+          KeyType: HASH
+        - AttributeName: poolName
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: tenant
+          AttributeType: S
+        - AttributeName: poolName
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: dev-kiko-app/pool-databases/test-pool/Resource
+  frontendhostingfrontendbucket9D6C4BD1:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: dev-kiko-app/frontend-hosting/frontend-bucket/Resource
+  frontendhostingfrontendbucketPolicy2D044354:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: frontendhostingfrontendbucket9D6C4BD1
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - frontendhostingfrontenddistributionOrigin1S3OriginC2F142FA
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - frontendhostingfrontendbucket9D6C4BD1
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: dev-kiko-app/frontend-hosting/frontend-bucket/Policy/Resource
+  frontendhostingfrontenddistributionOrigin1S3OriginC2F142FA:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Identity for devkikoappfrontendhostingfrontenddistributionOrigin1B2F4502D
+    Metadata:
+      aws:cdk:path: dev-kiko-app/frontend-hosting/frontend-distribution/Origin1/S3Origin/Resource
+  frontendhostingfrontenddistribution96316B26:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: devkikoappfrontendhostingfrontenddistributionOrigin1B2F4502D
+          ViewerProtocolPolicy: allow-all
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - frontendhostingfrontendbucket9D6C4BD1
+                - RegionalDomainName
+            Id: devkikoappfrontendhostingfrontenddistributionOrigin1B2F4502D
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: frontendhostingfrontenddistributionOrigin1S3OriginC2F142FA
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/frontend-hosting/frontend-distribution/Resource
+  tenantmanagementkikouserpool9AC1D4C7:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageTemplate:
+          EmailMessage:
+            Fn::Join:
+              - ""
+              - - |-
+                  Hallo {username},<br/>
+                      du hast eine Einladung zur Teilnahme an der KiKo-App erhalten. Dein temporäres Passwort lautet:<br/>
+                      <br/>
+                      {####}<br/>
+                      <br/>
+                      Bitte melde dich zunächst mit dieser E-Mail Adresse und deinem temporären Passwort unter<br/>
+                      <br/>
+                      https://
+                - Fn::GetAtt:
+                    - frontendhostingfrontenddistribution96316B26
+                    - DomainName
+                - "<br/>
+
+                  \    <br/>\ 
+
+                  \    an. Du wirst anschließend aufgefordert, ein neues Passwort zu setzen. Dein temporäres Passwort ist 7 Tage gültig.<br/>\ 
+
+                  \    <br/>
+
+                  \    Dein KiKo-App Team!\ 
+
+                  \    "
+          EmailSubject: Deine Einladung für die KiKo-App!
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Schema:
+        - Mutable: false
+          Name: email
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameAttributes:
+        - email
+      UserPoolTags:
+        project: kiko
+        stage: dev
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/kiko-user-pool/Resource
+  tenantmanagementkikouserpoolwebclient5C15D3F7:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: tenantmanagementkikouserpool9AC1D4C7
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ClientName: kiko-web-client
+      GenerateSecret: false
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/kiko-user-pool/web-client/Resource
+  tenantmanagementpinpointapplicationAF757B26:
+    Type: AWS::Pinpoint::App
+    Properties:
+      Name: kiko
+      Tags:
+        project: kiko
+        stage: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/pinpoint-application
+  tenantmanagementpinpointsmschannel00581A18:
+    Type: AWS::Pinpoint::SMSChannel
+    Properties:
+      ApplicationId:
+        Ref: tenantmanagementpinpointapplicationAF757B26
+      Enabled: true
+      SenderId: KIKO
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/pinpoint-sms-channel
+  tenantmanagementsendsmsfailurealarm85FCCEE6:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: alarmnotificationalarmtopic414E1D04
+      DatapointsToAlarm: 1
+      Dimensions:
+        - Name: ApplicationId
+          Value:
+            Ref: tenantmanagementpinpointapplicationAF757B26
+        - Name: Channel
+          Value: SMS
+      MetricName: CampaignSendMessagePermanentFailure
+      Namespace: AWS/Pinpoint
+      Period: 60
+      Statistic: Sum
+      Threshold: 1
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/send-sms-failure-alarm/Resource
+  tenantmanagementdemouserpoolgroupF1C639FF:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId:
+        Ref: tenantmanagementkikouserpool9AC1D4C7
+      Description: Demo Tenant
+      GroupName: demo
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/demo/user-pool-group
+  tenantmanagementdemoAlphasegmentCustomResourcePolicy10FFE453:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: mobiletargeting:CreateSegment
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - tenantmanagementpinpointapplicationAF757B26
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: tenantmanagementdemoAlphasegmentCustomResourcePolicy10FFE453
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/demo/Alpha-segment/CustomResourcePolicy/Resource
+  tenantmanagementdemoAlphasegment4427652F:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"Pinpoint","action":"createSegment","parameters":{"ApplicationId":"'
+            - Ref: tenantmanagementpinpointapplicationAF757B26
+            - '","WriteSegmentRequest":{"Name":"demo_Alpha","Dimensions":{"Attributes":{"Group":{"Values":["Alpha"],"AttributeType":"INCLUSIVE"},"Tenant":{"Values":["demo"],"AttributeType":"INCLUSIVE"}},"Demographic":{"Channel":{"Values":["SMS"],"DimensionType":"INCLUSIVE"}}}}},"physicalResourceId":{"id":"demo-Alpha-segment"}}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - tenantmanagementdemoAlphasegmentCustomResourcePolicy10FFE453
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/demo/Alpha-segment/Resource/Default
+  tenantmanagementdemoBetasegmentCustomResourcePolicy9B768F99:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: mobiletargeting:CreateSegment
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - tenantmanagementpinpointapplicationAF757B26
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: tenantmanagementdemoBetasegmentCustomResourcePolicy9B768F99
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/demo/Beta-segment/CustomResourcePolicy/Resource
+  tenantmanagementdemoBetasegmentC6DE6045:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"Pinpoint","action":"createSegment","parameters":{"ApplicationId":"'
+            - Ref: tenantmanagementpinpointapplicationAF757B26
+            - '","WriteSegmentRequest":{"Name":"demo_Beta","Dimensions":{"Attributes":{"Group":{"Values":["Beta"],"AttributeType":"INCLUSIVE"},"Tenant":{"Values":["demo"],"AttributeType":"INCLUSIVE"}},"Demographic":{"Channel":{"Values":["SMS"],"DimensionType":"INCLUSIVE"}}}}},"physicalResourceId":{"id":"demo-Beta-segment"}}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - tenantmanagementdemoBetasegmentCustomResourcePolicy9B768F99
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/demo/Beta-segment/Resource/Default
+  tenantmanagementdemoGammasegmentCustomResourcePolicyD913599E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: mobiletargeting:CreateSegment
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - tenantmanagementpinpointapplicationAF757B26
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: tenantmanagementdemoGammasegmentCustomResourcePolicyD913599E
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/demo/Gamma-segment/CustomResourcePolicy/Resource
+  tenantmanagementdemoGammasegment3F8395C8:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"Pinpoint","action":"createSegment","parameters":{"ApplicationId":"'
+            - Ref: tenantmanagementpinpointapplicationAF757B26
+            - '","WriteSegmentRequest":{"Name":"demo_Gamma","Dimensions":{"Attributes":{"Group":{"Values":["Gamma"],"AttributeType":"INCLUSIVE"},"Tenant":{"Values":["demo"],"AttributeType":"INCLUSIVE"}},"Demographic":{"Channel":{"Values":["SMS"],"DimensionType":"INCLUSIVE"}}}}},"physicalResourceId":{"id":"demo-Gamma-segment"}}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - tenantmanagementdemoGammasegmentCustomResourcePolicyD913599E
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/demo/Gamma-segment/Resource/Default
+  tenantmanagementdemoinitialpoolsCustomResourcePolicy7D7B151E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:BatchWriteItem
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: tenantmanagementdemoinitialpoolsCustomResourcePolicy7D7B151E
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/demo/initial-pools/CustomResourcePolicy/Resource
+  tenantmanagementdemoinitialpools2D0DA63E:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"DynamoDB","action":"batchWriteItem","parameters":{"RequestItems":{"'
+            - Ref: pooldatabasestestpoolDCBB54AF
+            - '":[{"PutRequest":{"Item":{"tenant":{"S":"demo"},"poolName":{"S":"Alpha"},"segmentId":{"S":"'
+            - Fn::GetAtt:
+                - tenantmanagementdemoAlphasegment4427652F
+                - SegmentResponse.Id
+            - '"}}}},{"PutRequest":{"Item":{"tenant":{"S":"demo"},"poolName":{"S":"Beta"},"segmentId":{"S":"'
+            - Fn::GetAtt:
+                - tenantmanagementdemoBetasegmentC6DE6045
+                - SegmentResponse.Id
+            - '"}}}},{"PutRequest":{"Item":{"tenant":{"S":"demo"},"poolName":{"S":"Gamma"},"segmentId":{"S":"'
+            - Fn::GetAtt:
+                - tenantmanagementdemoGammasegment3F8395C8
+                - SegmentResponse.Id
+            - '"}}}}]}},"physicalResourceId":{"id":"demo_initial_pools"}}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - tenantmanagementdemoinitialpoolsCustomResourcePolicy7D7B151E
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/demo/initial-pools/Resource/Default
+  tenantmanagementonboardtenantfunctionServiceRoleE0DC1054:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/onboard-tenant-function/ServiceRole/Resource
+  tenantmanagementonboardtenantfunctionServiceRoleDefaultPolicy20C7F4C0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: mobiletargeting:CreateSegment
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - tenantmanagementpinpointapplicationAF757B26
+                - Arn
+          - Action:
+              - cognito-idp:AdminCreateUser
+              - cognito-idp:AdminAddUserToGroup
+              - cognito-idp:CreateGroup
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - tenantmanagementkikouserpool9AC1D4C7
+                - Arn
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - pooldatabasestestpoolDCBB54AF
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: tenantmanagementonboardtenantfunctionServiceRoleDefaultPolicy20C7F4C0
+      Roles:
+        - Ref: tenantmanagementonboardtenantfunctionServiceRoleE0DC1054
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/onboard-tenant-function/ServiceRole/DefaultPolicy/Resource
+  tenantmanagementonboardtenantfunction1342AE58:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 1d24ecc57483c4e7466a736448f786e96128efe85991f1770a6e8c5ce9af98d9.zip
+      Role:
+        Fn::GetAtt:
+          - tenantmanagementonboardtenantfunctionServiceRoleE0DC1054
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+          POOL_TABLE_NAME:
+            Ref: pooldatabasestestpoolDCBB54AF
+          PINPOINT_APPLICATION_ID:
+            Ref: tenantmanagementpinpointapplicationAF757B26
+          COGNITO_USER_POOL_ID:
+            Ref: tenantmanagementkikouserpool9AC1D4C7
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+      Timeout: 12
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - tenantmanagementonboardtenantfunctionServiceRoleDefaultPolicy20C7F4C0
+      - tenantmanagementonboardtenantfunctionServiceRoleE0DC1054
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/onboard-tenant-function/Resource
+      aws:asset:path: asset.1d24ecc57483c4e7466a736448f786e96128efe85991f1770a6e8c5ce9af98d9
+      aws:asset:property: Code
+  tenantmanagementonboardtenantfunctionLogRetention11EC258A:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: tenantmanagementonboardtenantfunction1342AE58
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: dev-kiko-app/tenant-management/onboard-tenant-function/LogRetention/Resource
+  AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource
+  AWS679f53fac002430cb0da5b7982bd22872D164C4C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 11a850054982c7a762dfcb33f4b473b67940073fd1db01635b64b04c0529ba0d.zip
+      Role:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+      Timeout: 120
+    DependsOn:
+      - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: dev-kiko-app/AWS679f53fac002430cb0da5b7982bd2287/Resource
+      aws:asset:path: asset.11a850054982c7a762dfcb33f4b473b67940073fd1db01635b64b04c0529ba0d
+      aws:asset:property: Code
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: dev-kiko-app/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24.zip
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: dev-kiko-app/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+  testresultworkflowforwardtestresultfunctionServiceRole1A878917:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/forward-test-result-function/ServiceRole/Resource
+  testresultworkflowforwardtestresultfunctionServiceRoleDefaultPolicy1A571CA9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: mobiletargeting:CreateCampaign
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - tenantmanagementpinpointapplicationAF757B26
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - tenantmanagementpinpointapplicationAF757B26
+                        - Arn
+                    - /segments/*
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - pooldatabasestestpoolDCBB54AF
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: testresultworkflowforwardtestresultfunctionServiceRoleDefaultPolicy1A571CA9
+      Roles:
+        - Ref: testresultworkflowforwardtestresultfunctionServiceRole1A878917
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/forward-test-result-function/ServiceRole/DefaultPolicy/Resource
+  testresultworkflowforwardtestresultfunction0989B6B0:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: e47ed45352a42277148ad8b86ae9335fe29815a00867a9d088b12020a62f33ff.zip
+      Role:
+        Fn::GetAtt:
+          - testresultworkflowforwardtestresultfunctionServiceRole1A878917
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+          POOL_TABLE_NAME:
+            Ref: pooldatabasestestpoolDCBB54AF
+          PINPOINT_APPLICATION_ID:
+            Ref: tenantmanagementpinpointapplicationAF757B26
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+      Timeout: 12
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - testresultworkflowforwardtestresultfunctionServiceRoleDefaultPolicy1A571CA9
+      - testresultworkflowforwardtestresultfunctionServiceRole1A878917
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/forward-test-result-function/Resource
+      aws:asset:path: asset.e47ed45352a42277148ad8b86ae9335fe29815a00867a9d088b12020a62f33ff
+      aws:asset:property: Code
+  testresultworkflowforwardtestresultfunctionLogRetentionE8BB0C50:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: testresultworkflowforwardtestresultfunction0989B6B0
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/forward-test-result-function/LogRetention/Resource
+  testresultworkflowcampaignstatusfunctionServiceRole0084B4D9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/campaign-status-function/ServiceRole/Resource
+  testresultworkflowcampaignstatusfunctionServiceRoleDefaultPolicy9CB5DB5D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: mobiletargeting:GetCampaignActivities
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - tenantmanagementpinpointapplicationAF757B26
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - tenantmanagementpinpointapplicationAF757B26
+                        - Arn
+                    - /campaigns/*
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: testresultworkflowcampaignstatusfunctionServiceRoleDefaultPolicy9CB5DB5D
+      Roles:
+        - Ref: testresultworkflowcampaignstatusfunctionServiceRole0084B4D9
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/campaign-status-function/ServiceRole/DefaultPolicy/Resource
+  testresultworkflowcampaignstatusfunctionF8AF1750:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 4698545279e1ab575a3ab0971848e35b1c7834fa937e7a25bfc849a5f134cfa4.zip
+      Role:
+        Fn::GetAtt:
+          - testresultworkflowcampaignstatusfunctionServiceRole0084B4D9
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+          PINPOINT_APPLICATION_ID:
+            Ref: tenantmanagementpinpointapplicationAF757B26
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+      Timeout: 12
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - testresultworkflowcampaignstatusfunctionServiceRoleDefaultPolicy9CB5DB5D
+      - testresultworkflowcampaignstatusfunctionServiceRole0084B4D9
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/campaign-status-function/Resource
+      aws:asset:path: asset.4698545279e1ab575a3ab0971848e35b1c7834fa937e7a25bfc849a5f134cfa4
+      aws:asset:property: Code
+  testresultworkflowcampaignstatusfunctionLogRetentionE8E6D162:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: testresultworkflowcampaignstatusfunctionF8AF1750
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/campaign-status-function/LogRetention/Resource
+  testresultworkflowtestresultprocessingloggroup6A2E3139:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 1
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/test-result-processing-log-group/Resource
+  testresultworkflowprocesstestresultRoleF56B695A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/process-test-result/Role/Resource
+  testresultworkflowprocesstestresultRoleDefaultPolicy1ECAE78A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogDelivery
+              - logs:GetLogDelivery
+              - logs:UpdateLogDelivery
+              - logs:DeleteLogDelivery
+              - logs:ListLogDeliveries
+              - logs:PutResourcePolicy
+              - logs:DescribeResourcePolicies
+              - logs:DescribeLogGroups
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+              - xray:GetSamplingRules
+              - xray:GetSamplingTargets
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - testresultworkflowforwardtestresultfunction0989B6B0
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - testresultworkflowcampaignstatusfunctionF8AF1750
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: testresultworkflowprocesstestresultRoleDefaultPolicy1ECAE78A
+      Roles:
+        - Ref: testresultworkflowprocesstestresultRoleF56B695A
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/process-test-result/Role/DefaultPolicy/Resource
+  testresultworkflowprocesstestresultB54F5BA6:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - testresultworkflowprocesstestresultRoleF56B695A
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"forward-test-result","States":{"forward-test-result":{"Next":"wait-for-campaign","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - testresultworkflowforwardtestresultfunction0989B6B0
+                - Arn
+            - '","Payload":{"tenant.$":"$.tenant","poolName.$":"$.poolName","testResult.$":"$.testResult"}}},"wait-for-campaign":{"Type":"Wait","Seconds":10,"Next":"check-campaign-status"},"check-campaign-status":{"Next":"is-campaign-finished","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - testresultworkflowcampaignstatusfunctionF8AF1750
+                - Arn
+            - '","Payload":{"campaignId.$":"$.campaignId"}}},"is-campaign-finished":{"Type":"Choice","Choices":[{"Variable":"$.campaignStatus","StringEquals":"INVALID","Next":"campaign-creation-failed"},{"Variable":"$.campaignStatus","StringEquals":"COMPLETED","Next":"campaign-creation-succeeded"}],"Default":"wait-for-campaign"},"campaign-creation-failed":{"Type":"Fail"},"campaign-creation-succeeded":{"Type":"Pass","End":true}},"TimeoutSeconds":300}'
+      LoggingConfiguration:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn:
+                Fn::GetAtt:
+                  - testresultworkflowtestresultprocessingloggroup6A2E3139
+                  - Arn
+        Level: ERROR
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+      TracingConfiguration:
+        Enabled: true
+    DependsOn:
+      - testresultworkflowprocesstestresultRoleDefaultPolicy1ECAE78A
+      - testresultworkflowprocesstestresultRoleF56B695A
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/process-test-result/Resource
+  testresultworkflowexecutionfailed61E3F797:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: alarmnotificationalarmtopic414E1D04
+      AlarmDescription: "Alarm for the number of executions that failed exceeded the threshold of 1. "
+      Dimensions:
+        - Name: StateMachineArn
+          Value:
+            Ref: testresultworkflowprocesstestresultB54F5BA6
+      MetricName: ExecutionsFailed
+      Namespace: AWS/States
+      Period: 300
+      Statistic: Sum
+      Threshold: 1
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/execution-failed/Resource
+  testresultworkflowexecutionthrottled499590E9:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: alarmnotificationalarmtopic414E1D04
+      AlarmDescription: "Alarm for the number of executions that throttled exceeded the threshold of 1. "
+      Dimensions:
+        - Name: StateMachineArn
+          Value:
+            Ref: testresultworkflowprocesstestresultB54F5BA6
+      MetricName: ExecutionThrottled
+      Namespace: AWS/States
+      Period: 300
+      Statistic: Sum
+      Threshold: 1
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/execution-throttled/Resource
+  testresultworkflowexecutionaborted0F0D1EEE:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: alarmnotificationalarmtopic414E1D04
+      AlarmDescription: "Alarm for the number of executions that aborted exceeded the threshold of 1. "
+      Dimensions:
+        - Name: StateMachineArn
+          Value:
+            Ref: testresultworkflowprocesstestresultB54F5BA6
+      MetricName: ExecutionsAborted
+      Namespace: AWS/States
+      Period: 300
+      Statistic: Sum
+      Threshold: 1
+    Metadata:
+      aws:cdk:path: dev-kiko-app/test-result-workflow/execution-aborted/Resource
+  graphqlapiApiLogsRoleA4FA694F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/ApiLogsRole/Resource
+  graphqlapi689447F8:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: AMAZON_COGNITO_USER_POOLS
+      Name: kiko-api
+      LogConfig:
+        CloudWatchLogsRoleArn:
+          Fn::GetAtt:
+            - graphqlapiApiLogsRoleA4FA694F
+            - Arn
+        ExcludeVerboseContent: false
+        FieldLogLevel: ERROR
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+      UserPoolConfig:
+        AwsRegion:
+          Ref: AWS::Region
+        DefaultAction: ALLOW
+        UserPoolId:
+          Ref: tenantmanagementkikouserpool9AC1D4C7
+      XrayEnabled: true
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/Resource
+  graphqlapiSchema05157664:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - graphqlapi689447F8
+          - ApiId
+      Definition: |
+        type Pool {
+          tenant: String!
+          poolName: String!
+          segmentId: String
+        }
+
+        type Query {
+          listPools: [Pool]
+        }
+
+        type Result {
+          id: ID!
+          status: ResultStatus!
+        }
+
+        enum ResultStatus {
+          PENDING
+          COMPLETE
+          ERROR
+        }
+
+        input ProcessTestResultInput {
+          poolName: String!
+          testResult: String!
+        }
+
+        type Mutation {
+          processTestResult(input: ProcessTestResultInput!): Result
+        }
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/Schema
+  graphqlapiprocesstestresultServiceRole67AEC151:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/process_test_result/ServiceRole/Resource
+  graphqlapiprocesstestresultServiceRoleDefaultPolicy228AF858:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: testresultworkflowprocesstestresultB54F5BA6
+        Version: "2012-10-17"
+      PolicyName: graphqlapiprocesstestresultServiceRoleDefaultPolicy228AF858
+      Roles:
+        - Ref: graphqlapiprocesstestresultServiceRole67AEC151
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/process_test_result/ServiceRole/DefaultPolicy/Resource
+  graphqlapiprocesstestresult114E98EE:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - graphqlapi689447F8
+          - ApiId
+      Name: process_test_result
+      Type: HTTP
+      HttpConfig:
+        AuthorizationConfig:
+          AuthorizationType: AWS_IAM
+          AwsIamConfig:
+            SigningRegion:
+              Ref: AWS::Region
+            SigningServiceName: states
+        Endpoint:
+          Fn::Join:
+            - ""
+            - - https://states.
+              - Ref: AWS::Region
+              - .amazonaws.com
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - graphqlapiprocesstestresultServiceRole67AEC151
+          - Arn
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/process_test_result/Resource
+  graphqlapiprocesstestresultMutationprocessTestResultResolverE276DB20:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - graphqlapi689447F8
+          - ApiId
+      FieldName: processTestResult
+      TypeName: Mutation
+      DataSourceName: process_test_result
+      Kind: UNIT
+      RequestMappingTemplate:
+        Fn::Join:
+          - ""
+          - - |-2
+              
+                        $util.qr($ctx.stash.put("poolName", $context.arguments.input.poolName))
+                        $util.qr($ctx.stash.put("testResult", $context.arguments.input.testResult))
+                        $util.qr($ctx.stash.put("tenant", $context.identity.claims.get("cognito:groups").get(0)))
+                        {
+                          "version": "2018-05-29",
+                          "method": "POST",
+                          "resourcePath": "/",
+                          "params": {
+                            "headers": {
+                              "content-type": "application/x-amz-json-1.0",
+                              "x-amz-target":"AWSStepFunctions.StartExecution"
+                            },
+                            "body": {
+                              "stateMachineArn": "
+            - Ref: testresultworkflowprocesstestresultB54F5BA6
+            - "\",
+
+              \                \"input\": \"$util.escapeJavaScript($util.toJson($ctx.stash))\"
+
+              \              }
+
+              \            }
+
+              \          }
+
+              \        "
+      ResponseMappingTemplate: '{"status": "PENDING"}'
+    DependsOn:
+      - graphqlapiprocesstestresult114E98EE
+      - graphqlapiSchema05157664
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/process_test_result/MutationprocessTestResultResolver/Resource
+  graphqlapipooltableServiceRoleAF5CF18E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: project
+          Value: kiko
+        - Key: stage
+          Value: dev
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/pool_table/ServiceRole/Resource
+  graphqlapipooltableServiceRoleDefaultPolicy78454C72:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - pooldatabasestestpoolDCBB54AF
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: graphqlapipooltableServiceRoleDefaultPolicy78454C72
+      Roles:
+        - Ref: graphqlapipooltableServiceRoleAF5CF18E
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/pool_table/ServiceRole/DefaultPolicy/Resource
+  graphqlapipooltable4D0D4AA5:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - graphqlapi689447F8
+          - ApiId
+      Name: pool_table
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion:
+          Ref: AWS::Region
+        TableName:
+          Ref: pooldatabasestestpoolDCBB54AF
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - graphqlapipooltableServiceRoleAF5CF18E
+          - Arn
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/pool_table/Resource
+  graphqlapipooltableQuerylistPoolsResolver9A7FAAAE:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - graphqlapi689447F8
+          - ApiId
+      FieldName: listPools
+      TypeName: Query
+      DataSourceName: pool_table
+      Kind: UNIT
+      RequestMappingTemplate: "
+
+        \        {
+
+        \          \"version\" : \"2017-02-28\",
+
+        \          \"operation\" : \"Query\",
+
+        \          \"query\" : {
+
+        \            \"expression\": \"tenant = :tenant\",
+
+        \              \"expressionValues\" : {
+
+        \                \":tenant\" : $util.dynamodb.toDynamoDBJson($context.identity.claims.get(\"cognito:groups\").get(0))
+
+        \              }
+
+        \          }
+
+        \        }
+
+        \      "
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - graphqlapipooltable4D0D4AA5
+      - graphqlapiSchema05157664
+    Metadata:
+      aws:cdk:path: dev-kiko-app/graphql-api/graphql-api/pool_table/QuerylistPoolsResolver/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE3VTTW8bIRD9LbmzJE4uPda15TSS07h2q54xi3fxsgxlwJaF9r93wN+KeuIN83jzyYiPnp7508NXscdK1t1jkuAVT6sgZMcmYDH4KANbKoTopWKTiAH6q7mxFzxGVIEeNto22fERg4shI9KpddBgB5bjJLTI0y9wWmZvAQOrD1b0UK/JI9amSBcwMHzh6VuUnSpiJ3Q8FmC0PFyvj/bApIFYbzzYwNNUUxF6HXMC7MNrym8spUJ8q5UNOpTnk/xglh/8j3ErQwGgsToAT79R+QWAyZQLPoOJ0SRw6/p88+ohuoE5bR3onC/5xs5lyup9NWmFtcqcKtqLIFuexkb4PhMKGJgR/boWNDXqvFEB7CxaWcolzgWfwcC06Hm6tu6ElnDsej7PmpWFWm2R/yjHRQpfKpGnjbwMnRloaKJzaJYq5I4RhYxSWVY8YxplUG5zUsEqCOyQz0ukN7uDTt0TePojNDWrBU37NRPasAXFZbRkQb0L2WpbMr61acWcw4OVPL164dq/Zux0JhXr5/zeWslW9YJ9D8FNRRCry1bfWHnBzU7587IXPC3bOl1feQPNqHyOyp9+BHVnj/cfZmC5oXyLj7vRFz565qOHLWpd+Uhd6xVfHs9/zbPuxpcDAAA=
+    Metadata:
+      aws:cdk:path: dev-kiko-app/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  pinpointapplicationid:
+    Value:
+      Ref: tenantmanagementpinpointapplicationAF757B26
+  testresultworkflowarn:
+    Value:
+      Ref: testresultworkflowprocesstestresultB54F5BA6
+  awsappsyncgraphqlEndpoint:
+    Value:
+      Fn::GetAtt:
+        - graphqlapi689447F8
+        - GraphQLUrl
+  projectregion:
+    Value:
+      Ref: AWS::Region
+  cognitoregion:
+    Value:
+      Ref: AWS::Region
+  cognitouserpoolid:
+    Value:
+      Ref: tenantmanagementkikouserpool9AC1D4C7
+  cognitowebclientid:
+    Value:
+      Ref: tenantmanagementkikouserpoolwebclient5C15D3F7
+  frontendurl:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Fn::GetAtt:
+              - frontendhostingfrontenddistribution96316B26
+              - DomainName
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store.
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 4 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

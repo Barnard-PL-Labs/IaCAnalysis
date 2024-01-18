@@ -1,0 +1,296 @@
+Resources:
+  donateFunctionServiceRole5435BD51:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsTestStack/donateFunction/ServiceRole/Resource
+  donateFunction66452A72:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters46600e87fcd79eecf6d477d549bd29e1cb25bb53fac457d8cf65527f7faf8166S3BucketBC9C7441
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters46600e87fcd79eecf6d477d549bd29e1cb25bb53fac457d8cf65527f7faf8166S3VersionKey5F61AA20
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters46600e87fcd79eecf6d477d549bd29e1cb25bb53fac457d8cf65527f7faf8166S3VersionKey5F61AA20
+      Role:
+        Fn::GetAtt:
+          - donateFunctionServiceRole5435BD51
+          - Arn
+      Handler: donation.handler
+      Runtime: nodejs12.x
+    DependsOn:
+      - donateFunctionServiceRole5435BD51
+    Metadata:
+      aws:cdk:path: AwsTestStack/donateFunction/Resource
+      aws:asset:path: asset.46600e87fcd79eecf6d477d549bd29e1cb25bb53fac457d8cf65527f7faf8166
+      aws:asset:property: Code
+  donationLambdaRestApiDA23A5B4:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: Donation API
+    Metadata:
+      aws:cdk:path: AwsTestStack/donationLambdaRestApi/Resource
+  donationLambdaRestApiCloudWatchRole62C665F6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: AwsTestStack/donationLambdaRestApi/CloudWatchRole/Resource
+  donationLambdaRestApiAccountC111C98C:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - donationLambdaRestApiCloudWatchRole62C665F6
+          - Arn
+    DependsOn:
+      - donationLambdaRestApiDA23A5B4
+    Metadata:
+      aws:cdk:path: AwsTestStack/donationLambdaRestApi/Account
+  donationLambdaRestApiDeploymentA809825A01bdaf6714db6157ba5a160ccbef4d3b:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: donationLambdaRestApiDA23A5B4
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - donationLambdaRestApiDonatePOSTC4F8643D
+      - donationLambdaRestApiDonate309C0BC9
+    Metadata:
+      aws:cdk:path: AwsTestStack/donationLambdaRestApi/Deployment/Resource
+  donationLambdaRestApiDeploymentStageprodB7F5EEF2:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: donationLambdaRestApiDA23A5B4
+      DeploymentId:
+        Ref: donationLambdaRestApiDeploymentA809825A01bdaf6714db6157ba5a160ccbef4d3b
+      StageName: prod
+    Metadata:
+      aws:cdk:path: AwsTestStack/donationLambdaRestApi/DeploymentStage.prod/Resource
+  donationLambdaRestApiDonate309C0BC9:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - donationLambdaRestApiDA23A5B4
+          - RootResourceId
+      PathPart: Donate
+      RestApiId:
+        Ref: donationLambdaRestApiDA23A5B4
+    Metadata:
+      aws:cdk:path: AwsTestStack/donationLambdaRestApi/Default/Donate/Resource
+  donationLambdaRestApiDonatePOSTApiPermissionAwsTestStackdonationLambdaRestApi6EA5ED62POSTDonate7A0093BF:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - donateFunction66452A72
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: donationLambdaRestApiDA23A5B4
+            - /
+            - Ref: donationLambdaRestApiDeploymentStageprodB7F5EEF2
+            - /POST/Donate
+    Metadata:
+      aws:cdk:path: AwsTestStack/donationLambdaRestApi/Default/Donate/POST/ApiPermission.AwsTestStackdonationLambdaRestApi6EA5ED62.POST..Donate
+  donationLambdaRestApiDonatePOSTApiPermissionTestAwsTestStackdonationLambdaRestApi6EA5ED62POSTDonate4CE43817:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - donateFunction66452A72
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: donationLambdaRestApiDA23A5B4
+            - /test-invoke-stage/POST/Donate
+    Metadata:
+      aws:cdk:path: AwsTestStack/donationLambdaRestApi/Default/Donate/POST/ApiPermission.Test.AwsTestStackdonationLambdaRestApi6EA5ED62.POST..Donate
+  donationLambdaRestApiDonatePOSTC4F8643D:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: donationLambdaRestApiDonate309C0BC9
+      RestApiId:
+        Ref: donationLambdaRestApiDA23A5B4
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - donateFunction66452A72
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: AwsTestStack/donationLambdaRestApi/Default/Donate/POST/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE01PQVLDMAx8S++O2sABjoR2OMHQCS8QjlrcxnbGkul0PPk7sUMhJ612VtrdGurNA2xWT3jhSnfnddI+EKQPQX1WDTPJBI/GHVVL7GPQpLbesYSoRW0Pbo8BLQmFvLxHGWKh/8UHN+k7I8a7UWWX1KP97BDSS3Q601mzxHsK1jCXA4MWUuv78ijPUfF9hTkXQ4mncDBHFLrgFdJreT2ZSzOY3xw32GjtoxO1o6H3V0uuBF1suWjxmcGtwjMyqWWfP/xG8uW7TM1oHEflfEdw4vV3/Qj1HdSrExtThcnYWIJ2nj8Lo3SddgEAAA==
+    Metadata:
+      aws:cdk:path: AwsTestStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters46600e87fcd79eecf6d477d549bd29e1cb25bb53fac457d8cf65527f7faf8166S3BucketBC9C7441:
+    Type: String
+    Description: S3 bucket for asset "46600e87fcd79eecf6d477d549bd29e1cb25bb53fac457d8cf65527f7faf8166"
+  AssetParameters46600e87fcd79eecf6d477d549bd29e1cb25bb53fac457d8cf65527f7faf8166S3VersionKey5F61AA20:
+    Type: String
+    Description: S3 key for asset version "46600e87fcd79eecf6d477d549bd29e1cb25bb53fac457d8cf65527f7faf8166"
+  AssetParameters46600e87fcd79eecf6d477d549bd29e1cb25bb53fac457d8cf65527f7faf8166ArtifactHash4AE81610:
+    Type: String
+    Description: Artifact hash for asset "46600e87fcd79eecf6d477d549bd29e1cb25bb53fac457d8cf65527f7faf8166"
+Outputs:
+  donationLambdaRestApiEndpointB7741378:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: donationLambdaRestApiDA23A5B4
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: donationLambdaRestApiDeploymentStageprodB7F5EEF2
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

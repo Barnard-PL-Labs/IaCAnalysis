@@ -1,0 +1,677 @@
+Description: "Teams On Air: An on-air light for microsoft teams"
+Parameters:
+  branchname:
+    Type: String
+    Default: ""
+    Description: The branch this stack is for - used to create test instances off pull-requests. Needs trailing dot. Leave default for production
+  AssetParameters00f2465b209575c44977ca8ff1c81d86d002849272ede5a8a90ac87dfff1e494S3Bucket33B61C3E:
+    Type: String
+    Description: S3 bucket for asset "00f2465b209575c44977ca8ff1c81d86d002849272ede5a8a90ac87dfff1e494"
+  AssetParameters00f2465b209575c44977ca8ff1c81d86d002849272ede5a8a90ac87dfff1e494S3VersionKeyDE2514FF:
+    Type: String
+    Description: S3 key for asset version "00f2465b209575c44977ca8ff1c81d86d002849272ede5a8a90ac87dfff1e494"
+  AssetParameters00f2465b209575c44977ca8ff1c81d86d002849272ede5a8a90ac87dfff1e494ArtifactHashC2E6E6C0:
+    Type: String
+    Description: Artifact hash for asset "00f2465b209575c44977ca8ff1c81d86d002849272ede5a8a90ac87dfff1e494"
+  AssetParametersbcfa0f29105f44926be9a4eb045a83d676134b7c21973e1deaa89703a56d3376S3Bucket39480367:
+    Type: String
+    Description: S3 bucket for asset "bcfa0f29105f44926be9a4eb045a83d676134b7c21973e1deaa89703a56d3376"
+  AssetParametersbcfa0f29105f44926be9a4eb045a83d676134b7c21973e1deaa89703a56d3376S3VersionKey63725743:
+    Type: String
+    Description: S3 key for asset version "bcfa0f29105f44926be9a4eb045a83d676134b7c21973e1deaa89703a56d3376"
+  AssetParametersbcfa0f29105f44926be9a4eb045a83d676134b7c21973e1deaa89703a56d3376ArtifactHashC690B482:
+    Type: String
+    Description: Artifact hash for asset "bcfa0f29105f44926be9a4eb045a83d676134b7c21973e1deaa89703a56d3376"
+  AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3Bucket4D46ABB5:
+    Type: String
+    Description: S3 bucket for asset "67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24"
+  AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3VersionKeyB0F28861:
+    Type: String
+    Description: S3 key for asset version "67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24"
+  AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24ArtifactHashBA91B77F:
+    Type: String
+    Description: Artifact hash for asset "67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24"
+  ioturl:
+    Type: String
+    Default: a2rtq0babjncfg-ats.iot.us-east-1.amazonaws.com
+    Description: The IoT URL for your devices. You can retrieve this from the IoT Console > Settings > Device Data Endpoint
+Resources:
+  domaincertificateA050E5BB:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName:
+        Fn::Join:
+          - ""
+          - - Ref: branchname
+            - on-air.cjl.nz
+      DomainValidationOptions:
+        - DomainName:
+            Fn::Join:
+              - ""
+              - - Ref: branchname
+                - on-air.cjl.nz
+          HostedZoneId: Z0909161DL7J28OF5XCC
+        - DomainName:
+            Fn::Join:
+              - ""
+              - - api.
+                - Ref: branchname
+                - on-air.cjl.nz
+          HostedZoneId: Z0909161DL7J28OF5XCC
+      SubjectAlternativeNames:
+        - Fn::Join:
+            - ""
+            - - api.
+              - Ref: branchname
+              - on-air.cjl.nz
+      Tags:
+        - Key: project
+          Value: on-air
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/domain-certificate/Resource
+  s3bucket64CB25AF:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: project
+          Value: on-air
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/s3-bucket/Resource
+  s3bucketPolicyF7E91061:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: s3bucket64CB25AF
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - s3bucket64CB25AF
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - s3bucket64CB25AF
+                        - Arn
+                    - /*
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - distributionoidB0389903
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - s3bucket64CB25AF
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/s3-bucket/Policy/Resource
+  s3bucketAutoDeleteObjectsCustomResource839C6F53:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: s3bucket64CB25AF
+    DependsOn:
+      - s3bucketPolicyF7E91061
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/s3-bucket/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters00f2465b209575c44977ca8ff1c81d86d002849272ede5a8a90ac87dfff1e494S3Bucket33B61C3E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters00f2465b209575c44977ca8ff1c81d86d002849272ede5a8a90ac87dfff1e494S3VersionKeyDE2514FF
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters00f2465b209575c44977ca8ff1c81d86d002849272ede5a8a90ac87dfff1e494S3VersionKeyDE2514FF
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: s3bucket64CB25AF
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+  distributionoidB0389903:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment:
+          Fn::Join:
+            - ""
+            - - Ref: branchname
+              - on-air.cjl.nz
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/distribution-oid/Resource
+  distributionCFDistribution99A57736:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - Fn::Join:
+              - ""
+              - - Ref: branchname
+                - on-air.cjl.nz
+        Comment:
+          Fn::Join:
+            - ""
+            - - Ref: branchname
+              - on-air.cjl.nz
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::GetAtt:
+                - s3bucket64CB25AF
+                - RegionalDomainName
+            Id: origin1
+            OriginPath: /live
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: distributionoidB0389903
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: domaincertificateA050E5BB
+          SslSupportMethod: sni-only
+      Tags:
+        - Key: project
+          Value: on-air
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/distribution/CFDistribution
+  dnsrecord0EF63FAD:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: branchname
+            - on-air.cjl.nz.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - distributionCFDistribution99A57736
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      Comment:
+        Fn::Join:
+          - ""
+          - - Ref: branchname
+            - on-air.cjl.nz cloudfront
+      HostedZoneId: Z0909161DL7J28OF5XCC
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/dns-record/Resource
+  iotthing:
+    Type: AWS::IoT::Thing
+    Properties:
+      ThingName: OnAir001
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/iot-thing
+  iotpolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: iot:*
+            Resource:
+              - arn:aws:iot:us-east-1:116827804402:client/OnAir001
+              - arn:aws:iot:us-east-1:116827804402:thing/OnAir001
+              - arn:aws:iot:us-east-1:116827804402:topicfilter/OnAir001/*
+              - arn:aws:iot:us-east-1:116827804402:topicfilter/$aws/things/OnAir001/*
+              - arn:aws:iot:us-east-1:116827804402:topic/$aws/things/OnAir001/*
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/iot-policy
+  lambdaroleDFE21467:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: project
+          Value: on-air
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/lambda-role/Resource
+  sendtoiotfunction6A3456AE:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersbcfa0f29105f44926be9a4eb045a83d676134b7c21973e1deaa89703a56d3376S3Bucket39480367
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbcfa0f29105f44926be9a4eb045a83d676134b7c21973e1deaa89703a56d3376S3VersionKey63725743
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbcfa0f29105f44926be9a4eb045a83d676134b7c21973e1deaa89703a56d3376S3VersionKey63725743
+      Role:
+        Fn::GetAtt:
+          - lambdaroleDFE21467
+          - Arn
+      Environment:
+        Variables:
+          IOT_URL:
+            Ref: ioturl
+      Handler: SendToIoT.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: project
+          Value: on-air
+    DependsOn:
+      - lambdaroleDFE21467
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/send-to-iot-function/Resource
+      aws:asset:path: asset.bcfa0f29105f44926be9a4eb045a83d676134b7c21973e1deaa89703a56d3376
+      aws:asset:property: Code
+  sendtoiotfunctionLogRetention16024DEF:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: sendtoiotfunction6A3456AE
+      RetentionInDays: 7
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/send-to-iot-function/LogRetention/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: project
+          Value: on-air
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket:
+          Ref: AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3Bucket4D46ABB5
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3VersionKeyB0F28861
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3VersionKeyB0F28861
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+  lambdaiotaccess0E034F66:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - iot:Publish
+              - iot:Connect
+            Effect: Allow
+            Resource:
+              - arn:aws:iot:us-east-1:116827804402:topic/*
+              - arn:aws:iot:*:116827804402:client/*
+            Sid: PublishOnAllTopics
+        Version: "2012-10-17"
+      PolicyName: Publish-to-AWS-IoT
+      Roles:
+        - Ref: lambdaroleDFE21467
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/lambda-iot-access/Resource
+  apigatewayroleE6D48DBD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+      Tags:
+        - Key: project
+          Value: on-air
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/api-gateway-role/Resource
+  websocketapi5DE51C20:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Description: Teams On-Air Websocket API that transfers data to AWS IoT
+      Name:
+        Fn::Join:
+          - ""
+          - - Teams-On-Air-
+            - Ref: branchname
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+      Tags:
+        project: on-air
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/websocket-api/Resource
+  websocketapiupdatelightRouteTeamsOnAirmainwebsocketapiupdatelightRoute8CD95ECCPermission2D8A0368:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sendtoiotfunction6A3456AE
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:116827804402:"
+            - Ref: websocketapi5DE51C20
+            - /*/*update-light
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/websocket-api/update-light-Route/TeamsOnAirmainwebsocketapiupdatelightRoute8CD95ECC-Permission
+  websocketapiupdatelightRouteWebSocketIntegration7bf772f652eccb9c2563cc4cafd3dbfdBC589B36:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: websocketapi5DE51C20
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - sendtoiotfunction6A3456AE
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/websocket-api/update-light-Route/WebSocketIntegration-7bf772f652eccb9c2563cc4cafd3dbfd/Resource
+  websocketapiupdatelightRoute29A2B02D:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: websocketapi5DE51C20
+      RouteKey: update-light
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: websocketapiupdatelightRouteWebSocketIntegration7bf772f652eccb9c2563cc4cafd3dbfdBC589B36
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/websocket-api/update-light-Route/Resource
+  websocketapipingRouteTeamsOnAirmainwebsocketapipingRoute6F489C16Permission9FC9398D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - sendtoiotfunction6A3456AE
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:116827804402:"
+            - Ref: websocketapi5DE51C20
+            - /*/*ping
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/websocket-api/ping-Route/TeamsOnAirmainwebsocketapipingRoute6F489C16-Permission
+  websocketapipingRouteAA58A76C:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: websocketapi5DE51C20
+      RouteKey: ping
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: websocketapiupdatelightRouteWebSocketIntegration7bf772f652eccb9c2563cc4cafd3dbfdBC589B36
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/websocket-api/ping-Route/Resource
+  websocketapidomainname361FC0B5:
+    Type: AWS::ApiGatewayV2::DomainName
+    Properties:
+      DomainName:
+        Fn::Join:
+          - ""
+          - - api.
+            - Ref: branchname
+            - on-air.cjl.nz
+      DomainNameConfigurations:
+        - CertificateArn:
+            Ref: domaincertificateA050E5BB
+          EndpointType: REGIONAL
+      Tags:
+        project: on-air
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/websocket-api-domain-name/Resource
+  dnsrecordapi1E3B17DD:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name:
+        Fn::Join:
+          - ""
+          - - api.
+            - Ref: branchname
+            - on-air.cjl.nz.
+      Type: CNAME
+      Comment:
+        Fn::Join:
+          - ""
+          - - api.
+            - Ref: branchname
+            - on-air.cjl.nz API
+      HostedZoneId: Z0909161DL7J28OF5XCC
+      ResourceRecords:
+        - Fn::GetAtt:
+            - websocketapidomainname361FC0B5
+            - RegionalDomainName
+      TTL: "1800"
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/dns-record-api/Resource
+  websocketapiprodstage4C8DBDAF:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: websocketapi5DE51C20
+      StageName: prod
+      AutoDeploy: true
+      Tags:
+        project: on-air
+    DependsOn:
+      - websocketapidomainname361FC0B5
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/websocket-api-prod-stage/Resource
+  websocketapiprodstageTeamsOnAirmainwebsocketapidomainnameundefined31D89A1E:
+    Type: AWS::ApiGatewayV2::ApiMapping
+    Properties:
+      ApiId:
+        Ref: websocketapi5DE51C20
+      DomainName:
+        Fn::Join:
+          - ""
+          - - api.
+            - Ref: branchname
+            - on-air.cjl.nz
+      Stage: prod
+    DependsOn:
+      - websocketapidomainname361FC0B5
+      - websocketapiprodstage4C8DBDAF
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/websocket-api-prod-stage/TeamsOnAir-main--websocket-api-domain-nameundefined/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE21SwW7bMAz9lt4VtWkxoMemLgoU2NbAGbCzIjMuG1syRCpFIfjfR1lJnBU9kU+PpB6ftNTL2xt9c/VgPmhhm/11sj6AThs2dq+qnVubYHpgCKoG8jFYUJV3xCFaVlUk9v1M7Nyc/0etgz9gI0NWRMAyvEXX5vpfZhiO6WvkIfKospJkITDu0BqG3jjTQtCpms9y/QUcFd3p9BjtHjhTx6yEte/Qfs7HR1zAoyHptp2PzS54xzq9BhRxK2uB6KUBx8hTc5VrnnPN9xVn+i9sn1AMwm1k9C73XuJRBR8ZfojgVQ3idlN8y9kmy3fid4GjQi+KhP7zdjSpiBfC9DrVvium5zivearpTL9tjE7P0dmTkst8DaFHokkT3S1MfhrS0wupzrekf/q2lqd3U4MZsBWrP8zn4VYnWXLjs4GrAfOsHM5ndV5whi+OoQ3mdO0XWIqffG/Q/ZbVJ79mdJ6SP81ElkQuvPg7MxrHUTnfgH6n68PyXr63Xl69E+IiRFmkB12X+A+dpqud+gIAAA==
+    Metadata:
+      aws:cdk:path: TeamsOnAir-main/CDKMetadata/Default
+Mappings:
+  AWSCloudFrontPartitionHostedZoneIdMap:
+    aws:
+      zoneId: Z2FDTNDATAQYW2
+    aws-cn:
+      zoneId: Z3RFFRIM2A3IF5
+Outputs:
+  S3Bucket:
+    Description: The S3 bucket that holds the files for the website
+    Value:
+      Ref: s3bucket64CB25AF
+  CloudFrontDistribution:
+    Description: The ID of the cloudfront distribution
+    Value:
+      Ref: distributionCFDistribution99A57736
+

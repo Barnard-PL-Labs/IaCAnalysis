@@ -1,0 +1,269 @@
+Resources:
+  ELBListenerAddCertificateD7C436F5:
+    Type: AWS::ElasticLoadBalancingV2::ListenerCertificate
+    Properties:
+      Certificates:
+        - CertificateArn:
+            Ref: SSL293C5231
+      ListenerArn:
+        Fn::ImportValue: Core-AlbListener
+    Metadata:
+      aws:cdk:path: BestFriends/ELBListener/AddCertificate/Resource
+  ClusterSecurityGroupfromBestFriendsALBSecurityGroup796CB31A6000037A2198:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: Allow traffic from ELB for best-friends
+      FromPort: 6000
+      GroupId:
+        Fn::ImportValue: Core-ClusterSecurityGroup
+      SourceSecurityGroupId:
+        Fn::ImportValue: Core-AlbSecurityGroup
+      ToPort: 6000
+    Metadata:
+      aws:cdk:path: BestFriends/ClusterSecurityGroup/from BestFriendsALBSecurityGroup796CB31A:6000
+  TaskDefinitionTaskRoleFD40A61D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: BestFriends/TaskDefinition/TaskRole/Resource
+  TaskDefinitionB36D86D9:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Essential: true
+          Image: deweiliu/best-friends
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: TaskDefinitionContainerLogGroup4D0A87C1
+              awslogs-stream-prefix: best-friends
+              awslogs-region:
+                Ref: AWS::Region
+          MemoryReservation: 256
+          Name: best-friends-container
+          PortMappings:
+            - ContainerPort: 8000
+              HostPort: 6000
+              Protocol: tcp
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - TaskDefinitionExecutionRole8D61C2FB
+          - Arn
+      Family: BestFriendsTaskDefinitionFA22AF8E
+      NetworkMode: bridge
+      PlacementConstraints:
+        - Expression: attribute:ecs.cpu-architecture == x86_64
+          Type: memberOf
+      RequiresCompatibilities:
+        - EC2
+      TaskRoleArn:
+        Fn::GetAtt:
+          - TaskDefinitionTaskRoleFD40A61D
+          - Arn
+    Metadata:
+      aws:cdk:path: BestFriends/TaskDefinition/Resource
+  TaskDefinitionContainerLogGroup4D0A87C1:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: BestFriends/TaskDefinition/Container/LogGroup/Resource
+  TaskDefinitionExecutionRole8D61C2FB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: BestFriends/TaskDefinition/ExecutionRole/Resource
+  TaskDefinitionExecutionRoleDefaultPolicy1F3406F5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TaskDefinitionContainerLogGroup4D0A87C1
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TaskDefinitionExecutionRoleDefaultPolicy1F3406F5
+      Roles:
+        - Ref: TaskDefinitionExecutionRole8D61C2FB
+    Metadata:
+      aws:cdk:path: BestFriends/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+  ServiceD69D759B:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Fn::ImportValue: Core-ClusterName
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 2
+      EnableECSManagedTags: false
+      HealthCheckGracePeriodSeconds: 60
+      LaunchType: EC2
+      LoadBalancers:
+        - ContainerName: best-friends-container
+          ContainerPort: 8000
+          TargetGroupArn:
+            Ref: TargetGroup3D7CD9B8
+      SchedulingStrategy: REPLICA
+      TaskDefinition:
+        Ref: TaskDefinitionB36D86D9
+    DependsOn:
+      - ListenerRule73F9AC5E
+    Metadata:
+      aws:cdk:path: BestFriends/Service/Service
+  TargetGroup3D7CD9B8:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckEnabled: true
+      Port: 80
+      Protocol: HTTP
+      TargetType: instance
+      VpcId:
+        Fn::ImportValue: Core-Vpc
+    Metadata:
+      aws:cdk:path: BestFriends/TargetGroup/Resource
+  ListenerRule73F9AC5E:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      Actions:
+        - TargetGroupArn:
+            Ref: TargetGroup3D7CD9B8
+          Type: forward
+      Conditions:
+        - Field: host-header
+          HostHeaderConfig:
+            Values:
+              - bfa.dliu.com
+      ListenerArn:
+        Fn::ImportValue: Core-AlbListener
+      Priority: 60
+    Metadata:
+      aws:cdk:path: BestFriends/ListenerRule/Resource
+  SSL293C5231:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: bfa.dliu.com
+      DomainValidationOptions:
+        - DomainName: bfa.dliu.com
+          HostedZoneId:
+            Fn::ImportValue: DLIUCOMHostedZoneID
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: BestFriends/SSL/Resource
+  AliasRecord851000D2:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: bfa.dliu.com.
+      Type: CNAME
+      HostedZoneId:
+        Fn::ImportValue: DLIUCOMHostedZoneID
+      ResourceRecords:
+        - Fn::ImportValue: Core-AlbDns
+      TTL: "3600"
+    Metadata:
+      aws:cdk:path: BestFriends/AliasRecord/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21S22rDMAz9lr677pIx2N422jEGhY2kP6A5alCb2MGWO4rxv89OdklHn3R0LB3dXMiifJA3i0f4dEvVHFdBGYsy1AzqKNZGO7ZesajQGW8VivVev3kePGc0Z1NsQ0xGR5G1AnbgmFRnoPmADrQi3Z5KGZ6GoSMFOXJLjlGjXaNl2mdyVLpGz7J2YFvkF2v8kKPn7hXtyncXotmPAlUpE1mj8pb4PGa/6taic+nNyfCsyh244wb3pMepplKXjNEMlDRnXMqr0Z5o2sk3jIKgl6EyUyujfTep03N2JxRFZ9pUeGva39F+cBTqbxU9aGjRyvBvazM3ipTFeHebgjT0WGE6ajMdLKMaOcYotGlQHtzqVNynXyCLxcERLa3XTD3KarJfAGXAbCECAAA=
+    Metadata:
+      aws:cdk:path: BestFriends/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  DnsName:
+    Value:
+      Ref: AliasRecord851000D2
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

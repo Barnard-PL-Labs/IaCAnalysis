@@ -1,0 +1,603 @@
+Resources:
+  apiforpettheorysystem81F49F96:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: appsyncPettheorysystem
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/Resource
+  apiforpettheorysystemSchema36DF7E67:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - apiforpettheorysystem81F49F96
+          - ApiId
+      Definition: |-
+        type Event {
+            result: String!
+        }
+
+        type Report {
+            id: ID!
+            firstName: String!
+            lastName: String!
+            reportTitle: String!
+            desc: String!
+        }
+
+        input ReportInput {
+            firstName: String!
+            lastName: String!
+            reportTitle: String!
+            desc: String!
+        }
+
+        type Query {
+            getReports: [Report!]
+        }
+
+        type Mutation {
+            addReport(report: ReportInput!): Event
+            deleteReport(reportId: ID!): Event
+        }
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/Schema
+  apiforpettheorysystemDefaultApiKey6EA9BB72:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - apiforpettheorysystem81F49F96
+          - ApiId
+    DependsOn:
+      - apiforpettheorysystemSchema36DF7E67
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/DefaultApiKey
+  apiforpettheorysystemforqueryreportsServiceRoleF8252E1D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/forqueryreports/ServiceRole/Resource
+  apiforpettheorysystemforqueryreportsServiceRoleDefaultPolicy06CE0929:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RestaurantAppTableED30375B
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: apiforpettheorysystemforqueryreportsServiceRoleDefaultPolicy06CE0929
+      Roles:
+        - Ref: apiforpettheorysystemforqueryreportsServiceRoleF8252E1D
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/forqueryreports/ServiceRole/DefaultPolicy/Resource
+  apiforpettheorysystemforqueryreports4B1F39E1:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - apiforpettheorysystem81F49F96
+          - ApiId
+      Name: forqueryreports
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion:
+          Ref: AWS::Region
+        TableName:
+          Ref: RestaurantAppTableED30375B
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - apiforpettheorysystemforqueryreportsServiceRoleF8252E1D
+          - Arn
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/forqueryreports/Resource
+  apiforpettheorysystemeventTriggerDSServiceRoleD951A508:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/eventTriggerDS/ServiceRole/Resource
+  apiforpettheorysystemeventTriggerDSServiceRoleDefaultPolicy1CC440EA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: apiforpettheorysystemeventTriggerDSServiceRoleDefaultPolicy1CC440EA
+      Roles:
+        - Ref: apiforpettheorysystemeventTriggerDSServiceRoleD951A508
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/eventTriggerDS/ServiceRole/DefaultPolicy/Resource
+  apiforpettheorysystemeventTriggerDSB39745D8:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - apiforpettheorysystem81F49F96
+          - ApiId
+      Name: httpDsWithEventBridge
+      Type: HTTP
+      Description: From Appsync to Eventbridge
+      HttpConfig:
+        AuthorizationConfig:
+          AuthorizationType: AWS_IAM
+          AwsIamConfig:
+            SigningRegion:
+              Ref: AWS::Region
+            SigningServiceName: events
+        Endpoint:
+          Fn::Join:
+            - ""
+            - - https://events.
+              - Ref: AWS::Region
+              - .amazonaws.com/
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - apiforpettheorysystemeventTriggerDSServiceRoleD951A508
+          - Arn
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/eventTriggerDS/Resource
+  apiforpettheorysystemQuerygetReportsResolver7B6A4DFB:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - apiforpettheorysystem81F49F96
+          - ApiId
+      FieldName: getReports
+      TypeName: Query
+      DataSourceName: forqueryreports
+      Kind: UNIT
+      RequestMappingTemplate: '{"version" : "2017-02-28", "operation" : "Scan"}'
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - apiforpettheorysystemforqueryreports4B1F39E1
+      - apiforpettheorysystemSchema36DF7E67
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/QuerygetReportsResolver/Resource
+  apiforpettheorysystemMutationaddReportResolverF1D52570:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - apiforpettheorysystem81F49F96
+          - ApiId
+      FieldName: addReport
+      TypeName: Mutation
+      DataSourceName: httpDsWithEventBridge
+      Kind: UNIT
+      RequestMappingTemplate: |-
+        {
+                "version": "2018-05-29",
+                "method": "POST",
+                "resourcePath": "/",
+                "params": {
+                  "headers": {
+                    "content-type": "application/x-amz-json-1.1",
+                    "x-amz-target":"AWSEvents.PutEvents"
+                  },
+                  "body": {
+                    "Entries":[
+                      {
+                        "DetailType":"addReport",
+                        "Source":"pub-sub-events",
+                        "EventBusName": "default",
+                        "Detail": "{\"firstName\":\"$ctx.args.report.firstName\" , \"lastName\":\"$ctx.args.report.lastName\" , \"reportTitle\":\"$ctx.args.report.reportTitle\" , \"desc\":\"$ctx.args.report.desc\"}"
+                      }
+                    ]
+                  }
+                }
+              }
+      ResponseMappingTemplate: "
+
+        \        #if($ctx.error)
+
+        \        $util.error($ctx.error.message, $ctx.error.type)
+
+        \        #end
+
+        \        #if($ctx.result.statusCode == 200)
+
+        \        {
+
+        \            \"result\": \"$util.parseJson($ctx.result.body)\"
+
+        \        }
+
+        \        #else
+
+        \        $utils.appendError($ctx.result.body, $ctx.result.statusCode)
+
+        \        #end
+
+        \    "
+    DependsOn:
+      - apiforpettheorysystemeventTriggerDSB39745D8
+      - apiforpettheorysystemSchema36DF7E67
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/MutationaddReportResolver/Resource
+  apiforpettheorysystemMutationdeleteReportResolverE0839DCB:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - apiforpettheorysystem81F49F96
+          - ApiId
+      FieldName: deleteReport
+      TypeName: Mutation
+      DataSourceName: httpDsWithEventBridge
+      Kind: UNIT
+      RequestMappingTemplate: |-
+        {
+                "version": "2018-05-29",
+                "method": "POST",
+                "resourcePath": "/",
+                "params": {
+                  "headers": {
+                    "content-type": "application/x-amz-json-1.1",
+                    "x-amz-target":"AWSEvents.PutEvents"
+                  },
+                  "body": {
+                    "Entries":[
+                      {
+                        "DetailType":"deleteReport",
+                        "Source":"pub-sub-events",
+                        "EventBusName": "default",
+                        "Detail": "{\"reportId\":\"$ctx.args.reportId\"}"
+                      }
+                    ]
+                  }
+                }
+              }
+      ResponseMappingTemplate: "
+
+        \        #if($ctx.error)
+
+        \        $util.error($ctx.error.message, $ctx.error.type)
+
+        \        #end
+
+        \        #if($ctx.result.statusCode == 200)
+
+        \        {
+
+        \            \"result\": \"$util.parseJson($ctx.result.body)\"
+
+        \        }
+
+        \        #else
+
+        \        $utils.appendError($ctx.result.body, $ctx.result.statusCode)
+
+        \        #end
+
+        \    "
+    DependsOn:
+      - apiforpettheorysystemeventTriggerDSB39745D8
+      - apiforpettheorysystemSchema36DF7E67
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/apiforpettheorysystem/MutationdeleteReportResolver/Resource
+  RestaurantAppTableED30375B:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: PetTable
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/RestaurantAppTable/Resource
+  DynamoHandlerServiceRoleA5D84A0C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/Dynamo_Handler/ServiceRole/Resource
+  DynamoHandlerServiceRoleDefaultPolicy2F296FCA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RestaurantAppTableED30375B
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: DynamoHandlerServiceRoleDefaultPolicy2F296FCA
+      Roles:
+        - Ref: DynamoHandlerServiceRoleA5D84A0C
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/Dynamo_Handler/ServiceRole/DefaultPolicy/Resource
+  DynamoHandler93AC9750:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersca7992c869de5287ece6cf5542339404626806fbec19269f03fcda08653c1b43S3Bucket20EDFC14
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca7992c869de5287ece6cf5542339404626806fbec19269f03fcda08653c1b43S3VersionKeyDCF0ACA7
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersca7992c869de5287ece6cf5542339404626806fbec19269f03fcda08653c1b43S3VersionKeyDCF0ACA7
+      Role:
+        Fn::GetAtt:
+          - DynamoHandlerServiceRoleA5D84A0C
+          - Arn
+      Environment:
+        Variables:
+          DYNAMO_TABLE_NAME:
+            Ref: RestaurantAppTableED30375B
+      Handler: dynamoHandler.handler
+      Runtime: nodejs12.x
+    DependsOn:
+      - DynamoHandlerServiceRoleDefaultPolicy2F296FCA
+      - DynamoHandlerServiceRoleA5D84A0C
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/Dynamo_Handler/Resource
+      aws:asset:path: asset.ca7992c869de5287ece6cf5542339404626806fbec19269f03fcda08653c1b43
+      aws:asset:property: Code
+  DynamoHandlerAllowEventRulePubsubbackendStackeventConsumerRule7F36B351891AF2EC:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DynamoHandler93AC9750
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - eventConsumerRule6D0F447C
+          - Arn
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/Dynamo_Handler/AllowEventRulePubsubbackendStackeventConsumerRule7F36B351
+  MyTopic86869434:
+    Type: AWS::SNS::Topic
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/MyTopic/Resource
+  MyTopictechstudy59gmailcom02807430:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn:
+        Ref: MyTopic86869434
+      Endpoint: techstudy59@gmail.com
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - DeadLetterQueue9F481546
+            - Arn
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/MyTopic/techstudy59@gmail.com/Resource
+  MyTopic923113840674B63EF236:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sms
+      TopicArn:
+        Ref: MyTopic86869434
+      Endpoint: "+923113840674"
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/MyTopic/+923113840674/Resource
+  MyTopicPolicy12A5EC17:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Resource:
+              Ref: MyTopic86869434
+            Sid: "0"
+        Version: "2012-10-17"
+      Topics:
+        - Ref: MyTopic86869434
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/MyTopic/Policy/Resource
+  DeadLetterQueue9F481546:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: MySubscription_DLQ
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/DeadLetterQueue/Resource
+  DeadLetterQueuePolicyB1FB890C:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Ref: MyTopic86869434
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - DeadLetterQueue9F481546
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: DeadLetterQueue9F481546
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/DeadLetterQueue/Policy/Resource
+  eventConsumerRule6D0F447C:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - pub-sub-events
+        detail-type:
+          - addReport
+          - deleteReport
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - DynamoHandler93AC9750
+              - Arn
+          Id: Target0
+        - Arn:
+            Ref: MyTopic86869434
+          Id: Target1
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/eventConsumerRule/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.86.0,@aws-cdk/aws-applicationautoscaling=1.86.0,@aws-cdk/aws-appsync=1.86.0,@aws-cdk/aws-autoscaling=1.86.0,@aws-cdk/aws-autoscaling-common=1.86.0,@aws-cdk/aws-autoscaling-hooktargets=1.86.0,@aws-cdk/aws-cloudwatch=1.86.0,@aws-cdk/aws-codeguruprofiler=1.86.0,@aws-cdk/aws-dynamodb=1.86.0,@aws-cdk/aws-ec2=1.86.0,@aws-cdk/aws-ecr=1.86.0,@aws-cdk/aws-ecr-assets=1.86.0,@aws-cdk/aws-ecs=1.86.0,@aws-cdk/aws-elasticloadbalancingv2=1.86.0,@aws-cdk/aws-events=1.86.0,@aws-cdk/aws-events-targets=1.86.0,@aws-cdk/aws-iam=1.86.0,@aws-cdk/aws-kms=1.86.0,@aws-cdk/aws-lambda=1.86.0,@aws-cdk/aws-logs=1.86.0,@aws-cdk/aws-s3=1.86.0,@aws-cdk/aws-s3-assets=1.86.0,@aws-cdk/aws-servicediscovery=1.86.0,@aws-cdk/aws-sns=1.86.0,@aws-cdk/aws-sns-subscriptions=1.86.0,@aws-cdk/aws-sqs=1.86.0,@aws-cdk/aws-ssm=1.86.0,@aws-cdk/cloud-assembly-schema=1.86.0,@aws-cdk/core=1.86.0,@aws-cdk/custom-resources=1.86.0,@aws-cdk/cx-api=1.86.0,@aws-cdk/region-info=1.86.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: PubsubbackendStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParametersca7992c869de5287ece6cf5542339404626806fbec19269f03fcda08653c1b43S3Bucket20EDFC14:
+    Type: String
+    Description: S3 bucket for asset "ca7992c869de5287ece6cf5542339404626806fbec19269f03fcda08653c1b43"
+  AssetParametersca7992c869de5287ece6cf5542339404626806fbec19269f03fcda08653c1b43S3VersionKeyDCF0ACA7:
+    Type: String
+    Description: S3 key for asset version "ca7992c869de5287ece6cf5542339404626806fbec19269f03fcda08653c1b43"
+  AssetParametersca7992c869de5287ece6cf5542339404626806fbec19269f03fcda08653c1b43ArtifactHash1DE9388B:
+    Type: String
+    Description: Artifact hash for asset "ca7992c869de5287ece6cf5542339404626806fbec19269f03fcda08653c1b43"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

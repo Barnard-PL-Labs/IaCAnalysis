@@ -1,0 +1,492 @@
+Resources:
+  InputBucket3BF8630A:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: osenchi-dev-input
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Osenchi-Core/InputBucket/Resource
+  OutputBucket7114EB27:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: osenchi-dev-output
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Osenchi-Core/OutputBucket/Resource
+  LogBucketCC3B17E8:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: osenchi-dev-log
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Osenchi-Core/LogBucket/Resource
+  LogBucketPolicy900DBE48:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: LogBucketCC3B17E8
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetBucketAcl
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - LogBucketCC3B17E8
+                - Arn
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - LogBucketCC3B17E8
+                      - Arn
+                  - /AWSLogs/
+                  - Ref: AWS::AccountId
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Osenchi-Core/LogBucket/Policy/Resource
+  Trail022F0CF2:
+    Type: AWS::CloudTrail::Trail
+    Properties:
+      IsLogging: true
+      S3BucketName:
+        Ref: LogBucketCC3B17E8
+      EnableLogFileValidation: true
+      EventSelectors:
+        - DataResources:
+            - Type: AWS::S3::Object
+              Values:
+                - Fn::Join:
+                    - ""
+                    - - "arn:aws:s3:::"
+                      - Ref: InputBucket3BF8630A
+                      - /
+          ReadWriteType: WriteOnly
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: false
+    DependsOn:
+      - LogBucketPolicy900DBE48
+    Metadata:
+      aws:cdk:path: Osenchi-Core/Trail/Resource
+  TopicBFC7AF6E:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: osenchi-dev-topic
+    Metadata:
+      aws:cdk:path: Osenchi-Core/Topic/Resource
+  TopicfugaxxxcomB1C92336:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn:
+        Ref: TopicBFC7AF6E
+      Endpoint: fuga@xxx.com
+    Metadata:
+      aws:cdk:path: Osenchi-Core/Topic/fuga@xxx.com/Resource
+  DetectionFuncServiceRole05A10551:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Osenchi-Core/DetectionFunc/ServiceRole/Resource
+  DetectionFuncServiceRoleDefaultPolicy0AD5E3F4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - InputBucket3BF8630A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - InputBucket3BF8630A
+                        - Arn
+                    - /*
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - OutputBucket7114EB27
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - OutputBucket7114EB27
+                        - Arn
+                    - /*
+          - Action: comprehend:BatchDetectSentiment
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: DetectionFuncServiceRoleDefaultPolicy0AD5E3F4
+      Roles:
+        - Ref: DetectionFuncServiceRole05A10551
+    Metadata:
+      aws:cdk:path: Osenchi-Core/DetectionFunc/ServiceRole/DefaultPolicy/Resource
+  DetectionFunc517A97A1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05S3BucketEDE60460
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05S3VersionKey8F561EE2
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05S3VersionKey8F561EE2
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - DetectionFuncServiceRole05A10551
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          DEST_BUCKET:
+            Ref: OutputBucket7114EB27
+      FunctionName: osenchi-dev-detect-sentiment
+      Timeout: 300
+    DependsOn:
+      - DetectionFuncServiceRoleDefaultPolicy0AD5E3F4
+      - DetectionFuncServiceRole05A10551
+    Metadata:
+      aws:cdk:path: Osenchi-Core/DetectionFunc/Resource
+      aws:asset:path: asset.1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05
+      aws:asset:property: Code
+  DeletionFuncServiceRoleBDC2D65F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Osenchi-Core/DeletionFunc/ServiceRole/Resource
+  DeletionFuncServiceRoleDefaultPolicy9F90806E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:DeleteObject*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - InputBucket3BF8630A
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: DeletionFuncServiceRoleDefaultPolicy9F90806E
+      Roles:
+        - Ref: DeletionFuncServiceRoleBDC2D65F
+    Metadata:
+      aws:cdk:path: Osenchi-Core/DeletionFunc/ServiceRole/DefaultPolicy/Resource
+  DeletionFunc033546BC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05S3BucketEDE60460
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05S3VersionKey8F561EE2
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05S3VersionKey8F561EE2
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - DeletionFuncServiceRoleBDC2D65F
+          - Arn
+      Runtime: nodejs12.x
+      FunctionName: osenchi-dev-delete-object
+    DependsOn:
+      - DeletionFuncServiceRoleDefaultPolicy9F90806E
+      - DeletionFuncServiceRoleBDC2D65F
+    Metadata:
+      aws:cdk:path: Osenchi-Core/DeletionFunc/Resource
+      aws:asset:path: asset.1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05
+      aws:asset:property: Code
+  CoreStateMachineRole7A3F6625:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Osenchi-Core/CoreStateMachine/Role/Resource
+  CoreStateMachineRoleDefaultPolicyBB1EA2EF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: TopicBFC7AF6E
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DetectionFunc517A97A1
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DeletionFunc033546BC
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CoreStateMachineRoleDefaultPolicyBB1EA2EF
+      Roles:
+        - Ref: CoreStateMachineRole7A3F6625
+    Metadata:
+      aws:cdk:path: Osenchi-Core/CoreStateMachine/Role/DefaultPolicy/Resource
+  CoreStateMachineB7B42254:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Parallel","States":{"Parallel":{"Type":"Parallel","End":true,"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"SendErrorMail"}],"Branches":[{"StartAt":"DetectSentiment","States":{"DetectSentiment":{"Next":"DeleteObject","Type":"Task","Resource":"'
+            - Fn::GetAtt:
+                - DetectionFunc517A97A1
+                - Arn
+            - '"},"DeleteObject":{"Next":"SendSuccessMail","Type":"Task","Resource":"'
+            - Fn::GetAtt:
+                - DeletionFunc033546BC
+                - Arn
+            - '"},"SendSuccessMail":{"End":true,"Parameters":{"TopicArn":"'
+            - Ref: TopicBFC7AF6E
+            - '","Message.$":"$.*","Subject":"Osenchi Success"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::sns:publish"}}}]},"SendErrorMail":{"Next":"Fail","Parameters":{"TopicArn":"
+            - Ref: TopicBFC7AF6E
+            - '","Message.$":"$.*","Subject":"Osenchi Error"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::sns:publish"},"Fail":{"Type":"Fail"}},"TimeoutSeconds":1800}
+      RoleArn:
+        Fn::GetAtt:
+          - CoreStateMachineRole7A3F6625
+          - Arn
+    DependsOn:
+      - CoreStateMachineRoleDefaultPolicyBB1EA2EF
+      - CoreStateMachineRole7A3F6625
+    Metadata:
+      aws:cdk:path: Osenchi-Core/CoreStateMachine/Resource
+  CoreStateMachineEventsRoleD78C356A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Osenchi-Core/CoreStateMachine/EventsRole/Resource
+  CoreStateMachineEventsRoleDefaultPolicy5AC2504D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: CoreStateMachineB7B42254
+        Version: "2012-10-17"
+      PolicyName: CoreStateMachineEventsRoleDefaultPolicy5AC2504D
+      Roles:
+        - Ref: CoreStateMachineEventsRoleD78C356A
+    Metadata:
+      aws:cdk:path: Osenchi-Core/CoreStateMachine/EventsRole/DefaultPolicy/Resource
+  EventRule5A491D2C:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.s3
+        detail-type:
+          - AWS API Call via CloudTrail
+        detail:
+          eventSource:
+            - s3.amazonaws.com
+          eventName:
+            - PutObject
+          requestParameters:
+            bucketName:
+              - Ref: InputBucket3BF8630A
+      State: ENABLED
+      Targets:
+        - Arn:
+            Ref: CoreStateMachineB7B42254
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - CoreStateMachineEventsRoleD78C356A
+              - Arn
+    Metadata:
+      aws:cdk:path: Osenchi-Core/EventRule/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.27.0,@aws-cdk/aws-applicationautoscaling=1.27.0,@aws-cdk/aws-autoscaling=1.27.0,@aws-cdk/aws-autoscaling-common=1.27.0,@aws-cdk/aws-autoscaling-hooktargets=1.27.0,@aws-cdk/aws-cloudtrail=1.27.0,@aws-cdk/aws-cloudwatch=1.27.0,@aws-cdk/aws-ec2=1.27.0,@aws-cdk/aws-ecr=1.27.0,@aws-cdk/aws-ecr-assets=1.27.0,@aws-cdk/aws-ecs=1.27.0,@aws-cdk/aws-elasticloadbalancingv2=1.27.0,@aws-cdk/aws-events=1.27.0,@aws-cdk/aws-events-targets=1.27.0,@aws-cdk/aws-iam=1.27.0,@aws-cdk/aws-kms=1.27.0,@aws-cdk/aws-lambda=1.27.0,@aws-cdk/aws-logs=1.27.0,@aws-cdk/aws-s3=1.27.0,@aws-cdk/aws-s3-assets=1.27.0,@aws-cdk/aws-servicediscovery=1.27.0,@aws-cdk/aws-sns=1.27.0,@aws-cdk/aws-sns-subscriptions=1.27.0,@aws-cdk/aws-sqs=1.27.0,@aws-cdk/aws-ssm=1.27.0,@aws-cdk/aws-stepfunctions=1.27.0,@aws-cdk/aws-stepfunctions-tasks=1.27.0,@aws-cdk/core=1.27.0,@aws-cdk/cx-api=1.27.0,@aws-cdk/region-info=1.27.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05S3BucketEDE60460:
+    Type: String
+    Description: S3 bucket for asset "1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05"
+  AssetParameters1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05S3VersionKey8F561EE2:
+    Type: String
+    Description: S3 key for asset version "1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05"
+  AssetParameters1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05ArtifactHash7AC79A9F:
+    Type: String
+    Description: Artifact hash for asset "1ac0d81954e77d323125f999c3d54f3aee8786ede5f9acfa3a72aa8b9cd5fc05"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

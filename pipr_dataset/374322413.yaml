@@ -1,0 +1,1142 @@
+Resources:
+  MlOpsPipelineRepoF9C3D5AF:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: MlOpsPipelineRepo
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipelineRepo/Resource
+  MlOpsPipelineRepoMlOpsPipelineA026A68FmainEventRule09AC9FA7:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::GetAtt:
+              - MlOpsPipelineRepoF9C3D5AF
+              - Arn
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - main
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":"
+                - Ref: MlOpsPipeline659B073D
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - MlOpsPipelineEventsRole3DD6562A
+              - Arn
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipelineRepo/MlOpsPipelineA026A68F-main-EventRule/Resource
+  MlOpsPipelineArtifactsBucketEncryptionKey15FAA372:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/ArtifactsBucketEncryptionKey/Resource
+  MlOpsPipelineArtifactsBucketEncryptionKeyAlias273EF145:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-mlopspipelinea026a68f
+      TargetKeyId:
+        Fn::GetAtt:
+          - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  MlOpsPipelineArtifactsBucket56B37B53:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/ArtifactsBucket/Resource
+  MlOpsPipelineArtifactsBucketPolicy88708F69:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: MlOpsPipelineArtifactsBucket56B37B53
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+            Resource:
+              - Fn::GetAtt:
+                  - MlOpsPipelineArtifactsBucket56B37B53
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - MlOpsPipelineArtifactsBucket56B37B53
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/ArtifactsBucket/Policy/Resource
+  MlOpsPipelineRoleF7F8A422:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/Role/Resource
+  MlOpsPipelineRoleDefaultPolicyE5E83489:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - MlOpsPipelineArtifactsBucket56B37B53
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - MlOpsPipelineArtifactsBucket56B37B53
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineSourceGetSourceCodePipelineActionRoleB38BA002
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineBuildBuildAndTestCodePipelineActionRoleE11256E7
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineUpdatePipelineSelfMutateCodePipelineActionRole7210B3A0
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineAssetsDockerRoleB8F83F1E
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":iam::"
+                  - Ref: AWS::AccountId
+                  - :role/cdk-hnb659fds-deploy-role-
+                  - Ref: AWS::AccountId
+                  - "-"
+                  - Ref: AWS::Region
+        Version: "2012-10-17"
+      PolicyName: MlOpsPipelineRoleDefaultPolicyE5E83489
+      Roles:
+        - Ref: MlOpsPipelineRoleF7F8A422
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/Role/DefaultPolicy/Resource
+  MlOpsPipeline659B073D:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - MlOpsPipelineRoleF7F8A422
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::GetAtt:
+                    - MlOpsPipelineRepoF9C3D5AF
+                    - Name
+                BranchName: main
+                PollForSourceChanges: false
+              Name: GetSource
+              OutputArtifacts:
+                - Name: Artifact_Source_GetSource
+              RoleArn:
+                Fn::GetAtt:
+                  - MlOpsPipelineSourceGetSourceCodePipelineActionRoleB38BA002
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: MlOpsPipelineBuildBuildAndTestCdkBuildProjectC26C5563
+                EnvironmentVariables: '[{"name":"_PROJECT_CONFIG_HASH","type":"PLAINTEXT","value":"b68930d49bac02c644a91665087856c56ba1ab1d89ddc137bf2f239960fa75b4"}]'
+              InputArtifacts:
+                - Name: Artifact_Source_GetSource
+              Name: BuildAndTest
+              OutputArtifacts:
+                - Name: Artifact_Build_BuildAndTest
+              RoleArn:
+                Fn::GetAtt:
+                  - MlOpsPipelineBuildBuildAndTestCodePipelineActionRoleE11256E7
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: MlOpsPipelineUpdatePipelineSelfMutationE8938F72
+              InputArtifacts:
+                - Name: Artifact_Build_BuildAndTest
+              Name: SelfMutate
+              RoleArn:
+                Fn::GetAtt:
+                  - MlOpsPipelineUpdatePipelineSelfMutateCodePipelineActionRole7210B3A0
+                  - Arn
+              RunOrder: 1
+          Name: UpdatePipeline
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: MlOpsPipelineAssetsDockerAsset13A8653D0
+              InputArtifacts:
+                - Name: Artifact_Build_BuildAndTest
+              Name: DockerAsset1
+              RoleArn:
+                Fn::GetAtt:
+                  - MlOpsPipelineAssetsDockerRoleB8F83F1E
+                  - Arn
+              RunOrder: 1
+          Name: Assets
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: PrepareAndDeploy-backend
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":iam::"
+                      - Ref: AWS::AccountId
+                      - :role/cdk-hnb659fds-cfn-exec-role-
+                      - Ref: AWS::AccountId
+                      - "-"
+                      - Ref: AWS::Region
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: PipelineChange
+                TemplatePath: Artifact_Build_BuildAndTest::assembly-MlOpsPipeline-PrepareAndDeploy/MlOpsPipelinePrepareAndDeploybackend9262DE86.template.json
+              InputArtifacts:
+                - Name: Artifact_Build_BuildAndTest
+              Name: backend.Prepare
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: PrepareAndDeploy-backend
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: PipelineChange
+              Name: backend.Deploy
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 2
+          Name: PrepareAndDeploy
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+              - Arn
+          Type: KMS
+        Location:
+          Ref: MlOpsPipelineArtifactsBucket56B37B53
+        Type: S3
+      Name: MlOpsPipeline
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - MlOpsPipelineRoleDefaultPolicyE5E83489
+      - MlOpsPipelineRoleF7F8A422
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/Resource
+  MlOpsPipelineSourceGetSourceCodePipelineActionRoleB38BA002:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/Source/GetSource/CodePipelineActionRole/Resource
+  MlOpsPipelineSourceGetSourceCodePipelineActionRoleDefaultPolicyD06A25E8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - MlOpsPipelineArtifactsBucket56B37B53
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - MlOpsPipelineArtifactsBucket56B37B53
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+                - Arn
+          - Action:
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:UploadArchive
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:CancelUploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineRepoF9C3D5AF
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: MlOpsPipelineSourceGetSourceCodePipelineActionRoleDefaultPolicyD06A25E8
+      Roles:
+        - Ref: MlOpsPipelineSourceGetSourceCodePipelineActionRoleB38BA002
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/Source/GetSource/CodePipelineActionRole/DefaultPolicy/Resource
+  MlOpsPipelineEventsRole3DD6562A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/EventsRole/Resource
+  MlOpsPipelineEventsRoleDefaultPolicy13C0823F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codepipeline:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: MlOpsPipeline659B073D
+        Version: "2012-10-17"
+      PolicyName: MlOpsPipelineEventsRoleDefaultPolicy13C0823F
+      Roles:
+        - Ref: MlOpsPipelineEventsRole3DD6562A
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/EventsRole/DefaultPolicy/Resource
+  MlOpsPipelineBuildBuildAndTestCodePipelineActionRoleE11256E7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/Build/BuildAndTest/CodePipelineActionRole/Resource
+  MlOpsPipelineBuildBuildAndTestCodePipelineActionRoleDefaultPolicyEA22B506:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineBuildBuildAndTestCdkBuildProjectC26C5563
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: MlOpsPipelineBuildBuildAndTestCodePipelineActionRoleDefaultPolicyEA22B506
+      Roles:
+        - Ref: MlOpsPipelineBuildBuildAndTestCodePipelineActionRoleE11256E7
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/Build/BuildAndTest/CodePipelineActionRole/DefaultPolicy/Resource
+  MlOpsPipelineBuildBuildAndTestCdkBuildProjectRole40291BDA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/Build/BuildAndTest/CdkBuildProject/Role/Resource
+  MlOpsPipelineBuildBuildAndTestCdkBuildProjectRoleDefaultPolicyBC08CA6F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: MlOpsPipelineBuildBuildAndTestCdkBuildProjectC26C5563
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: MlOpsPipelineBuildBuildAndTestCdkBuildProjectC26C5563
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: MlOpsPipelineBuildBuildAndTestCdkBuildProjectC26C5563
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - MlOpsPipelineArtifactsBucket56B37B53
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - MlOpsPipelineArtifactsBucket56B37B53
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: MlOpsPipelineBuildBuildAndTestCdkBuildProjectRoleDefaultPolicyBC08CA6F
+      Roles:
+        - Ref: MlOpsPipelineBuildBuildAndTestCdkBuildProjectRole40291BDA
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/Build/BuildAndTest/CdkBuildProject/Role/DefaultPolicy/Resource
+  MlOpsPipelineBuildBuildAndTestCdkBuildProjectC26C5563:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: NPM_CONFIG_UNSAFE_PERM
+            Type: PLAINTEXT
+            Value: "true"
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - MlOpsPipelineBuildBuildAndTestCdkBuildProjectRole40291BDA
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "pre_build": {
+                "commands": [
+                  "npm install"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "npm run build && npm test",
+                  "npx cdk synth"
+                ]
+              }
+            },
+            "artifacts": {
+              "base-directory": "cdk.out",
+              "files": "**/*"
+            }
+          }
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+          - Arn
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/Build/BuildAndTest/CdkBuildProject/Resource
+  MlOpsPipelineUpdatePipelineSelfMutateCodePipelineActionRole7210B3A0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/UpdatePipeline/SelfMutate/CodePipelineActionRole/Resource
+  MlOpsPipelineUpdatePipelineSelfMutateCodePipelineActionRoleDefaultPolicyACAAE82E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineUpdatePipelineSelfMutationE8938F72
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: MlOpsPipelineUpdatePipelineSelfMutateCodePipelineActionRoleDefaultPolicyACAAE82E
+      Roles:
+        - Ref: MlOpsPipelineUpdatePipelineSelfMutateCodePipelineActionRole7210B3A0
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Pipeline/UpdatePipeline/SelfMutate/CodePipelineActionRole/DefaultPolicy/Resource
+  MlOpsPipelineUpdatePipelineSelfMutationRole0E59CC5E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/UpdatePipeline/SelfMutation/Role/Resource
+  MlOpsPipelineUpdatePipelineSelfMutationRoleDefaultPolicy9C90D78A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: MlOpsPipelineUpdatePipelineSelfMutationE8938F72
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: MlOpsPipelineUpdatePipelineSelfMutationE8938F72
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: MlOpsPipelineUpdatePipelineSelfMutationE8938F72
+                  - -*
+          - Action: sts:AssumeRole
+            Condition:
+              ForAnyValue:StringEquals:
+                iam:ResourceTag/aws-cdk:bootstrap-role:
+                  - image-publishing
+                  - file-publishing
+                  - deploy
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:*:iam::"
+                  - Ref: AWS::AccountId
+                  - :role/*
+          - Action: cloudformation:DescribeStacks
+            Effect: Allow
+            Resource: "*"
+          - Action: s3:ListBucket
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - MlOpsPipelineArtifactsBucket56B37B53
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - MlOpsPipelineArtifactsBucket56B37B53
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: MlOpsPipelineUpdatePipelineSelfMutationRoleDefaultPolicy9C90D78A
+      Roles:
+        - Ref: MlOpsPipelineUpdatePipelineSelfMutationRole0E59CC5E
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/UpdatePipeline/SelfMutation/Role/DefaultPolicy/Resource
+  MlOpsPipelineUpdatePipelineSelfMutationE8938F72:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - MlOpsPipelineUpdatePipelineSelfMutationRole0E59CC5E
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g aws-cdk"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk -a . deploy MlOpsPipeline --require-approval=never --verbose"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+          - Arn
+      Name: MlOpsPipeline-selfupdate
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/UpdatePipeline/SelfMutation/Resource
+  MlOpsPipelineAssetsDockerRoleB8F83F1E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Assets/DockerRole/Resource
+  MlOpsPipelineAssetsDockerRoleDefaultPolicyA0ECA8B0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/codebuild/*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/*
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource: "*"
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-image-publishing-role-${AWS::AccountId}-${AWS::Region}
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - MlOpsPipelineArtifactsBucket56B37B53
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - MlOpsPipelineArtifactsBucket56B37B53
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: MlOpsPipelineAssetsDockerRoleDefaultPolicyA0ECA8B0
+      Roles:
+        - Ref: MlOpsPipelineAssetsDockerRoleB8F83F1E
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Assets/DockerRole/DefaultPolicy/Resource
+  MlOpsPipelineAssetsDockerAsset13A8653D0:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - MlOpsPipelineAssetsDockerRoleB8F83F1E
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-MlOpsPipeline-PrepareAndDeploy/MlOpsPipelinePrepareAndDeploybackend9262DE86.assets.json\" --verbose publish \"3a66b6160691f51cf15a9d7c85928e1035ca32ec84d92f35dff3f1fccbb18113:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - MlOpsPipelineArtifactsBucketEncryptionKey15FAA372
+          - Arn
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/MlOpsPipeline/Assets/DockerAsset1/Default/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE01QTXODIBD9LbnjNiaXXK3HXhw7PWcUtu0qguNCOhmH/17wo/b0PngLb7nAGc7ZJCG/nZofzqTqM00tzO+ukb2I1n2WVqG0w0AO5hpHy+Ts9BTlpzlUEPhA4zgmvMblLGIQaXakETUZhLnaWDrfeRD9EMfecLkxQaGp4SQWEgRfYX71skeXzI2tUFlN8nnYqw6CmiE2sVuThEdyz6RqrSetjl7VZDuUyzMbDUHs9WPJUvV/K3yMqnG4y0I6skZUvtXE3wUzOt68OBQ/8ysuWiNbP8m11D9eWqMoZYMwsRR0/PLIb5BfID91TJRN3jgaEOoVfwENBlC3tQEAAA==
+    Metadata:
+      aws:cdk:path: MlOpsPipeline/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store.
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,216 @@
+Resources:
+  SecretA720EF05:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString: {}
+      Name: SwiftCarplayAPISecret
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/Secret/Resource
+  locationPlaceIndex:
+    Type: AWS::Location::PlaceIndex
+    Properties:
+      DataSource: Esri
+      IndexName: SwiftCarPlayPlaceIndex
+      PricingPlan: RequestBasedUsage
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/locationPlaceIndex
+  lambdaGetWeatherServiceRole0BBFF4D2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetWeather/ServiceRole/Resource
+  lambdaGetWeatherServiceRoleDefaultPolicyCBB027BF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Ref: SecretA720EF05
+        Version: "2012-10-17"
+      PolicyName: lambdaGetWeatherServiceRoleDefaultPolicyCBB027BF
+      Roles:
+        - Ref: lambdaGetWeatherServiceRole0BBFF4D2
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetWeather/ServiceRole/DefaultPolicy/Resource
+  lambdaGetWeatherC7AF2144:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          Fn::Join:
+            - ""
+            - - 036406153779.dkr.ecr.us-east-1.
+              - Ref: AWS::URLSuffix
+              - /aws-cdk/assets:da0f9efc77385f9fa5f6051b40a0091da265b1ad31e7c1b5e575cd4aa825d28e
+      Role:
+        Fn::GetAtt:
+          - lambdaGetWeatherServiceRole0BBFF4D2
+          - Arn
+      Environment:
+        Variables:
+          API_KEY_SECRET_NAME:
+            Fn::Select:
+              - 0
+              - Fn::Split:
+                  - "-"
+                  - Fn::Select:
+                      - 6
+                      - Fn::Split:
+                          - ":"
+                          - Ref: SecretA720EF05
+          API_ENDPOINT: https://api.airvisual.com/v2/nearest_city
+      FunctionName: swift-carplay-location-get-weather
+      MemorySize: 512
+      PackageType: Image
+      Timeout: 180
+    DependsOn:
+      - lambdaGetWeatherServiceRoleDefaultPolicyCBB027BF
+      - lambdaGetWeatherServiceRole0BBFF4D2
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetWeather/Resource
+  lambdaGetPlacesServiceRoleFD72A04F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetPlaces/ServiceRole/Resource
+  lambdaGetPlacesServiceRoleDefaultPolicy0BCABB77:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: geo:SearchPlaceIndexForText
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - locationPlaceIndex
+                - IndexArn
+        Version: "2012-10-17"
+      PolicyName: lambdaGetPlacesServiceRoleDefaultPolicy0BCABB77
+      Roles:
+        - Ref: lambdaGetPlacesServiceRoleFD72A04F
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetPlaces/ServiceRole/DefaultPolicy/Resource
+  lambdaGetPlaces9C2C4C08:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          Fn::Join:
+            - ""
+            - - 036406153779.dkr.ecr.us-east-1.
+              - Ref: AWS::URLSuffix
+              - /aws-cdk/assets:7b068bb8afe9727fb6a23c0cefef92d5959b9dd7087181bfa04a191fb4c3295e
+      Role:
+        Fn::GetAtt:
+          - lambdaGetPlacesServiceRoleFD72A04F
+          - Arn
+      Environment:
+        Variables:
+          PLACE_INDEX_NAME: SwiftCarPlayPlaceIndex
+      FunctionName: swift-carplay-location-get-places
+      MemorySize: 512
+      PackageType: Image
+      Timeout: 180
+    DependsOn:
+      - lambdaGetPlacesServiceRoleDefaultPolicy0BCABB77
+      - lambdaGetPlacesServiceRoleFD72A04F
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetPlaces/Resource
+  lambdaGetLocationServiceRole8E9E8F54:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetLocation/ServiceRole/Resource
+  lambdaGetLocationServiceRoleDefaultPolicyBB7F0B7F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: geo:SearchPlaceIndexForPosition
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - locationPlaceIndex
+                - IndexArn
+        Version: "2012-10-17"
+      PolicyName: lambdaGetLocationServiceRoleDefaultPolicyBB7F0B7F
+      Roles:
+        - Ref: lambdaGetLocationServiceRole8E9E8F54
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetLocation/ServiceRole/DefaultPolicy/Resource
+  lambdaGetLocation8AEF967B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          Fn::Join:
+            - ""
+            - - 036406153779.dkr.ecr.us-east-1.
+              - Ref: AWS::URLSuffix
+              - /aws-cdk/assets:d4059d4f55774b8ec665a97505766fe19831dceeb8d35b84352709fc35b35994
+      Role:
+        Fn::GetAtt:
+          - lambdaGetLocationServiceRole8E9E8F54
+          - Arn
+      Environment:
+        Variables:
+          PLACE_INDEX_NAME: SwiftCarPlayPlaceIndex
+      FunctionName: swift-carplay-location-get-location
+      MemorySize: 512
+      PackageType: Image
+      Timeout: 180
+    DependsOn:
+      - lambdaGetLocationServiceRoleDefaultPolicyBB7F0B7F
+      - lambdaGetLocationServiceRole8E9E8F54
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetLocation/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01QTU/DMAz9LbunHuUEN2Bo0m5T9wuMa6qsSYzilDFF+e8krZA4vfdsP3/10D8+w8PuBW/a0TjvM0lkyJeENJtXVU6VTjZM5iBBU1womcNnGFhlicTFNGNWpshJPQacOFb7qlvhxopxQpisBKixs0PiUxj5xzj0HyNCfheaOZ58tR+XQK2yuf94MRY95EEcr9MbnsVZuje5sWLqqA7bygr/+q1HtBwM/CVqk8T7GyqXYoKMDFfdf/dP9Q/Q765qbReXkKxnGDb8BVTr9eUjAQAA
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/CDKMetadata/Default
+

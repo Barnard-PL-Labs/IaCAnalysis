@@ -1,0 +1,103 @@
+Resources:
+  websiteSiteBucketDF1730FD:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: BasicExampleWebsite/website/SiteBucket/Resource
+  websiteSiteBucketPolicy62424045:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: websiteSiteBucketDF1730FD
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - websiteDistributionOrigin1S3Origin0C07B672
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - websiteSiteBucketDF1730FD
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: BasicExampleWebsite/website/SiteBucket/Policy/Resource
+  websiteDistributionOrigin1S3Origin0C07B672:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Identity for BasicExampleWebsitewebsiteDistributionOrigin1DA55FF89
+    Metadata:
+      aws:cdk:path: BasicExampleWebsite/website/Distribution/Origin1/S3Origin/Resource
+  websiteDistribution611655E5:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: BasicExampleWebsitewebsiteDistributionOrigin1DA55FF89
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - websiteSiteBucketDF1730FD
+                - RegionalDomainName
+            Id: BasicExampleWebsitewebsiteDistributionOrigin1DA55FF89
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: websiteDistributionOrigin1S3Origin0C07B672
+    Metadata:
+      aws:cdk:path: BasicExampleWebsite/website/Distribution/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/3WMywrCMBBFv6X7dLTtxq1WBFdK/QBpJ6lMHwlkEkVC/t3WCrpxdece5twcigLWSf3gFGWfDtRAuLgaezGha+ACws5jr5woW/25ljibgfD5xUuPAgfjZWuNdhD2xM5S4x0ZLU6WbqS3iIr5KJV25N56OQuHWfj38TsT40wqxcZbVFFoIxV0vLpnG8hyyJKOiVLrJ3lUUC35AkKzYP3mAAAA
+    Metadata:
+      aws:cdk:path: BasicExampleWebsite/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

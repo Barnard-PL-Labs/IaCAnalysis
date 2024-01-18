@@ -1,0 +1,328 @@
+Resources:
+  BaseLayer786B35E5:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 1849397ae364dba4f1844cf7a14308063a0902c0368c78b47e4683561e72fd17.zip
+      CompatibleRuntimes:
+        - python3.9
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/BaseLayer/Resource
+      aws:asset:path: asset.1849397ae364dba4f1844cf7a14308063a0902c0368c78b47e4683561e72fd17.zip
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  ApiFunctionServiceRole52B9747B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/ApiFunction/ServiceRole/Resource
+  ApiFunctionCE271BD4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 0791d6030ef2d64b362afe9215eb939581c124b0ada33a5caf1a2c2893837f37.zip
+      Role:
+        Fn::GetAtt:
+          - ApiFunctionServiceRole52B9747B
+          - Arn
+      Environment:
+        Variables:
+          OPENAI_API_KEY: ""
+      Handler: copykitt_api.handler
+      Layers:
+        - Ref: BaseLayer786B35E5
+      Runtime: python3.9
+    DependsOn:
+      - ApiFunctionServiceRole52B9747B
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/ApiFunction/Resource
+      aws:asset:path: asset.0791d6030ef2d64b362afe9215eb939581c124b0ada33a5caf1a2c2893837f37
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  RestApi0C43BF4B:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: CopyKitt Tutorial API
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/RestApi/Resource
+  RestApiCloudWatchRoleE3ED6605:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/RestApi/CloudWatchRole/Resource
+  RestApiAccount7C83CF5A:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - RestApiCloudWatchRoleE3ED6605
+          - Arn
+    DependsOn:
+      - RestApi0C43BF4B
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/RestApi/Account
+  RestApiDeployment180EC5037adabb84d4a5f9181735ae616021d679:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: RestApi0C43BF4B
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - RestApiproxyANY1786B242
+      - RestApiproxyC95856DD
+      - RestApiANYA7C1DC94
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/RestApi/Deployment/Resource
+  RestApiDeploymentStageprod3855DE66:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: RestApi0C43BF4B
+      DeploymentId:
+        Ref: RestApiDeployment180EC5037adabb84d4a5f9181735ae616021d679
+      StageName: prod
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/RestApi/DeploymentStage.prod/Resource
+  RestApiproxyC95856DD:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - RestApi0C43BF4B
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: RestApi0C43BF4B
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/RestApi/Default/{proxy+}/Resource
+  RestApiproxyANYApiPermissionCopykittInfraStackRestApi656DBAD9ANYproxy0136693B:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ApiFunctionCE271BD4
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: RestApi0C43BF4B
+            - /
+            - Ref: RestApiDeploymentStageprod3855DE66
+            - /*/*
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/RestApi/Default/{proxy+}/ANY/ApiPermission.CopykittInfraStackRestApi656DBAD9.ANY..{proxy+}
+  RestApiproxyANYApiPermissionTestCopykittInfraStackRestApi656DBAD9ANYproxyE63340D4:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ApiFunctionCE271BD4
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: RestApi0C43BF4B
+            - /test-invoke-stage/*/*
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/RestApi/Default/{proxy+}/ANY/ApiPermission.Test.CopykittInfraStackRestApi656DBAD9.ANY..{proxy+}
+  RestApiproxyANY1786B242:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: RestApiproxyC95856DD
+      RestApiId:
+        Ref: RestApi0C43BF4B
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - ApiFunctionCE271BD4
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/RestApi/Default/{proxy+}/ANY/Resource
+  RestApiANYA7C1DC94:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - RestApi0C43BF4B
+          - RootResourceId
+      RestApiId:
+        Ref: RestApi0C43BF4B
+      AuthorizationType: NONE
+      Integration:
+        Type: MOCK
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/RestApi/Default/ANY/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WPQW/CMAyFfwv3NFvhwrUw7cQ0BNKuyKReZ9omVeyMVVX/+5KWaXDy5/fiF3upV/p5AVfOTFlnDZ31cBQwtYrSaWigPZeghx306D/QMzmrtp/2oX8N1sjNuOc9+pY4PRkVr07AjMK6SCX2ehNMjbIBRkXQ6uHgGkxjqY4KOqpA8Ap9dJCl6Ggy/7EwxgUr6gW7xvUtRozqXRfvqKbEGeKoC97g9OPeu5/+T7kFz/yG8uXKJM00jmpaOYWQrZLxHqQL8jAVeetsSTJda12J+sJP3/la50udLy5MlPm4LbWoD3P9BYhOItl6AQAA
+    Metadata:
+      aws:cdk:path: CopykittInfraStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  RestApiEndpoint0551178A:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: RestApi0C43BF4B
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: RestApiDeploymentStageprod3855DE66
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

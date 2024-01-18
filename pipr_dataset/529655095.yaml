@@ -1,0 +1,367 @@
+Resources:
+  LocationConstructMap3C13C5E0:
+    Type: AWS::Location::Map
+    Properties:
+      Configuration:
+        Style: VectorHereExplore
+      MapName: AmplifyQueryStringLocation
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/LocationConstruct/Map
+  LocationConstructRouteCalculatorA8E16890:
+    Type: AWS::Location::RouteCalculator
+    Properties:
+      CalculatorName: AmplifyQueryStringLocation
+      DataSource: Here
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/LocationConstruct/RouteCalculator
+  LocationConstructPlaceIndexA7865EF5:
+    Type: AWS::Location::PlaceIndex
+    Properties:
+      DataSource: Here
+      IndexName: AmplifyQueryStringLocation
+      DataSourceConfiguration:
+        IntendedUse: Storage
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/LocationConstruct/PlaceIndex
+  AuthConstructUserPool024ECEA4:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Schema:
+        - Mutable: true
+          Name: email
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/AuthConstruct/UserPool/Resource
+  AuthConstructUserPoolUserPoolAuthenticationProviderClient0C9E35D1:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: AuthConstructUserPool024ECEA4
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/AuthConstruct/UserPool/UserPoolAuthenticationProviderClient/Resource
+  AuthConstructUserPoolClientA007456C:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: AuthConstructUserPool024ECEA4
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/AuthConstruct/UserPoolClient/Resource
+  AuthConstructmyIdentityPool48863DCD:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: AuthConstructUserPoolUserPoolAuthenticationProviderClient0C9E35D1
+          ProviderName:
+            Fn::Join:
+              - ""
+              - - cognito-idp.
+                - Ref: AWS::Region
+                - "."
+                - Ref: AWS::URLSuffix
+                - /
+                - Ref: AuthConstructUserPool024ECEA4
+          ServerSideTokenCheck: true
+    DependsOn:
+      - AuthConstructUserPool024ECEA4
+      - AuthConstructUserPoolUserPoolAuthenticationProviderClient0C9E35D1
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/AuthConstruct/myIdentityPool/Resource
+  AuthConstructmyIdentityPoolAuthenticatedRole873462B9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: AuthConstructmyIdentityPool48863DCD
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Description:
+        Fn::Join:
+          - ""
+          - - "Default Authenticated Role for Identity Pool "
+            - Fn::GetAtt:
+                - AuthConstructmyIdentityPool48863DCD
+                - Name
+    DependsOn:
+      - AuthConstructUserPool024ECEA4
+      - AuthConstructUserPoolUserPoolAuthenticationProviderClient0C9E35D1
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/AuthConstruct/myIdentityPool/AuthenticatedRole/Resource
+  AuthConstructmyIdentityPoolUnauthenticatedRole74839554:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: AuthConstructmyIdentityPool48863DCD
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Description:
+        Fn::Join:
+          - ""
+          - - "Default Unauthenticated Role for Identity Pool "
+            - Fn::GetAtt:
+                - AuthConstructmyIdentityPool48863DCD
+                - Name
+    DependsOn:
+      - AuthConstructUserPool024ECEA4
+      - AuthConstructUserPoolUserPoolAuthenticationProviderClient0C9E35D1
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/AuthConstruct/myIdentityPool/UnauthenticatedRole/Resource
+  AuthConstructmyIdentityPoolDefaultRoleAttachmentA13816A0:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: AuthConstructmyIdentityPool48863DCD
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - AuthConstructmyIdentityPoolAuthenticatedRole873462B9
+            - Arn
+        unauthenticated:
+          Fn::GetAtt:
+            - AuthConstructmyIdentityPoolUnauthenticatedRole74839554
+            - Arn
+    DependsOn:
+      - AuthConstructUserPool024ECEA4
+      - AuthConstructUserPoolUserPoolAuthenticationProviderClient0C9E35D1
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/AuthConstruct/myIdentityPool/DefaultRoleAttachment/Resource
+  AuthConstructlocationService7F72754B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: geo:GetMap*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:geo:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :map/AmplifyQueryStringLocation
+          - Action: geo:SearchPlaceIndex*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:geo:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :place-index/AmplifyQueryStringLocation
+          - Action: geo:CalculateRoute*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:geo:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :route-calculator/AmplifyQueryStringLocation
+        Version: "2012-10-17"
+      PolicyName: AuthConstructlocationService7F72754B
+      Roles:
+        - Ref: AuthConstructmyIdentityPoolUnauthenticatedRole74839554
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/AuthConstruct/locationService/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/32QQU/EIBCFf0vvMGvXgx41Pe3B2NR4Ngjozi5lmgLqhvDfBdrV9eLpPR7zyDds4foGYtuIT8elOnKDrxCfvJBHlqOXaEgKj2Qhdm/2QUwsy0DB604YGYzwNJeoN0LqnVX6KzFJ7xY9QXx2eu6JTBn48WfTGdTWX179JjuVDfrTuXx5Hsjoe58B92MOE0MxQizhQpa1J4PyVKmqS6n4x+CnUF8ftKMwy1royCos+yXWcmGmvYCr5m79jE3VZRuOK8OUGdbJ+IfzH8jELCkNB7f5aG+h3ULbHBwin0NujBqGRb8BRb0xfIwBAAA=
+    Metadata:
+      aws:cdk:path: AmplifyQueryStringLocationStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  LocationConstructMapNameAF97194F:
+    Value: AmplifyQueryStringLocation
+    Export:
+      Name: AmplifyQueryStringLocationStack-LocationMapName
+  LocationConstructMapStyle8869442D:
+    Value: VectorHereExplore
+    Export:
+      Name: AmplifyQueryStringLocationStack-LocationMapStyle
+  LocationConstructRouteCalculatorName4E0A6C52:
+    Value: AmplifyQueryStringLocation
+    Export:
+      Name: AmplifyQueryStringLocationStack-LocationRouteCalculatorName
+  LocationConstructPlaceIndexName26E87E2F:
+    Value: AmplifyQueryStringLocation
+    Export:
+      Name: AmplifyQueryStringLocationStack-LocationPlaceIndexName
+  AuthConstructUserPoolIdE22F6EE5:
+    Value:
+      Ref: AuthConstructUserPool024ECEA4
+    Export:
+      Name: AmplifyQueryStringLocationStack-CognitoUserPoolsId
+  AuthConstructUserPoolClientIdA88338FC:
+    Value:
+      Ref: AuthConstructUserPoolClientA007456C
+    Export:
+      Name: AmplifyQueryStringLocationStack-CognitoUserPoolsWebClientId
+  AuthConstructIdentityPoolId3241845C:
+    Value:
+      Ref: AuthConstructmyIdentityPool48863DCD
+    Export:
+      Name: AmplifyQueryStringLocationStack-CognitoIdentityPoolId
+  AWSRegion:
+    Value:
+      Ref: AWS::Region
+    Export:
+      Name: AmplifyQueryStringLocationStack-region
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,284 @@
+Resources:
+  bundlestableDC3D84D8:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: Bundles
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: ApiStack/bundles-table/Resource
+  apilambdaServiceRoleF2D743F5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ApiStack/api-lambda/ServiceRole/Resource
+  apilambdaServiceRoleDefaultPolicyCFD83890:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - bundlestableDC3D84D8
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: apilambdaServiceRoleDefaultPolicyCFD83890
+      Roles:
+        - Ref: apilambdaServiceRoleF2D743F5
+    Metadata:
+      aws:cdk:path: ApiStack/api-lambda/ServiceRole/DefaultPolicy/Resource
+  apilambda052863DD:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 0e6728776ccfc625f34901c1bdfe6120a1d22757fdfbecb1290346fbb6cbb67a.zip
+      Role:
+        Fn::GetAtt:
+          - apilambdaServiceRoleF2D743F5
+          - Arn
+      Environment:
+        Variables:
+          BUNDLES_TABLE_NAME:
+            Ref: bundlestableDC3D84D8
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs16.x
+    DependsOn:
+      - apilambdaServiceRoleDefaultPolicyCFD83890
+      - apilambdaServiceRoleF2D743F5
+    Metadata:
+      aws:cdk:path: ApiStack/api-lambda/Resource
+      aws:asset:path: asset.0e6728776ccfc625f34901c1bdfe6120a1d22757fdfbecb1290346fbb6cbb67a
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  apilambdaLogRetention0315F4AA:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: apilambda052863DD
+      RetentionInDays: 30
+    Metadata:
+      aws:cdk:path: ApiStack/api-lambda/LogRetention/Resource
+  apilambdaFunctionUrlF39ED3A1:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      TargetFunctionArn:
+        Fn::GetAtt:
+          - apilambda052863DD
+          - Arn
+    Metadata:
+      aws:cdk:path: ApiStack/api-lambda/FunctionUrl/Resource
+  apilambdainvokefunctionurlB1BA820E:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunctionUrl
+      FunctionName:
+        Fn::GetAtt:
+          - apilambda052863DD
+          - Arn
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+    Metadata:
+      aws:cdk:path: ApiStack/api-lambda/invoke-function-url
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ApiStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: ApiStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 4cd567bf52e0f31674ae9e960efae8855b8b1249fa9997799ae47dc9f80e9ff8.zip
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: ApiStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+      aws:asset:path: asset.4cd567bf52e0f31674ae9e960efae8855b8b1249fa9997799ae47dc9f80e9ff8
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/z1Qy07DMBD8Fu7OooZLr7QSJwRVKOfIsZfIie1FWRtURf131k7LaWZnNbOPFto97B70LzfGzo13A6wfSZtZidSv9hJ1ICviWQ8e1fErVnJVXofB6j6SxYnhrcJLjiY5isrpAGtHm6Hiibwzl1Ju7Kr4qdfMmBieC0gNh2xmTAfNeIuHVQz/qXfyufgSdIMTLsExiy5L0cjwSmOHCWOqUodMeTGo6hQ5bXRxrGvdG8Lfc/rOqbAjRes2ZzkNJn782cmHWnnSxM41S5bggNBt+Ae/mCYzQAEAAA==
+    Metadata:
+      aws:cdk:path: ApiStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  endpoint:
+    Value:
+      Fn::GetAtt:
+        - apilambdaFunctionUrlF39ED3A1
+        - FunctionUrl
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,406 @@
+Resources:
+  SecurityBucket604BCC86:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: security-bucket-access-with-cdk
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/SecurityBucket/Resource
+  SecurityBucketPolicy6A413D18:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: SecurityBucket604BCC86
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - SecurityBucket604BCC86
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SecurityBucket604BCC86
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/SecurityBucket/Policy/Resource
+  SecurityBucketAutoDeleteObjectsCustomResource9E4B7915:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: SecurityBucket604BCC86
+    DependsOn:
+      - SecurityBucketPolicy6A413D18
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/SecurityBucket/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 483ae06ed27ef8ca76e011264d772420593a6cfe8544759c306ef3b98c9e25be.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: SecurityBucket604BCC86
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.483ae06ed27ef8ca76e011264d772420593a6cfe8544759c306ef3b98c9e25be
+      aws:asset:property: Code
+  BucketRest62F23895:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      BinaryMediaTypes:
+        - "*/*"
+      MinimumCompressionSize: 0
+      Name: security-share-s3-files
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketRest/Resource
+  BucketRestCloudWatchRole56EA8369:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketRest/CloudWatchRole/Resource
+  BucketRestAccountE34516D4:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - BucketRestCloudWatchRole56EA8369
+          - Arn
+    DependsOn:
+      - BucketRest62F23895
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketRest/Account
+  BucketRestDeployment649FBD4Cd8f484d1eebb00fc5d21a6c3300b9a36:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: BucketRest62F23895
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - BucketRestassetsfolderkeyGET2F93F444
+      - BucketRestassetsfolderkeyPUT862D88DD
+      - BucketRestassetsfolderkey2A68F9DC
+      - BucketRestassetsfolderF8A29FF3
+      - BucketRestassets45B1B8CD
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketRest/Deployment/Resource
+  BucketRestDeploymentStageprodF8AFDD5C:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: BucketRest62F23895
+      DeploymentId:
+        Ref: BucketRestDeployment649FBD4Cd8f484d1eebb00fc5d21a6c3300b9a36
+      StageName: prod
+    DependsOn:
+      - BucketRestAccountE34516D4
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketRest/DeploymentStage.prod/Resource
+  BucketRestassets45B1B8CD:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - BucketRest62F23895
+          - RootResourceId
+      PathPart: assets
+      RestApiId:
+        Ref: BucketRest62F23895
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketRest/Default/assets/Resource
+  BucketRestassetsfolderF8A29FF3:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: BucketRestassets45B1B8CD
+      PathPart: "{folder}"
+      RestApiId:
+        Ref: BucketRest62F23895
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketRest/Default/assets/{folder}/Resource
+  BucketRestassetsfolderkey2A68F9DC:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: BucketRestassetsfolderF8A29FF3
+      PathPart: "{key}"
+      RestApiId:
+        Ref: BucketRest62F23895
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketRest/Default/assets/{folder}/{key}/Resource
+  BucketRestassetsfolderkeyGET2F93F444:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: BucketRestassetsfolderkey2A68F9DC
+      RestApiId:
+        Ref: BucketRest62F23895
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - BucketGetRole6E69CC18
+            - Arn
+        IntegrationHttpMethod: GET
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Content-Type: integration.response.header.Content-Type
+            StatusCode: "200"
+        RequestParameters:
+          integration.request.path.folder: method.request.path.folder
+          integration.request.path.key: method.request.path.key
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:s3:path/
+              - Ref: SecurityBucket604BCC86
+              - /{folder}/{key}
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Content-Type: true
+          StatusCode: "200"
+      RequestParameters:
+        method.request.path.folder: true
+        method.request.path.key: true
+        method.request.header.Content-Type: true
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketRest/Default/assets/{folder}/{key}/GET/Resource
+  BucketRestassetsfolderkeyPUT862D88DD:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: PUT
+      ResourceId:
+        Ref: BucketRestassetsfolderkey2A68F9DC
+      RestApiId:
+        Ref: BucketRest62F23895
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - BucketPutRole6927B8A3
+            - Arn
+        IntegrationHttpMethod: PUT
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Content-Type: integration.response.header.Content-Type
+            StatusCode: "200"
+        RequestParameters:
+          integration.request.path.folder: method.request.path.folder
+          integration.request.path.key: method.request.path.key
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:s3:path/
+              - Ref: SecurityBucket604BCC86
+              - /{folder}/{key}
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Content-Type: true
+          StatusCode: "200"
+      RequestParameters:
+        method.request.path.folder: true
+        method.request.path.key: true
+        method.request.header.Content-Type: true
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketRest/Default/assets/{folder}/{key}/PUT/Resource
+  BucketGetRole6E69CC18:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      RoleName: bucket-get-role
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketGetRole/Resource
+  BucketGetRoleDefaultPolicy16CAE682:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SecurityBucket604BCC86
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SecurityBucket604BCC86
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SecurityBucket604BCC86
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: BucketGetRoleDefaultPolicy16CAE682
+      Roles:
+        - Ref: BucketGetRole6E69CC18
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketGetRole/DefaultPolicy/Resource
+  BucketPutRole6927B8A3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      RoleName: bucket-put-role
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketPutRole/Resource
+  BucketPutRoleDefaultPolicyAB69BD79:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SecurityBucket604BCC86
+                - Arn
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SecurityBucket604BCC86
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SecurityBucket604BCC86
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: BucketPutRoleDefaultPolicyAB69BD79
+      Roles:
+        - Ref: BucketPutRole6927B8A3
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/BucketPutRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21Py27CMBD8Fu6OS+ihvQa4oiL4AOQ627Ak8UbZNSiK8u+160ihEqd5eDweb3T+odcr8+DMlnXW4Lcez2JsrYJ1Gfldj1tvaxC1+3EzS3CkBu2w2ElPynRYGYGHGfR4Apaiwxh6ooW15J2oPXQNDS24v/InFQZUEL1EwlXyvYWt4UXMnYkfQK5URiuxSaFpw/PUpFzEZe+8dFI7z0Lty8b/R8ee7lhCrwpmkLgKXRXzX146L5NyVIK+8ds9/9T5RuerGyNmffgltqBPCX8BJHDTiWwBAAA=
+    Metadata:
+      aws:cdk:path: security-share-s3-files-dev/CDKMetadata/Default
+Outputs:
+  BucketRestEndpoint07947ADB:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: BucketRest62F23895
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: BucketRestDeploymentStageprodF8AFDD5C
+          - /
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

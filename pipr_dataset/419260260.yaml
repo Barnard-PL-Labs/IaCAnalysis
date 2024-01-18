@@ -1,0 +1,621 @@
+Resources:
+  indextable169160EF:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: keyword
+          KeyType: HASH
+        - AttributeName: document
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: keyword
+          AttributeType: S
+        - AttributeName: document
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: search-engine/index-table/Resource
+  feedtable75A970A6:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: feedname
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: feedname
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: search-engine/feed-table/Resource
+  pagebucket636AB725:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: search-engine/page-bucket/Resource
+  urlqueueF13A728C:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 300
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: search-engine/url-queue/Resource
+  filenamequeue77930722:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 300
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: search-engine/filename-queue/Resource
+  fetchurlslambdaServiceRoleD05E31E8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: search-engine/fetch-urls-lambda/ServiceRole/Resource
+  fetchurlslambdaServiceRoleDefaultPolicy50C52760:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - feedtable75A970A6
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - urlqueueF13A728C
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: fetchurlslambdaServiceRoleDefaultPolicy50C52760
+      Roles:
+        - Ref: fetchurlslambdaServiceRoleD05E31E8
+    Metadata:
+      aws:cdk:path: search-engine/fetch-urls-lambda/ServiceRole/DefaultPolicy/Resource
+  fetchurlslambda8D170FA1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3Bucket2C6D2FED
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416
+      Role:
+        Fn::GetAtt:
+          - fetchurlslambdaServiceRoleD05E31E8
+          - Arn
+      Description: Fetch URLs from a given rss feed and push to queue
+      Environment:
+        Variables:
+          TABLE:
+            Ref: feedtable75A970A6
+          QUEUE:
+            Ref: urlqueueF13A728C
+      Handler: handlers/fetch-urls.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 20
+    DependsOn:
+      - fetchurlslambdaServiceRoleDefaultPolicy50C52760
+      - fetchurlslambdaServiceRoleD05E31E8
+    Metadata:
+      aws:cdk:path: search-engine/fetch-urls-lambda/Resource
+      aws:asset:path: asset.4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6
+      aws:asset:property: Code
+  schedulerule1399FAED:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Schedule rule to fetch update the search index
+      ScheduleExpression: rate(1 day)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - fetchurlslambda8D170FA1
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: search-engine/schedule-rule/Resource
+  scheduleruleAllowEventRulesearchenginefetchurlslambdaDFBCA1C20DEFF5D9:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - fetchurlslambda8D170FA1
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - schedulerule1399FAED
+          - Arn
+    Metadata:
+      aws:cdk:path: search-engine/schedule-rule/AllowEventRulesearchenginefetchurlslambdaDFBCA1C2
+  fetchpagelambdaServiceRoleDDA57D1C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: search-engine/fetch-page-lambda/ServiceRole/Resource
+  fetchpagelambdaServiceRoleDefaultPolicy006DEA61:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - urlqueueF13A728C
+                - Arn
+          - Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - filenamequeue77930722
+                - Arn
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - pagebucket636AB725
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - pagebucket636AB725
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: fetchpagelambdaServiceRoleDefaultPolicy006DEA61
+      Roles:
+        - Ref: fetchpagelambdaServiceRoleDDA57D1C
+    Metadata:
+      aws:cdk:path: search-engine/fetch-page-lambda/ServiceRole/DefaultPolicy/Resource
+  fetchpagelambda1AFD0F4F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3Bucket2C6D2FED
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416
+      Role:
+        Fn::GetAtt:
+          - fetchpagelambdaServiceRoleDDA57D1C
+          - Arn
+      Description: Fetches a page from a given url and stores its text content in s3
+      Environment:
+        Variables:
+          BUCKET:
+            Ref: pagebucket636AB725
+          QUEUE:
+            Ref: filenamequeue77930722
+      Handler: handlers/fetch-page.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 300
+    DependsOn:
+      - fetchpagelambdaServiceRoleDefaultPolicy006DEA61
+      - fetchpagelambdaServiceRoleDDA57D1C
+    Metadata:
+      aws:cdk:path: search-engine/fetch-page-lambda/Resource
+      aws:asset:path: asset.4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6
+      aws:asset:property: Code
+  fetchpagelambdaSqsEventSourcesearchengineurlqueueE64EFCA91BCABD9D:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: fetchpagelambda1AFD0F4F
+      BatchSize: 10
+      EventSourceArn:
+        Fn::GetAtt:
+          - urlqueueF13A728C
+          - Arn
+    Metadata:
+      aws:cdk:path: search-engine/fetch-page-lambda/SqsEventSource:searchengineurlqueueE64EFCA9/Resource
+  createindexServiceRole56F922B9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: search-engine/create-index/ServiceRole/Resource
+  createindexServiceRoleDefaultPolicy3832E38E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - filenamequeue77930722
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - pagebucket636AB725
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - pagebucket636AB725
+                        - Arn
+                    - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - indextable169160EF
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: createindexServiceRoleDefaultPolicy3832E38E
+      Roles:
+        - Ref: createindexServiceRole56F922B9
+    Metadata:
+      aws:cdk:path: search-engine/create-index/ServiceRole/DefaultPolicy/Resource
+  createindexDF658F11:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3Bucket2C6D2FED
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416
+      Role:
+        Fn::GetAtt:
+          - createindexServiceRole56F922B9
+          - Arn
+      Description: Count words in the downloaded pages and store index in DB
+      Environment:
+        Variables:
+          TABLE:
+            Ref: indextable169160EF
+          QUEUE:
+            Ref: filenamequeue77930722
+      Handler: handlers/create-index.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 300
+    DependsOn:
+      - createindexServiceRoleDefaultPolicy3832E38E
+      - createindexServiceRole56F922B9
+    Metadata:
+      aws:cdk:path: search-engine/create-index/Resource
+      aws:asset:path: asset.4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6
+      aws:asset:property: Code
+  createindexSqsEventSourcesearchenginefilenamequeueDC6EEF1B6A04704F:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: createindexDF658F11
+      BatchSize: 10
+      EventSourceArn:
+        Fn::GetAtt:
+          - filenamequeue77930722
+          - Arn
+    Metadata:
+      aws:cdk:path: search-engine/create-index/SqsEventSource:searchenginefilenamequeueDC6EEF1B/Resource
+  searchServiceRoleF0F013F2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: search-engine/search/ServiceRole/Resource
+  searchServiceRoleDefaultPolicy13385139:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - indextable169160EF
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: searchServiceRoleDefaultPolicy13385139
+      Roles:
+        - Ref: searchServiceRoleF0F013F2
+    Metadata:
+      aws:cdk:path: search-engine/search/ServiceRole/DefaultPolicy/Resource
+  searchF2A83B93:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3Bucket2C6D2FED
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416
+      Role:
+        Fn::GetAtt:
+          - searchServiceRoleF0F013F2
+          - Arn
+      Description: Search the database for keywords and return ranked rersults
+      Environment:
+        Variables:
+          TABLE:
+            Ref: indextable169160EF
+      FunctionName: search-engine_search
+      Handler: handlers/search.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 10
+    DependsOn:
+      - searchServiceRoleDefaultPolicy13385139
+      - searchServiceRoleF0F013F2
+    Metadata:
+      aws:cdk:path: search-engine/search/Resource
+      aws:asset:path: asset.4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6
+      aws:asset:property: Code
+  addfeedServiceRoleDDC8BAEC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: search-engine/add-feed/ServiceRole/Resource
+  addfeedServiceRoleDefaultPolicy53732624:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - feedtable75A970A6
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: addfeedServiceRoleDefaultPolicy53732624
+      Roles:
+        - Ref: addfeedServiceRoleDDC8BAEC
+    Metadata:
+      aws:cdk:path: search-engine/add-feed/ServiceRole/DefaultPolicy/Resource
+  addfeedF3BBE429:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3Bucket2C6D2FED
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416
+      Role:
+        Fn::GetAtt:
+          - addfeedServiceRoleDDC8BAEC
+          - Arn
+      Description: Add given feed url to the feed table for later processing
+      Environment:
+        Variables:
+          TABLE:
+            Ref: feedtable75A970A6
+      FunctionName: search-engine_add-feed
+      Handler: handlers/add-feed.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 10
+    DependsOn:
+      - addfeedServiceRoleDefaultPolicy53732624
+      - addfeedServiceRoleDDC8BAEC
+    Metadata:
+      aws:cdk:path: search-engine/add-feed/Resource
+      aws:asset:path: asset.4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6
+      aws:asset:property: Code
+  clientpolicy8638339E:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - searchF2A83B93
+                  - Arn
+              - Fn::GetAtt:
+                  - addfeedF3BBE429
+                  - Arn
+            Sid: "0"
+        Version: "2012-10-17"
+      Description: ""
+      ManagedPolicyName: search-engine_client-policy
+      Path: /
+    Metadata:
+      aws:cdk:path: search-engine/client-policy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2VQ0U7DMAz8lr2nHgUh8Qib4G1S6fgBNzVV1iYZcTI0Rfl3mrQIEE93Pjvni2uob+/hZvOIn1zJftxGaR1BPHqUo2iJbXCSxN4a9i5IL56Yyc/dQZlB7N9Ngw41eXK5+J5PItvF/mpQ276D+IbdRHmikCT4DuIuyJF8Fle2wA45D3wwxNdAobwqJIkJddcjxJdgpFfW5NZv3pDTijlXzxcy/ljCHPB8XsP+V5NQqCG2dolXsLGTktdiuLADGhyo/9H/CPk3FeazMJTrCMpr5vxtWF1nTCkJY3uCE28v9cN8dqg3J1aqcsF4pQnaBb8Aq555FpIBAAA=
+    Metadata:
+      aws:cdk:path: search-engine/CDKMetadata/Default
+Parameters:
+  AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3Bucket2C6D2FED:
+    Type: String
+    Description: S3 bucket for asset "4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6"
+  AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6S3VersionKey36090416:
+    Type: String
+    Description: S3 key for asset version "4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6"
+  AssetParameters4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6ArtifactHashC78F6787:
+    Type: String
+    Description: Artifact hash for asset "4002b1e81d3b237471a7f22f8c8d0aa7d698d145aa8802d906c4d1ebc1bf8fb6"
+

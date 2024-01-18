@@ -1,0 +1,471 @@
+Resources:
+  awss3monitoringkmsawss3monitoringkmskey26172ADA:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-kms/aws-s3-monitoring-kms-key/Resource
+  awss3monitoringbucketsdocumentsbucketNotifications70E234A9:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: awss3monitoringbucketsdocumentsbucket0FDBD743
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - awss3monitoringbucketconvertermd5converterlambdafunction8CB46F4D
+                - Arn
+      Managed: true
+    DependsOn:
+      - awss3monitoringbucketsdocumentsbucketAllowBucketNotificationsToawss3monitoringawss3monitoringbucketconvertermd5converterlambdafunction67D4EB4A44CBF8A0
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-buckets/documents-bucket/Notifications/Resource
+  awss3monitoringbucketsdocumentsbucket0FDBD743:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - awss3monitoringkmsawss3monitoringkmskey26172ADA
+                  - Arn
+              SSEAlgorithm: aws:kms
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-buckets/documents-bucket/Resource
+  awss3monitoringbucketsdocumentsbucketAllowBucketNotificationsToawss3monitoringawss3monitoringbucketconvertermd5converterlambdafunction67D4EB4A44CBF8A0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - awss3monitoringbucketconvertermd5converterlambdafunction8CB46F4D
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount: "036406153779"
+      SourceArn:
+        Fn::GetAtt:
+          - awss3monitoringbucketsdocumentsbucket0FDBD743
+          - Arn
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-buckets/documents-bucket/AllowBucketNotificationsToawss3monitoringawss3monitoringbucketconvertermd5converterlambdafunction67D4EB4A
+  awss3monitoringsnsS3Upload3C4B0E24:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: S3-Upload
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-sns/S3-Upload/Resource
+  awss3monitoringsnsS3Uploadadminexamplecom7CD329CA:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn:
+        Ref: awss3monitoringsnsS3Upload3C4B0E24
+      Endpoint: admin@example.com
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-sns/S3-Upload/admin@example.com/Resource
+  awss3monitoringsqsA3F212C1:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId:
+        Fn::GetAtt:
+          - awss3monitoringkmsawss3monitoringkmskey26172ADA
+          - Arn
+      QueueName: aws-s3-monitoring-sqs
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-sqs/aws-s3-monitoring-sqs/Resource
+  awss3monitoringsqssnssendlambdafunctionServiceRole821C8208:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-sqs/sns-send-lambda-function/ServiceRole/Resource
+  awss3monitoringsqssnssendlambdafunctionServiceRoleDefaultPolicy0162CC6D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: awss3monitoringsnsS3Upload3C4B0E24
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - awss3monitoringsqsA3F212C1
+                - Arn
+          - Action: kms:Decrypt
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - awss3monitoringkmsawss3monitoringkmskey26172ADA
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: awss3monitoringsqssnssendlambdafunctionServiceRoleDefaultPolicy0162CC6D
+      Roles:
+        - Ref: awss3monitoringsqssnssendlambdafunctionServiceRole821C8208
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-sqs/sns-send-lambda-function/ServiceRole/DefaultPolicy/Resource
+  awss3monitoringsqssnssendlambdafunctionBCAF6C18:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersf89cd3f8d287271ee71b171089fe2f5be788dd7b6823afa859d2b92ae305c665S3Bucket73046669
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf89cd3f8d287271ee71b171089fe2f5be788dd7b6823afa859d2b92ae305c665S3VersionKey6C7AB678
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf89cd3f8d287271ee71b171089fe2f5be788dd7b6823afa859d2b92ae305c665S3VersionKey6C7AB678
+      Role:
+        Fn::GetAtt:
+          - awss3monitoringsqssnssendlambdafunctionServiceRole821C8208
+          - Arn
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN:
+            Ref: awss3monitoringsnsS3Upload3C4B0E24
+      Handler: index.main
+      Runtime: nodejs14.x
+    DependsOn:
+      - awss3monitoringsqssnssendlambdafunctionServiceRoleDefaultPolicy0162CC6D
+      - awss3monitoringsqssnssendlambdafunctionServiceRole821C8208
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-sqs/sns-send-lambda-function/Resource
+      aws:asset:path: asset.f89cd3f8d287271ee71b171089fe2f5be788dd7b6823afa859d2b92ae305c665
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  awss3monitoringsqssnssendlambdafunctionSqsEventSourceawss3monitoringawss3monitoringsqs86375CC1EF119643:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: awss3monitoringsqssnssendlambdafunctionBCAF6C18
+      EventSourceArn:
+        Fn::GetAtt:
+          - awss3monitoringsqsA3F212C1
+          - Arn
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-sqs/sns-send-lambda-function/SqsEventSource:awss3monitoringawss3monitoringsqs86375CC1/Resource
+  awss3monitoringbucketconvertermd5converterlambdafunctionServiceRole1FC8A031:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-bucket-converter/md5-converter-lambda-function/ServiceRole/Resource
+  awss3monitoringbucketconvertermd5converterlambdafunctionServiceRoleDefaultPolicy445A3701:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - awss3monitoringsqsA3F212C1
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - awss3monitoringkmsawss3monitoringkmskey26172ADA
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: awss3monitoringbucketconvertermd5converterlambdafunctionServiceRoleDefaultPolicy445A3701
+      Roles:
+        - Ref: awss3monitoringbucketconvertermd5converterlambdafunctionServiceRole1FC8A031
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-bucket-converter/md5-converter-lambda-function/ServiceRole/DefaultPolicy/Resource
+  awss3monitoringbucketconvertermd5converterlambdafunction8CB46F4D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersbb6f7e2d64b92bc26ebd46eba7641341edbd5f0db24d3ae5438eaaaaac12f865S3Bucket24052D48
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbb6f7e2d64b92bc26ebd46eba7641341edbd5f0db24d3ae5438eaaaaac12f865S3VersionKey08B8296F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbb6f7e2d64b92bc26ebd46eba7641341edbd5f0db24d3ae5438eaaaaac12f865S3VersionKey08B8296F
+      Role:
+        Fn::GetAtt:
+          - awss3monitoringbucketconvertermd5converterlambdafunctionServiceRole1FC8A031
+          - Arn
+      Handler: index.main
+      Runtime: nodejs14.x
+    DependsOn:
+      - awss3monitoringbucketconvertermd5converterlambdafunctionServiceRoleDefaultPolicy445A3701
+      - awss3monitoringbucketconvertermd5converterlambdafunctionServiceRole1FC8A031
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-bucket-converter/md5-converter-lambda-function/Resource
+      aws:asset:path: asset.bb6f7e2d64b92bc26ebd46eba7641341edbd5f0db24d3ae5438eaaaaac12f865
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  awss3monitoringbucketconvertermd5converterlambdafunctionEventInvokeConfig311B22B1:
+    Type: AWS::Lambda::EventInvokeConfig
+    Properties:
+      FunctionName:
+        Ref: awss3monitoringbucketconvertermd5converterlambdafunction8CB46F4D
+      Qualifier: $LATEST
+      DestinationConfig:
+        OnSuccess:
+          Destination:
+            Fn::GetAtt:
+              - awss3monitoringsqsA3F212C1
+              - Arn
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/aws-s3-monitoring-bucket-converter/md5-converter-lambda-function/EventInvokeConfig/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |
+          import boto3  # type: ignore
+          import json
+          import logging
+          import urllib.request
+
+          s3 = boto3.client("s3")
+
+          CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+          def handler(event: dict, context):
+              response_status = "SUCCESS"
+              error_message = ""
+              try:
+                  props = event["ResourceProperties"]
+                  bucket = props["BucketName"]
+                  notification_configuration = props["NotificationConfiguration"]
+                  request_type = event["RequestType"]
+                  managed = props.get('Managed', 'true').lower() == 'true'
+                  stack_id = event['StackId']
+
+                  if managed:
+                    config = handle_managed(request_type, notification_configuration)
+                  else:
+                    config = handle_unmanaged(bucket, stack_id, request_type, notification_configuration)
+
+                  put_bucket_notification_configuration(bucket, config)
+              except Exception as e:
+                  logging.exception("Failed to put bucket notification configuration")
+                  response_status = "FAILED"
+                  error_message = f"Error: {str(e)}. "
+              finally:
+                  submit_response(event, context, response_status, error_message)
+
+
+          def handle_managed(request_type, notification_configuration):
+            if request_type == 'Delete':
+              return {}
+            return notification_configuration
+
+
+          def handle_unmanaged(bucket, stack_id, request_type, notification_configuration):
+
+            # find external notifications
+            external_notifications = find_external_notifications(bucket, stack_id)
+
+            # if delete, that's all we need
+            if request_type == 'Delete':
+              return external_notifications
+
+            def with_id(notification):
+              notification['Id'] = f"{stack_id}-{hash(json.dumps(notification, sort_keys=True))}"
+              return notification
+
+            # otherwise, merge external with incoming config and augment with id
+            notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external = external_notifications.get(t, [])
+              incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+              notifications[t] = external + incoming
+            return notifications
+
+
+          def find_external_notifications(bucket, stack_id):
+            existing_notifications = get_bucket_notification_configuration(bucket)
+            external_notifications = {}
+            for t in CONFIGURATION_TYPES:
+              # if the notification was created by us, we know what id to expect
+              # so we can filter by it.
+              external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+
+            return external_notifications
+
+
+          def get_bucket_notification_configuration(bucket):
+            return s3.get_bucket_notification_configuration(Bucket=bucket)
+
+
+          def put_bucket_notification_configuration(bucket, notification_configuration):
+            s3.put_bucket_notification_configuration(Bucket=bucket, NotificationConfiguration=notification_configuration)
+
+
+          def submit_response(event: dict, context, response_status: str, error_message: str):
+              response_body = json.dumps(
+                  {
+                      "Status": response_status,
+                      "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                      "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                      "StackId": event["StackId"],
+                      "RequestId": event["RequestId"],
+                      "LogicalResourceId": event["LogicalResourceId"],
+                      "NoEcho": False,
+                  }
+              ).encode("utf-8")
+              headers = {"content-type": "", "content-length": str(len(response_body))}
+              try:
+                  req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+                  with urllib.request.urlopen(req) as response:
+                      print(response.read().decode("utf-8"))
+                  print("Status code: " + response.reason)
+              except Exception as e:
+                  print("send(..) failed executing request.urlopen(..): " + str(e))
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: python3.7
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/22QQU/DMAyFf8vuqaHbhSubQJoQUlm5T2nqTV6bpMRJEar630nSATtwei+fbfnFa9jA/Up+cqHaruipgan2UnUiouPUaYbpBb/E7mSizII3MG2D6tAndHWLbCXjLHqpm1bCFKsVOk3MZI14Dkb5ZCL+9U8jGl/b4BS+ymEgc07lf2hGezPaDnfWnOiv7xbGcCamfbcDqdSwmDo0rBwNP9tv33HiI068BQyYatnMgqSG6WD7zLJWtieVj7C4dIejZEbP8Jhkzq3IObbIKF7xfP1SJZ3U6NHNwtgW4cJ3Y/kA5RrK1YWJCheMJ41wWPQb+SK5XpQBAAA=
+    Metadata:
+      aws:cdk:path: aws-s3-monitoring/CDKMetadata/Default
+Parameters:
+  AssetParametersf89cd3f8d287271ee71b171089fe2f5be788dd7b6823afa859d2b92ae305c665S3Bucket73046669:
+    Type: String
+    Description: S3 bucket for asset "f89cd3f8d287271ee71b171089fe2f5be788dd7b6823afa859d2b92ae305c665"
+  AssetParametersf89cd3f8d287271ee71b171089fe2f5be788dd7b6823afa859d2b92ae305c665S3VersionKey6C7AB678:
+    Type: String
+    Description: S3 key for asset version "f89cd3f8d287271ee71b171089fe2f5be788dd7b6823afa859d2b92ae305c665"
+  AssetParametersf89cd3f8d287271ee71b171089fe2f5be788dd7b6823afa859d2b92ae305c665ArtifactHash257E544E:
+    Type: String
+    Description: Artifact hash for asset "f89cd3f8d287271ee71b171089fe2f5be788dd7b6823afa859d2b92ae305c665"
+  AssetParametersbb6f7e2d64b92bc26ebd46eba7641341edbd5f0db24d3ae5438eaaaaac12f865S3Bucket24052D48:
+    Type: String
+    Description: S3 bucket for asset "bb6f7e2d64b92bc26ebd46eba7641341edbd5f0db24d3ae5438eaaaaac12f865"
+  AssetParametersbb6f7e2d64b92bc26ebd46eba7641341edbd5f0db24d3ae5438eaaaaac12f865S3VersionKey08B8296F:
+    Type: String
+    Description: S3 key for asset version "bb6f7e2d64b92bc26ebd46eba7641341edbd5f0db24d3ae5438eaaaaac12f865"
+  AssetParametersbb6f7e2d64b92bc26ebd46eba7641341edbd5f0db24d3ae5438eaaaaac12f865ArtifactHashFD503710:
+    Type: String
+    Description: Artifact hash for asset "bb6f7e2d64b92bc26ebd46eba7641341edbd5f0db24d3ae5438eaaaaac12f865"
+

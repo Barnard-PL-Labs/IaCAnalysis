@@ -1,0 +1,670 @@
+Resources:
+  devpubsubconnectiondb50D0CB49:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: topic
+          KeyType: HASH
+        - AttributeName: connectionId
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: topic
+          AttributeType: S
+        - AttributeName: connectionId
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      TableName: dev-pubsub-connection-db
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-connection-db/Resource
+  devpubsubmessagedbCAA169EC:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: topic
+          KeyType: HASH
+        - AttributeName: created_at
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: topic
+          AttributeType: S
+        - AttributeName: created_at
+          AttributeType: "N"
+      BillingMode: PAY_PER_REQUEST
+      TableName: dev-pubsub-message-db
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-message-db/Resource
+  devpubsubwebsocketapigateway:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: dev-pubsub
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-websocket-api-gateway
+  devpubsubonconnectfuncServiceRoleEACC5916:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-connect-func/ServiceRole/Resource
+  devpubsubonconnectfunc65030A5B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 591a5c956bd9dc669abf3b413bbbdc2a2b02efd5897a19dc771c80037118c53d.zip
+      Role:
+        Fn::GetAtt:
+          - devpubsubonconnectfuncServiceRoleEACC5916
+          - Arn
+      Description: dev-pubsub on connection func
+      Handler: handler/connect.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 300
+    DependsOn:
+      - devpubsubonconnectfuncServiceRoleEACC5916
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-connect-func/Resource
+      aws:asset:path: asset.591a5c956bd9dc669abf3b413bbbdc2a2b02efd5897a19dc771c80037118c53d
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  devpubsubonconnectfuncInvokeServicePrincipalapigatewayamazonawscom5FFC4DD3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - devpubsubonconnectfunc65030A5B
+          - Arn
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-connect-func/InvokeServicePrincipal(apigateway.amazonaws.com)
+  devpubsubondisconnectfuncServiceRoleC57907B1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-disconnect-func/ServiceRole/Resource
+  devpubsubondisconnectfunc38817687:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 591a5c956bd9dc669abf3b413bbbdc2a2b02efd5897a19dc771c80037118c53d.zip
+      Role:
+        Fn::GetAtt:
+          - devpubsubondisconnectfuncServiceRoleC57907B1
+          - Arn
+      Description: dev-pubsub on disconnect func
+      Handler: handler/disconnect.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 300
+    DependsOn:
+      - devpubsubondisconnectfuncServiceRoleC57907B1
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-disconnect-func/Resource
+      aws:asset:path: asset.591a5c956bd9dc669abf3b413bbbdc2a2b02efd5897a19dc771c80037118c53d
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  devpubsubondisconnectfuncInvokeServicePrincipalapigatewayamazonawscomA083F41D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - devpubsubondisconnectfunc38817687
+          - Arn
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-disconnect-func/InvokeServicePrincipal(apigateway.amazonaws.com)
+  devpubsubonsubscribefuncServiceRoleD043848A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-subscribe-func/ServiceRole/Resource
+  devpubsubonsubscribefuncServiceRoleDefaultPolicyE407D248:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:execute-api:ap-northeast-1:"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: devpubsubwebsocketapigateway
+                  - /*
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - devpubsubconnectiondb50D0CB49
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:Scan
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - devpubsubmessagedbCAA169EC
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: devpubsubonsubscribefuncServiceRoleDefaultPolicyE407D248
+      Roles:
+        - Ref: devpubsubonsubscribefuncServiceRoleD043848A
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-subscribe-func/ServiceRole/DefaultPolicy/Resource
+  devpubsubonsubscribefuncA0A976D8:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 591a5c956bd9dc669abf3b413bbbdc2a2b02efd5897a19dc771c80037118c53d.zip
+      Role:
+        Fn::GetAtt:
+          - devpubsubonsubscribefuncServiceRoleD043848A
+          - Arn
+      Description: dev-pubsub on subscribe func
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: devpubsubconnectiondb50D0CB49
+          MESSAGE_TABLE_NAME:
+            Ref: devpubsubmessagedbCAA169EC
+      Handler: handler/subscribe.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 300
+    DependsOn:
+      - devpubsubonsubscribefuncServiceRoleDefaultPolicyE407D248
+      - devpubsubonsubscribefuncServiceRoleD043848A
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-subscribe-func/Resource
+      aws:asset:path: asset.591a5c956bd9dc669abf3b413bbbdc2a2b02efd5897a19dc771c80037118c53d
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  devpubsubonsubscribefuncInvokeServicePrincipalapigatewayamazonawscom71842F1A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - devpubsubonsubscribefuncA0A976D8
+          - Arn
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-subscribe-func/InvokeServicePrincipal(apigateway.amazonaws.com)
+  devpubsubonpublishfuncServiceRoleC6C9B5A5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-publish-func/ServiceRole/Resource
+  devpubsubonpublishfuncServiceRoleDefaultPolicy078A6965:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:execute-api:ap-northeast-1:"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: devpubsubwebsocketapigateway
+                  - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - devpubsubconnectiondb50D0CB49
+                  - Arn
+              - Fn::GetAtt:
+                  - devpubsubmessagedbCAA169EC
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: devpubsubonpublishfuncServiceRoleDefaultPolicy078A6965
+      Roles:
+        - Ref: devpubsubonpublishfuncServiceRoleC6C9B5A5
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-publish-func/ServiceRole/DefaultPolicy/Resource
+  devpubsubonpublishfunc9AB947F3:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 591a5c956bd9dc669abf3b413bbbdc2a2b02efd5897a19dc771c80037118c53d.zip
+      Role:
+        Fn::GetAtt:
+          - devpubsubonpublishfuncServiceRoleC6C9B5A5
+          - Arn
+      Description: dev-pubsub on publish func
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: devpubsubconnectiondb50D0CB49
+          MESSAGE_TABLE_NAME:
+            Ref: devpubsubmessagedbCAA169EC
+      Handler: handler/publish.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 300
+    DependsOn:
+      - devpubsubonpublishfuncServiceRoleDefaultPolicy078A6965
+      - devpubsubonpublishfuncServiceRoleC6C9B5A5
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-publish-func/Resource
+      aws:asset:path: asset.591a5c956bd9dc669abf3b413bbbdc2a2b02efd5897a19dc771c80037118c53d
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  devpubsubonpublishfuncInvokeServicePrincipalapigatewayamazonawscomBEBC937D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - devpubsubonpublishfunc9AB947F3
+          - Arn
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-on-publish-func/InvokeServicePrincipal(apigateway.amazonaws.com)
+  pubsubiamrole207158AC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/pubsub-iam-role/Resource
+  pubsubiamroleDefaultPolicy03EF1A1A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - devpubsubonconnectfunc65030A5B
+                  - Arn
+              - Fn::GetAtt:
+                  - devpubsubondisconnectfunc38817687
+                  - Arn
+              - Fn::GetAtt:
+                  - devpubsubonpublishfunc9AB947F3
+                  - Arn
+              - Fn::GetAtt:
+                  - devpubsubonsubscribefuncA0A976D8
+                  - Arn
+        Version: "2012-10-17"
+      PolicyName: pubsubiamroleDefaultPolicy03EF1A1A
+      Roles:
+        - Ref: pubsubiamrole207158AC
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/pubsub-iam-role/DefaultPolicy/Resource
+  devpubsubapigwintegrationonconnect:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: devpubsubwebsocketapigateway
+      IntegrationType: AWS_PROXY
+      CredentialsArn:
+        Fn::GetAtt:
+          - pubsubiamrole207158AC
+          - Arn
+      IntegrationUri:
+        Fn::Join:
+          - ""
+          - - arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - devpubsubonconnectfunc65030A5B
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-apigw-integration-on-connect
+  devpubsubapigwrouteonconnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: devpubsubwebsocketapigateway
+      RouteKey: $connect
+      AuthorizationType: NONE
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: devpubsubapigwintegrationonconnect
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-apigw-route-on-connect
+  devpubsubapigwintegrationondisconnect:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: devpubsubwebsocketapigateway
+      IntegrationType: AWS_PROXY
+      CredentialsArn:
+        Fn::GetAtt:
+          - pubsubiamrole207158AC
+          - Arn
+      IntegrationUri:
+        Fn::Join:
+          - ""
+          - - arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - devpubsubondisconnectfunc38817687
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-apigw-integration-on-disconnect
+  devpubsubapigwrouteondisconnect:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: devpubsubwebsocketapigateway
+      RouteKey: $disconnect
+      AuthorizationType: NONE
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: devpubsubapigwintegrationondisconnect
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-apigw-route-on-disconnect
+  devpubsubapigwintegrationonsubscribe:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: devpubsubwebsocketapigateway
+      IntegrationType: AWS_PROXY
+      CredentialsArn:
+        Fn::GetAtt:
+          - pubsubiamrole207158AC
+          - Arn
+      IntegrationUri:
+        Fn::Join:
+          - ""
+          - - arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - devpubsubonsubscribefuncA0A976D8
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-apigw-integration-on-subscribe
+  devpubsubapigwrouteonsubscribe:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: devpubsubwebsocketapigateway
+      RouteKey: subscribe
+      AuthorizationType: NONE
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: devpubsubapigwintegrationonsubscribe
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-apigw-route-on-subscribe
+  devpubsubapigwintegrationonpublish:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: devpubsubwebsocketapigateway
+      IntegrationType: AWS_PROXY
+      CredentialsArn:
+        Fn::GetAtt:
+          - pubsubiamrole207158AC
+          - Arn
+      IntegrationUri:
+        Fn::Join:
+          - ""
+          - - arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - devpubsubonpublishfunc9AB947F3
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-apigw-integration-on-publish
+  devpubsubapigwrouteonpublish:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: devpubsubwebsocketapigateway
+      RouteKey: publish
+      AuthorizationType: NONE
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: devpubsubapigwintegrationonpublish
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-apigw-route-on-publish
+  devpubsubapigwdeployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    Properties:
+      ApiId:
+        Ref: devpubsubwebsocketapigateway
+    DependsOn:
+      - devpubsubapigwrouteonconnect
+      - devpubsubapigwrouteondisconnect
+      - devpubsubapigwrouteonpublish
+      - devpubsubapigwrouteonsubscribe
+      - devpubsubwebsocketapigateway
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-apigw-deployment
+  devpubsubapigwstage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: devpubsubwebsocketapigateway
+      StageName: dev
+      AutoDeploy: true
+      DeploymentId:
+        Ref: devpubsubapigwdeployment
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/dev-pubsub-apigw-stage
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01OTU/DMAz9LbunhpYL120IaSemwn1yE1N5bZKqTjZVVf87SSYQp/dhPz830DTwvMO7VNoM1cgdrJ8B9aCSdVnN4tB6k8wv7EZSx29XyKZw4h4D3XG5NbAmfz9xHp9coH7GwN5l2foYSuyNptEvllzIKlX06ciItjMI63t0+jfxn59ptiyS1KYYLaytfzxR8OxH1kvZK2xT8nJBEQoC+wxJwyHqgcIBJdW1JD7OmlSZ5h/Y9Tn/EcMUy2N/K4kfvTMcSrnzhuAqT7f6FeoG6t1VmKs5usCWoH3gD1PkOxFMAQAA
+    Metadata:
+      aws:cdk:path: LambdaPubsubStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  apigwstageoutput:
+    Value:
+      Fn::Join:
+        - ""
+        - - wss://
+          - Ref: devpubsubwebsocketapigateway
+          - .execute-api.ap-northeast-1.amazonaws.com/dev/
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

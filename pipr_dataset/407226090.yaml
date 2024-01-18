@@ -1,0 +1,594 @@
+Outputs:
+  UserPoolRegion:
+    Value:
+      Ref: AWS::Region
+  UserPoolId:
+    Value:
+      Ref: AwsJwtTestUserPool08012F7A
+  HostedUIUrl:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: AwsJwtTestUserPoolOAuthDomain2CFEA925
+          - .auth.
+          - Ref: AWS::Region
+          - .amazoncognito.com
+  UserPoolUser:
+    Value: johndoe@example.com
+  UserPoolUserPassword:
+    Value: Testing1234@
+  ResourceServerWithScope:
+    Value:
+      Fn::Join:
+        - ""
+        - - Ref: AwsJwtTestUserPoolMyAPI49277A96
+          - /read
+  UserPoolClientId:
+    Value:
+      Ref: AwsJwtTestUserPoolUserPoolClientE5D1440D
+  UserPoolClientWithSecretClientId:
+    Value:
+      Ref: AwsJwtTestUserPoolUserPoolClientWithSecret1DD1DF58
+  UserPoolClientWithSecretValue:
+    Value:
+      Fn::GetAtt:
+        - ClientSecretGetter83BBB75B
+        - UserPoolClient.ClientSecret
+  HttpApiEndpoint:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: HttpApiF5A9A8A7
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /mock
+Resources:
+  AwsJwtTestUserPool08012F7A:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameAttributes:
+        - email
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/AwsJwtTestUserPool/Resource
+  AwsJwtTestUserPoolOAuthDomain2CFEA925:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain:
+        Fn::Join:
+          - ""
+          - - oauthdomain-
+            - Ref: AWS::AccountId
+      UserPoolId:
+        Ref: AwsJwtTestUserPool08012F7A
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/AwsJwtTestUserPool/OAuthDomain/Resource
+  AwsJwtTestUserPoolMyAPI49277A96:
+    Type: AWS::Cognito::UserPoolResourceServer
+    Properties:
+      Identifier: my-api
+      Name: My Authenticated API
+      UserPoolId:
+        Ref: AwsJwtTestUserPool08012F7A
+      Scopes:
+        - ScopeDescription: Read access
+          ScopeName: read
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/AwsJwtTestUserPool/MyAPI/Resource
+  AwsJwtTestUserPoolUserPoolClientE5D1440D:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: AwsJwtTestUserPool08012F7A
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/AwsJwtTestUserPool/UserPoolClient/Resource
+  AwsJwtTestUserPoolUserPoolClientWithSecret1DD1DF58:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: AwsJwtTestUserPool08012F7A
+      AllowedOAuthFlows:
+        - client_credentials
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - Fn::Join:
+            - ""
+            - - Ref: AwsJwtTestUserPoolMyAPI49277A96
+              - /read
+      GenerateSecret: true
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/AwsJwtTestUserPool/UserPoolClientWithSecret/Resource
+  TestUser:
+    Type: AWS::Cognito::UserPoolUser
+    Properties:
+      UserPoolId:
+        Ref: AwsJwtTestUserPool08012F7A
+      DesiredDeliveryMediums:
+        - EMAIL
+      MessageAction: SUPPRESS
+      UserAttributes:
+        - Name: email
+          Value: johndoe@example.com
+        - Name: email_verified
+          Value: "true"
+        - Name: name
+          Value: John Doe +/=-_
+      Username: johndoe@example.com
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/TestUser
+  PasswordSetterCustomResourcePolicyA3F483D4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cognito-idp:AdminSetUserPassword
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AwsJwtTestUserPool08012F7A
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PasswordSetterCustomResourcePolicyA3F483D4
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/PasswordSetter/CustomResourcePolicy/Resource
+  PasswordSetter87A4A9BC:
+    Type: Custom::PasswordSetter
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"CognitoIdentityServiceProvider","action":"adminSetUserPassword","parameters":{"UserPoolId":"'
+            - Ref: AwsJwtTestUserPool08012F7A
+            - '","Username":"johndoe@example.com","Password":"Testing1234@","Permanent":true},"physicalResourceId":{"id":"johndoe@example.com"}}'
+      Update:
+        Fn::Join:
+          - ""
+          - - '{"service":"CognitoIdentityServiceProvider","action":"adminSetUserPassword","parameters":{"UserPoolId":"'
+            - Ref: AwsJwtTestUserPool08012F7A
+            - '","Username":"johndoe@example.com","Password":"Testing1234@","Permanent":true},"physicalResourceId":{"id":"johndoe@example.com"}}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - PasswordSetterCustomResourcePolicyA3F483D4
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/PasswordSetter/Resource/Default
+  AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource
+  AWS679f53fac002430cb0da5b7982bd22872D164C4C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-test-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 9d784cf317cead201dfe56ed0404d6d23eba6d499ca7354138230c2267f2fe90.zip
+      Role:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 120
+    DependsOn:
+      - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/AWS679f53fac002430cb0da5b7982bd2287/Resource
+      aws:asset:path: asset.9d784cf317cead201dfe56ed0404d6d23eba6d499ca7354138230c2267f2fe90
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ClientSecretGetterCustomResourcePolicy6F5186A4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cognito-idp:DescribeUserPoolClient
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AwsJwtTestUserPool08012F7A
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ClientSecretGetterCustomResourcePolicy6F5186A4
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/ClientSecretGetter/CustomResourcePolicy/Resource
+  ClientSecretGetter83BBB75B:
+    Type: Custom::ClientSecretGetter
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"CognitoIdentityServiceProvider","action":"describeUserPoolClient","parameters":{"UserPoolId":"'
+            - Ref: AwsJwtTestUserPool08012F7A
+            - '","ClientId":"'
+            - Ref: AwsJwtTestUserPoolUserPoolClientWithSecret1DD1DF58
+            - '"},"physicalResourceId":{"id":"'
+            - Ref: AwsJwtTestUserPoolUserPoolClientWithSecret1DD1DF58
+            - '"},"outputPaths":["UserPoolClient.ClientSecret"]}'
+      Update:
+        Fn::Join:
+          - ""
+          - - '{"service":"CognitoIdentityServiceProvider","action":"describeUserPoolClient","parameters":{"UserPoolId":"'
+            - Ref: AwsJwtTestUserPool08012F7A
+            - '","ClientId":"'
+            - Ref: AwsJwtTestUserPoolUserPoolClientWithSecret1DD1DF58
+            - '"},"physicalResourceId":{"id":"'
+            - Ref: AwsJwtTestUserPoolUserPoolClientWithSecret1DD1DF58
+            - '"},"outputPaths":["UserPoolClient.ClientSecret"]}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - ClientSecretGetterCustomResourcePolicy6F5186A4
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/ClientSecretGetter/Resource/Default
+  MockEndpointServiceRole50419B38:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/MockEndpoint/ServiceRole/Resource
+  MockEndpoint65BF1648:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |-
+          exports.handler = async () => ({
+                  statusCode: 200,
+                  headers: { "Content-Type": "application/json" },
+                  body: "{\"private\":\"content!\"}"
+                })
+      Role:
+        Fn::GetAtt:
+          - MockEndpointServiceRole50419B38
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - MockEndpointServiceRole50419B38
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/MockEndpoint/Resource
+  LambdaAuthorizerHandlerServiceRole90A0E27E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/LambdaAuthorizerHandler/ServiceRole/Resource
+  LambdaAuthorizerHandler7CB5B9B1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-test-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 172de6570d8c9f174a38f19025cc59b417f25d33f9a8648ecc6fc16e7034484a.zip
+      Role:
+        Fn::GetAtt:
+          - LambdaAuthorizerHandlerServiceRole90A0E27E
+          - Arn
+      Environment:
+        Variables:
+          USER_POOL_ID:
+            Ref: AwsJwtTestUserPool08012F7A
+          CLIENT_ID:
+            Ref: AwsJwtTestUserPoolUserPoolClientE5D1440D
+          USER_EMAIL: johndoe@example.com
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - LambdaAuthorizerHandlerServiceRole90A0E27E
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/LambdaAuthorizerHandler/Resource
+      aws:asset:path: asset.172de6570d8c9f174a38f19025cc59b417f25d33f9a8648ecc6fc16e7034484a
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  HttpApiF5A9A8A7:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: HttpApi
+      ProtocolType: HTTP
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/HttpApi/Resource
+  HttpApiDefaultStage3EEB07D6:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: HttpApiF5A9A8A7
+      StageName: $default
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/HttpApi/DefaultStage/Resource
+  HttpApiGETmockMockIntegration68CA0996:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: HttpApiF5A9A8A7
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::GetAtt:
+          - MockEndpoint65BF1648
+          - Arn
+      PayloadFormatVersion: "2.0"
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/HttpApi/GET--mock/MockIntegration/Resource
+  HttpApiGETmockMockIntegrationPermission3DA4E70A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - MockEndpoint65BF1648
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: HttpApiF5A9A8A7
+            - /*/*/mock
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/HttpApi/GET--mock/MockIntegration-Permission
+  HttpApiGETmock85DCD665:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: HttpApiF5A9A8A7
+      RouteKey: GET /mock
+      AuthorizationType: CUSTOM
+      AuthorizerId:
+        Ref: HttpApiLambdaAuthorizer5B75F2B6
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: HttpApiGETmockMockIntegration68CA0996
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/HttpApi/GET--mock/Resource
+  HttpApiLambdaAuthorizer5B75F2B6:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId:
+        Ref: HttpApiF5A9A8A7
+      AuthorizerType: REQUEST
+      Name: LambdaAuthorizer
+      AuthorizerPayloadFormatVersion: "2.0"
+      AuthorizerResultTtlInSeconds: 300
+      AuthorizerUri:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":apigateway:"
+            - Ref: AWS::Region
+            - :lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - LambdaAuthorizerHandler7CB5B9B1
+                - Arn
+            - /invocations
+      EnableSimpleResponses: true
+      IdentitySource:
+        - $request.header.Authorization
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/HttpApi/LambdaAuthorizer/Resource
+  HttpApiAwsJwtCognitoTestStackHttpApiLambdaAuthorizerE3D3C0E2PermissionEF237663:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - LambdaAuthorizerHandler7CB5B9B1
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: HttpApiF5A9A8A7
+            - /authorizers/
+            - Ref: HttpApiLambdaAuthorizer5B75F2B6
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/HttpApi/AwsJwtCognitoTestStackHttpApiLambdaAuthorizerE3D3C0E2-Permission
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2VRwU7DMAz9lt3TjA4hOLIVITgxdeIDQmqKtzapYmfTqPrvJO26le3k9+wXx35OZfrwKO9mz+pAiS5281ZbB7LdsNI7kX2bD8+NZ5F5YlvnQNY7DbFwxksi4KAv0ZQis4bYec1REkiBjNZ0IrYPrUuDbGX7SeDW1lZRdMYjeLG1QjMtnTIjHX/egNuDmwqvKmM6qxAMT4W3mRg7Uan6q1Bh/bBLBWzNqzc6biDOILyZ4jW4Gon6JVHVsl3bCvWxLw0ot9VgWIidoPtERcNI9r4FLlde74BXikCoBkvFcFDH/UK2b8zNssH4OIZIo899twHEVG49D+jdMJROjaNd0Ytu6fnHOvwdzLuwrhO6v3PiTkaGKQ/0//adMLYAuaX5Pn2S6UKmsy0hJs4bxhpkPsQ/yO7EFVkCAAA=
+    Metadata:
+      aws:cdk:path: AwsJwtCognitoTestStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/test/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

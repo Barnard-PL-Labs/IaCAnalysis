@@ -1,0 +1,605 @@
+Resources:
+  TranslateTable1ABF9811:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+        - AttributeName: language
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: language
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateTable/Resource
+  TranslateBus46D6DDAA:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: TranslateBus
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateBus/Resource
+  PutTranslationFunctionServiceRoleE038FB93:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkDayStack/PutTranslationFunction/ServiceRole/Resource
+  PutTranslationFunctionServiceRoleDefaultPolicyB878D483:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TranslateBus46D6DDAA
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PutTranslationFunctionServiceRoleDefaultPolicyB878D483
+      Roles:
+        - Ref: PutTranslationFunctionServiceRoleE038FB93
+    Metadata:
+      aws:cdk:path: CdkDayStack/PutTranslationFunction/ServiceRole/DefaultPolicy/Resource
+  PutTranslationFunction9E955411:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters86bb9646ec2db1228e0311c14da31648235c91b989b962349fa001637a365990S3Bucket70FF7AE8
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters86bb9646ec2db1228e0311c14da31648235c91b989b962349fa001637a365990S3VersionKey23316D59
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters86bb9646ec2db1228e0311c14da31648235c91b989b962349fa001637a365990S3VersionKey23316D59
+      Role:
+        Fn::GetAtt:
+          - PutTranslationFunctionServiceRoleE038FB93
+          - Arn
+      Environment:
+        Variables:
+          TRANSLATE_BUS:
+            Ref: TranslateBus46D6DDAA
+      Handler: app.handler
+      Runtime: nodejs14.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - PutTranslationFunctionServiceRoleDefaultPolicyB878D483
+      - PutTranslationFunctionServiceRoleE038FB93
+    Metadata:
+      aws:cdk:path: CdkDayStack/PutTranslationFunction/Resource
+      aws:asset:path: asset.86bb9646ec2db1228e0311c14da31648235c91b989b962349fa001637a365990
+      aws:asset:property: Code
+  PutTranslatePolicyB54B2023:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: translate:TranslateText
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: PutTranslatePolicyB54B2023
+      Roles:
+        - Ref: PutTranslationFunctionServiceRoleE038FB93
+    Metadata:
+      aws:cdk:path: CdkDayStack/PutTranslatePolicy/Resource
+  GetTranslationFunctionServiceRole408CD69C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkDayStack/GetTranslationFunction/ServiceRole/Resource
+  GetTranslationFunctionServiceRoleDefaultPolicy7862AC6E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TranslateTable1ABF9811
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: GetTranslationFunctionServiceRoleDefaultPolicy7862AC6E
+      Roles:
+        - Ref: GetTranslationFunctionServiceRole408CD69C
+    Metadata:
+      aws:cdk:path: CdkDayStack/GetTranslationFunction/ServiceRole/DefaultPolicy/Resource
+  GetTranslationFunction0677F2E3:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters84802efd57956051fbe7d3165489afea727465705735bf90deb120efc6c774e5S3BucketC55E5737
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters84802efd57956051fbe7d3165489afea727465705735bf90deb120efc6c774e5S3VersionKeyB1CA1EB7
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters84802efd57956051fbe7d3165489afea727465705735bf90deb120efc6c774e5S3VersionKeyB1CA1EB7
+      Role:
+        Fn::GetAtt:
+          - GetTranslationFunctionServiceRole408CD69C
+          - Arn
+      Environment:
+        Variables:
+          TRANSLATE_TABLE:
+            Ref: TranslateTable1ABF9811
+      Handler: app.handler
+      Runtime: nodejs14.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - GetTranslationFunctionServiceRoleDefaultPolicy7862AC6E
+      - GetTranslationFunctionServiceRole408CD69C
+    Metadata:
+      aws:cdk:path: CdkDayStack/GetTranslationFunction/Resource
+      aws:asset:path: asset.84802efd57956051fbe7d3165489afea727465705735bf90deb120efc6c774e5
+      aws:asset:property: Code
+  SaveTranslationFunctionServiceRoleDCF57C08:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkDayStack/SaveTranslationFunction/ServiceRole/Resource
+  SaveTranslationFunctionServiceRoleDefaultPolicyE1167723:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TranslateTable1ABF9811
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: SaveTranslationFunctionServiceRoleDefaultPolicyE1167723
+      Roles:
+        - Ref: SaveTranslationFunctionServiceRoleDCF57C08
+    Metadata:
+      aws:cdk:path: CdkDayStack/SaveTranslationFunction/ServiceRole/DefaultPolicy/Resource
+  SaveTranslationFunctionD9E440D6:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersec2ff3a73daf647627f95881ab698bb2bb6302a917c4716b1a7baf7338e2ed7dS3Bucket79DB7CC0
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersec2ff3a73daf647627f95881ab698bb2bb6302a917c4716b1a7baf7338e2ed7dS3VersionKey5BBD47AD
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersec2ff3a73daf647627f95881ab698bb2bb6302a917c4716b1a7baf7338e2ed7dS3VersionKey5BBD47AD
+      Role:
+        Fn::GetAtt:
+          - SaveTranslationFunctionServiceRoleDCF57C08
+          - Arn
+      Environment:
+        Variables:
+          TRANSLATE_TABLE:
+            Ref: TranslateTable1ABF9811
+      Handler: app.handler
+      Runtime: nodejs14.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - SaveTranslationFunctionServiceRoleDefaultPolicyE1167723
+      - SaveTranslationFunctionServiceRoleDCF57C08
+    Metadata:
+      aws:cdk:path: CdkDayStack/SaveTranslationFunction/Resource
+      aws:asset:path: asset.ec2ff3a73daf647627f95881ab698bb2bb6302a917c4716b1a7baf7338e2ed7d
+      aws:asset:property: Code
+  SaveTranslationRule77BFC15F:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Ref: TranslateBus46D6DDAA
+      EventPattern:
+        detail-type:
+          - translation
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - SaveTranslationFunctionD9E440D6
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: CdkDayStack/SaveTranslationRule/Resource
+  SaveTranslationRuleAllowEventRuleCdkDayStackSaveTranslationFunctionCEDFCCD75F36F0B4:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - SaveTranslationFunctionD9E440D6
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - SaveTranslationRule77BFC15F
+          - Arn
+    Metadata:
+      aws:cdk:path: CdkDayStack/SaveTranslationRule/AllowEventRuleCdkDayStackSaveTranslationFunctionCEDFCCD7
+  TranslateAPI19A43816:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: TranslateAPI
+      ProtocolType: HTTP
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateAPI/Resource
+  TranslateAPIDefaultStage3BDD98F9:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: TranslateAPI19A43816
+      StageName: $default
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateAPI/DefaultStage/Resource
+  TranslateAPIPOSTCdkDayStackTranslateAPIPOST457D5C02Permission726A551D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PutTranslationFunction9E955411
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: TranslateAPI19A43816
+            - /*/*/
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateAPI/POST--/CdkDayStackTranslateAPIPOST457D5C02-Permission
+  TranslateAPIPOSTHttpIntegration8710e6b71ff5c67e39e9b5b40fe39dbaEFCE3F57:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: TranslateAPI19A43816
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::GetAtt:
+          - PutTranslationFunction9E955411
+          - Arn
+      PayloadFormatVersion: "2.0"
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateAPI/POST--/HttpIntegration-8710e6b71ff5c67e39e9b5b40fe39dba/Resource
+  TranslateAPIPOSTD32A2B26:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: TranslateAPI19A43816
+      RouteKey: POST /
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: TranslateAPIPOSTHttpIntegration8710e6b71ff5c67e39e9b5b40fe39dbaEFCE3F57
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateAPI/POST--/Resource
+  TranslateAPIGETidCdkDayStackTranslateAPIGETid7794A409Permission2E72401E:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - GetTranslationFunction0677F2E3
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: TranslateAPI19A43816
+            - /*/*/{id}
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateAPI/GET--{id}/CdkDayStackTranslateAPIGETid7794A409-Permission
+  TranslateAPIGETidHttpIntegration880cc39dcb422e77f6801a8ce2294b073770B841:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: TranslateAPI19A43816
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::GetAtt:
+          - GetTranslationFunction0677F2E3
+          - Arn
+      PayloadFormatVersion: "2.0"
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateAPI/GET--{id}/HttpIntegration-880cc39dcb422e77f6801a8ce2294b07/Resource
+  TranslateAPIGETid45762B1E:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: TranslateAPI19A43816
+      RouteKey: GET /{id}
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: TranslateAPIGETidHttpIntegration880cc39dcb422e77f6801a8ce2294b073770B841
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateAPI/GET--{id}/Resource
+  TranslateAPIGETCdkDayStackTranslateAPIGETCB27EC2BPermission8478C60C:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - GetTranslationFunction0677F2E3
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: TranslateAPI19A43816
+            - /*/*/
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateAPI/GET--/CdkDayStackTranslateAPIGETCB27EC2B-Permission
+  TranslateAPIGET71FB00DE:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: TranslateAPI19A43816
+      RouteKey: GET /
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: TranslateAPIGETidHttpIntegration880cc39dcb422e77f6801a8ce2294b073770B841
+    Metadata:
+      aws:cdk:path: CdkDayStack/TranslateAPI/GET--/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE12QwW7CMAyGn4V7MJRddhxDQ9tpqNsLmNSrAjSpYgeEorz7cLqhaaf/s/3bjtNAs1zCcvaEF57b7rjINkSC/CFoj6YlDilaMmtmkluud743m+BZYrJiNl9+hxEHEooavCcZU03fO29883dOXPDF6JbcXT0OodtD/sT9qVoqFENn8sKQX1SfE2vpzm2avKrFnHDYdwh5m7zV2Vr5yzuKg2OuWx0OkNvw0666Cydnr9VXqRh+mKMeyVBvNTi6HoUueD2vIL+KjOvRaYOKhvobdeAEmmpDkonevFAf8fcx/8LqK6UYHzqCAy/OzSM0K2hmB3ZuHpMXNxC0k34DdXE3vqMBAAA=
+    Metadata:
+      aws:cdk:path: CdkDayStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters86bb9646ec2db1228e0311c14da31648235c91b989b962349fa001637a365990S3Bucket70FF7AE8:
+    Type: String
+    Description: S3 bucket for asset "86bb9646ec2db1228e0311c14da31648235c91b989b962349fa001637a365990"
+  AssetParameters86bb9646ec2db1228e0311c14da31648235c91b989b962349fa001637a365990S3VersionKey23316D59:
+    Type: String
+    Description: S3 key for asset version "86bb9646ec2db1228e0311c14da31648235c91b989b962349fa001637a365990"
+  AssetParameters86bb9646ec2db1228e0311c14da31648235c91b989b962349fa001637a365990ArtifactHash51AA6677:
+    Type: String
+    Description: Artifact hash for asset "86bb9646ec2db1228e0311c14da31648235c91b989b962349fa001637a365990"
+  AssetParameters84802efd57956051fbe7d3165489afea727465705735bf90deb120efc6c774e5S3BucketC55E5737:
+    Type: String
+    Description: S3 bucket for asset "84802efd57956051fbe7d3165489afea727465705735bf90deb120efc6c774e5"
+  AssetParameters84802efd57956051fbe7d3165489afea727465705735bf90deb120efc6c774e5S3VersionKeyB1CA1EB7:
+    Type: String
+    Description: S3 key for asset version "84802efd57956051fbe7d3165489afea727465705735bf90deb120efc6c774e5"
+  AssetParameters84802efd57956051fbe7d3165489afea727465705735bf90deb120efc6c774e5ArtifactHashD454C0A9:
+    Type: String
+    Description: Artifact hash for asset "84802efd57956051fbe7d3165489afea727465705735bf90deb120efc6c774e5"
+  AssetParametersec2ff3a73daf647627f95881ab698bb2bb6302a917c4716b1a7baf7338e2ed7dS3Bucket79DB7CC0:
+    Type: String
+    Description: S3 bucket for asset "ec2ff3a73daf647627f95881ab698bb2bb6302a917c4716b1a7baf7338e2ed7d"
+  AssetParametersec2ff3a73daf647627f95881ab698bb2bb6302a917c4716b1a7baf7338e2ed7dS3VersionKey5BBD47AD:
+    Type: String
+    Description: S3 key for asset version "ec2ff3a73daf647627f95881ab698bb2bb6302a917c4716b1a7baf7338e2ed7d"
+  AssetParametersec2ff3a73daf647627f95881ab698bb2bb6302a917c4716b1a7baf7338e2ed7dArtifactHash9C81CB78:
+    Type: String
+    Description: Artifact hash for asset "ec2ff3a73daf647627f95881ab698bb2bb6302a917c4716b1a7baf7338e2ed7d"
+Outputs:
+  APIurl:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: TranslateAPI19A43816
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+  PutFunctionName:
+    Value:
+      Ref: PutTranslationFunction9E955411
+  SaveFunctionName:
+    Value:
+      Ref: SaveTranslationFunctionD9E440D6
+  GetFunctionName:
+    Value:
+      Ref: GetTranslationFunction0677F2E3
+  TranslationBus:
+    Value:
+      Ref: TranslateBus46D6DDAA
+  TranslationTable:
+    Value:
+      Ref: TranslateTable1ABF9811
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

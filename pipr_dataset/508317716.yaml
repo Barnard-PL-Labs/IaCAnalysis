@@ -1,0 +1,190 @@
+Resources:
+  webAppUser4860653C:
+    Type: AWS::IAM::User
+    Metadata:
+      aws:cdk:path: BackendStack/webAppUser/Resource
+  webAppUserDefaultPolicy265840F9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - iot:DeleteThingShadow
+              - iot:DescribeEndpoint
+              - iot:GetThingShadow
+              - iot:ListThings
+              - iot:Publish
+              - iot:Receive
+              - iot:Subscribe
+              - iot:UpdateThingShadow
+            Effect: Allow
+            Resource: "*"
+          - Action: iot:Connect
+            Effect: Allow
+            Resource: arn:aws:iot:*:*:client/user-*
+        Version: "2012-10-17"
+      PolicyName: webAppUserDefaultPolicy265840F9
+      Users:
+        - Ref: webAppUser4860653C
+    Metadata:
+      aws:cdk:path: BackendStack/webAppUser/DefaultPolicy/Resource
+  webAppAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName:
+        Ref: webAppUser4860653C
+      Status: Active
+    Metadata:
+      aws:cdk:path: BackendStack/webAppAccessKey
+  thingPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - iot:Connect
+            Resource:
+              - arn:aws:iot:*:*:client/${iot:ClientId}
+            Condition:
+              Bool:
+                iot:Connection.Thing.IsAttached:
+                  - true
+          - Effect: Allow
+            Action:
+              - iot:Receive
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - iot:Subscribe
+            Resource:
+              - arn:aws:iot:*:*:topicfilter/$aws/things/${iot:ClientId}/*
+              - arn:aws:iot:*:*:topicfilter/${iot:ClientId}/*
+          - Effect: Allow
+            Action:
+              - iot:Publish
+            Resource:
+              - arn:aws:iot:*:*:topic/$aws/things/${iot:ClientId}/*
+              - arn:aws:iot:*:*:topic/${iot:ClientId}/*
+    Metadata:
+      aws:cdk:path: BackendStack/thingPolicy
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/0WJyw7CIBBFv6V7GEvduDVdutDUuDZIx2T6gIYBTUP4d0UTXZ1z72lgW0Nd6SdL049yohukc9BmFO/rmkjPkC6MXrR3++HJTWTWMv+2NwaZD7hmQS7Ar+USjzEsMRTrkF30Bou3zvYUyNksrOsRBt481A5UA6oamEj6aAPNCN2XLzZVxdWoAAAA
+    Metadata:
+      aws:cdk:path: BackendStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  webAppUserAccessKeyId:
+    Value:
+      Ref: webAppAccessKey
+    Export:
+      Name: BackendStack:userAccessKeyId
+  webAppUserSecretAccessKey:
+    Value:
+      Fn::GetAtt:
+        - webAppAccessKey
+        - SecretAccessKey
+    Export:
+      Name: BackendStack:userSecretAccessKey
+  gameControllerPolicyArn:
+    Value:
+      Fn::GetAtt:
+        - thingPolicy
+        - Arn
+    Export:
+      Name: BackendStack:gameControllerPolicyArn
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

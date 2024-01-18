@@ -1,0 +1,100 @@
+Resources:
+  ReplicationdmssubnetgroupEA17A583:
+    Type: AWS::DMS::ReplicationSubnetGroup
+    Properties:
+      ReplicationSubnetGroupDescription: Private subnets that have access to my data source and target
+      SubnetIds:
+        - subnet-xxxxxxxxxxxxxxxx
+        - subnet-xxxxxxxxxxxxxxxx
+      ReplicationSubnetGroupIdentifier: dms-dev-subnet-eu
+    Metadata:
+      aws:cdk:path: DmsStack/Replication/dms-subnet-group
+  ReplicationdmsreplicationinstanceE0EEB2DA:
+    Type: AWS::DMS::ReplicationInstance
+    Properties:
+      ReplicationInstanceClass: dms.r5.4xlarge
+      AllocatedStorage: 50
+      EngineVersion: 3.4.4
+      PubliclyAccessible: false
+      ReplicationInstanceIdentifier: dms-dev-eu
+      ReplicationSubnetGroupIdentifier: dms-dev-subnet-eu
+      VpcSecurityGroupIds:
+        - sg-xxxxxxxxxxx
+    DependsOn:
+      - ReplicationdmssubnetgroupEA17A583
+    Metadata:
+      aws:cdk:path: DmsStack/Replication/dms-replication-instance
+  Replicationdmssecretsmgraccessrole6A285B4E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: dms.eu-central-1.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DmsStack/Replication/dms-secretsmgr-access-role/Resource
+  ReplicationdmssecretsmgraccessroleDefaultPolicyCDB24BC3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+              - secretsmanager:ListSecretVersionIds
+              - secretsmanager:ListSecrets
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: ReplicationdmssecretsmgraccessroleDefaultPolicyCDB24BC3
+      Roles:
+        - Ref: Replicationdmssecretsmgraccessrole6A285B4E
+    Metadata:
+      aws:cdk:path: DmsStack/Replication/dms-secretsmgr-access-role/DefaultPolicy/Resource
+  Replicationdmssourcesourcedemosrcdbdmsdeveu9C171CE5:
+    Type: AWS::DMS::Endpoint
+    Properties:
+      EndpointType: source
+      EngineName: mysql
+      EndpointIdentifier: source-demo-src-db-dms-dev-eu
+      ExtraConnectionAttributes: parallelLoadThreads=1
+      MySqlSettings:
+        SecretsManagerSecretId: arn:aws:secretsmanager:eu-central-1:111111111111:secret:dev/mysql/app-secret1
+    Metadata:
+      aws:cdk:path: DmsStack/Replication/dms-source-source-demo-src-db-dms-dev-eu
+  ReplicationdmstargettargetdemosrcdbdmsdeveuACC367AE:
+    Type: AWS::DMS::Endpoint
+    Properties:
+      EndpointType: target
+      EngineName: mysql
+      EndpointIdentifier: target-demo-src-db-dms-dev-eu
+      ExtraConnectionAttributes: parallelLoadThreads=1 maxFileSize=512
+      MySqlSettings:
+        SecretsManagerSecretId: arn:aws:secretsmanager:eu-central-1:111111111111:secret:dev/mysql/app-secret2
+    Metadata:
+      aws:cdk:path: DmsStack/Replication/dms-target-target-demo-src-db-dms-dev-eu
+  Replicationdemosrcdbreplicationdmsdeveu1E9FC7FB:
+    Type: AWS::DMS::ReplicationTask
+    Properties:
+      MigrationType: full-load
+      ReplicationInstanceArn:
+        Ref: ReplicationdmsreplicationinstanceE0EEB2DA
+      SourceEndpointArn:
+        Ref: Replicationdmssourcesourcedemosrcdbdmsdeveu9C171CE5
+      TableMappings: '{"rules":[{"rule-type":"selection","rule-id":"1","rule-name":"1","object-locator":{"schema-name":"demo-src-db","table-name":"%"},"rule-action":"include"}]}'
+      TargetEndpointArn:
+        Ref: ReplicationdmstargettargetdemosrcdbdmsdeveuACC367AE
+      ReplicationTaskIdentifier: demo-src-db-replication-dms-dev-eu
+      ReplicationTaskSettings: '{"TargetMetadata":{"TargetSchema":"","SupportLobs":true,"FullLobMode":true,"LobChunkSize":256,"LimitedSizeLobMode":false,"LobMaxSize":0,"InlineLobMaxSize":64,"LoadMaxFileSize":500,"ParallelLoadThreads":0,"ParallelLoadBufferSize":0,"BatchApplyEnabled":true,"TaskRecoveryTableEnabled":true,"ParallelLoadQueuesPerThread":0,"ParallelApplyThreads":0,"ParallelApplyBufferSize":0,"ParallelApplyQueuesPerThread":0},"FullLoadSettings":{"TargetTablePrepMode":"TRUNCATE_BEFORE_LOAD","CreatePkAfterFullLoad":false,"StopTaskCachedChangesApplied":false,"StopTaskCachedChangesNotApplied":true,"MaxFullLoadSubTasks":16,"TransactionConsistencyTimeout":900,"CommitRate":50000},"Logging":{"EnableLogging":true,"LogComponents":[{"Id":"TRANSFORMATION","Severity":"LOGGER_SEVERITY_DEFAULT"},{"Id":"SOURCE_UNLOAD","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"IO","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"TARGET_LOAD","Severity":"LOGGER_SEVERITY_DEFAULT"},{"Id":"PERFORMANCE","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"SOURCE_CAPTURE","Severity":"LOGGER_SEVERITY_DEFAULT"},{"Id":"SORTER","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"REST_SERVER","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"VALIDATOR_EXT","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"TARGET_APPLY","Severity":"LOGGER_SEVERITY_DEFAULT"},{"Id":"TASK_MANAGER","Severity":"LOGGER_SEVERITY_DEFAULT"},{"Id":"TABLES_MANAGER","Severity":"LOGGER_SEVERITY_DEFAULT"},{"Id":"METADATA_MANAGER","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"FILE_FACTORY","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"COMMON","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"ADDONS","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"DATA_STRUCTURE","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"COMMUNICATION","Severity":"LOGGER_SEVERITY_ERROR"},{"Id":"FILE_TRANSFER","Severity":"LOGGER_SEVERITY_ERROR"}]},"ControlTablesSettings":{"ControlSchema":"","HistoryTimeslotInMinutes":5,"HistoryTableEnabled":false,"SuspendedTablesTableEnabled":false,"StatusTableEnabled":false,"FullLoadExceptionTableEnabled":false},"StreamBufferSettings":{"StreamBufferCount":4,"StreamBufferSizeInMB":16,"CtrlStreamBufferSizeInMB":5},"ChangeProcessingDdlHandlingPolicy":{"HandleSourceTableDropped":true,"HandleSourceTableTruncated":true,"HandleSourceTableAltered":true},"ErrorBehavior":{"DataErrorPolicy":"LOG_ERROR","DataTruncationErrorPolicy":"LOG_ERROR","DataErrorEscalationPolicy":"SUSPEND_TABLE","DataErrorEscalationCount":0,"TableErrorPolicy":"SUSPEND_TABLE","TableErrorEscalationPolicy":"STOP_TASK","TableErrorEscalationCount":0,"RecoverableErrorCount":-1,"RecoverableErrorInterval":5,"RecoverableErrorThrottling":true,"RecoverableErrorThrottlingMax":1800,"RecoverableErrorStopRetryAfterThrottlingMax":true,"ApplyErrorDeletePolicy":"IGNORE_RECORD","ApplyErrorInsertPolicy":"LOG_ERROR","ApplyErrorUpdatePolicy":"LOG_ERROR","ApplyErrorEscalationPolicy":"LOG_ERROR","ApplyErrorEscalationCount":0,"ApplyErrorFailOnTruncationDdl":false,"FullLoadIgnoreConflicts":true,"FailOnTransactionConsistencyBreached":false,"FailOnNoTablesCaptured":true},"ChangeProcessingTuning":{"BatchApplyPreserveTransaction":true,"BatchApplyTimeoutMin":1,"BatchApplyTimeoutMax":120,"BatchApplyMemoryLimit":500,"BatchSplitSize":0,"MinTransactionSize":1000,"CommitTimeout":1,"MemoryLimitTotal":2048,"MemoryKeepTime":120,"StatementCacheSize":50},"ValidationSettings":{"EnableValidation":false,"ValidationMode":"ROW_LEVEL","ThreadCount":8,"PartitionSize":10000,"FailureMaxCount":10000,"RecordFailureDelayInMinutes":5,"RecordSuspendDelayInMinutes":30,"MaxKeyColumnSize":8096,"TableFailureMaxCount":1000,"ValidationOnly":false,"HandleCollationDiff":false,"RecordFailureDelayLimitInMinutes":0,"SkipLobColumns":false,"ValidationPartialLobSize":0,"ValidationQueryCdcDelaySeconds":0},"FailTaskWhenCleanTaskResourceFailed":false}'
+    Metadata:
+      aws:cdk:path: DmsStack/Replication/demo-src-db-replication-dms-dev-eu
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE12MyQrCMBCGn6X3dNp48igUEW/S+gJxEiFdZkoWRULe3S4nPf3bxy9Byhrq4qTevkQ9VAnZGUhdUDiIhskHFzGI5kmt8RwdmixWNunJQ9rqebSogmXq4oNMuDiOs/hdrsuPIjRrfSY9s6Xwh9yVH7KwaoLU8riRm954IT5r3F3OWRBrA72vXvII8gCy6L21pYsU7GSg3fULEUhNR9sAAAA=
+    Metadata:
+      aws:cdk:path: DmsStack/CDKMetadata/Default
+

@@ -1,0 +1,259 @@
+Resources:
+  TableCD117FA1:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: pk2
+          AttributeType: S
+        - AttributeName: sk2
+          AttributeType: S
+        - AttributeName: pk3
+          AttributeType: S
+        - AttributeName: sk3
+          AttributeType: S
+        - AttributeName: pk4
+          AttributeType: S
+        - AttributeName: sk4
+          AttributeType: S
+      GlobalSecondaryIndexes:
+        - IndexName: pk2-sk2-index
+          KeySchema:
+            - AttributeName: pk2
+              KeyType: HASH
+            - AttributeName: sk2
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+        - IndexName: pk3-sk3-index
+          KeySchema:
+            - AttributeName: pk3
+              KeyType: HASH
+            - AttributeName: sk3
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+        - IndexName: pk4-sk4-index
+          KeySchema:
+            - AttributeName: pk4
+              KeyType: HASH
+            - AttributeName: sk4
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+      TableName: test-development
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: ApplicationStack/Table/Resource
+  screenshot99FE6A32:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName: screenshot
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: ApplicationStack/screen-shot/Resource
+  safetycheckfirehoserole8FE0107C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ApplicationStack/safety-check-firehose-role/Resource
+  testfirehoses3bucket51C9E18B:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: test-firehose-s3
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ApplicationStack/test-firehose-s3-bucket/Resource
+  testfirehoses3bucketPolicy6F72F6BF:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: testfirehoses3bucket51C9E18B
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - testfirehoses3bucket51C9E18B
+                      - Arn
+                  - /*
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - testfirehoses3bucket51C9E18B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - testfirehoses3bucket51C9E18B
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ApplicationStack/test-firehose-s3-bucket/Policy/Resource
+  testfirehoses3bucketAutoDeleteObjectsCustomResource371F99B0:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: testfirehoses3bucket51C9E18B
+    DependsOn:
+      - testfirehoses3bucketPolicy6F72F6BF
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ApplicationStack/test-firehose-s3-bucket/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ApplicationStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392S3BucketBF7A7F3F
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392S3VersionKeyFAF93626
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392S3VersionKeyFAF93626
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: testfirehoses3bucket51C9E18B
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: ApplicationStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+  FirehoseStreamToS:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: test-firehose-delivery-stream
+      DeliveryStreamType: DirectPut
+      S3DestinationConfiguration:
+        BucketARN:
+          Fn::GetAtt:
+            - testfirehoses3bucket51C9E18B
+            - Arn
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 1
+        CompressionFormat: UNCOMPRESSED
+        EncryptionConfiguration:
+          NoEncryptionConfig: NoEncryption
+        ErrorOutputPrefix: user-error-logs
+        Prefix: user-logs
+        RoleARN:
+          Fn::GetAtt:
+            - safetycheckfirehoserole8FE0107C
+            - Arn
+    Metadata:
+      aws:cdk:path: ApplicationStack/FirehoseStreamToS
+  simplesqsD3632D9D:
+    Type: AWS::SQS::Queue
+    Properties:
+      FifoQueue: false
+      QueueName: simple-sqs-development
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ApplicationStack/simple-sqs/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE1WNQVLDMAxFz9K9q2K6gCXQHiBNuYBrq0VNbA+SHSbj8d1pEmYyrP7T/9KXBq1f4GnzZn5ka123KzYyQjknYzvVosTMFtUhBkmcbVKHLCn6NbiGlf9FDceBHLJ6F8H06LtRuE37jWHjMSFXNT0tbgzGR3eB8mku/Vw5Q1Wyh/KRbYdpMv9okSb2ZMfVXuaqyHgobVxqJq2qo4BCciXGrygIj+CIPQ3I4zkxGq/kW6CcMub5aoZaqwrRIdxlN+hX0M+gN3ch2nIOiTxCu+gvamRaEEEBAAA=
+    Metadata:
+      aws:cdk:path: ApplicationStack/CDKMetadata/Default
+Parameters:
+  AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392S3BucketBF7A7F3F:
+    Type: String
+    Description: S3 bucket for asset "4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392"
+  AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392S3VersionKeyFAF93626:
+    Type: String
+    Description: S3 key for asset version "4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392"
+  AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392ArtifactHashE56CD69A:
+    Type: String
+    Description: Artifact hash for asset "4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392"
+

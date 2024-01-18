@@ -1,0 +1,417 @@
+Resources:
+  codeStarConnection:
+    Type: AWS::CodeStarConnections::Connection
+    Properties:
+      ConnectionName: ShahradRGitHubConnection
+      ProviderType: GitHub
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codeStarConnection
+  codepipelineArtifactsBucketBBA098AC:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      LoggingConfiguration:
+        DestinationBucketName:
+          Fn::ImportValue: S3ServerAccessLogTarget
+        LogFilePrefix: ReleasePipelineStackcodepipelineArtifactsBucketF103256B
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codepipeline/ArtifactsBucket/Resource
+  codepipelineRole7B5E706D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codepipeline/Role/Resource
+  codepipelineRoleDefaultPolicy31DC9EA1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - codepipelineArtifactsBucketBBA098AC
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - codepipelineArtifactsBucketBBA098AC
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - codepipelineSourceSourceActionCodePipelineActionRole49939606
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - codepipelineReleaseReleaseActionCodePipelineActionRole6B91BD8C
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: codepipelineRoleDefaultPolicy31DC9EA1
+      Roles:
+        - Ref: codepipelineRole7B5E706D
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codepipeline/Role/DefaultPolicy/Resource
+  codepipelineB8EF071E:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - codepipelineRole7B5E706D
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: "1"
+              Configuration:
+                ConnectionArn:
+                  Fn::GetAtt:
+                    - codeStarConnection
+                    - ConnectionArn
+                FullRepositoryId: ShahradR/sc-s3-portfolio
+                BranchName: main
+              Name: SourceAction
+              OutputArtifacts:
+                - Name: Artifact_Source_SourceAction
+              RoleArn:
+                Fn::GetAtt:
+                  - codepipelineSourceSourceActionCodePipelineActionRole49939606
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: sc-s3-portfolio
+                RoleArn:
+                  Fn::GetAtt:
+                    - codepipelineReleaseReleaseActionRoleB1E7689B
+                    - Arn
+                ParameterOverrides: '{"PortfolioName":"S3 Portfolio","TemplateUrlPrefix":"https://brokentech-cfn.s3.ca-central-1.amazonaws.com/sc-s3-product/"}'
+                ActionMode: CREATE_UPDATE
+                TemplatePath: Artifact_Source_SourceAction::templates/s3-portfolio.yaml
+              InputArtifacts:
+                - Name: Artifact_Source_SourceAction
+              Name: ReleaseAction
+              RoleArn:
+                Fn::GetAtt:
+                  - codepipelineReleaseReleaseActionCodePipelineActionRole6B91BD8C
+                  - Arn
+              RunOrder: 1
+          Name: Release
+      ArtifactStore:
+        Location:
+          Ref: codepipelineArtifactsBucketBBA098AC
+        Type: S3
+    DependsOn:
+      - codepipelineRoleDefaultPolicy31DC9EA1
+      - codepipelineRole7B5E706D
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codepipeline/Resource
+  codepipelineSourceSourceActionCodePipelineActionRole49939606:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codepipeline/Source/SourceAction/CodePipelineActionRole/Resource
+  codepipelineSourceSourceActionCodePipelineActionRoleDefaultPolicy0D53CC9F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codestar-connections:UseConnection
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - codeStarConnection
+                - ConnectionArn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - codepipelineArtifactsBucketBBA098AC
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - codepipelineArtifactsBucketBBA098AC
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: codepipelineSourceSourceActionCodePipelineActionRoleDefaultPolicy0D53CC9F
+      Roles:
+        - Ref: codepipelineSourceSourceActionCodePipelineActionRole49939606
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codepipeline/Source/SourceAction/CodePipelineActionRole/DefaultPolicy/Resource
+  codepipelineReleaseReleaseActionCodePipelineActionRole6B91BD8C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codepipeline/Release/ReleaseAction/CodePipelineActionRole/Resource
+  codepipelineReleaseReleaseActionCodePipelineActionRoleDefaultPolicy3ECFA90B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - codepipelineReleaseReleaseActionRoleB1E7689B
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - codepipelineArtifactsBucketBBA098AC
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - codepipelineArtifactsBucketBBA098AC
+                        - Arn
+                    - /*
+          - Action:
+              - cloudformation:CreateStack
+              - cloudformation:DescribeStack*
+              - cloudformation:GetStackPolicy
+              - cloudformation:GetTemplate*
+              - cloudformation:SetStackPolicy
+              - cloudformation:UpdateStack
+              - cloudformation:ValidateTemplate
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":cloudformation:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :stack/sc-s3-portfolio/*
+        Version: "2012-10-17"
+      PolicyName: codepipelineReleaseReleaseActionCodePipelineActionRoleDefaultPolicy3ECFA90B
+      Roles:
+        - Ref: codepipelineReleaseReleaseActionCodePipelineActionRole6B91BD8C
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codepipeline/Release/ReleaseAction/CodePipelineActionRole/DefaultPolicy/Resource
+  codepipelineReleaseReleaseActionRoleB1E7689B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codepipeline/Release/ReleaseAction/Role/Resource
+  codepipelineReleaseReleaseActionRoleDefaultPolicyBE377732:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - codepipelineArtifactsBucketBBA098AC
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - codepipelineArtifactsBucketBBA098AC
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: codepipelineReleaseReleaseActionRoleDefaultPolicyBE377732
+      Roles:
+        - Ref: codepipelineReleaseReleaseActionRoleB1E7689B
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/codepipeline/Release/ReleaseAction/Role/DefaultPolicy/Resource
+  GitHubWebhookSecret510FCFBC:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString: {}
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/GitHubWebhookSecret/Resource
+  GitHubWebhook:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken:
+          Fn::Join:
+            - ""
+            - - "{{resolve:secretsmanager:"
+              - Ref: GitHubWebhookSecret510FCFBC
+              - :SecretString:::}}
+      Filters:
+        - JsonPath: $.deployment.environment
+          MatchEquals: taskcat
+      TargetAction: SourceAction
+      TargetPipeline:
+        Ref: codepipelineB8EF071E
+      TargetPipelineVersion:
+        Fn::GetAtt:
+          - codepipelineB8EF071E
+          - Version
+      RegisterWithThirdParty: false
+    DependsOn:
+      - codepipelineB8EF071E
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/GitHubWebhook
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.70.0,@aws-cdk/aws-applicationautoscaling=1.70.0,@aws-cdk/aws-autoscaling=1.70.0,@aws-cdk/aws-autoscaling-common=1.70.0,@aws-cdk/aws-autoscaling-hooktargets=1.70.0,@aws-cdk/aws-cloudformation=1.70.0,@aws-cdk/aws-cloudwatch=1.70.0,@aws-cdk/aws-codebuild=1.70.0,@aws-cdk/aws-codeguruprofiler=1.70.0,@aws-cdk/aws-codepipeline=1.70.0,@aws-cdk/aws-codepipeline-actions=1.70.0,@aws-cdk/aws-codestarconnections=1.70.0,@aws-cdk/aws-ec2=1.70.0,@aws-cdk/aws-ecr=1.70.0,@aws-cdk/aws-ecr-assets=1.70.0,@aws-cdk/aws-ecs=1.70.0,@aws-cdk/aws-elasticloadbalancingv2=1.70.0,@aws-cdk/aws-events=1.70.0,@aws-cdk/aws-events-targets=1.70.0,@aws-cdk/aws-iam=1.70.0,@aws-cdk/aws-kms=1.70.0,@aws-cdk/aws-lambda=1.70.0,@aws-cdk/aws-logs=1.70.0,@aws-cdk/aws-s3=1.70.0,@aws-cdk/aws-s3-assets=1.70.0,@aws-cdk/aws-sam=1.70.0,@aws-cdk/aws-secretsmanager=1.70.0,@aws-cdk/aws-servicediscovery=1.70.0,@aws-cdk/aws-sns=1.70.0,@aws-cdk/aws-sns-subscriptions=1.70.0,@aws-cdk/aws-sqs=1.70.0,@aws-cdk/aws-ssm=1.70.0,@aws-cdk/cloud-assembly-schema=1.70.0,@aws-cdk/core=1.70.0,@aws-cdk/custom-resources=1.70.0,@aws-cdk/cx-api=1.70.0,@aws-cdk/region-info=1.70.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: ReleasePipelineStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  WebhookUrl:
+    Value:
+      Fn::GetAtt:
+        - GitHubWebhook
+        - Url
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

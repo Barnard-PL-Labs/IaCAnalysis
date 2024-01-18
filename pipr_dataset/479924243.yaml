@@ -1,0 +1,83 @@
+Description: Karpenter IAM Service Account
+Resources:
+  karpenterControllerRoleFEFCA667:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                oidc.eks.ap-northeast-2.amazonaws.com/id/AAABBBCCCDDDEEEXXXYYY:sub: system:serviceaccount:karpenter:karpenter-controller
+                oidc.eks.ap-northeast-2.amazonaws.com/id/AAABBBCCCDDDEEEXXXYYY:aud: sts.amazonaws.com
+            Effect: Allow
+            Principal:
+              Federated: arn:aws:iam::123456789012:oidc-provider/oidc.eks.ap-northeast-2.amazonaws.com/id/AAABBBCCCDDDEEEXXXYYY
+        Version: "2012-10-17"
+      RoleName: karpenter-controller-dev
+    Metadata:
+      aws:cdk:path: KarpenterControllerSA/karpenterControllerRole/Resource
+  karpenterControllerRoleDefaultPolicy73ABD26E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ec2:CreateLaunchTemplate
+              - ec2:CreateFleet
+              - ec2:RunInstances
+              - ec2:CreateTags
+              - iam:PassRole
+              - ec2:TerminateInstances
+              - ec2:DeleteLaunchTemplate
+              - ec2:DescribeLaunchTemplates
+              - ec2:DescribeInstances
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeSubnets
+              - ec2:DescribeInstanceTypes
+              - ec2:DescribeInstanceTypeOfferings
+              - ec2:DescribeAvailabilityZones
+              - ssm:GetParameter
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: ap-northeast-2
+            Effect: Allow
+            Resource: "*"
+            Sid: AutoScalingGroup
+        Version: "2012-10-17"
+      PolicyName: karpenterControllerRoleDefaultPolicy73ABD26E
+      Roles:
+        - Ref: karpenterControllerRoleFEFCA667
+    Metadata:
+      aws:cdk:path: KarpenterControllerSA/karpenterControllerRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/yWKSw5AMBRF12LePtqRuQUQFiBVT/KoVrQlIvbuNzrnnlwJMoMsUbvnup+4oQ7OJig9sSe1pGY4a2eQFYP9WDlD+njnb9erZQxLDN8HvYurxotZ1yOMPt1EDkKCSEZPxNdoA80I9c8b6Y9jcn4AAAA=
+    Metadata:
+      aws:cdk:path: KarpenterControllerSA/CDKMetadata/Default
+Outputs:
+  KarpenterControllerRole:
+    Value:
+      Fn::GetAtt:
+        - karpenterControllerRoleFEFCA667
+        - Arn
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

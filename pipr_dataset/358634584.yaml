@@ -1,0 +1,200 @@
+Resources:
+  exampleapiappsyncnestedstackNestedStackappsyncnestedstackNestedStackResource5372748F:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        Fn::Join:
+          - ""
+          - - https://s3.us-east-1.
+            - Ref: AWS::URLSuffix
+            - /cdk-hnb659fds-assets-036406153779-us-east-1/d60d16acc3bfc54f2ce7e57b0f4049848fb37beeb96da9110eae316aa0720e80.json
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: appsync-metrics-example/example-api/appsync-nested-stack.NestedStack/appsync-nested-stack.NestedStackResource
+  httpresourceServiceRoleBC682115:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    DependsOn:
+      - exampleapiappsyncnestedstackNestedStackappsyncnestedstackNestedStackResource5372748F
+    Metadata:
+      aws:cdk:path: appsync-metrics-example/http-resource/ServiceRole/Resource
+  httpresource50F2051D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 19ad2f42ca8f7fab2a02947e8fa7367e93f14b9e301095fe39f7387745b46354.zip
+      Role:
+        Fn::GetAtt:
+          - httpresourceServiceRoleBC682115
+          - Arn
+      Environment:
+        Variables:
+          GRAPHQL_URL:
+            Fn::GetAtt:
+              - exampleapiappsyncnestedstackNestedStackappsyncnestedstackNestedStackResource5372748F
+              - Outputs.appsyncmetricsexampleexampleapiappsyncnestedstackexampleapiapi42C9DF91GraphQLUrl
+          API_KEY:
+            Fn::GetAtt:
+              - exampleapiappsyncnestedstackNestedStackappsyncnestedstackNestedStackResource5372748F
+              - Outputs.appsyncmetricsexampleexampleapiappsyncnestedstackexampleapiapiDefaultApiKeyD27F5F31ApiKey
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 180
+    DependsOn:
+      - exampleapiappsyncnestedstackNestedStackappsyncnestedstackNestedStackResource5372748F
+      - httpresourceServiceRoleBC682115
+    Metadata:
+      aws:cdk:path: appsync-metrics-example/http-resource/Resource
+      aws:asset:path: asset.19ad2f42ca8f7fab2a02947e8fa7367e93f14b9e301095fe39f7387745b46354
+      aws:asset:property: Code
+  httpproviderframeworkonEventServiceRoleA47DF8D8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: appsync-metrics-example/http-provider/framework-onEvent/ServiceRole/Resource
+  httpproviderframeworkonEventServiceRoleDefaultPolicy9F1D647F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - httpresource50F2051D
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: httpproviderframeworkonEventServiceRoleDefaultPolicy9F1D647F
+      Roles:
+        - Ref: httpproviderframeworkonEventServiceRoleA47DF8D8
+    Metadata:
+      aws:cdk:path: appsync-metrics-example/http-provider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  httpproviderframeworkonEvent41B375C5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c.zip
+      Role:
+        Fn::GetAtt:
+          - httpproviderframeworkonEventServiceRoleA47DF8D8
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (appsync-metrics-example/http-provider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - httpresource50F2051D
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - httpproviderframeworkonEventServiceRoleDefaultPolicy9F1D647F
+      - httpproviderframeworkonEventServiceRoleA47DF8D8
+    Metadata:
+      aws:cdk:path: appsync-metrics-example/http-provider/framework-onEvent/Resource
+      aws:asset:path: asset.c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c
+      aws:asset:property: Code
+  CustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - httpproviderframeworkonEvent41B375C5
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: appsync-metrics-example/CustomResource/Default
+  AppSyncFailedHTTPResolver3E3A49B5:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterPattern: '{ ($.logType = "ResponseMapping") && ($.context.result.statusCode != 2* && $.context.result.statusCode != 3*) }'
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/appsync/apis/
+            - Fn::GetAtt:
+                - exampleapiappsyncnestedstackNestedStackappsyncnestedstackNestedStackResource5372748F
+                - Outputs.appsyncmetricsexampleexampleapiappsyncnestedstackexampleapiapi42C9DF91ApiId
+      MetricTransformations:
+        - DefaultValue: 0
+          MetricName: AppSyncFailedHTTPResolver
+          MetricNamespace: appsync-metrics-example
+          MetricValue: "1"
+    DependsOn:
+      - CustomResource
+      - httpresource50F2051D
+      - httpresourceServiceRoleBC682115
+    Metadata:
+      aws:cdk:path: appsync-metrics-example/AppSyncFailedHTTPResolver/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE01Oy07DMBD8lt7XWwKXcgNF6g2owhcYx4k2dWzkXRchy/9OnLTAaWb2MTMNPh7wbvekv1iZ/rzPJkSL+V20OUMbPEtMRqAd/HU0+Lckn0ngmdnKMhzJj9BZDikaC21iCfOfHPyNF6gZ2en5o9fKh95OjK8rHJM3QsED6RlzF9z2WPEUHJnvKjdWgB+UrtGMawPYDDEvJ78+N1LAhZExv1iJZI7kxMbq9V+XAmYtreK1KeMphgv1yw5qT5x4f2kO2Nxjs5uYSMXkhWaL3YY/wFvGQ0UBAAA=
+    Metadata:
+      aws:cdk:path: appsync-metrics-example/CDKMetadata/Default
+Outputs:
+  appsyncGraphQLEndpointOutput:
+    Description: Output for aws_appsync_graphqlEndpoint
+    Value:
+      Fn::GetAtt:
+        - exampleapiappsyncnestedstackNestedStackappsyncnestedstackNestedStackResource5372748F
+        - Outputs.appsyncmetricsexampleexampleapiappsyncnestedstackexampleapiapi42C9DF91GraphQLUrl
+  apikey:
+    Value:
+      Fn::GetAtt:
+        - exampleapiappsyncnestedstackNestedStackappsyncnestedstackNestedStackResource5372748F
+        - Outputs.appsyncmetricsexampleexampleapiappsyncnestedstackexampleapiapiDefaultApiKeyD27F5F31ApiKey
+  appsyncarn:
+    Value:
+      Fn::GetAtt:
+        - exampleapiappsyncnestedstackNestedStackappsyncnestedstackNestedStackResource5372748F
+        - Outputs.appsyncmetricsexampleexampleapiappsyncnestedstackexampleapiapi42C9DF91Arn
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store.
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 4 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

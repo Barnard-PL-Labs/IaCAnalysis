@@ -1,0 +1,239 @@
+Resources:
+  ApiF70053CD:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: AWS_IAM
+      Name: simple-web-service-songs
+      XrayEnabled: true
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/Api/Resource
+  ApiSchema510EECD7:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Definition: |
+        type Song {
+          id: String!
+          name: String!
+          artist: String!
+        }
+
+        type Query {
+          getSongs: [Song!]
+        }
+
+        input SongInput {
+          name: String!
+          artist: String!
+        }
+
+        type Mutation {
+          addSong(input: SongInput!): Song
+        }
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/Api/Schema
+  ApiDDBSimpleWebDataSourceServiceRoleBF35967E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/Api/DDBSimpleWebDataSource/ServiceRole/Resource
+  ApiDDBSimpleWebDataSourceServiceRoleDefaultPolicy5CE47D5E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SimpleWebTable337AA208
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: ApiDDBSimpleWebDataSourceServiceRoleDefaultPolicy5CE47D5E
+      Roles:
+        - Ref: ApiDDBSimpleWebDataSourceServiceRoleBF35967E
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/Api/DDBSimpleWebDataSource/ServiceRole/DefaultPolicy/Resource
+  ApiDDBSimpleWebDataSource465F48A6:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Name: DDBSimpleWebDataSource
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion: eu-west-1
+        TableName:
+          Ref: SimpleWebTable337AA208
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ApiDDBSimpleWebDataSourceServiceRoleBF35967E
+          - Arn
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/Api/DDBSimpleWebDataSource/Resource
+  ApiDDBSimpleWebDataSourceQuerygetSongsResolver7D528DA9:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: getSongs
+      TypeName: Query
+      DataSourceName: DDBSimpleWebDataSource
+      Kind: UNIT
+      RequestMappingTemplate: '{"version" : "2017-02-28", "operation" : "Scan"}'
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - ApiDDBSimpleWebDataSource465F48A6
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/Api/DDBSimpleWebDataSource/QuerygetSongsResolver/Resource
+  Apinone1F55F3F3:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Name: none
+      Type: NONE
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/Api/none/Resource
+  SimpleWebTable337AA208:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/SimpleWebTable/Resource
+  validateSongFn17DF165E:
+    Type: AWS::AppSync::FunctionConfiguration
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      DataSourceName: none
+      FunctionVersion: "2018-05-29"
+      Name: simpleWebValidateFunction
+      RequestMappingTemplate: |-
+        #set($errors = [])
+
+        #if (!$util.matches("^a-zA-Z{1,100}$", $ctx.args.input.artist))
+            #if ($util.isNullOrEmpty($ctx.args.input.artist))
+                $util.qr($errors.add("Artist is a required property"))
+            #else
+                $util.qr($errors.add("$ctx.args.input.artist is not a valid artist property"))
+            #end
+        #end
+
+        #if ($errors.size() > 0)
+            $util.error($util.toJson($errors))
+        #end
+
+        ## Return if no errors
+        {}
+      ResponseMappingTemplate: "{}"
+    DependsOn:
+      - Apinone1F55F3F3
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/validateSongFn/Resource
+  createSongFnD820489C:
+    Type: AWS::AppSync::FunctionConfiguration
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      DataSourceName: DDBSimpleWebDataSource
+      FunctionVersion: "2018-05-29"
+      Name: simpleWebCreateFunction
+      RequestMappingTemplate: |-2
+        
+              #set($input = $ctx.args.input)
+              
+              {
+                "version": "2017-02-28",
+                "operation": "PutItem",
+                "key" : {
+              "id" : $util.dynamodb.toDynamoDBJson($util.autoId())
+            },
+                "attributeValues": $util.dynamodb.toMapValuesJson($input)
+              }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - ApiDDBSimpleWebDataSource465F48A6
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/createSongFn/Resource
+  createSongPipelineF3257CD2:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: addSong
+      TypeName: Mutation
+      Kind: PIPELINE
+      PipelineConfig:
+        Functions:
+          - Fn::GetAtt:
+              - validateSongFn17DF165E
+              - FunctionId
+          - Fn::GetAtt:
+              - createSongFnD820489C
+              - FunctionId
+      RequestMappingTemplate: "{}"
+      ResponseMappingTemplate: |-
+        #if($ctx.error)
+        $util.error($ctx.error.message, $ctx.error.type)
+        #end
+        $util.toJson($ctx.result)
+    DependsOn:
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/createSongPipeline/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WOy07DMBBFv6V7d4oRiy6pGsEGIUj4gcnEoW6TcfCjKLL872CHSGU194zu6IwE+bCHu80jfrstdZddJGMVxMYjXUStnAmWlDgadt4G8uLY87pNIh9FnCY3M0F8tjidvobDpHOr0PvLf2ropEYU1cw4mqqt0GPzZ+j5hrJiuCq76kp+NaxuOofF+xSYvDacq2v+fbfXn8FihiQ0jhBrMxRLmW9m0DRnXFISXXmpayF+YLs0S0gpCTadgrPbXeUe5D3IzdlpvbWBvR4V1Mv8AVbz1gxKAQAA
+    Metadata:
+      aws:cdk:path: SimpleWebServiceStack/CDKMetadata/Default
+

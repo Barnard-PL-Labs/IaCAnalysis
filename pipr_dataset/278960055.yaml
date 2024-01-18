@@ -1,0 +1,300 @@
+Resources:
+  VPCB9E5F0B4:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: VpcNlbEipStack/VPC
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/Resource
+  VPCPublicAccessSubnet1Subnet2532B9F0:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCB9E5F0B4
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.0.0/17
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public Access
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: VpcNlbEipStack/VPC/Public AccessSubnet1
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/Public AccessSubnet1/Subnet
+  VPCPublicAccessSubnet1RouteTable39C76195:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPCB9E5F0B4
+      Tags:
+        - Key: Name
+          Value: VpcNlbEipStack/VPC/Public AccessSubnet1
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/Public AccessSubnet1/RouteTable
+  VPCPublicAccessSubnet1RouteTableAssociationD0574E0A:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicAccessSubnet1RouteTable39C76195
+      SubnetId:
+        Ref: VPCPublicAccessSubnet1Subnet2532B9F0
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/Public AccessSubnet1/RouteTableAssociation
+  VPCPublicAccessSubnet1DefaultRoute8701BF2D:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicAccessSubnet1RouteTable39C76195
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: VPCIGWB7E252D3
+    DependsOn:
+      - VPCVPCGW99B986DC
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/Public AccessSubnet1/DefaultRoute
+  VPCPublicAccessSubnet2Subnet611C39F5:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: VPCB9E5F0B4
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.128.0/17
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public Access
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: VpcNlbEipStack/VPC/Public AccessSubnet2
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/Public AccessSubnet2/Subnet
+  VPCPublicAccessSubnet2RouteTable2FCDFC96:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPCB9E5F0B4
+      Tags:
+        - Key: Name
+          Value: VpcNlbEipStack/VPC/Public AccessSubnet2
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/Public AccessSubnet2/RouteTable
+  VPCPublicAccessSubnet2RouteTableAssociation16E91A24:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicAccessSubnet2RouteTable2FCDFC96
+      SubnetId:
+        Ref: VPCPublicAccessSubnet2Subnet611C39F5
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/Public AccessSubnet2/RouteTableAssociation
+  VPCPublicAccessSubnet2DefaultRoute14F22E69:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicAccessSubnet2RouteTable2FCDFC96
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: VPCIGWB7E252D3
+    DependsOn:
+      - VPCVPCGW99B986DC
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/Public AccessSubnet2/DefaultRoute
+  VPCIGWB7E252D3:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: VpcNlbEipStack/VPC
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/IGW
+  VPCVPCGW99B986DC:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPCB9E5F0B4
+      InternetGatewayId:
+        Ref: VPCIGWB7E252D3
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/VPC/VPCGW
+  NLBEIP1D5CEA9A6:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/NLB/EIP_1
+  NLBEIP2182ED170:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/NLB/EIP_2
+  NLB2535F845:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: MyStaticNLB
+      Scheme: internet-facing
+      SubnetMappings:
+        - AllocationId:
+            Fn::GetAtt:
+              - NLBEIP1D5CEA9A6
+              - AllocationId
+          SubnetId:
+            Ref: VPCPublicAccessSubnet1Subnet2532B9F0
+        - AllocationId:
+            Fn::GetAtt:
+              - NLBEIP2182ED170
+              - AllocationId
+          SubnetId:
+            Ref: VPCPublicAccessSubnet2Subnet611C39F5
+      Type: network
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/NLB/NLB
+  TargetGroup3D7CD9B8:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: TCP
+      TargetType: instance
+      VpcId:
+        Ref: VPCB9E5F0B4
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/TargetGroup/Resource
+  WEBTRAFFIC:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn:
+            Ref: TargetGroup3D7CD9B8
+          Type: forward
+      LoadBalancerArn:
+        Ref: NLB2535F845
+      Port: 80
+      Protocol: TCP
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/WEBTRAFFIC
+  InstanceSGBE3EC680:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Autoscaling security group
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow access to HTTP from anywhere
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      VpcId:
+        Ref: VPCB9E5F0B4
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/Instance SG/Resource
+  AutoscalingGroupInstanceRoleF9BA888C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: VpcNlbEipStack/AutoscalingGroup
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/AutoscalingGroup/InstanceRole/Resource
+  AutoscalingGroupInstanceProfile010878FF:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: AutoscalingGroupInstanceRoleF9BA888C
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/AutoscalingGroup/InstanceProfile
+  AutoscalingGroupLaunchConfigEBD75746:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:
+        Ref: SsmParameterValueawsserviceamiamazonlinuxlatestamzn2amihvmx8664gp2C96584B6F00A464EAD1953AFF4B05118Parameter
+      InstanceType: t3.medium
+      IamInstanceProfile:
+        Ref: AutoscalingGroupInstanceProfile010878FF
+      SecurityGroups:
+        - Fn::GetAtt:
+            - InstanceSGBE3EC680
+            - GroupId
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash -xe
+          yum update && yum upgrade -y
+          yum install httpd -y
+          systemctl start httpd
+    DependsOn:
+      - AutoscalingGroupInstanceRoleF9BA888C
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/AutoscalingGroup/LaunchConfig
+  AutoscalingGroupASG25987EFB:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MaxSize: "2"
+      MinSize: "1"
+      DesiredCapacity: "2"
+      HealthCheckGracePeriod: 30
+      HealthCheckType: ELB
+      LaunchConfigurationName:
+        Ref: AutoscalingGroupLaunchConfigEBD75746
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value: VpcNlbEipStack/AutoscalingGroup
+      TargetGroupARNs:
+        - Ref: TargetGroup3D7CD9B8
+      VPCZoneIdentifier:
+        - Ref: VPCPublicAccessSubnet1Subnet2532B9F0
+        - Ref: VPCPublicAccessSubnet2Subnet611C39F5
+    UpdatePolicy:
+      AutoScalingScheduledAction:
+        IgnoreUnmodifiedGroupSizeProperties: true
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/AutoscalingGroup/ASG
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/11RTW/CMAz9LdxDoGiHHcfQhJAQq1rE3XUNBNKkShwQqvrfl5aPTpzs9/ziZzuJnE0/5HT0BVc/xvI8adA6kk3OgGeRkbfBIYmFNZ5dQBaLvfkNXIc+S8FBRUyuA09xK7peDeFMNrsau9IuXYg0FFphHgpD/dshy2xg2kKhaeAHbu69RQWsrHmJu2Rlom9ULoHpCreHzQPNOc5/rMj0Bj+rVOSEwSm+LZ0Nde/zn2gFafCsUFsoC9BgUJnDJW4QlevIffdcXHRDfLXuvAV3iN7PZm9wrTyTIRdPEdh6BB27yWYeQX4HgxSCwWO8714dgnut+S5thYJKNpm9H+kZV/FburlSZ/dKU9u2wtiS5MlPLsmnTGYyGZ28UmMXDKuKZHaPfy7L6EP3AQAA
+    Metadata:
+      aws:cdk:path: VpcNlbEipStack/CDKMetadata/Default
+Outputs:
+  NLB1:
+    Description: Elastic IP Address 1
+    Value:
+      Ref: NLBEIP1D5CEA9A6
+  NLB2:
+    Description: Elastic IP Address 2
+    Value:
+      Ref: NLBEIP2182ED170
+Parameters:
+  SsmParameterValueawsserviceamiamazonlinuxlatestamzn2amihvmx8664gp2C96584B6F00A464EAD1953AFF4B05118Parameter:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+

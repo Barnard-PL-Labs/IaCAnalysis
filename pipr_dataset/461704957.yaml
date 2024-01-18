@@ -1,0 +1,571 @@
+Parameters:
+  ResourcePrefix:
+    Type: String
+    Default: Ecme
+    Description: ResourcePrefix
+  Route53HostedZoneName:
+    Type: String
+    Default: skcnctf.tk
+    Description: Route53 Hosted Zone Name
+  Route53HostedZoneId:
+    Type: String
+    Default: Z10008191COSSLORKT6ZO
+    Description: Route53 Hosted Zone Id
+  HostDomainName:
+    Type: String
+    Default: hello2.skcnctf.tk
+    Description: Host Domain Name
+  includeWWW:
+    Type: String
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: include WWW true/false
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Resources:
+  SpaEcmecloudfrontOAI21B310E1:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: OAI for Spa
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-cloudfront-OAI/Resource
+  SpaEcmesitebucket30365DA5:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: homepage.skcnctf.tk
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+        - Key: aws-cdk:cr-owned:62abd460
+          Value: "true"
+      WebsiteConfiguration:
+        ErrorDocument: error.html
+        IndexDocument: index.html
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-site-bucket/Resource
+  SpaEcmesitebucketPolicy9446EF62:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: SpaEcmesitebucket30365DA5
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - SpaEcmesitebucket30365DA5
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SpaEcmesitebucket30365DA5
+                        - Arn
+                    - /*
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - SpaEcmecloudfrontOAI21B310E1
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - SpaEcmesitebucket30365DA5
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-site-bucket/Policy/Resource
+  SpaEcmesitebucketAutoDeleteObjectsCustomResource21FB64AD:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: SpaEcmesitebucket30365DA5
+    DependsOn:
+      - SpaEcmesitebucketPolicy9446EF62
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-site-bucket/AutoDeleteObjectsCustomResource/Default
+  SpaEcmesitecertificateCertificateRequestorFunctionServiceRole235F7D2F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-site-certificate/CertificateRequestorFunction/ServiceRole/Resource
+  SpaEcmesitecertificateCertificateRequestorFunctionServiceRoleDefaultPolicyB4A022D6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - acm:RequestCertificate
+              - acm:DescribeCertificate
+              - acm:DeleteCertificate
+              - acm:AddTagsToCertificate
+            Effect: Allow
+            Resource: "*"
+          - Action: route53:GetChange
+            Effect: Allow
+            Resource: "*"
+          - Action: route53:changeResourceRecordSets
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :route53:::hostedzone/Z10008191COSSLORKT6ZO
+        Version: "2012-10-17"
+      PolicyName: SpaEcmesitecertificateCertificateRequestorFunctionServiceRoleDefaultPolicyB4A022D6
+      Roles:
+        - Ref: SpaEcmesitecertificateCertificateRequestorFunctionServiceRole235F7D2F
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-site-certificate/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource
+  SpaEcmesitecertificateCertificateRequestorFunctionE74EFC86:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 4d3f21fe611d8ebfd4f1f69754b7f986fed4ecf648d4fafe941cd81ede6cf60c.zip
+      Role:
+        Fn::GetAtt:
+          - SpaEcmesitecertificateCertificateRequestorFunctionServiceRole235F7D2F
+          - Arn
+      Handler: index.certificateRequestHandler
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - SpaEcmesitecertificateCertificateRequestorFunctionServiceRoleDefaultPolicyB4A022D6
+      - SpaEcmesitecertificateCertificateRequestorFunctionServiceRole235F7D2F
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-site-certificate/CertificateRequestorFunction/Resource
+      aws:asset:path: asset.4d3f21fe611d8ebfd4f1f69754b7f986fed4ecf648d4fafe941cd81ede6cf60c
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  SpaEcmesitecertificateCertificateRequestorResource5EC2C904:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - SpaEcmesitecertificateCertificateRequestorFunctionE74EFC86
+          - Arn
+      DomainName: homepage.skcnctf.tk
+      SubjectAlternativeNames:
+        - www.homepage.skcnctf.tk
+      HostedZoneId: Z10008191COSSLORKT6ZO
+      Region: us-east-1
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-site-certificate/CertificateRequestorResource/Default
+  SpaEcmesitedistributionCFDistributionED0C183B:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - homepage.skcnctf.tk
+          - www.homepage.skcnctf.tk
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::GetAtt:
+                - SpaEcmesitebucket30365DA5
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: SpaEcmecloudfrontOAI21B310E1
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Fn::GetAtt:
+              - SpaEcmesitecertificateCertificateRequestorResource5EC2C904
+              - Arn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-site-distribution/CFDistribution
+  SpaEcmesitealiasrecord01BFCC1229:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: homepage.skcnctf.tk.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - SpaEcmesitedistributionCFDistributionED0C183B
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId: Z10008191COSSLORKT6ZO
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-site-alias-record-01/Resource
+  SpaEcmesitealiasrecord02C35F4F58:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: www.homepage.skcnctf.tk.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - SpaEcmesitedistributionCFDistributionED0C183B
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId: Z10008191COSSLORKT6ZO
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-site-alias-record-02/Resource
+  SpaEcmebucketdeploymentAwsCliLayer79806208:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 187e7a21dd5d55d36f1f45007ff6bbc5713cb0866ca86224c0f1f86b3d1e76a0.zip
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-bucket-deployment/AwsCliLayer/Resource
+      aws:asset:path: asset.187e7a21dd5d55d36f1f45007ff6bbc5713cb0866ca86224c0f1f86b3d1e76a0.zip
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  SpaEcmebucketdeploymentCustomResourceA2BC1C18:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+      SourceObjectKeys:
+        - 0ab25797eac2d57adc69b02448a357576381c70ba8ad2e203965d12a7a6811d8.zip
+      DestinationBucketName:
+        Ref: SpaEcmesitebucket30365DA5
+      Prune: true
+      DistributionId:
+        Ref: SpaEcmesitedistributionCFDistributionED0C183B
+      DistributionPaths:
+        - /*
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: main/Spa/Ecme-bucket-deployment/CustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: main/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: bdb08b9984816ecf43301a0c6d8913e270ee2448940b6b95e430dd222a4d90be.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: SpaEcmesitebucket30365DA5
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: main/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.bdb08b9984816ecf43301a0c6d8913e270ee2448940b6b95e430dd222a4d90be
+      aws:asset:property: Code
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: main/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SpaEcmesitebucket30365DA5
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SpaEcmesitebucket30365DA5
+                        - Arn
+                    - /*
+          - Action:
+              - cloudfront:GetInvalidation
+              - cloudfront:CreateInvalidation
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: main/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: e3d9996b6fafcc7da88312672e15e3cc925b02cffc6f01a615d81f22303e3ae0.zip
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: SpaEcmebucketdeploymentAwsCliLayer79806208
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: main/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.e3d9996b6fafcc7da88312672e15e3cc925b02cffc6f01a615d81f22303e3ae0
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21RwW7CMAz9Fu4hA6ZJu5YipEmbQCCxY5UmbmVIE5Q4oKrqvy9pGaBpJz/bz45f3oLPZ3w2EVc/leo01Vjybk9Cnlhema1wogECx3bgbXASWCQWndQ2qMpZQ7zbOKzRZFKC9x8KDCG1aTZPnHXi/M+4t7+hXKEnh2UgtCbNPuc986+8WwZ5Akq9GxrD1mqU7aN8y8dkKTz0TIIjrFAKgkYYUYPjK+MPQqOKJZU/2kyLplSCd+tg5O8pz/hTtOAO4HzK92hqDWTvjJ6haHi3sxoSeYiP+0aUxBSd8B7I8ywFpuCsbdvEb+Hj2at7oWfOBoK3qD/bgbRODYsHtAfqe5YHT7a5mzN0H3gT6ByIDe9ET6MJ9U1joZOUIpopNfLs6nONg7o/G7fOXlClcmW+xPmcNiRvrVE4ajZWAT/6l8v8nc8XfD45esSpC9HlBvhujD+G24SfZQIAAA==
+    Metadata:
+      aws:cdk:path: main/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  SpaEcmebucketname6AAFAC01:
+    Value:
+      Ref: SpaEcmesitebucket30365DA5
+    Export:
+      Name: Ecme-bucket-name
+  SpaEcmedistribution3D56F66F:
+    Value:
+      Ref: SpaEcmesitedistributionCFDistributionED0C183B
+    Export:
+      Name: Ecme-distribution
+Mappings:
+  AWSCloudFrontPartitionHostedZoneIdMap:
+    aws:
+      zoneId: Z2FDTNDATAQYW2
+    aws-cn:
+      zoneId: Z3RFFRIM2A3IF5
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

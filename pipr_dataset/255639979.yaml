@@ -1,0 +1,798 @@
+Parameters:
+  Stack:
+    Type: String
+    Default: media-service
+    Description: Stack
+  Stage:
+    Type: String
+    AllowedValues:
+      - CODE
+      - PROD
+    Description: Stage
+  AMI:
+    Type: String
+    Description: AMI ID
+  InstanceType:
+    Type: String
+    Default: t3.small
+    Description: EC2 instance type
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: ID of the VPC onto which to launch the application eg. vpc-1234abcd
+  PrivateVpcSubnets:
+    Type: String
+    Description: Subnets to use in VPC for private EC2 instances eg. subnet-abcd1234
+  KinesisStreamName:
+    Type: String
+    Description: The name (NOT arn) of the Kinesis stream that logs should be shipped to
+  AlertWebhook:
+    Type: String
+    Description: The webhook for the SNS alert topic to send to Pagerduty
+  LoggingRoleToAssumeArn:
+    Type: String
+    Description: Name of IAM role in logging account e.g. arn:aws:iam::222222222222:role/LoggingRole
+  LoggingStreamName:
+    Type: String
+    Description: Name of Kinesis Logging stream
+Resources:
+  EditorialToolsIntegrationTestRoleBEB5D25C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - ec2.
+                    - Ref: AWS::URLSuffix
+        Version: "2012-10-17"
+      Path: /
+      Tags:
+        - Key: Stack
+          Value:
+            Ref: Stack
+        - Key: Stage
+          Value:
+            Ref: Stage
+    Metadata:
+      aws:cdk:path: CdkStack/EditorialToolsIntegrationTestRole/Resource
+  LoggingPolicy13E9D000:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Ref: LoggingRoleToAssumeArn
+        Version: "2012-10-17"
+      PolicyName: LoggingPolicy
+      Roles:
+        - Ref: EditorialToolsIntegrationTestRoleBEB5D25C
+    Metadata:
+      aws:cdk:path: CdkStack/LoggingPolicy/Resource
+  ServerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: EditorialToolsIntegrationTestRoleBEB5D25C
+      Path: /
+    Metadata:
+      aws:cdk:path: CdkStack/ServerInstanceProfile
+  UserDataPolicy70932BA6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              - arn:aws:s3::*:editorial-tools-integration-tests-dist/*
+              - arn:aws:s3::*:pan-domain-auth-settings/*
+          - Action: s3:putObject
+            Effect: Allow
+            Resource: arn:aws:s3::*:editorial-tools-integration-tests/*
+          - Action:
+              - cloudwatch:PutMetricData
+              - ec2:DescribeTags
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: download-artifacts-from-s3
+      Roles:
+        - Ref: EditorialToolsIntegrationTestRoleBEB5D25C
+    Metadata:
+      aws:cdk:path: CdkStack/UserDataPolicy/Resource
+  DescribeEC2PolicyFF5F9295:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ec2:DescribeTags
+              - ec2:DescribeInstances
+              - autoscaling:DescribeAutoScalingGroups
+              - autoscaling:DescribeAutoScalingInstances
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: describe-ec2-policy
+      Roles:
+        - Ref: EditorialToolsIntegrationTestRoleBEB5D25C
+    Metadata:
+      aws:cdk:path: CdkStack/DescribeEC2Policy/Resource
+  SSMCommandPolicy19048921:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ec2messages:AcknowledgeMessage
+              - ec2messages:DeleteMessage
+              - ec2messages:FailMessage
+              - ec2messages:GetEndpoint
+              - ec2messages:GetMessages
+              - ec2messages:SendReply
+              - ssm:UpdateInstanceInformation
+              - ssm:ListInstanceAssociations
+              - ssm:DescribeInstanceProperties
+              - ssm:DescribeDocumentParameters
+              - ssmmessages:CreateControlChannel
+              - ssmmessages:CreateDataChannel
+              - ssmmessages:OpenControlChannel
+              - ssmmessages:OpenDataChannel
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: ssm-run-command-policy
+      Roles:
+        - Ref: EditorialToolsIntegrationTestRoleBEB5D25C
+    Metadata:
+      aws:cdk:path: CdkStack/SSMCommandPolicy/Resource
+  LogShippingPolicyBCA13F45:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - kinesis:Describe*
+              - kinesis:Put*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:kinesis:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :stream/
+                  - Ref: KinesisStreamName
+        Version: "2012-10-17"
+      PolicyName: log-shipping-policy
+      Roles:
+        - Ref: EditorialToolsIntegrationTestRoleBEB5D25C
+    Metadata:
+      aws:cdk:path: CdkStack/LogShippingPolicy/Resource
+  ApplicationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: HTTP
+      Tags:
+        - Key: Stack
+          Value:
+            Ref: Stack
+        - Key: Stage
+          Value:
+            Ref: Stage
+      VpcId:
+        Ref: VpcId
+    Metadata:
+      aws:cdk:path: CdkStack/ApplicationSecurityGroup
+  pagerdutysns1A9F3928:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: pagerduty-integration-tests-${TOKEN[TOKEN.60]}
+      Tags:
+        - Key: Stack
+          Value:
+            Ref: Stack
+        - Key: Stage
+          Value:
+            Ref: Stage
+    Metadata:
+      aws:cdk:path: CdkStack/pagerduty-sns/Resource
+  pagerdutysnsTokenSubscription1E69CCB0F:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: https
+      TopicArn:
+        Ref: pagerdutysns1A9F3928
+      Endpoint:
+        Ref: AlertWebhook
+    Metadata:
+      aws:cdk:path: CdkStack/pagerduty-sns/TokenSubscription:1/Resource
+  LaunchConfigGrid:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:
+        Ref: AMI
+      InstanceType:
+        Ref: InstanceType
+      AssociatePublicIpAddress: true
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdk
+          Ebs:
+            VolumeSize: 150
+            VolumeType: gp2
+      IamInstanceProfile:
+        Ref: ServerInstanceProfile
+      SecurityGroups:
+        - Ref: ApplicationSecurityGroup
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+            - ""
+            - - |-
+                #!/bin/bash -ev
+
+                cfn-init -s 
+              - Ref: AWS::StackId
+              - " -r LaunchConfigGrid --region "
+              - Ref: AWS::Region
+              - |-2
+                 || error_exit ''Failed to run cfn-init''
+
+                attach-ebs-volume -d k -m /data
+
+                # Set up the tests and their dependencies
+                aws s3 cp s3://editorial-tools-integration-tests-dist/
+              - Ref: Stack
+              - /
+              - Ref: Stage
+              - |
+                /editorial-tools-integration-tests-grid/editorial-tools-integration-tests-grid.zip /tmp/editorial-tools-integration-tests-grid.zip
+                unzip -q /tmp/editorial-tools-integration-tests-grid.zip -d /data/editorial-tools-integration-tests-grid
+
+                # Install Cypress dependencies
+                /data/editorial-tools-integration-tests-grid/node_modules/cypress/bin/cypress install
+
+
+                # get envars
+                aws s3 cp s3://editorial-tools-integration-tests-dist/env.json /data/editorial-tools-integration-tests-grid/env.json
+
+                # Set up logstash
+                # https://discuss.elastic.co/t/apache-log4j2-remote-code-execution-rce-vulnerability-cve-2021-44228-esa-2021-31/291476
+                zip -q -d /usr/share/logstash/logstash-core/lib/jars/log4j-core-2.* org/apache/logging/log4j/core/lookup/JndiLookup.class
+                systemctl start logstash
+    Metadata:
+      aws:cdk:path: CdkStack/LaunchConfigGrid
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /etc/cron.d/run-integration-tests:
+              content:
+                Fn::Join:
+                  - ""
+                  - - |-
+                      
+                      */3 * * * * root /data/editorial-tools-integration-tests-grid/scripts/run.sh 
+                    - Ref: Stage
+                    - |2
+                       grid >> /var/log/tests.log 2>&1
+            /etc/logstash/conf.d/logstash.conf:
+              content:
+                Fn::Join:
+                  - ""
+                  - - |-2
+                      
+                            input {
+                              file {
+                                path => "/data/editorial-tools-integration-tests-grid/logs/tests.json.log"
+                                type => "application"
+                                codec => json
+                              }
+                            }
+                            filter {
+                              mutate {
+                                add_field => {
+                                  "app" => "editorial-tools-integration-tests"
+                                  "stack" => "
+                    - Ref: Stack
+                    - |-
+                      "
+                                  "stage" => "
+                    - Ref: Stage
+                    - |-
+                      "
+                                }
+                              }
+                            }
+                            output {
+                              kinesis {
+                                role_arn => "
+                    - Ref: LoggingRoleToAssumeArn
+                    - |-
+                      "
+                                stream_name => "
+                    - Ref: LoggingStreamName
+                    - |-
+                      "
+                                randomized_partition_key => true
+                                region => "
+                    - Ref: AWS::Region
+                    - |
+                      "
+                              }
+                            }
+              mode: "000644"
+  AutoscalingGroupGrid:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MaxSize: "2"
+      MinSize: "1"
+      LaunchConfigurationName:
+        Ref: LaunchConfigGrid
+      Tags:
+        - Key: App
+          PropagateAtLaunch: true
+          Value: editorial-tools-integration-tests-grid
+        - Key: Stack
+          PropagateAtLaunch: true
+          Value:
+            Ref: Stack
+        - Key: Stage
+          PropagateAtLaunch: true
+          Value:
+            Ref: Stage
+      VPCZoneIdentifier:
+        - Ref: PrivateVpcSubnets
+    DependsOn:
+      - LaunchConfigGrid
+    Metadata:
+      aws:cdk:path: CdkStack/AutoscalingGroupGrid
+  failuresalarmgridE27377CF:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 10
+      ActionsEnabled: true
+      AlarmActions:
+        - Ref: pagerdutysns1A9F3928
+      AlarmDescription: More than 3 integration test failures out of 10 for Grid. Check logs for more information
+      DatapointsToAlarm: 3
+      Dimensions:
+        - Name: stage
+          Value: PROD
+        - Name: suite
+          Value: grid
+      InsufficientDataActions:
+        - Ref: pagerdutysns1A9F3928
+      MetricName: Test Result
+      Namespace: editorial-tools-integration-tests
+      OKActions:
+        - Ref: pagerdutysns1A9F3928
+      Period: 180
+      Statistic: Maximum
+      Threshold: 1
+      TreatMissingData: ignore
+    Metadata:
+      aws:cdk:path: CdkStack/failures-alarm-grid/Resource
+  LaunchConfigComposer:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:
+        Ref: AMI
+      InstanceType:
+        Ref: InstanceType
+      AssociatePublicIpAddress: true
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdk
+          Ebs:
+            VolumeSize: 150
+            VolumeType: gp2
+      IamInstanceProfile:
+        Ref: ServerInstanceProfile
+      SecurityGroups:
+        - Ref: ApplicationSecurityGroup
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+            - ""
+            - - |-
+                #!/bin/bash -ev
+
+                cfn-init -s 
+              - Ref: AWS::StackId
+              - " -r LaunchConfigComposer --region "
+              - Ref: AWS::Region
+              - |-2
+                 || error_exit ''Failed to run cfn-init''
+
+                attach-ebs-volume -d k -m /data
+
+                # Set up the tests and their dependencies
+                aws s3 cp s3://editorial-tools-integration-tests-dist/
+              - Ref: Stack
+              - /
+              - Ref: Stage
+              - |
+                /editorial-tools-integration-tests-composer/editorial-tools-integration-tests-composer.zip /tmp/editorial-tools-integration-tests-composer.zip
+                unzip -q /tmp/editorial-tools-integration-tests-composer.zip -d /data/editorial-tools-integration-tests-composer
+
+                # Install Cypress dependencies
+                /data/editorial-tools-integration-tests-composer/node_modules/cypress/bin/cypress install
+
+
+                # get envars
+                aws s3 cp s3://editorial-tools-integration-tests-dist/env.json /data/editorial-tools-integration-tests-composer/env.json
+
+                # Set up logstash
+                # https://discuss.elastic.co/t/apache-log4j2-remote-code-execution-rce-vulnerability-cve-2021-44228-esa-2021-31/291476
+                zip -q -d /usr/share/logstash/logstash-core/lib/jars/log4j-core-2.* org/apache/logging/log4j/core/lookup/JndiLookup.class
+                systemctl start logstash
+    Metadata:
+      aws:cdk:path: CdkStack/LaunchConfigComposer
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /etc/cron.d/run-integration-tests:
+              content:
+                Fn::Join:
+                  - ""
+                  - - |-
+                      
+                      */3 * * * * root /data/editorial-tools-integration-tests-composer/scripts/run.sh 
+                    - Ref: Stage
+                    - |2
+                       composer >> /var/log/tests.log 2>&1
+            /etc/logstash/conf.d/logstash.conf:
+              content:
+                Fn::Join:
+                  - ""
+                  - - |-2
+                      
+                            input {
+                              file {
+                                path => "/data/editorial-tools-integration-tests-composer/logs/tests.json.log"
+                                type => "application"
+                                codec => json
+                              }
+                            }
+                            filter {
+                              mutate {
+                                add_field => {
+                                  "app" => "editorial-tools-integration-tests"
+                                  "stack" => "
+                    - Ref: Stack
+                    - |-
+                      "
+                                  "stage" => "
+                    - Ref: Stage
+                    - |-
+                      "
+                                }
+                              }
+                            }
+                            output {
+                              kinesis {
+                                role_arn => "
+                    - Ref: LoggingRoleToAssumeArn
+                    - |-
+                      "
+                                stream_name => "
+                    - Ref: LoggingStreamName
+                    - |-
+                      "
+                                randomized_partition_key => true
+                                region => "
+                    - Ref: AWS::Region
+                    - |
+                      "
+                              }
+                            }
+              mode: "000644"
+  AutoscalingGroupComposer:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MaxSize: "2"
+      MinSize: "1"
+      LaunchConfigurationName:
+        Ref: LaunchConfigComposer
+      Tags:
+        - Key: App
+          PropagateAtLaunch: true
+          Value: editorial-tools-integration-tests-composer
+        - Key: Stack
+          PropagateAtLaunch: true
+          Value:
+            Ref: Stack
+        - Key: Stage
+          PropagateAtLaunch: true
+          Value:
+            Ref: Stage
+      VPCZoneIdentifier:
+        - Ref: PrivateVpcSubnets
+    DependsOn:
+      - LaunchConfigComposer
+    Metadata:
+      aws:cdk:path: CdkStack/AutoscalingGroupComposer
+  failuresalarmcomposer4E39CDC1:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 10
+      ActionsEnabled: true
+      AlarmActions:
+        - Ref: pagerdutysns1A9F3928
+      AlarmDescription: More than 3 integration test failures out of 10 for Composer. Check logs for more information
+      DatapointsToAlarm: 3
+      Dimensions:
+        - Name: stage
+          Value: PROD
+        - Name: suite
+          Value: composer
+      InsufficientDataActions:
+        - Ref: pagerdutysns1A9F3928
+      MetricName: Test Result
+      Namespace: editorial-tools-integration-tests
+      OKActions:
+        - Ref: pagerdutysns1A9F3928
+      Period: 180
+      Statistic: Maximum
+      Threshold: 1
+      TreatMissingData: ignore
+    Metadata:
+      aws:cdk:path: CdkStack/failures-alarm-composer/Resource
+  LaunchConfigWorkflow:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:
+        Ref: AMI
+      InstanceType:
+        Ref: InstanceType
+      AssociatePublicIpAddress: true
+      BlockDeviceMappings:
+        - DeviceName: /dev/sdk
+          Ebs:
+            VolumeSize: 150
+            VolumeType: gp2
+      IamInstanceProfile:
+        Ref: ServerInstanceProfile
+      SecurityGroups:
+        - Ref: ApplicationSecurityGroup
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+            - ""
+            - - |-
+                #!/bin/bash -ev
+
+                cfn-init -s 
+              - Ref: AWS::StackId
+              - " -r LaunchConfigWorkflow --region "
+              - Ref: AWS::Region
+              - |-2
+                 || error_exit ''Failed to run cfn-init''
+
+                attach-ebs-volume -d k -m /data
+
+                # Set up the tests and their dependencies
+                aws s3 cp s3://editorial-tools-integration-tests-dist/
+              - Ref: Stack
+              - /
+              - Ref: Stage
+              - |
+                /editorial-tools-integration-tests-workflow/editorial-tools-integration-tests-workflow.zip /tmp/editorial-tools-integration-tests-workflow.zip
+                unzip -q /tmp/editorial-tools-integration-tests-workflow.zip -d /data/editorial-tools-integration-tests-workflow
+
+                # Install Cypress dependencies
+                /data/editorial-tools-integration-tests-workflow/node_modules/cypress/bin/cypress install
+
+
+                # get envars
+                aws s3 cp s3://editorial-tools-integration-tests-dist/env.json /data/editorial-tools-integration-tests-workflow/env.json
+
+                # Set up logstash
+                # https://discuss.elastic.co/t/apache-log4j2-remote-code-execution-rce-vulnerability-cve-2021-44228-esa-2021-31/291476
+                zip -q -d /usr/share/logstash/logstash-core/lib/jars/log4j-core-2.* org/apache/logging/log4j/core/lookup/JndiLookup.class
+                systemctl start logstash
+    Metadata:
+      aws:cdk:path: CdkStack/LaunchConfigWorkflow
+      AWS::CloudFormation::Init:
+        config:
+          files:
+            /etc/cron.d/run-integration-tests:
+              content:
+                Fn::Join:
+                  - ""
+                  - - |-
+                      
+                      */3 * * * * root /data/editorial-tools-integration-tests-workflow/scripts/run.sh 
+                    - Ref: Stage
+                    - |2
+                       workflow >> /var/log/tests.log 2>&1
+            /etc/logstash/conf.d/logstash.conf:
+              content:
+                Fn::Join:
+                  - ""
+                  - - |-2
+                      
+                            input {
+                              file {
+                                path => "/data/editorial-tools-integration-tests-workflow/logs/tests.json.log"
+                                type => "application"
+                                codec => json
+                              }
+                            }
+                            filter {
+                              mutate {
+                                add_field => {
+                                  "app" => "editorial-tools-integration-tests"
+                                  "stack" => "
+                    - Ref: Stack
+                    - |-
+                      "
+                                  "stage" => "
+                    - Ref: Stage
+                    - |-
+                      "
+                                }
+                              }
+                            }
+                            output {
+                              kinesis {
+                                role_arn => "
+                    - Ref: LoggingRoleToAssumeArn
+                    - |-
+                      "
+                                stream_name => "
+                    - Ref: LoggingStreamName
+                    - |-
+                      "
+                                randomized_partition_key => true
+                                region => "
+                    - Ref: AWS::Region
+                    - |
+                      "
+                              }
+                            }
+              mode: "000644"
+  AutoscalingGroupWorkflow:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MaxSize: "2"
+      MinSize: "1"
+      LaunchConfigurationName:
+        Ref: LaunchConfigWorkflow
+      Tags:
+        - Key: App
+          PropagateAtLaunch: true
+          Value: editorial-tools-integration-tests-workflow
+        - Key: Stack
+          PropagateAtLaunch: true
+          Value:
+            Ref: Stack
+        - Key: Stage
+          PropagateAtLaunch: true
+          Value:
+            Ref: Stage
+      VPCZoneIdentifier:
+        - Ref: PrivateVpcSubnets
+    DependsOn:
+      - LaunchConfigWorkflow
+    Metadata:
+      aws:cdk:path: CdkStack/AutoscalingGroupWorkflow
+  failuresalarmworkflowF92E2D3B:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 10
+      ActionsEnabled: true
+      AlarmActions:
+        - Ref: pagerdutysns1A9F3928
+      AlarmDescription: More than 3 integration test failures out of 10 for Workflow. Check logs for more information
+      DatapointsToAlarm: 3
+      Dimensions:
+        - Name: stage
+          Value: PROD
+        - Name: suite
+          Value: workflow
+      InsufficientDataActions:
+        - Ref: pagerdutysns1A9F3928
+      MetricName: Test Result
+      Namespace: editorial-tools-integration-tests
+      OKActions:
+        - Ref: pagerdutysns1A9F3928
+      Period: 180
+      Statistic: Maximum
+      Threshold: 1
+      TreatMissingData: ignore
+    Metadata:
+      aws:cdk:path: CdkStack/failures-alarm-workflow/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.63.0,@aws-cdk/aws-autoscaling=1.63.0,@aws-cdk/aws-autoscaling-common=1.63.0,@aws-cdk/aws-cloudwatch=1.63.0,@aws-cdk/aws-cloudwatch-actions=1.63.0,@aws-cdk/aws-ec2=1.63.0,@aws-cdk/aws-elasticloadbalancingv2=1.63.0,@aws-cdk/aws-events=1.63.0,@aws-cdk/aws-iam=1.63.0,@aws-cdk/aws-kms=1.63.0,@aws-cdk/aws-logs=1.63.0,@aws-cdk/aws-s3=1.63.0,@aws-cdk/aws-s3-assets=1.63.0,@aws-cdk/aws-sns=1.63.0,@aws-cdk/aws-sns-subscriptions=1.63.0,@aws-cdk/aws-ssm=1.63.0,@aws-cdk/cloud-assembly-schema=1.63.0,@aws-cdk/core=1.63.0,@aws-cdk/cx-api=1.63.0,@aws-cdk/region-info=1.63.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

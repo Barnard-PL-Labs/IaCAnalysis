@@ -1,0 +1,2298 @@
+Resources:
+  MessagingPresenceLambdaRoleB61D98E4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      MaxSessionDuration: 3600
+      Path: /
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:ChannelFlowCallback
+                  - chime:DescribeChannel
+                  - chime:UpdateChannel
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:chime:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :app-instance/*
+            Version: "2012-10-17"
+          PolicyName: LambdaChannelPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/Presence/LambdaRole/Resource
+  MessagingPresenceLambdaRoleDefaultPolicy4E2875C0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: MessagingPresenceLambdaRoleDefaultPolicy4E2875C0
+      Roles:
+        - Ref: MessagingPresenceLambdaRoleB61D98E4
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/Presence/LambdaRole/DefaultPolicy/Resource
+  MessagingPresenceProcessCustomPresenceFunctionDC60016E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 1f684cb2092821e8bd480a7fd4e6dbad672a9e99f2ae4b8f04e2b0165d7d4ba2.zip
+      Role:
+        Fn::GetAtt:
+          - MessagingPresenceLambdaRoleB61D98E4
+          - Arn
+      Environment:
+        Variables:
+          APP_INSTANCE_ADMIN_USER_ID: admin
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+      TracingConfig:
+        Mode: PassThrough
+    DependsOn:
+      - MessagingPresenceLambdaRoleDefaultPolicy4E2875C0
+      - MessagingPresenceLambdaRoleB61D98E4
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/Presence/ProcessCustomPresenceFunction/Resource
+      aws:asset:path: asset.1f684cb2092821e8bd480a7fd4e6dbad672a9e99f2ae4b8f04e2b0165d7d4ba2
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  MessagingPresenceProcessCustomPresenceFunctionProcessCustomPresenceFunctionPermission9D9C8F2F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - MessagingPresenceProcessCustomPresenceFunctionDC60016E
+          - Arn
+      Principal: messaging.chime.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:chime:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - :app-instance/*
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/Presence/ProcessCustomPresenceFunction/ProcessCustomPresenceFunctionPermission
+  MessagingAppInstanceCreationLambdaRole39596A27:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:CreateAppInstance
+                  - chime:CreateAppInstanceAdmin
+                  - chime:CreateAppInstanceUser
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: AppInstancePolicy
+        - PolicyDocument:
+            Statement:
+              - Action: chime:CreateChannelFlow
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:chime:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :app-instance/*
+            Version: "2012-10-17"
+          PolicyName: CreateChannelFlowPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/AppInstanceCreationLambdaRole/Resource
+  MessagingCreateAppInstanceFunction21CCD8F4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 7b8129e07c5760cfbf85b232a59d7332eb06add1035c12676815927f9b5ffcc3.zip
+      Role:
+        Fn::GetAtt:
+          - MessagingAppInstanceCreationLambdaRole39596A27
+          - Arn
+      Environment:
+        Variables:
+          APP_INSTANCE_USER_ID: admin
+          PRESENCE_PROCESSOR_LAMBDA_ARN:
+            Fn::GetAtt:
+              - MessagingPresenceProcessCustomPresenceFunctionDC60016E
+              - Arn
+          STACK_NAME: AmazonChimeSdkTelehealthWidgetDemo
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - MessagingAppInstanceCreationLambdaRole39596A27
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/CreateAppInstanceFunction/Resource
+      aws:asset:path: asset.7b8129e07c5760cfbf85b232a59d7332eb06add1035c12676815927f9b5ffcc3
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  MessagingCreateAppInstanceProviderframeworkonEventServiceRoleB62F9E7E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/CreateAppInstanceProvider/framework-onEvent/ServiceRole/Resource
+  MessagingCreateAppInstanceProviderframeworkonEventServiceRoleDefaultPolicyF54D0A1A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - MessagingCreateAppInstanceFunction21CCD8F4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - MessagingCreateAppInstanceFunction21CCD8F4
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: MessagingCreateAppInstanceProviderframeworkonEventServiceRoleDefaultPolicyF54D0A1A
+      Roles:
+        - Ref: MessagingCreateAppInstanceProviderframeworkonEventServiceRoleB62F9E7E
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/CreateAppInstanceProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  MessagingCreateAppInstanceProviderframeworkonEvent339DC111:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85.zip
+      Role:
+        Fn::GetAtt:
+          - MessagingCreateAppInstanceProviderframeworkonEventServiceRoleB62F9E7E
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (AmazonChimeSdkTelehealthWidgetDemo/Messaging/CreateAppInstanceProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceFunction21CCD8F4
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - MessagingCreateAppInstanceProviderframeworkonEventServiceRoleDefaultPolicyF54D0A1A
+      - MessagingCreateAppInstanceProviderframeworkonEventServiceRoleB62F9E7E
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/CreateAppInstanceProvider/framework-onEvent/Resource
+      aws:asset:path: asset.e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  MessagingCreateAppInstanceCustomResource300C2961:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - MessagingCreateAppInstanceProviderframeworkonEvent339DC111
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/CreateAppInstanceCustomResource/Default
+  MessagingAppInstanceDeletionLambdaRoleCEDC44EE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:DeleteAppInstance
+                  - chime:DescribeAppInstance
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - MessagingCreateAppInstanceCustomResource300C2961
+                    - AppInstanceArn
+            Version: "2012-10-17"
+          PolicyName: AppInstancePolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/AppInstanceDeletionLambdaRole/Resource
+  MessagingDeleteAppInstanceFunctionA6E94664:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 1de7ab1378e65281051992bc1742ba62978cdde1ada9097031c11883dd98d9ff.zip
+      Role:
+        Fn::GetAtt:
+          - MessagingAppInstanceDeletionLambdaRoleCEDC44EE
+          - Arn
+      Environment:
+        Variables:
+          APP_INSTANCE_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - AppInstanceArn
+          STACK_NAME: AmazonChimeSdkTelehealthWidgetDemo
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - MessagingAppInstanceDeletionLambdaRoleCEDC44EE
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/DeleteAppInstanceFunction/Resource
+      aws:asset:path: asset.1de7ab1378e65281051992bc1742ba62978cdde1ada9097031c11883dd98d9ff
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  MessagingDeleteAppInstanceProviderframeworkonEventServiceRoleD3E37778:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/DeleteAppInstanceProvider/framework-onEvent/ServiceRole/Resource
+  MessagingDeleteAppInstanceProviderframeworkonEventServiceRoleDefaultPolicyAF41A7EA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - MessagingDeleteAppInstanceFunctionA6E94664
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - MessagingDeleteAppInstanceFunctionA6E94664
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: MessagingDeleteAppInstanceProviderframeworkonEventServiceRoleDefaultPolicyAF41A7EA
+      Roles:
+        - Ref: MessagingDeleteAppInstanceProviderframeworkonEventServiceRoleD3E37778
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/DeleteAppInstanceProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  MessagingDeleteAppInstanceProviderframeworkonEventAE8CC872:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85.zip
+      Role:
+        Fn::GetAtt:
+          - MessagingDeleteAppInstanceProviderframeworkonEventServiceRoleD3E37778
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (AmazonChimeSdkTelehealthWidgetDemo/Messaging/DeleteAppInstanceProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - MessagingDeleteAppInstanceFunctionA6E94664
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - MessagingDeleteAppInstanceProviderframeworkonEventServiceRoleDefaultPolicyAF41A7EA
+      - MessagingDeleteAppInstanceProviderframeworkonEventServiceRoleD3E37778
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/DeleteAppInstanceProvider/framework-onEvent/Resource
+      aws:asset:path: asset.e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  MessagingDeleteAppInstanceCustomResource5D6298E0:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - MessagingDeleteAppInstanceProviderframeworkonEventAE8CC872
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Messaging/DeleteAppInstanceCustomResource/Default
+  MeetingCreateMeetingLambdaRole83496DC6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:DescribeChannel
+                  - chime:DescribeChannelMembership
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /user/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel/*
+            Version: "2012-10-17"
+          PolicyName: AppInstanceChannelPolicy
+        - PolicyDocument:
+            Statement:
+              - Action: chime:CreateMeetingWithAttendees
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: MeetingPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Meeting/CreateMeetingLambdaRole/Resource
+  MeetingCreateMeetingFunction680FE463:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 52d49f2b4bb5d2610cee84b13150480fc33ba5f0f82a2739ad391d7174cadecc.zip
+      Role:
+        Fn::GetAtt:
+          - MeetingCreateMeetingLambdaRole83496DC6
+          - Arn
+      Environment:
+        Variables:
+          APP_INSTANCE_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - AppInstanceArn
+          APP_INSTANCE_ADMIN_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - AppInstanceAdminArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - MeetingCreateMeetingLambdaRole83496DC6
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Meeting/CreateMeetingFunction/Resource
+      aws:asset:path: asset.52d49f2b4bb5d2610cee84b13150480fc33ba5f0f82a2739ad391d7174cadecc
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  MeetingCreateAttendeeLambdaRole7128FCE2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:DescribeChannel
+                  - chime:DescribeChannelMembership
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /user/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel/*
+            Version: "2012-10-17"
+          PolicyName: AppInstanceChannelPolicy
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:CreateAttendee
+                  - chime:GetMeeting
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: MeetingPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Meeting/CreateAttendeeLambdaRole/Resource
+  MeetingCreateAttendeeFunction00614047:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 6b93ecbc6585a6259673ec550e1588b75d3b05291535a0acc73b9d093be4ec28.zip
+      Role:
+        Fn::GetAtt:
+          - MeetingCreateAttendeeLambdaRole7128FCE2
+          - Arn
+      Environment:
+        Variables:
+          APP_INSTANCE_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - AppInstanceArn
+          APP_INSTANCE_ADMIN_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - AppInstanceAdminArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - MeetingCreateAttendeeLambdaRole7128FCE2
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Meeting/CreateAttendeeFunction/Resource
+      aws:asset:path: asset.6b93ecbc6585a6259673ec550e1588b75d3b05291535a0acc73b9d093be4ec28
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  CognitoLambdaRoleD35B0D4A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: chime:CreateAppInstanceUser
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: AppInstancePolicy
+        - PolicyDocument:
+            Statement:
+              - Action: cognito-idp:AdminAddUserToGroup
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:cognito-idp:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :userpool/*
+            Version: "2012-10-17"
+          PolicyName: CognitoPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/LambdaRole/Resource
+  CognitoCreateUserForCognitoFunctionE5321E38:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 61635160a297aa9c91d9a5d97ae7d95f2f0ea9d3d350b0fcd3521ae88695025e.zip
+      Role:
+        Fn::GetAtt:
+          - CognitoLambdaRoleD35B0D4A
+          - Arn
+      Environment:
+        Variables:
+          CHIME_APP_INSTANCE_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - AppInstanceArn
+          DOCTOR_USER_POOL_GROUP_NAME: DoctorUserPoolGroup
+          PATIENT_USER_POOL_GROUP_NAME: PatientUserPoolGroup
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - CognitoLambdaRoleD35B0D4A
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/CreateUserForCognitoFunction/Resource
+      aws:asset:path: asset.61635160a297aa9c91d9a5d97ae7d95f2f0ea9d3d350b0fcd3521ae88695025e
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  CognitoCreateUserForCognitoFunctionPostAuthenticationCognito424629BE:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - CognitoCreateUserForCognitoFunctionE5321E38
+          - Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - CognitoUserPool279BBD48
+          - Arn
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/CreateUserForCognitoFunction/PostAuthenticationCognito
+  CognitoCreateUserForCognitoFunctionCreateUserForCognitoFunctionPermission8BCA67B5:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - CognitoCreateUserForCognitoFunctionE5321E38
+          - Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - CognitoUserPool279BBD48
+          - Arn
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/CreateUserForCognitoFunction/CreateUserForCognitoFunctionPermission
+  CognitoUserPool279BBD48:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      LambdaConfig:
+        PostAuthentication:
+          Fn::GetAtt:
+            - CognitoCreateUserForCognitoFunctionE5321E38
+            - Arn
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+      Schema:
+        - Mutable: true
+          Name: email
+          Required: true
+        - Mutable: true
+          Name: name
+          Required: true
+        - Mutable: true
+          Name: phone_number
+          Required: true
+        - AttributeDataType: String
+          Mutable: true
+          Name: accountType
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameAttributes:
+        - email
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/UserPool/Resource
+  CognitoUserPoolClientEF2538C4:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: CognitoUserPool279BBD48
+      AllowedOAuthFlowsUserPoolClient: false
+      GenerateSecret: false
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/UserPoolClient/Resource
+  CognitoIdentityPool2E2E339F:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: CognitoUserPoolClientEF2538C4
+          ProviderName:
+            Fn::GetAtt:
+              - CognitoUserPool279BBD48
+              - ProviderName
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/IdentityPool
+  CognitoDoctorGroupRole8834E2AF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: CognitoIdentityPool2E2E339F
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: chime:GetMessagingSessionEndpoint
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - chime:Connect
+                  - chime:ListChannelMessages
+                  - chime:ListChannelsModeratedByAppInstanceUser
+                  - chime:SendChannelMessage
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /user/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel-flow/*
+            Version: "2012-10-17"
+          PolicyName: MessagingPolicy
+        - PolicyDocument:
+            Statement:
+              - Action: cognito-idp:ListUsersInGroup
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:cognito-idp:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :userpool/
+                      - Ref: CognitoUserPool279BBD48
+            Version: "2012-10-17"
+          PolicyName: CognitoPolicy
+        - PolicyDocument:
+            Statement:
+              - Action: lambda:InvokeFunction
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:lambda:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :function:*
+            Version: "2012-10-17"
+          PolicyName: LambdaPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/DoctorGroupRole/Resource
+  CognitoDoctorUserPoolGroup7F2F3A36:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId:
+        Ref: CognitoUserPool279BBD48
+      GroupName: DoctorUserPoolGroup
+      RoleArn:
+        Fn::GetAtt:
+          - CognitoDoctorGroupRole8834E2AF
+          - Arn
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/DoctorUserPoolGroup
+  CognitoPatientGroupRoleDC70A02D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: CognitoIdentityPool2E2E339F
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: chime:GetMessagingSessionEndpoint
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - chime:Connect
+                  - chime:ListChannelMessages
+                  - chime:ListChannelsModeratedByAppInstanceUser
+                  - chime:SendChannelMessage
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /user/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel-flow/*
+            Version: "2012-10-17"
+          PolicyName: MessagingPolicy
+        - PolicyDocument:
+            Statement:
+              - Action: lambda:InvokeFunction
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - MeetingCreateAttendeeFunction00614047
+                    - Arn
+            Version: "2012-10-17"
+          PolicyName: LambdaPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/PatientGroupRole/Resource
+  CognitoPatientUserPoolGroup382A5816:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId:
+        Ref: CognitoUserPool279BBD48
+      GroupName: PatientUserPoolGroup
+      RoleArn:
+        Fn::GetAtt:
+          - CognitoPatientGroupRoleDC70A02D
+          - Arn
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/PatientUserPoolGroup
+  CognitoAuthorizedRole916883F8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: CognitoIdentityPool2E2E339F
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/AuthorizedRole/Resource
+  CognitoUnauthorizedRole3778746A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: CognitoIdentityPool2E2E339F
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/UnauthorizedRole/Resource
+  CognitoIdentityPoolRoleAttachment26CFBF32:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: CognitoIdentityPool2E2E339F
+      RoleMappings:
+        cognito:
+          AmbiguousRoleResolution: Deny
+          IdentityProvider:
+            Fn::Join:
+              - ""
+              - - cognito-idp.
+                - Ref: AWS::Region
+                - .amazonaws.com/
+                - Ref: CognitoUserPool279BBD48
+                - ":"
+                - Ref: CognitoUserPoolClientEF2538C4
+          Type: Token
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - CognitoAuthorizedRole916883F8
+            - Arn
+        unauthenticated:
+          Fn::GetAtt:
+            - CognitoUnauthorizedRole3778746A
+            - Arn
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Cognito/IdentityPoolRoleAttachment
+  DistributionOriginAccessIdentityA8F0ABDF:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Allows CloudFront to reach the bucket
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Distribution/OriginAccessIdentity/Resource
+  DistributionBucketE8AB2BB2:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Distribution/Bucket/Resource
+  DistributionBucketPolicy5399EBB8:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: DistributionBucketE8AB2BB2
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - DistributionBucketE8AB2BB2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - DistributionBucketE8AB2BB2
+                        - Arn
+                    - /*
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - DistributionOriginAccessIdentityA8F0ABDF
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - DistributionBucketE8AB2BB2
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Distribution/Bucket/Policy/Resource
+  DistributionBucketAutoDeleteObjectsCustomResource94EF714D:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: DistributionBucketE8AB2BB2
+    DependsOn:
+      - DistributionBucketPolicy5399EBB8
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Distribution/Bucket/AutoDeleteObjectsCustomResource/Default
+  DistributionCFDistributionB74B3E76:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: https-only
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::GetAtt:
+                - DistributionBucketE8AB2BB2
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: DistributionOriginAccessIdentityA8F0ABDF
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Distribution/Distribution/CFDistribution
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: e57c1acaa363d7d2b81736776007a7091bc73dff4aeb8135627c4511a51e7dca.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs14.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: DistributionBucketE8AB2BB2
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.e57c1acaa363d7d2b81736776007a7091bc73dff4aeb8135627c4511a51e7dca
+      aws:asset:property: Code
+  NotificationAppD29E4BD3:
+    Type: AWS::Pinpoint::App
+    Properties:
+      Name: AmazonChimeSdkTelehealthWidgetDemo
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/App
+  NotificationSmsChannel0C99FF11:
+    Type: AWS::Pinpoint::SMSChannel
+    Properties:
+      ApplicationId:
+        Ref: NotificationAppD29E4BD3
+      Enabled: true
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/SmsChannel
+  NotificationLambdaRole37A69693:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: chime:DescribeChannel
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /user/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel/*
+            Version: "2012-10-17"
+          PolicyName: MessagingPolicy
+        - PolicyDocument:
+            Statement:
+              - Action: mobiletargeting:SendMessages
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:mobiletargeting:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :apps/
+                      - Ref: NotificationAppD29E4BD3
+                      - /messages
+            Version: "2012-10-17"
+          PolicyName: PinpointPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/LambdaRole/Resource
+  NotificationSendSmsMessageFunctionB1B551C3:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 596514f0d6b84697eef8a28cb8bd7ae0af8a748dc4ad5792699ea4e8b966eef9.zip
+      Role:
+        Fn::GetAtt:
+          - NotificationLambdaRole37A69693
+          - Arn
+      Environment:
+        Variables:
+          APP_INSTANCE_ADMIN_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - AppInstanceAdminArn
+          PINPOINT_APPLICATION_ID:
+            Ref: NotificationAppD29E4BD3
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - NotificationLambdaRole37A69693
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/SendSmsMessageFunction/Resource
+      aws:asset:path: asset.596514f0d6b84697eef8a28cb8bd7ae0af8a748dc4ad5792699ea4e8b966eef9
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  NotificationNotificationStateMachineLogGroupCEFAB5E9:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 731
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/NotificationStateMachineLogGroup/Resource
+  NotificationStateMachineRoleC25F44F2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/StateMachine/Role/Resource
+  NotificationStateMachineRoleDefaultPolicy26B1C7D6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogDelivery
+              - logs:GetLogDelivery
+              - logs:UpdateLogDelivery
+              - logs:DeleteLogDelivery
+              - logs:ListLogDeliveries
+              - logs:PutResourcePolicy
+              - logs:DescribeResourcePolicies
+              - logs:DescribeLogGroups
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - NotificationSendSmsMessageFunctionB1B551C3
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - NotificationSendSmsMessageFunctionB1B551C3
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: NotificationStateMachineRoleDefaultPolicy26B1C7D6
+      Roles:
+        - Ref: NotificationStateMachineRoleC25F44F2
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/StateMachine/Role/DefaultPolicy/Resource
+  NotificationStateMachine3F70E837:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - NotificationStateMachineRoleC25F44F2
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Wait","States":{"Wait":{"Type":"Wait","TimestampPath":"$.timestamp","Next":"SendSmsMessageJob"},"SendSmsMessageJob":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - NotificationSendSmsMessageFunctionB1B551C3
+                - Arn
+            - '","Payload.$":"$"}}}}'
+      LoggingConfiguration:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn:
+                Fn::GetAtt:
+                  - NotificationNotificationStateMachineLogGroupCEFAB5E9
+                  - Arn
+        Level: ALL
+    DependsOn:
+      - NotificationStateMachineRoleDefaultPolicy26B1C7D6
+      - NotificationStateMachineRoleC25F44F2
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/StateMachine/Resource
+  NotificationCustomResourceFunctionRoleBF244DA6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - states:ListExecutions
+                  - states:StopExecution
+                Effect: Allow
+                Resource: arn:aws:states:*:*:*
+            Version: "2012-10-17"
+          PolicyName: StepFunctionPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/CustomResourceFunctionRole/Resource
+  NotificationDeleteSfnExecutions53D27299:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 044854368d345928b14dde4a54fef0964af0cabafb2dd621abf4c560b6f39d5d.zip
+      Role:
+        Fn::GetAtt:
+          - NotificationCustomResourceFunctionRoleBF244DA6
+          - Arn
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN:
+            Ref: NotificationStateMachine3F70E837
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - NotificationCustomResourceFunctionRoleBF244DA6
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/DeleteSfnExecutions/Resource
+      aws:asset:path: asset.044854368d345928b14dde4a54fef0964af0cabafb2dd621abf4c560b6f39d5d
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  NotificationProviderframeworkonEventServiceRole8516C6A4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/Provider/framework-onEvent/ServiceRole/Resource
+  NotificationProviderframeworkonEventServiceRoleDefaultPolicyFBE57D68:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - NotificationDeleteSfnExecutions53D27299
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - NotificationDeleteSfnExecutions53D27299
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: NotificationProviderframeworkonEventServiceRoleDefaultPolicyFBE57D68
+      Roles:
+        - Ref: NotificationProviderframeworkonEventServiceRole8516C6A4
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/Provider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  NotificationProviderframeworkonEvent1DED2897:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85.zip
+      Role:
+        Fn::GetAtt:
+          - NotificationProviderframeworkonEventServiceRole8516C6A4
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (AmazonChimeSdkTelehealthWidgetDemo/Notification/Provider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - NotificationDeleteSfnExecutions53D27299
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - NotificationProviderframeworkonEventServiceRoleDefaultPolicyFBE57D68
+      - NotificationProviderframeworkonEventServiceRole8516C6A4
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/Provider/framework-onEvent/Resource
+      aws:asset:path: asset.e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  NotificationCustomResourceA2821B4D:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - NotificationProviderframeworkonEvent1DED2897
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Notification/CustomResource/Default
+  AppointmentCreateAppointmentFunctionRole9891CC91:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:AssociateChannelFlow
+                  - chime:BatchCreateChannelMembership
+                  - chime:CreateChannel
+                  - chime:CreateChannelModerator
+                  - chime:DeleteChannel
+                  - chime:DescribeChannel
+                  - chime:UpdateChannel
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /user/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel-flow/*
+            Version: "2012-10-17"
+          PolicyName: MessagingPolicy
+        - PolicyDocument:
+            Statement:
+              - Action: cognito-idp:AdminGetUser
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:cognito-idp:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :userpool/
+                      - Ref: CognitoUserPool279BBD48
+            Version: "2012-10-17"
+          PolicyName: CognitoPolicy
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - states:StartExecution
+                  - states:StopExecution
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: StepFunctionPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Appointment/CreateAppointmentFunctionRole/Resource
+  AppointmentCreateAppointmentFunction9CB59FF4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: cefd5c122075ec74d63cc2938582eb46c36f33aad990e7e2f3a52ee28b71ba07.zip
+      Role:
+        Fn::GetAtt:
+          - AppointmentCreateAppointmentFunctionRole9891CC91
+          - Arn
+      Environment:
+        Variables:
+          APP_INSTANCE_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - AppInstanceArn
+          CHANNEL_FLOW_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - ChannelFlowArn
+          COGNITO_USER_POOL_ID:
+            Ref: CognitoUserPool279BBD48
+          STATE_MACHINE_ARN:
+            Ref: NotificationStateMachine3F70E837
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - AppointmentCreateAppointmentFunctionRole9891CC91
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Appointment/CreateAppointmentFunction/Resource
+      aws:asset:path: asset.cefd5c122075ec74d63cc2938582eb46c36f33aad990e7e2f3a52ee28b71ba07
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  AppointmentDeleteAppointmentFunctionRole97E1B6ED:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:DeleteChannel
+                  - chime:DescribeChannel
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /user/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel-flow/*
+            Version: "2012-10-17"
+          PolicyName: MessagingPolicy
+        - PolicyDocument:
+            Statement:
+              - Action: states:StopExecution
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: StepFunctionPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Appointment/DeleteAppointmentFunctionRole/Resource
+  AppointmentDeleteAppointmentFunction280E1FA6:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 546ef6e338f8338aedb596422c0c5a528c41fc6b5f1418abf268f9203edc945b.zip
+      Role:
+        Fn::GetAtt:
+          - AppointmentDeleteAppointmentFunctionRole97E1B6ED
+          - Arn
+      Environment:
+        Variables:
+          APP_INSTANCE_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - AppInstanceArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - AppointmentDeleteAppointmentFunctionRole97E1B6ED
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/Appointment/DeleteAppointmentFunction/Resource
+      aws:asset:path: asset.546ef6e338f8338aedb596422c0c5a528c41fc6b5f1418abf268f9203edc945b
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  PSTNTableBB227D21:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: transactionId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: transactionId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/Table/Resource
+  PSTNHandleTelephonyEventsFunctionRole6BDDE0BE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: chime:SendChannelMessage
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /user/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - MessagingCreateAppInstanceCustomResource300C2961
+                            - AppInstanceArn
+                        - /channel/*
+            Version: "2012-10-17"
+          PolicyName: ChimeMessagingPolicy
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:CreateAttendee
+                  - chime:DeleteAttendee
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: ChimeMeetingsPolicy
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - dynamodb:GetItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:UpdateItem
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - PSTNTableBB227D21
+                    - Arn
+            Version: "2012-10-17"
+          PolicyName: DynamoDbPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/HandleTelephonyEventsFunctionRole/Resource
+  PSTNHandleTelephonyEventsFunction3A98CD9B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: b4198b9e351041d6e7e3d2844a89340735c1fd2904b831cd010940d0893cc861.zip
+      Role:
+        Fn::GetAtt:
+          - PSTNHandleTelephonyEventsFunctionRole6BDDE0BE
+          - Arn
+      Environment:
+        Variables:
+          APP_INSTANCE_ARN:
+            Fn::GetAtt:
+              - MessagingCreateAppInstanceCustomResource300C2961
+              - AppInstanceArn
+          TABLE_NAME:
+            Ref: PSTNTableBB227D21
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - PSTNHandleTelephonyEventsFunctionRole6BDDE0BE
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/HandleTelephonyEventsFunction/Resource
+      aws:asset:path: asset.b4198b9e351041d6e7e3d2844a89340735c1fd2904b831cd010940d0893cc861
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  PSTNCreatePstnFunctionRole4D2EF91D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:CreatePhoneNumberOrder
+                  - chime:CreateSipMediaApplication
+                  - chime:GetPhoneNumberOrder
+                  - chime:SearchAvailablePhoneNumbers
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: ChimePolicy
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - lambda:GetPolicy
+                  - lambda:AddPermission
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: LabmdaPolicy
+        - PolicyDocument:
+            Statement:
+              - Action: iam:CreateServiceLinkedRole
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: IamPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/CreatePstnFunctionRole/Resource
+  PSTNCreatePstnFunction52014F16:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 20d1ce183ddf62a1a2a7b7e6491a26de2dd18c2391685bce30db26d7f6e011c6.zip
+      Role:
+        Fn::GetAtt:
+          - PSTNCreatePstnFunctionRole4D2EF91D
+          - Arn
+      Environment:
+        Variables:
+          HANDLE_TELEPHONY_EVENTS_FUNCTION_ARN:
+            Fn::GetAtt:
+              - PSTNHandleTelephonyEventsFunction3A98CD9B
+              - Arn
+          STACK_NAME: AmazonChimeSdkTelehealthWidgetDemo
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 120
+    DependsOn:
+      - PSTNCreatePstnFunctionRole4D2EF91D
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/CreatePstnFunction/Resource
+      aws:asset:path: asset.20d1ce183ddf62a1a2a7b7e6491a26de2dd18c2391685bce30db26d7f6e011c6
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  PSTNProviderframeworkonEventServiceRole950672B9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/Provider/framework-onEvent/ServiceRole/Resource
+  PSTNProviderframeworkonEventServiceRoleDefaultPolicyEF9CA5F6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PSTNCreatePstnFunction52014F16
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PSTNCreatePstnFunction52014F16
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: PSTNProviderframeworkonEventServiceRoleDefaultPolicyEF9CA5F6
+      Roles:
+        - Ref: PSTNProviderframeworkonEventServiceRole950672B9
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/Provider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  PSTNProviderframeworkonEventF3788A0C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85.zip
+      Role:
+        Fn::GetAtt:
+          - PSTNProviderframeworkonEventServiceRole950672B9
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (AmazonChimeSdkTelehealthWidgetDemo/PSTN/Provider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - PSTNCreatePstnFunction52014F16
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - PSTNProviderframeworkonEventServiceRoleDefaultPolicyEF9CA5F6
+      - PSTNProviderframeworkonEventServiceRole950672B9
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/Provider/framework-onEvent/Resource
+      aws:asset:path: asset.e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  PSTNCustomResource6DC15E41:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - PSTNProviderframeworkonEventF3788A0C
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/CustomResource/Default
+  PSTNPSTNResourcesCleanUpLambdaRoleAF2FC8A3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - chime:DeletePhoneNumber
+                  - chime:DeleteSipMediaApplication
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: ChimePolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/PSTNResourcesCleanUpLambdaRole/Resource
+  PSTNDeleteSIPResourcesFunction718817D5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: c8523fe1988fedc58139e1478b34c41b516f891b86b6ec7d55257dc90e95de93.zip
+      Role:
+        Fn::GetAtt:
+          - PSTNPSTNResourcesCleanUpLambdaRoleAF2FC8A3
+          - Arn
+      Environment:
+        Variables:
+          SIP_MEDIA_APPLICATION_ID:
+            Fn::GetAtt:
+              - PSTNCustomResource6DC15E41
+              - SipMediaApplicationId
+          PHONE_NUMBER:
+            Fn::GetAtt:
+              - PSTNCustomResource6DC15E41
+              - PhoneNumber
+          STACK_NAME: AmazonChimeSdkTelehealthWidgetDemo
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - PSTNPSTNResourcesCleanUpLambdaRoleAF2FC8A3
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/DeleteSIPResourcesFunction/Resource
+      aws:asset:path: asset.c8523fe1988fedc58139e1478b34c41b516f891b86b6ec7d55257dc90e95de93
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  PSTNDeleteSIPResourcesProviderframeworkonEventServiceRole3C06F745:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/DeleteSIPResourcesProvider/framework-onEvent/ServiceRole/Resource
+  PSTNDeleteSIPResourcesProviderframeworkonEventServiceRoleDefaultPolicyA5043B2C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PSTNDeleteSIPResourcesFunction718817D5
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PSTNDeleteSIPResourcesFunction718817D5
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: PSTNDeleteSIPResourcesProviderframeworkonEventServiceRoleDefaultPolicyA5043B2C
+      Roles:
+        - Ref: PSTNDeleteSIPResourcesProviderframeworkonEventServiceRole3C06F745
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/DeleteSIPResourcesProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  PSTNDeleteSIPResourcesProviderframeworkonEvent5EC2D4B4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85.zip
+      Role:
+        Fn::GetAtt:
+          - PSTNDeleteSIPResourcesProviderframeworkonEventServiceRole3C06F745
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (AmazonChimeSdkTelehealthWidgetDemo/PSTN/DeleteSIPResourcesProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - PSTNDeleteSIPResourcesFunction718817D5
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - PSTNDeleteSIPResourcesProviderframeworkonEventServiceRoleDefaultPolicyA5043B2C
+      - PSTNDeleteSIPResourcesProviderframeworkonEventServiceRole3C06F745
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/DeleteSIPResourcesProvider/framework-onEvent/Resource
+      aws:asset:path: asset.e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  PSTNDeleteSIPResourcesCustomResourceBD997724:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - PSTNDeleteSIPResourcesProviderframeworkonEvent5EC2D4B4
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/DeleteSIPResourcesCustomResource/Default
+  PSTNMakeOutboundCallFunctionRole8B8155EF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: chime:CreateSipMediaApplicationCall
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: ChimePolicy
+        - PolicyDocument:
+            Statement:
+              - Action: cognito-idp:AdminGetUser
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:cognito-idp:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :userpool/
+                      - Ref: CognitoUserPool279BBD48
+            Version: "2012-10-17"
+          PolicyName: CognitoPolicy
+        - PolicyDocument:
+            Statement:
+              - Action: dynamodb:PutItem
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - PSTNTableBB227D21
+                    - Arn
+            Version: "2012-10-17"
+          PolicyName: DynamoDbPolicy
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/MakeOutboundCallFunctionRole/Resource
+  PSTNMakeOutboundCallFunction3D14131E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 8144b02283790c52f057d0b6774daa5e6a3d38a7a304ecdf885eda1cd2670821.zip
+      Role:
+        Fn::GetAtt:
+          - PSTNMakeOutboundCallFunctionRole8B8155EF
+          - Arn
+      Environment:
+        Variables:
+          COGNITO_USER_POOL_ID:
+            Ref: CognitoUserPool279BBD48
+          PHONE_NUMBER:
+            Fn::GetAtt:
+              - PSTNCustomResource6DC15E41
+              - PhoneNumber
+          SIP_MEDIA_APPLICATION_ID:
+            Fn::GetAtt:
+              - PSTNCustomResource6DC15E41
+              - SipMediaApplicationId
+          TABLE_NAME:
+            Ref: PSTNTableBB227D21
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - PSTNMakeOutboundCallFunctionRole8B8155EF
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/PSTN/MakeOutboundCallFunction/Resource
+      aws:asset:path: asset.8144b02283790c52f057d0b6774daa5e6a3d38a7a304ecdf885eda1cd2670821
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21STW/bMAz9Lb0r2tICxa6phw4F+hEkG3o0ZElxGcuiIUoZAsP/fZIcu26wEx/5SJF84i2/u+ffb8RfWknVrAxUvN97IRsWQ2UPouX9Do1mxcFmu0UD8pzcEQ3MiLZSorSo9JH4azaPwUoPaBndlYJIe+KbZKLP+4cgG+0fBGk2wvTaBY3ms8nSn1rxPhJzhzSJdi0QJW8KD0xibcEj7/+QdltEkzJnPIHCgLZ+SX1GnlQE4M/Xxb8chu46IYmz8VG5jzYGY3uDQR0cWs/7Nwc12I2UmmiqSfVFynlMOf/PmOl3Xf0E8g6qMO289AfWge0QUq9Ibbo83f5lX3wIa7UZGHndHS7SEO/fBXgWv9nrlzgw2Py9S/+qovSCGuLPWf4ne8JGM4N1fOkZ61mOCQ9Mna1oUcVb+i2q8XgyGAaWzyC2iuvWTAby2JZOEwYXd+dbhydQ2rEiM7sLka9vxl+ouWKZ+xZ8F/IfFmgVjBqlA+VH+nZa/+DrW76+ORLAyoUodqv5brT/ACF9GK8QAwAA
+    Metadata:
+      aws:cdk:path: AmazonChimeSdkTelehealthWidgetDemo/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  AppInstanceArn:
+    Value:
+      Fn::GetAtt:
+        - MessagingCreateAppInstanceCustomResource300C2961
+        - AppInstanceArn
+  ChannelFlowArn:
+    Value:
+      Fn::GetAtt:
+        - MessagingCreateAppInstanceCustomResource300C2961
+        - ChannelFlowArn
+  CognitoIdentityPoolId:
+    Value:
+      Ref: CognitoIdentityPool2E2E339F
+  CognitoUserPoolClientId:
+    Value:
+      Ref: CognitoUserPoolClientEF2538C4
+  CognitoUserPoolId:
+    Value:
+      Ref: CognitoUserPool279BBD48
+  CreateAppointmentFunctionArn:
+    Value:
+      Fn::GetAtt:
+        - AppointmentCreateAppointmentFunction9CB59FF4
+        - Arn
+  CreateAttendeeFunctionArn:
+    Value:
+      Fn::GetAtt:
+        - MeetingCreateAttendeeFunction00614047
+        - Arn
+  CreateMeetingFunctionArn:
+    Value:
+      Fn::GetAtt:
+        - MeetingCreateMeetingFunction680FE463
+        - Arn
+  DeleteAppointmentFunctionArn:
+    Value:
+      Fn::GetAtt:
+        - AppointmentDeleteAppointmentFunction280E1FA6
+        - Arn
+  DistributionBucketName:
+    Value:
+      Ref: DistributionBucketE8AB2BB2
+  DistributionId:
+    Value:
+      Ref: DistributionCFDistributionB74B3E76
+  DistributionUrl:
+    Value:
+      Fn::GetAtt:
+        - DistributionCFDistributionB74B3E76
+        - DomainName
+  DoctorUserPoolGroupName:
+    Value: DoctorUserPoolGroup
+  MakeOutboundCallFunctionArn:
+    Value:
+      Fn::GetAtt:
+        - PSTNMakeOutboundCallFunction3D14131E
+        - Arn
+  PatientUserPoolGroupName:
+    Value: PatientUserPoolGroup
+  Region:
+    Value:
+      Ref: AWS::Region
+  StateMachineArn:
+    Value:
+      Ref: NotificationStateMachine3F70E837
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

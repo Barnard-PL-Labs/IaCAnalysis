@@ -1,0 +1,486 @@
+Resources:
+  cert56CA94EB:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: botodocs.com
+      DomainValidationOptions:
+        - DomainName: botodocs.com
+          ValidationDomain: botodocs.com
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: botodocs/cert/Resource
+  WebsiteBucket75C24D94:
+    Type: AWS::S3::Bucket
+    Properties:
+      WebsiteConfiguration:
+        ErrorDocument: error.html
+        IndexDocument: index.html
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: botodocs/WebsiteBucket/Resource
+  WebsiteBucketPolicyE10E3262:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: WebsiteBucket75C24D94
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - OriginAccessIdentity
+                  - S3CanonicalUserId
+            Resource:
+              - Fn::GetAtt:
+                  - WebsiteBucket75C24D94
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - WebsiteBucket75C24D94
+                        - Arn
+                    - /*
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - pipelinedeploysiteRoleC50A950E
+                  - Arn
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - WebsiteBucket75C24D94
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: botodocs/WebsiteBucket/Policy/Resource
+  OriginAccessIdentity:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment:
+          Fn::Join:
+            - ""
+            - - "CloudFront OriginAccessIdentity for "
+              - Ref: WebsiteBucket75C24D94
+    Metadata:
+      aws:cdk:path: botodocs/OriginAccessIdentity
+  WebSiteDistributionCFDistributionFAD03684:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - botodocs.com
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - WebsiteBucket75C24D94
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig: {}
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: cert56CA94EB
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: botodocs/WebSiteDistribution/CFDistribution
+  pipelinedeploysiteRoleC50A950E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: botodocs/pipeline/deploy-site/Role/Resource
+  pipelinedeploysiteRoleDefaultPolicy8DCD3687:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: pipelinedeploysite062A3A4E
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: pipelinedeploysite062A3A4E
+                    - :*
+          - Action:
+              - cloudformation:DescribeStacks
+              - cloudformation:GetTemplate
+              - cloudformation:CreateChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DeleteStack
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:cloudformation:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :stack/CDKToolkit/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:cloudformation:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :stack/botodocs*/*
+          - Action:
+              - iam:CreateRole
+              - iam:GetRole
+              - iam:PassRole
+              - iam:UpdateRole
+              - iam:DeleteRole
+              - iam:AttachRolePolicy
+              - iam:DetachRolePolicy
+              - iam:PutRolePolicy
+              - iam:DeleteRolePolicy
+              - iam:GetRolePolicy
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:iam::"
+                  - Ref: AWS::AccountId
+                  - :role/botodocs*
+          - Action: acm:RequestCertificate
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - acm:DeleteCertificate
+              - acm:DescribeCertificate
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:acm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :certificate/*
+          - Action:
+              - s3:CreateBucket
+              - s3:DeleteBucket
+              - s3:PutBucketWebsite
+              - s3:GetBucketPolicy
+              - s3:PutBucketPolicy
+              - s3:DeleteBucketPolicy
+              - s3:PutEncryptionConfiguration
+              - s3:PutBucketPublicAccessBlock
+              - s3:*Object*
+              - s3:ListBucket
+            Effect: Allow
+            Resource:
+              - arn:aws:s3:::botodocs*
+              - arn:aws:s3:::cdktoolkit-stagingbucket-*
+              - Fn::GetAtt:
+                  - WebsiteBucket75C24D94
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - WebsiteBucket75C24D94
+                        - Arn
+                    - /*
+          - Action:
+              - codebuild:BatchGetProjects
+              - codebuild:CreateProject
+              - codebuild:UpdateProject
+              - codebuild:DeleteProject
+              - codebuild:CreateWebhook
+              - codebuild:UpdateWebhook
+              - codebuild:DeleteWebhook
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :project/pipelinedeploysite*
+          - Action: cloudfront:*CloudFrontOriginAccessIdentity*
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:*Function*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:lambda:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :function:botodocs*
+          - Action:
+              - cloudfront:*Distribution*
+              - cloudfront:*agResource
+              - cloudfront:CreateInvalidation
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:cloudfront::"
+                  - Ref: AWS::AccountId
+                  - :distribution/*
+        Version: "2012-10-17"
+      PolicyName: pipelinedeploysiteRoleDefaultPolicy8DCD3687
+      Roles:
+        - Ref: pipelinedeploysiteRoleC50A950E
+    Metadata:
+      aws:cdk:path: botodocs/pipeline/deploy-site/Role/DefaultPolicy/Resource
+  pipelinedeploysite062A3A4E:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:3.0
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - pipelinedeploysiteRoleC50A950E
+          - Arn
+      Source:
+        BuildSpec:
+          Fn::Join:
+            - ""
+            - - |-
+                {
+                  "version": "0.2",
+                  "phases": {
+                    "install": {
+                      "runtime-versions": {
+                        "nodejs": "12",
+                        "python": "3.8"
+                      }
+                    },
+                    "pre_build": {
+                      "commands": [
+                        "npm i",
+                        "pip install --upgrade boto3 awscli"
+                      ]
+                    },
+                    "build": {
+                      "commands": [
+                        "python main.py",
+                        "npm run cdk diff || true",
+                        "npm run cdk deploy",
+                        "aws s3 cp --acl public-read --recursive docs/ s3://
+              - Ref: WebsiteBucket75C24D94
+              - |-
+                ",
+                        "aws cloudfront create-invalidation --distribution-id 
+              - Ref: WebSiteDistributionCFDistributionFAD03684
+              - |-2
+                 --paths \"/*\""
+                      ]
+                    }
+                  }
+                }
+        GitCloneDepth: 1
+        Location: https://github.com/jeshan/botodocs.git
+        ReportBuildStatus: true
+        Type: GITHUB
+      BadgeEnabled: true
+      Description: Deploys website at botodocs.com
+      TimeoutInMinutes: 30
+      Triggers:
+        FilterGroups:
+          - - Pattern: PUSH
+              Type: EVENT
+            - Pattern: refs/heads/master
+              Type: HEAD_REF
+        Webhook: true
+    Metadata:
+      aws:cdk:path: botodocs/pipeline/deploy-site/Resource
+  pipelinedeploysiteEventsRole60A312BB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: botodocs/pipeline/deploy-site/EventsRole/Resource
+  pipelinedeploysiteEventsRoleDefaultPolicy99F1AFEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codebuild:StartBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - pipelinedeploysite062A3A4E
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: pipelinedeploysiteEventsRoleDefaultPolicy99F1AFEB
+      Roles:
+        - Ref: pipelinedeploysiteEventsRole60A312BB
+    Metadata:
+      aws:cdk:path: botodocs/pipeline/deploy-site/EventsRole/DefaultPolicy/Resource
+  pipelinebuildschedule2EA3A0A5:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: cron(0 0 1/3 * ? *)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - pipelinedeploysite062A3A4E
+              - Arn
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - pipelinedeploysiteEventsRole60A312BB
+              - Arn
+    Metadata:
+      aws:cdk:path: botodocs/pipeline/build-schedule/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.34.1,@aws-cdk/aws-applicationautoscaling=1.34.1,@aws-cdk/aws-autoscaling=1.34.1,@aws-cdk/aws-autoscaling-common=1.34.1,@aws-cdk/aws-autoscaling-hooktargets=1.34.1,@aws-cdk/aws-certificatemanager=1.34.1,@aws-cdk/aws-cloudformation=1.34.1,@aws-cdk/aws-cloudfront=1.34.1,@aws-cdk/aws-cloudwatch=1.34.1,@aws-cdk/aws-codebuild=1.34.1,@aws-cdk/aws-ec2=1.34.1,@aws-cdk/aws-ecr=1.34.1,@aws-cdk/aws-ecr-assets=1.34.1,@aws-cdk/aws-ecs=1.34.1,@aws-cdk/aws-elasticloadbalancingv2=1.34.1,@aws-cdk/aws-events=1.34.1,@aws-cdk/aws-events-targets=1.34.1,@aws-cdk/aws-iam=1.34.1,@aws-cdk/aws-kms=1.34.1,@aws-cdk/aws-lambda=1.34.1,@aws-cdk/aws-logs=1.34.1,@aws-cdk/aws-s3=1.34.1,@aws-cdk/aws-s3-assets=1.34.1,@aws-cdk/aws-servicediscovery=1.34.1,@aws-cdk/aws-sns=1.34.1,@aws-cdk/aws-sns-subscriptions=1.34.1,@aws-cdk/aws-sqs=1.34.1,@aws-cdk/aws-ssm=1.34.1,@aws-cdk/cloud-assembly-schema=1.34.1,@aws-cdk/core=1.34.1,@aws-cdk/cx-api=1.34.1,@aws-cdk/region-info=1.34.1,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

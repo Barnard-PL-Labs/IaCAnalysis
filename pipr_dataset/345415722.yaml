@@ -1,0 +1,523 @@
+Resources:
+  UserPoolForTodoD26F05A4:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: Hello {username}, Thanks for signing up to our Todo app! Your verification code is {####}
+      EmailVerificationSubject: Hello, Welcome to my Todo Application
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+      Schema:
+        - Mutable: false
+          Name: email
+          Required: true
+        - Mutable: true
+          Name: name
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameAttributes:
+        - email
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: Hello {username}, Thanks for signing up to our Todo app! Your verification code is {####}
+        EmailSubject: Hello, Welcome to my Todo Application
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/UserPoolForTodo/Resource
+  UserPoolForTodoTodoDomainNameFB5F24CC:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: todo-app-shariq
+      UserPoolId:
+        Ref: UserPoolForTodoD26F05A4
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/UserPoolForTodo/TodoDomainName/Resource
+  UserPoolClient2F5918F7:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: UserPoolForTodoD26F05A4
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - openid
+        - email
+      CallbackURLs:
+        - https://localhost:8000/todo
+      GenerateSecret: true
+      LogoutURLs:
+        - https://localhost:8000
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/UserPoolClient/Resource
+  TodoAppGraphQlApi504760BB:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: GraphqlApiForTodoApp
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/Resource
+  TodoAppGraphQlApiSchemaBF8E3268:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - TodoAppGraphQlApi504760BB
+          - ApiId
+      Definition: |-
+        type Todo {
+          id: ID!
+          title: String!
+          done: Boolean!
+        }
+
+        type AddTodo {
+          title: String!
+          userToken: String!
+        }
+
+        input TodoInput {
+          id: ID!
+          title: String!
+          done: Boolean
+        }
+
+        input AddTodoInput {
+          title: String!
+          userToken: String!
+        }
+
+        type Query {
+          getTodos(token: String): [Todo]
+        }
+
+        type Mutation {
+          addTodo(title: String!, done: Boolean!, userToken: String!): Todo
+          deleteTodo(id: String): String
+          updateTodo(todo: TodoInput): Todo
+        }
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/Schema
+  TodoAppGraphQlApiDefaultApiKey07FDDD86:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - TodoAppGraphQlApi504760BB
+          - ApiId
+    DependsOn:
+      - TodoAppGraphQlApiSchemaBF8E3268
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/DefaultApiKey
+  TodoAppGraphQlApiLambdaDataSourceServiceRole3522BDE1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/LambdaDataSource/ServiceRole/Resource
+  TodoAppGraphQlApiLambdaDataSourceServiceRoleDefaultPolicyCAF2BB6C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TodoLambdaFunction76586879
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TodoAppGraphQlApiLambdaDataSourceServiceRoleDefaultPolicyCAF2BB6C
+      Roles:
+        - Ref: TodoAppGraphQlApiLambdaDataSourceServiceRole3522BDE1
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/LambdaDataSource/ServiceRole/DefaultPolicy/Resource
+  TodoAppGraphQlApiLambdaDataSourceBE67814A:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - TodoAppGraphQlApi504760BB
+          - ApiId
+      Name: LambdaDataSource
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - TodoLambdaFunction76586879
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - TodoAppGraphQlApiLambdaDataSourceServiceRole3522BDE1
+          - Arn
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/LambdaDataSource/Resource
+  TodoAppGraphQlApiLambdaDataSourceQuerygetTodosResolver19FDC236:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - TodoAppGraphQlApi504760BB
+          - ApiId
+      FieldName: getTodos
+      TypeName: Query
+      DataSourceName: LambdaDataSource
+      Kind: UNIT
+    DependsOn:
+      - TodoAppGraphQlApiLambdaDataSourceBE67814A
+      - TodoAppGraphQlApiSchemaBF8E3268
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/LambdaDataSource/QuerygetTodosResolver/Resource
+  TodoAppGraphQlApiLambdaDataSourceMutationupdateTodoResolver4749D6A4:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - TodoAppGraphQlApi504760BB
+          - ApiId
+      FieldName: updateTodo
+      TypeName: Mutation
+      DataSourceName: LambdaDataSource
+      Kind: UNIT
+    DependsOn:
+      - TodoAppGraphQlApiLambdaDataSourceBE67814A
+      - TodoAppGraphQlApiSchemaBF8E3268
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/LambdaDataSource/MutationupdateTodoResolver/Resource
+  TodoAppGraphQlApiLambdaDataSourceMutationdeleteTodoResolver2D1F1719:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - TodoAppGraphQlApi504760BB
+          - ApiId
+      FieldName: deleteTodo
+      TypeName: Mutation
+      DataSourceName: LambdaDataSource
+      Kind: UNIT
+    DependsOn:
+      - TodoAppGraphQlApiLambdaDataSourceBE67814A
+      - TodoAppGraphQlApiSchemaBF8E3268
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/LambdaDataSource/MutationdeleteTodoResolver/Resource
+  TodoAppGraphQlApiDynamoDataSourceServiceRole9408CB3C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/DynamoDataSource/ServiceRole/Resource
+  TodoAppGraphQlApiDynamoDataSourceServiceRoleDefaultPolicyFD08EBCB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TodoTable585F1D6B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - TodoTable585F1D6B
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: TodoAppGraphQlApiDynamoDataSourceServiceRoleDefaultPolicyFD08EBCB
+      Roles:
+        - Ref: TodoAppGraphQlApiDynamoDataSourceServiceRole9408CB3C
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/DynamoDataSource/ServiceRole/DefaultPolicy/Resource
+  TodoAppGraphQlApiDynamoDataSourceA9E00953:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - TodoAppGraphQlApi504760BB
+          - ApiId
+      Name: DynamoDataSource
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion:
+          Ref: AWS::Region
+        TableName:
+          Ref: TodoTable585F1D6B
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - TodoAppGraphQlApiDynamoDataSourceServiceRole9408CB3C
+          - Arn
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/DynamoDataSource/Resource
+  TodoAppGraphQlApiDynamoDataSourceMutationaddTodoResolver933428E6:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - TodoAppGraphQlApi504760BB
+          - ApiId
+      FieldName: addTodo
+      TypeName: Mutation
+      DataSourceName: DynamoDataSource
+      Kind: UNIT
+      RequestMappingTemplate: |-2
+        
+              #set($input = $ctx.args)
+              
+              {
+                "version": "2017-02-28",
+                "operation": "PutItem",
+                "key" : {
+              "id" : $util.dynamodb.toDynamoDBJson($util.autoId())
+            },
+                "attributeValues": $util.dynamodb.toMapValuesJson($input)
+              }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - TodoAppGraphQlApiDynamoDataSourceA9E00953
+      - TodoAppGraphQlApiSchemaBF8E3268
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoAppGraphQlApi/DynamoDataSource/MutationaddTodoResolver/Resource
+  TodoLambdaFunctionServiceRoleCF2D7CEF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoLambdaFunction/ServiceRole/Resource
+  TodoLambdaFunctionServiceRoleDefaultPolicy73BD729B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TodoTable585F1D6B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - TodoTable585F1D6B
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: TodoLambdaFunctionServiceRoleDefaultPolicy73BD729B
+      Roles:
+        - Ref: TodoLambdaFunctionServiceRoleCF2D7CEF
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoLambdaFunction/ServiceRole/DefaultPolicy/Resource
+  TodoLambdaFunction76586879:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters8735a6a0e162fc5aed6c00790230f5718d650324524a61fd495c7aaf40f28a3fS3Bucket3C9A5998
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8735a6a0e162fc5aed6c00790230f5718d650324524a61fd495c7aaf40f28a3fS3VersionKeyD9E5F97B
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8735a6a0e162fc5aed6c00790230f5718d650324524a61fd495c7aaf40f28a3fS3VersionKeyD9E5F97B
+      Role:
+        Fn::GetAtt:
+          - TodoLambdaFunctionServiceRoleCF2D7CEF
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TodoTable585F1D6B
+      Handler: main.handler
+      Runtime: nodejs12.x
+      Timeout: 10
+    DependsOn:
+      - TodoLambdaFunctionServiceRoleDefaultPolicy73BD729B
+      - TodoLambdaFunctionServiceRoleCF2D7CEF
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoLambdaFunction/Resource
+      aws:asset:path: asset.8735a6a0e162fc5aed6c00790230f5718d650324524a61fd495c7aaf40f28a3f
+      aws:asset:property: Code
+  TodoTable585F1D6B:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: userToken
+          AttributeType: S
+      GlobalSecondaryIndexes:
+        - IndexName: userToken
+          KeySchema:
+            - AttributeName: userToken
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: TodoTable
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/TodoTable/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.92.0,@aws-cdk/aws-applicationautoscaling=1.92.0,@aws-cdk/aws-appsync=1.92.0,@aws-cdk/aws-autoscaling-common=1.92.0,@aws-cdk/aws-cloudwatch=1.92.0,@aws-cdk/aws-codeguruprofiler=1.92.0,@aws-cdk/aws-cognito=1.92.0,@aws-cdk/aws-dynamodb=1.92.0,@aws-cdk/aws-ec2=1.92.0,@aws-cdk/aws-ecr=1.92.0,@aws-cdk/aws-ecr-assets=1.92.0,@aws-cdk/aws-events=1.92.0,@aws-cdk/aws-iam=1.92.0,@aws-cdk/aws-kms=1.92.0,@aws-cdk/aws-lambda=1.92.0,@aws-cdk/aws-logs=1.92.0,@aws-cdk/aws-s3=1.92.0,@aws-cdk/aws-s3-assets=1.92.0,@aws-cdk/aws-sqs=1.92.0,@aws-cdk/aws-ssm=1.92.0,@aws-cdk/cloud-assembly-schema=1.92.0,@aws-cdk/core=1.92.0,@aws-cdk/custom-resources=1.92.0,@aws-cdk/cx-api=1.92.0,@aws-cdk/region-info=1.92.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: TodoAppServerStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters8735a6a0e162fc5aed6c00790230f5718d650324524a61fd495c7aaf40f28a3fS3Bucket3C9A5998:
+    Type: String
+    Description: S3 bucket for asset "8735a6a0e162fc5aed6c00790230f5718d650324524a61fd495c7aaf40f28a3f"
+  AssetParameters8735a6a0e162fc5aed6c00790230f5718d650324524a61fd495c7aaf40f28a3fS3VersionKeyD9E5F97B:
+    Type: String
+    Description: S3 key for asset version "8735a6a0e162fc5aed6c00790230f5718d650324524a61fd495c7aaf40f28a3f"
+  AssetParameters8735a6a0e162fc5aed6c00790230f5718d650324524a61fd495c7aaf40f28a3fArtifactHash40F01C3B:
+    Type: String
+    Description: Artifact hash for asset "8735a6a0e162fc5aed6c00790230f5718d650324524a61fd495c7aaf40f28a3f"
+Outputs:
+  GraphqlUrl:
+    Value:
+      Fn::GetAtt:
+        - TodoAppGraphQlApi504760BB
+        - GraphQLUrl
+  GraphqlApiKey:
+    Value:
+      Fn::GetAtt:
+        - TodoAppGraphQlApiDefaultApiKey07FDDD86
+        - ApiKey
+  StackRegion:
+    Value:
+      Ref: AWS::Region
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

@@ -1,0 +1,402 @@
+Resources:
+  SnapshotExportBucket40852029:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: filesoftdbsnap1
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/SnapshotExportBucket/Resource
+  SnapshotExportTaskRole413D5889:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: export.rds.amazonaws.com
+        Version: "2012-10-17"
+      Description: Role used by RDS to perform snapshot exports to S3
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - s3:PutObject*
+                  - s3:ListBucket
+                  - s3:GetObject*
+                  - s3:DeleteObject*
+                  - s3:GetBucketLocation
+                Effect: Allow
+                Resource:
+                  - Fn::GetAtt:
+                      - SnapshotExportBucket40852029
+                      - Arn
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - SnapshotExportBucket40852029
+                            - Arn
+                        - /*
+            Version: "2012-10-17"
+          PolicyName: SnapshotExportTaskPolicy
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/SnapshotExportTaskRole/Resource
+  RdsSnapshotExporterLambdaExecutionRoleED363B0C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Description: RdsSnapshotExportToS3 Lambda execution role for the "filesoftdb" database.
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: rds:StartExportTask
+                Effect: Allow
+                Resource: "*"
+              - Action: iam:PassRole
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - SnapshotExportTaskRole413D5889
+                    - Arn
+            Version: "2012-10-17"
+          PolicyName: SnapshotExporterLambdaPolicy
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/RdsSnapshotExporterLambdaExecutionRole/Resource
+  SnapshotExportsGlueCrawlerRole650653E6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+        Version: "2012-10-17"
+      Description: Role used by RDS to perform snapshot exports to S3
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - Fn::GetAtt:
+                          - SnapshotExportBucket40852029
+                          - Arn
+                      - /*
+            Version: "2012-10-17"
+          PolicyName: SnapshotExportsGlueCrawlerPolicy
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/SnapshotExportsGlueCrawlerRole/Resource
+  SnapshotExportEncryptionKey64904F1F:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:Encrypt
+              - kms:Decrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              AWS:
+                - Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":iam::"
+                      - Ref: AWS::AccountId
+                      - :root
+                - Fn::GetAtt:
+                    - RdsSnapshotExporterLambdaExecutionRoleED363B0C
+                    - Arn
+                - Fn::GetAtt:
+                    - SnapshotExportsGlueCrawlerRole650653E6
+                    - Arn
+            Resource: "*"
+          - Action:
+              - kms:CreateGrant
+              - kms:ListGrants
+              - kms:RevokeGrant
+            Condition:
+              Bool:
+                kms:GrantIsForAWSResource: true
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - RdsSnapshotExporterLambdaExecutionRoleED363B0C
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:GenerateDataKey
+              - kms:TagResource
+              - kms:UntagResource
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/SnapshotExportEncryptionKey/Resource
+  SnapshotExportEncryptionKeyAlias1EFD872D:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/filesoftdb-snapshot-exports
+      TargetKeyId:
+        Fn::GetAtt:
+          - SnapshotExportEncryptionKey64904F1F
+          - Arn
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/SnapshotExportEncryptionKey/Alias/Resource
+  SnapshotEventTopic2CA0E7C4:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: rds-snapshot-creation
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/SnapshotEventTopic/Resource
+  RdsSnapshotEventNotification:
+    Type: AWS::RDS::EventSubscription
+    Properties:
+      SnsTopicArn:
+        Ref: SnapshotEventTopic2CA0E7C4
+      Enabled: true
+      EventCategories:
+        - creation
+      SourceType: db-snapshot
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/RdsSnapshotEventNotification
+  LambdaFunctionBF21E41F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters91838daf37763f91847895952a2e056d3f031400b7215b31abb2ba1c9ef995b2S3Bucket890E718D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters91838daf37763f91847895952a2e056d3f031400b7215b31abb2ba1c9ef995b2S3VersionKeyA7CD3397
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters91838daf37763f91847895952a2e056d3f031400b7215b31abb2ba1c9ef995b2S3VersionKeyA7CD3397
+      Handler: main.handler
+      Role:
+        Fn::GetAtt:
+          - RdsSnapshotExporterLambdaExecutionRoleED363B0C
+          - Arn
+      Runtime: python3.8
+      Environment:
+        Variables:
+          RDS_EVENT_ID: RDS-EVENT-0091
+          DB_NAME: filesoftdb
+          LOG_LEVEL: INFO
+          SNAPSHOT_BUCKET_NAME:
+            Ref: SnapshotExportBucket40852029
+          SNAPSHOT_TASK_ROLE:
+            Fn::GetAtt:
+              - SnapshotExportTaskRole413D5889
+              - Arn
+          SNAPSHOT_TASK_KEY:
+            Fn::GetAtt:
+              - SnapshotExportEncryptionKey64904F1F
+              - Arn
+      FunctionName: filesoftdb-rds-snapshot-exporter
+      Timeout: 30
+    DependsOn:
+      - RdsSnapshotExporterLambdaExecutionRoleED363B0C
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/LambdaFunction/Resource
+      aws:asset:path: asset.91838daf37763f91847895952a2e056d3f031400b7215b31abb2ba1c9ef995b2
+      aws:asset:property: Code
+  LambdaFunctionAllowInvokeRdsSnapshotExportToS3PipelineSnapshotEventTopicAF304FABF0006F90:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - LambdaFunctionBF21E41F
+          - Arn
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: SnapshotEventTopic2CA0E7C4
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/LambdaFunction/AllowInvoke:RdsSnapshotExportToS3PipelineSnapshotEventTopicAF304FAB
+  LambdaFunctionSnapshotEventTopic26EF11DF:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn:
+        Ref: SnapshotEventTopic2CA0E7C4
+      Endpoint:
+        Fn::GetAtt:
+          - LambdaFunctionBF21E41F
+          - Arn
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/LambdaFunction/SnapshotEventTopic/Resource
+  SnapshotExportCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role:
+        Fn::GetAtt:
+          - SnapshotExportsGlueCrawlerRole650653E6
+          - Arn
+      Targets:
+        S3Targets:
+          - Path:
+              Ref: SnapshotExportBucket40852029
+      DatabaseName: filesoftdb
+      Name: filesoftdb-rds-snapshot-crawler
+      SchemaChangePolicy:
+        DeleteBehavior: DELETE_FROM_DATABASE
+    Metadata:
+      aws:cdk:path: RdsSnapshotExportToS3Pipeline/SnapshotExportCrawler
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.29.0,@aws-cdk/aws-apigateway=1.29.0,@aws-cdk/aws-cloudwatch=1.29.0,@aws-cdk/aws-ec2=1.29.0,@aws-cdk/aws-events=1.29.0,@aws-cdk/aws-glue=1.29.0,@aws-cdk/aws-iam=1.29.0,@aws-cdk/aws-kms=1.29.0,@aws-cdk/aws-lambda=1.29.0,@aws-cdk/aws-lambda-event-sources=1.29.0,@aws-cdk/aws-logs=1.29.0,@aws-cdk/aws-rds=1.29.0,@aws-cdk/aws-s3=1.29.0,@aws-cdk/aws-s3-assets=1.29.0,@aws-cdk/aws-s3-notifications=1.29.0,@aws-cdk/aws-sam=1.29.0,@aws-cdk/aws-secretsmanager=1.29.0,@aws-cdk/aws-sns=1.29.0,@aws-cdk/aws-sns-subscriptions=1.29.0,@aws-cdk/aws-sqs=1.29.0,@aws-cdk/aws-ssm=1.29.0,@aws-cdk/core=1.29.0,@aws-cdk/cx-api=1.29.0,@aws-cdk/region-info=1.29.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters91838daf37763f91847895952a2e056d3f031400b7215b31abb2ba1c9ef995b2S3Bucket890E718D:
+    Type: String
+    Description: S3 bucket for asset "91838daf37763f91847895952a2e056d3f031400b7215b31abb2ba1c9ef995b2"
+  AssetParameters91838daf37763f91847895952a2e056d3f031400b7215b31abb2ba1c9ef995b2S3VersionKeyA7CD3397:
+    Type: String
+    Description: S3 key for asset version "91838daf37763f91847895952a2e056d3f031400b7215b31abb2ba1c9ef995b2"
+  AssetParameters91838daf37763f91847895952a2e056d3f031400b7215b31abb2ba1c9ef995b2ArtifactHash1D8E47F7:
+    Type: String
+    Description: Artifact hash for asset "91838daf37763f91847895952a2e056d3f031400b7215b31abb2ba1c9ef995b2"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

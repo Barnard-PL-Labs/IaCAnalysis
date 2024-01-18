@@ -1,0 +1,246 @@
+Resources:
+  CodeBuildRole728CBADE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodeCommitFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+    Metadata:
+      aws:cdk:path: PicaPicaStack/CodeBuildRole/Resource
+  CodeBuildRoleDefaultPolicy829527DE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-west-2:043490748814:log-group:/aws/codebuild/
+                    - Ref: CodeCommitReplicateProject8E864060
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-west-2:043490748814:log-group:/aws/codebuild/
+                    - Ref: CodeCommitReplicateProject8E864060
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-west-2:043490748814:report-group/
+                  - Ref: CodeCommitReplicateProject8E864060
+                  - -*
+        Version: "2012-10-17"
+      PolicyName: CodeBuildRoleDefaultPolicy829527DE
+      Roles:
+        - Ref: CodeBuildRole728CBADE
+    Metadata:
+      aws:cdk:path: PicaPicaStack/CodeBuildRole/DefaultPolicy/Resource
+  CodeCommitReplicateProject8E864060:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CodeBuildRole728CBADE
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "pre_build": {
+                "commands": [
+                  "pip install git-remote-codecommit"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "git clone --mirror codecommit::us-west-2://card-service card-service",
+                  "cd card-service",
+                  "git remote set-url --push origin codecommit::ap-northeast-2://card-service",
+                  "git fetch && git push",
+                  "cd ..",
+                  "git clone --mirror codecommit::us-west-2://rule-service rule-service",
+                  "cd rule-service",
+                  "git remote set-url --push origin codecommit::ap-northeast-2://rule-service",
+                  "git fetch && git push",
+                  "cd ..",
+                  "git clone --mirror codecommit::us-west-2://ecs-pipeline ecs-pipeline",
+                  "cd ecs-pipeline",
+                  "git remote set-url --push origin codecommit::ap-northeast-2://ecs-pipeline",
+                  "git fetch && git push",
+                  "cd .."
+                ]
+              }
+            }
+          }
+        Type: NO_SOURCE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: PicaPicaStack/CodeCommitReplicateProject/Resource
+  CodeCommitReplicateProjectEventsRoleFB6F0A63:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PicaPicaStack/CodeCommitReplicateProject/EventsRole/Resource
+  CodeCommitReplicateProjectEventsRoleDefaultPolicy422AD77C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codebuild:StartBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodeCommitReplicateProject8E864060
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodeCommitReplicateProjectEventsRoleDefaultPolicy422AD77C
+      Roles:
+        - Ref: CodeCommitReplicateProjectEventsRoleFB6F0A63
+    Metadata:
+      aws:cdk:path: PicaPicaStack/CodeCommitReplicateProject/EventsRole/DefaultPolicy/Resource
+  cardserviceRepositorycardserviceOnCommit5618799A:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - :codecommit:us-west-2:043490748814:card-service
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - mainline
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - CodeCommitReplicateProject8E864060
+              - Arn
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - CodeCommitReplicateProjectEventsRoleFB6F0A63
+              - Arn
+    Metadata:
+      aws:cdk:path: PicaPicaStack/card-serviceRepository/card-serviceOnCommit/Resource
+  ruleserviceRepositoryruleserviceOnCommit0E279E9A:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - :codecommit:us-west-2:043490748814:rule-service
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - mainline
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - CodeCommitReplicateProject8E864060
+              - Arn
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - CodeCommitReplicateProjectEventsRoleFB6F0A63
+              - Arn
+    Metadata:
+      aws:cdk:path: PicaPicaStack/rule-serviceRepository/rule-serviceOnCommit/Resource
+  ecspipelineRepositoryecspipelineOnCommitDF1BFAF5:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - :codecommit:us-west-2:043490748814:ecs-pipeline
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - mainline
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - CodeCommitReplicateProject8E864060
+              - Arn
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - CodeCommitReplicateProjectEventsRoleFB6F0A63
+              - Arn
+    Metadata:
+      aws:cdk:path: PicaPicaStack/ecs-pipelineRepository/ecs-pipelineOnCommit/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAEzWMSw6DMAxEz8LemKabdlmJC6D0BNRxpfCJpXxAVZS7FwpdvfFY8xQqdcNL9ejXUJMZm0ziGfMz9jSC5iDJE0MrLkSfKEL7dv+2wD7Ktp8xa5n499vZyWTps59HKkBi+JXsZDB3XgY+RGcswAu7GDZLOi0bSyngthkOoVnUHdUVVTUEa2ufXLQzoz74BR2Wl+PDAAAA
+    Metadata:
+      aws:cdk:path: PicaPicaStack/CDKMetadata/Default
+

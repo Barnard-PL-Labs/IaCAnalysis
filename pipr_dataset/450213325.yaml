@@ -1,0 +1,308 @@
+Resources:
+  Queue4A7E3555:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: APIGWMessages
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/Queue/Resource
+  ApiGatewayRoleConstructSendMessagePolicy1B9082B9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Queue4A7E3555
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ApiGatewayRoleConstructSendMessagePolicy1B9082B9
+      Roles:
+        - Ref: ApiGatewayRoleConstructAPIGWtoSQSExampleRoleE0D0B758
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/Api Gateway Role Construct/SendMessagePolicy/Resource
+  ApiGatewayRoleConstructAPIGWtoSQSExampleRoleE0D0B758:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      RoleName: APIGWtoSQSExampleRole
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/Api Gateway Role Construct/APIGWtoSQSExampleRole/Resource
+  APIEndpoint2A027CFA:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: APIGWtoSQSApi
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/API Endpoint/Resource
+  APIEndpointCloudWatchRole238485A8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/API Endpoint/CloudWatchRole/Resource
+  APIEndpointAccount12A87ABA:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - APIEndpointCloudWatchRole238485A8
+          - Arn
+    DependsOn:
+      - APIEndpoint2A027CFA
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/API Endpoint/Account
+  APIEndpointDeployment4138F11712beaa8876478036911eb2e7236dc97f:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: APIEndpoint2A027CFA
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - APIEndpointPOSTE7D4F0A1
+      - APIMethodOptionsConstructbodyvalidator44A75F8F
+      - APIMethodOptionsConstructGeoModelConstructgeomodelvalidator3EB3DCD9
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/API Endpoint/Deployment/Resource
+  APIEndpointDeploymentStagesandbox0353A03E:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: APIEndpoint2A027CFA
+      DeploymentId:
+        Ref: APIEndpointDeployment4138F11712beaa8876478036911eb2e7236dc97f
+      StageName: sandbox
+    DependsOn:
+      - APIEndpointAccount12A87ABA
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/API Endpoint/DeploymentStage.sandbox/Resource
+  APIEndpointPOSTE7D4F0A1:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Fn::GetAtt:
+          - APIEndpoint2A027CFA
+          - RootResourceId
+      RestApiId:
+        Ref: APIEndpoint2A027CFA
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - ApiGatewayRoleConstructAPIGWtoSQSExampleRoleE0D0B758
+            - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: |2
+                
+                    #set($inputRoot = $input.path('$'))
+                    #set($sndMsgResp = $inputRoot.SendMessageResponse)
+                    #set($metadata = $sndMsgResp.ResponseMetadata)
+                    #set($sndMsgRes = $sndMsgResp.SendMessageResult)
+                    {
+                        "RequestId" : "$metadata.RequestId",
+                        "MessageId" : "$sndMsgRes.MessageId"
+                    }
+            StatusCode: "200"
+        PassthroughBehavior: NEVER
+        RequestParameters:
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        RequestTemplates:
+          application/json: Action=SendMessage&MessageBody=$input.body
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :sqs:path/
+              - Ref: AWS::AccountId
+              - /
+              - Fn::GetAtt:
+                  - Queue4A7E3555
+                  - QueueName
+      MethodResponses:
+        - ResponseModels:
+            application/json: Empty
+          StatusCode: "200"
+      RequestModels:
+        application/json:
+          Ref: APIMethodOptionsConstructGeoModelConstructgeomodelvalidator3EB3DCD9
+      RequestValidatorId:
+        Ref: APIMethodOptionsConstructbodyvalidator44A75F8F
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/API Endpoint/Default/POST/Resource
+  APIMethodOptionsConstructGeoModelConstructgeomodelvalidator3EB3DCD9:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: APIEndpoint2A027CFA
+      ContentType: application/json
+      Description: Validates a set of coordinates
+      Name: geoModel
+      Schema:
+        type: object
+        required:
+          - latitude
+          - longitude
+          - userId
+        properties:
+          userId:
+            type: string
+            pattern: ^[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}$
+          latitude:
+            type: number
+            minimum: -90
+            maximum: 90
+          longitude:
+            type: number
+            minimum: -180
+            maximum: 180
+        $schema: http://json-schema.org/draft-04/schema#
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/API Method Options Construct/Geo Model Construct/geo-model-validator/Resource
+  APIMethodOptionsConstructbodyvalidator44A75F8F:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: APIEndpoint2A027CFA
+      Name: body-validator
+      ValidateRequestBody: true
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/API Method Options Construct/body-validator/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WOzW7CMBCEn4W7syWcuFK4orap1Gvl2gtdcLwhtosiy+9e24nUctpvZ39mNrCF9UreXaP0tTH0BfHdS3UVWfqM7uYgvgUMKPYnWyEJkj3EVzakpqIu1LGpS6UmIQc6S493OUHs0PndQHX4hzulOFgvDjgYnnrMmNV/XY5xrh9nyKccRoXP0qE4ov9mXYYLHVmjqX2FDm8hW31IQ1p6HmfvRy2lor4EPwS/ZKsGhfdsNXlim4TND+Hinn7aLbQbaFcXR9SMOTr1CN1cfwHq8YemRgEAAA==
+    Metadata:
+      aws:cdk:path: ApigwSqsCdkStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  APIEndpoint643AABF4:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: APIEndpoint2A027CFA
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: APIEndpointDeploymentStagesandbox0353A03E
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,2466 @@
+role 
+role 
+role 
+role 
+role 
+role 
+role 
+Parameters:
+  gitprovider:
+    Type: String
+    Default: GITHUB
+    AllowedValues:
+      - GITHUB
+      - CODECOMMIT
+    Description: name of git provider
+  repository:
+    Type: String
+    Default: jingood2/custom-resource-ddb-example
+    Description: repository name of cdk infra
+  branch:
+    Type: String
+    Default: master
+    Description: branch name of git repository
+  githubToken:
+    Type: String
+    Default: ""
+    Description: secret key for github personal access token
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Conditions:
+  UseGithub:
+    Fn::Equals:
+      - GITHUB
+      - github
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Resources:
+  PipelineArtifactsBucketAEA9A052:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Pipeline/ArtifactsBucket/Resource
+  PipelineArtifactsBucketPolicyF53CCC52:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: PipelineArtifactsBucketAEA9A052
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Pipeline/ArtifactsBucket/Policy/Resource
+  PipelineRoleB27FAA37:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Pipeline/Role/Resource
+  PipelineRoleDefaultPolicy7BDC1ABB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineCodeBuildActionRole226DB0CB
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":iam::"
+                  - Ref: AWS::AccountId
+                  - :role/cdk-hnb659fds-deploy-role-
+                  - Ref: AWS::AccountId
+                  - "-"
+                  - Ref: AWS::Region
+        Version: "2012-10-17"
+      PolicyName: PipelineRoleDefaultPolicy7BDC1ABB
+      Roles:
+        - Ref: PipelineRoleB27FAA37
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Pipeline/Role/DefaultPolicy/Resource
+  Pipeline9850B417:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - PipelineRoleB27FAA37
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: jingood2
+                Repo: cdk-servicecatalog-cicd-template
+                Branch: main
+                OAuthToken: "{{resolve:secretsmanager:atcl/jingood2/github-token:SecretString:::}}"
+                PollForSourceChanges: false
+              Name: jingood2_cdk-servicecatalog-cicd-template
+              OutputArtifacts:
+                - Name: jingood2_cdk_servicecatalog_cicd_template_Source
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineBuildSynthCdkBuildProject6BEFA8E6
+              InputArtifacts:
+                - Name: jingood2_cdk_servicecatalog_cicd_template_Source
+              Name: Synth
+              OutputArtifacts:
+                - Name: Synth_Output
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset185A67CB4
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset1
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset102484C317
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset10
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset11D534F05C
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset11
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset12E916E136
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset12
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset13BC3E73E7
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset13
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset14A3CA232F
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset14
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset15B22B8501
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset15
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset161A3A5D08
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset16
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset172B1ABD63
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset17
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset188630082E
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset18
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset192EB5FBA6
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset19
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset24D2D639B
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset2
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset20029B3B78
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset20
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset21442424F4
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset21
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset22CDC8D936
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset22
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset23A5E4949B
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset23
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset240D3F5D3D
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset24
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset25C2F636DD
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset25
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset26CD3C46ED
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset26
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset278581B380
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset27
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset28D7887C5A
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset28
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset3FE71B523
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset3
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset474303B7D
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset4
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset5184A5C2F
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset5
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset669C72F3C
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset6
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset7A51C54D0
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset7
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset81DAB433B
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset8
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineAssetsFileAsset9F08741A2
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset9
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCodeBuildActionRole226DB0CB
+                  - Arn
+              RunOrder: 1
+          Name: Assets
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: Portfolio-sc-portfolio
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":iam::"
+                      - Ref: AWS::AccountId
+                      - :role/cdk-hnb659fds-cfn-exec-role-
+                      - Ref: AWS::AccountId
+                      - "-"
+                      - Ref: AWS::Region
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: PipelineChange
+                TemplatePath: Synth_Output::assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.template.json
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: Prepare
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: Portfolio-sc-portfolio
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: PipelineChange
+              Name: Deploy
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 2
+          Name: Portfolio
+      ArtifactStore:
+        Location:
+          Ref: PipelineArtifactsBucketAEA9A052
+        Type: S3
+      Name: sk-product-factory-pipeline
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - PipelineRoleDefaultPolicy7BDC1ABB
+      - PipelineRoleB27FAA37
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Pipeline/Resource
+  PipelineSourcejingood2cdkservicecatalogcicdtemplateWebhookResource0B8DAC33:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: "{{resolve:secretsmanager:atcl/jingood2/github-token:SecretString:::}}"
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetAction: jingood2_cdk-servicecatalog-cicd-template
+      TargetPipeline:
+        Ref: Pipeline9850B417
+      TargetPipelineVersion: 1
+      RegisterWithThirdParty: true
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Pipeline/Source/jingood2_cdk-servicecatalog-cicd-template/WebhookResource
+  PipelineBuildSynthCdkBuildProjectRole231EEA2A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Pipeline/Build/Synth/CdkBuildProject/Role/Resource
+  PipelineBuildSynthCdkBuildProjectRoleDefaultPolicyFB6C941C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: PipelineBuildSynthCdkBuildProject6BEFA8E6
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: PipelineBuildSynthCdkBuildProject6BEFA8E6
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: PipelineBuildSynthCdkBuildProject6BEFA8E6
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PipelineBuildSynthCdkBuildProjectRoleDefaultPolicyFB6C941C
+      Roles:
+        - Ref: PipelineBuildSynthCdkBuildProjectRole231EEA2A
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Pipeline/Build/Synth/CdkBuildProject/Role/DefaultPolicy/Resource
+  PipelineBuildSynthCdkBuildProject6BEFA8E6:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineBuildSynthCdkBuildProjectRole231EEA2A
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "build": {
+                "commands": [
+                  "npm i",
+                  "npm run build",
+                  "npx cdk synth"
+                ]
+              }
+            },
+            "artifacts": {
+              "base-directory": "cdk.out",
+              "files": "**/*"
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Build/Synth
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Pipeline/Build/Synth/CdkBuildProject/Resource
+  PipelineCodeBuildActionRole226DB0CB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - PipelineRoleB27FAA37
+                  - Arn
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/CodeBuildActionRole/Resource
+  PipelineCodeBuildActionRoleDefaultPolicy1D62A6FE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineBuildSynthCdkBuildProject6BEFA8E6
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset185A67CB4
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset102484C317
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset11D534F05C
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset12E916E136
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset13BC3E73E7
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset14A3CA232F
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset15B22B8501
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset161A3A5D08
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset172B1ABD63
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset188630082E
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset192EB5FBA6
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset24D2D639B
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset20029B3B78
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset21442424F4
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset22CDC8D936
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset23A5E4949B
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset240D3F5D3D
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset25C2F636DD
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset26CD3C46ED
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset278581B380
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset28D7887C5A
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset3FE71B523
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset474303B7D
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset5184A5C2F
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset669C72F3C
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset7A51C54D0
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset81DAB433B
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineAssetsFileAsset9F08741A2
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineCodeBuildActionRoleDefaultPolicy1D62A6FE
+      Roles:
+        - Ref: PipelineCodeBuildActionRole226DB0CB
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/CodeBuildActionRole/DefaultPolicy/Resource
+  PipelineAssetsFileRole59943A77:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileRole/Resource
+  PipelineAssetsFileRoleDefaultPolicy14DB8755:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/codebuild/*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/*
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource: "*"
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PipelineAssetsFileRoleDefaultPolicy14DB8755
+      Roles:
+        - Ref: PipelineAssetsFileRole59943A77
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileRole/DefaultPolicy/Resource
+  PipelineAssetsFileRoleOverflowPolicy192A9D865:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      Description: Part of the policies for sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileRole
+      Path: /
+      Roles:
+        - Ref: PipelineAssetsFileRole59943A77
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileRole/OverflowPolicy1/Resource
+  PipelineAssetsFileAsset185A67CB4:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"c8edf8a7a81602c54713a11c442204989f10a35bf6441bcfaa96fc2ccd746683:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset1
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset1/Resource
+  PipelineAssetsFileAsset102484C317:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"ce9cbc60636ce11c4542831fe4c2462d6c30e76ce6e7abef1d8f194d17d2b0d6:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset10
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset10/Resource
+  PipelineAssetsFileAsset11D534F05C:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"49943e4875784121cd960be459372f34cfd943727bd0995570471a406bca7d54:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset11
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset11/Resource
+  PipelineAssetsFileAsset12E916E136:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"b1d4150fddd8db53277cc6bb08fa66aabf6e85a840746a3511c95197f90f925e:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset12
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset12/Resource
+  PipelineAssetsFileAsset13BC3E73E7:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"378d96fc6f5756c072a44d959147bb3e758196ac1c9c5e8359b753d613e53396:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset13
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset13/Resource
+  PipelineAssetsFileAsset14A3CA232F:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"c4d9c6d183a719f1f6cbd2905fb737d80ba3a5dfe0a99cafdc9fabc1a06b937b:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset14
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset14/Resource
+  PipelineAssetsFileAsset15B22B8501:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"f2ecedace4db030db6d41c37002449df7933f08d161c50e807816a3b33d19a57:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset15
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset15/Resource
+  PipelineAssetsFileAsset161A3A5D08:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"71d34ce6efadccb507710f76ff57db109823095389c3566e3d66e58205c93449:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset16
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset16/Resource
+  PipelineAssetsFileAsset172B1ABD63:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"35bcefe875717626273e914386b47df2179a800b40e6cdb492396c3af1374455:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset17
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset17/Resource
+  PipelineAssetsFileAsset188630082E:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"866514a5648b7bdebda60bf04abe9f9c12842e0ac17e8a7243f42262345a4b3b:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset18
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset18/Resource
+  PipelineAssetsFileAsset192EB5FBA6:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"e912c3690ff98e88b70f270e8b3da4f99aea6a23a2f5ed00fcbbb5ef20bd852e:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset19
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset19/Resource
+  PipelineAssetsFileAsset24D2D639B:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"ab8df2bfd25a65a1c13205a6c67600ae4f3e9eeebfc5ce75628ebadf08141735:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset2
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset2/Resource
+  PipelineAssetsFileAsset20029B3B78:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"7b1d07fe983bf79f96a399f19edfa95cbfd064fd8e72b584a080e4bc23768219:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset20
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset20/Resource
+  PipelineAssetsFileAsset21442424F4:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"a246d5bf8ec8c013933f351d1bd55fad2f11d3841daf6ac749508ffb8ae181c6:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset21
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset21/Resource
+  PipelineAssetsFileAsset22CDC8D936:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"ef46ed15fd2bfda3484426a8541307461c28e80088e4d8fbd69f876f0f73cc9c:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset22
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset22/Resource
+  PipelineAssetsFileAsset23A5E4949B:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"175c47745bc188ba7ffd67e709def2089e1f25e30b195038ae7371fbb2f8d388:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset23
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset23/Resource
+  PipelineAssetsFileAsset240D3F5D3D:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"a5bfd914064ab3d30385d9d247a7cd15d29afee7cba7638feed104520f732915:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset24
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset24/Resource
+  PipelineAssetsFileAsset25C2F636DD:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"207e30901c5d322c5a696d3f35ea2f4588a7650e56e335740bc56b90ce67b157:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset25
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset25/Resource
+  PipelineAssetsFileAsset26CD3C46ED:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"2eda8cd2a83e2b41f57d51ce9b0531608fd87afc28acd1bedcf2bf81f2c89344:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset26
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset26/Resource
+  PipelineAssetsFileAsset278581B380:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"3d309cdedd7802cdf10863f39ed245cc44356b6f1e21265a8e6c9be5bcbccc2a:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset27
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset27/Resource
+  PipelineAssetsFileAsset28D7887C5A:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"6f89285ddd4dc69645d6530f90517e87277dbc1e42a32a5b0c48ad39057627ff:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset28
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset28/Resource
+  PipelineAssetsFileAsset3FE71B523:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"c2d6db4776d53a66510ef7ff276e287dbb1bdd0e4fc794d19225c24735eee693:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset3
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset3/Resource
+  PipelineAssetsFileAsset474303B7D:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"8f3bc81e9754aa133ee6a383cdf0ab792045207af8bcd4478b75a17504e40f2b:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset4
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset4/Resource
+  PipelineAssetsFileAsset5184A5C2F:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"d9c93ee501f05dbcf2020bde7e6f9cb6e91ef59e608acedc291e6befb547d32a:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset5
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset5/Resource
+  PipelineAssetsFileAsset669C72F3C:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"9f406b57456defd1a4ab968abd0810c888d44617034c275d64735f1633faa472:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset6
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset6/Resource
+  PipelineAssetsFileAsset7A51C54D0:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"ee7f9b43cae4bce07e7ec5900e5d25ec09ffbba7cd896bcbaae2df99da60b56c:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset7
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset7/Resource
+  PipelineAssetsFileAsset81DAB433B:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"51cd6728090f5c89a0c52158c77e5c7f2c39956bc8506e34cbad49650febe497:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset8
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset8/Resource
+  PipelineAssetsFileAsset9F08741A2:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineAssetsFileRole59943A77
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@1"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-sc-portfolio-cf-product-pipelines-Portfolio/scportfoliocfproductpipelinesPortfolioscportfolioD6AA3180.assets.json\" --verbose publish \"11de8458368f792e1c7a31140fdab726134ddb2ffc55b504e47d36e4dd2273ef:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset9
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/Pipeline/Assets/FileAsset9/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WOO2/DMAyEf0t2homTDh2Lei5gOENmRWJa+iEGerQoBP33WrFTtxO/uyNwV+Fh/4T7zYv68ltt+l3S4gjTKSjdQ321jXJqpECuiFqs4cBiYSIfXNQBWvISnaaSPzjDjW80sCWPtRhqFgWlZWow9Mgx/Wal7A+f6fIh0mfwR0yvUfcUir3QfBoZWH+v9qwzsBoxtTLMo8pdPxd6U1a9k1n9f0aGMvISeTDrwsZJR/q+YsGcM9jpETu/+6yesTpgtek889ZFG3gkbOf7AzqSUyZnAQAA
+    Metadata:
+      aws:cdk:path: sc-portfolio-cf-product-pipelines/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,781 @@
+Resources:
+  meetingsD427156D:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: Title
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: Title
+          AttributeType: S
+        - AttributeName: meetingId
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: meetingIdIndex
+          KeySchema:
+            - AttributeName: meetingId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetings/Resource
+  mediaCaptureBucketC9E815F7:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/mediaCaptureBucket/Resource
+  mediaCaptureBucketPolicy1B309A32:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: mediaCaptureBucketC9E815F7
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - mediaCaptureBucketC9E815F7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - mediaCaptureBucketC9E815F7
+                        - Arn
+                    - /*
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Effect: Allow
+            Principal:
+              Service: chime.amazonaws.com
+            Resource:
+              - Fn::GetAtt:
+                  - mediaCaptureBucketC9E815F7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - mediaCaptureBucketC9E815F7
+                        - Arn
+                    - /*
+            Sid: AWSChimeMediaCaptureBucketPolicy
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/mediaCaptureBucket/Policy/Resource
+  mediaCaptureBucketAutoDeleteObjectsCustomResource3EAC9653:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: mediaCaptureBucketC9E815F7
+    DependsOn:
+      - mediaCaptureBucketPolicy1B309A32
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/mediaCaptureBucket/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: mediaCaptureBucketC9E815F7
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+  LambdaChimeRole70B5CB84:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/LambdaChimeRole/Resource
+  LambdaChimeRoleDefaultPolicy4D2FC221:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: chime:*
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingsD427156D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingsD427156D
+                        - Arn
+                    - /index/*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - mediaCaptureBucketC9E815F7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - mediaCaptureBucketC9E815F7
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: LambdaChimeRoleDefaultPolicy4D2FC221
+      Roles:
+        - Ref: LambdaChimeRole70B5CB84
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/LambdaChimeRole/DefaultPolicy/Resource
+  createLambda327A7376:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameterseb8741a4031994415d15952ca654a8acdc16c0318979149e6eeef94dde822df5S3Bucket1E66892F
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterseb8741a4031994415d15952ca654a8acdc16c0318979149e6eeef94dde822df5S3VersionKey75B78312
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterseb8741a4031994415d15952ca654a8acdc16c0318979149e6eeef94dde822df5S3VersionKey75B78312
+      Role:
+        Fn::GetAtt:
+          - LambdaChimeRole70B5CB84
+          - Arn
+      Environment:
+        Variables:
+          MEETINGS_TABLE_NAME:
+            Ref: meetingsD427156D
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - LambdaChimeRoleDefaultPolicy4D2FC221
+      - LambdaChimeRole70B5CB84
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/createLambda/Resource
+      aws:asset:path: asset.eb8741a4031994415d15952ca654a8acdc16c0318979149e6eeef94dde822df5
+      aws:asset:property: Code
+  recordingLambda18585AD6:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters87da0bd046413d83f074d496966b46e7dc71d56a8b3c9c7f3142df2ba0ac9155S3Bucket1F87C42F
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters87da0bd046413d83f074d496966b46e7dc71d56a8b3c9c7f3142df2ba0ac9155S3VersionKey4069647E
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters87da0bd046413d83f074d496966b46e7dc71d56a8b3c9c7f3142df2ba0ac9155S3VersionKey4069647E
+      Role:
+        Fn::GetAtt:
+          - LambdaChimeRole70B5CB84
+          - Arn
+      Environment:
+        Variables:
+          MEDIA_CAPTURE_BUCKET:
+            Ref: mediaCaptureBucketC9E815F7
+          ACCOUNT_ID:
+            Ref: AWS::AccountId
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - LambdaChimeRoleDefaultPolicy4D2FC221
+      - LambdaChimeRole70B5CB84
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/recordingLambda/Resource
+      aws:asset:path: asset.87da0bd046413d83f074d496966b46e7dc71d56a8b3c9c7f3142df2ba0ac9155
+      aws:asset:property: Code
+  procesServiceRole557629DB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/proces/ServiceRole/Resource
+  procesServiceRoleDefaultPolicyE1198527:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingsD427156D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingsD427156D
+                        - Arn
+                    - /index/*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - mediaCaptureBucketC9E815F7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - mediaCaptureBucketC9E815F7
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: procesServiceRoleDefaultPolicyE1198527
+      Roles:
+        - Ref: procesServiceRole557629DB
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/proces/ServiceRole/DefaultPolicy/Resource
+  proces232689C7:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          Fn::Join:
+            - ""
+            - - Ref: AWS::AccountId
+              - .dkr.ecr.us-east-1.
+              - Ref: AWS::URLSuffix
+              - /aws-cdk/assets:c94f5fe2090fc400a9e1d28ddcbcb010f6d231a756937e7c72488d21842bbbd8
+      Role:
+        Fn::GetAtt:
+          - procesServiceRole557629DB
+          - Arn
+      Environment:
+        Variables:
+          MEDIA_CAPTURE_BUCKET:
+            Ref: mediaCaptureBucketC9E815F7
+          MEETINGS_TABLE_NAME:
+            Ref: meetingsD427156D
+      ImageConfig:
+        Command:
+          - app.handler
+        EntryPoint:
+          - /entry.sh
+      MemorySize: 10240
+      PackageType: Image
+      Timeout: 900
+    DependsOn:
+      - procesServiceRoleDefaultPolicyE1198527
+      - procesServiceRole557629DB
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/proces/Resource
+  processRecordingRule89F7FC6E:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.chime
+        detail-type:
+          - Chime Media Pipeline State Change
+        detail:
+          eventType:
+            - chime:MediaPipelineDeleted
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - proces232689C7
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/processRecordingRule/Resource
+  processRecordingRuleAllowEventRuleMediaCaptureDemoproces735733776089810F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - proces232689C7
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - processRecordingRule89F7FC6E
+          - Arn
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/processRecordingRule/AllowEventRuleMediaCaptureDemoproces73573377
+  meetingApi93492E06:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: meetingApi
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Resource
+  meetingApiCloudWatchRole1504E765:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/CloudWatchRole/Resource
+  meetingApiAccount7ABD631C:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - meetingApiCloudWatchRole1504E765
+          - Arn
+    DependsOn:
+      - meetingApi93492E06
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Account
+  meetingApiDeployment1C75587B626912b537b022b751b1a43652c63728:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: meetingApi93492E06
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - meetingApicreateOPTIONSFB3DC428
+      - meetingApicreatePOSTC832ECB3
+      - meetingApicreate299E600A
+      - meetingApirecordOPTIONSEF29D8D4
+      - meetingApirecordPOST53382656
+      - meetingApirecord45E38740
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Deployment/Resource
+  meetingApiDeploymentStageprod10D319E4:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: meetingApi93492E06
+      DeploymentId:
+        Ref: meetingApiDeployment1C75587B626912b537b022b751b1a43652c63728
+      StageName: prod
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/DeploymentStage.prod/Resource
+  meetingApicreate299E600A:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - meetingApi93492E06
+          - RootResourceId
+      PathPart: create
+      RestApiId:
+        Ref: meetingApi93492E06
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Default/create/Resource
+  meetingApicreatePOSTApiPermissionMediaCaptureDemomeetingApiC0123DDBPOSTcreateD434E560:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - createLambda327A7376
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: meetingApi93492E06
+            - /
+            - Ref: meetingApiDeploymentStageprod10D319E4
+            - /POST/create
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Default/create/POST/ApiPermission.MediaCaptureDemomeetingApiC0123DDB.POST..create
+  meetingApicreatePOSTApiPermissionTestMediaCaptureDemomeetingApiC0123DDBPOSTcreate0AC14359:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - createLambda327A7376
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: meetingApi93492E06
+            - /test-invoke-stage/POST/create
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Default/create/POST/ApiPermission.Test.MediaCaptureDemomeetingApiC0123DDB.POST..create
+  meetingApicreatePOSTC832ECB3:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: meetingApicreate299E600A
+      RestApiId:
+        Ref: meetingApi93492E06
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - createLambda327A7376
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Default/create/POST/Resource
+  meetingApicreateOPTIONSFB3DC428:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: meetingApicreate299E600A
+      RestApiId:
+        Ref: meetingApi93492E06
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'false'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE'"
+            StatusCode: "200"
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Default/create/OPTIONS/Resource
+  meetingApirecord45E38740:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - meetingApi93492E06
+          - RootResourceId
+      PathPart: record
+      RestApiId:
+        Ref: meetingApi93492E06
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Default/record/Resource
+  meetingApirecordPOSTApiPermissionMediaCaptureDemomeetingApiC0123DDBPOSTrecordF59FF27D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - recordingLambda18585AD6
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: meetingApi93492E06
+            - /
+            - Ref: meetingApiDeploymentStageprod10D319E4
+            - /POST/record
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Default/record/POST/ApiPermission.MediaCaptureDemomeetingApiC0123DDB.POST..record
+  meetingApirecordPOSTApiPermissionTestMediaCaptureDemomeetingApiC0123DDBPOSTrecordAE4CCDAD:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - recordingLambda18585AD6
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: meetingApi93492E06
+            - /test-invoke-stage/POST/record
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Default/record/POST/ApiPermission.Test.MediaCaptureDemomeetingApiC0123DDB.POST..record
+  meetingApirecordPOST53382656:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: meetingApirecord45E38740
+      RestApiId:
+        Ref: meetingApi93492E06
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - recordingLambda18585AD6
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Default/record/POST/Resource
+  meetingApirecordOPTIONSEF29D8D4:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: meetingApirecord45E38740
+      RestApiId:
+        Ref: meetingApi93492E06
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'false'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE'"
+            StatusCode: "200"
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/meetingApi/Default/record/OPTIONS/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21RTU/DMAz9LdzTbGUXjuxDSByAqfAHstSUbE1cxcmmKup/J2m6dUic/N6z/ezEJS9XS758eBYXKmR9WgSJFnj4dEKeWAWE3kpgWzTkrJeObT051HPi28z4T2pv8axqsGxNBC76Nco0qX4vrNDgYiaSD+867waWxoe6N0JjfeDhSxza0XwEA6MVDxsvT+CSOKEc9tgq2c/yxDPZCIrdSmgeKsyOY5ybMhpYK/ShFoXBGo7E38fw4o10Ck0cX4j0CuLjY6ZiHmL/rWaHcaB91aKBm5b8wWpFFNnAQNqrz111tow5XkGHpBzaPu3N4AwmlobKT5v79BWiU41wcBF9zAC5daemK1zhWkr0xrEddC32Opok9Y6lY4yOGVwvNg7997Jv4H6wTlJGwzCw9FP8SItz+cTLR14+HEmpwsbBSgOvcvwFaExJV18CAAA=
+    Metadata:
+      aws:cdk:path: MediaCaptureDemo/CDKMetadata/Default
+Parameters:
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D:
+    Type: String
+    Description: S3 bucket for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A:
+    Type: String
+    Description: S3 key for asset version "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1ArtifactHash0128B949:
+    Type: String
+    Description: Artifact hash for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameterseb8741a4031994415d15952ca654a8acdc16c0318979149e6eeef94dde822df5S3Bucket1E66892F:
+    Type: String
+    Description: S3 bucket for asset "eb8741a4031994415d15952ca654a8acdc16c0318979149e6eeef94dde822df5"
+  AssetParameterseb8741a4031994415d15952ca654a8acdc16c0318979149e6eeef94dde822df5S3VersionKey75B78312:
+    Type: String
+    Description: S3 key for asset version "eb8741a4031994415d15952ca654a8acdc16c0318979149e6eeef94dde822df5"
+  AssetParameterseb8741a4031994415d15952ca654a8acdc16c0318979149e6eeef94dde822df5ArtifactHash8F767667:
+    Type: String
+    Description: Artifact hash for asset "eb8741a4031994415d15952ca654a8acdc16c0318979149e6eeef94dde822df5"
+  AssetParameters87da0bd046413d83f074d496966b46e7dc71d56a8b3c9c7f3142df2ba0ac9155S3Bucket1F87C42F:
+    Type: String
+    Description: S3 bucket for asset "87da0bd046413d83f074d496966b46e7dc71d56a8b3c9c7f3142df2ba0ac9155"
+  AssetParameters87da0bd046413d83f074d496966b46e7dc71d56a8b3c9c7f3142df2ba0ac9155S3VersionKey4069647E:
+    Type: String
+    Description: S3 key for asset version "87da0bd046413d83f074d496966b46e7dc71d56a8b3c9c7f3142df2ba0ac9155"
+  AssetParameters87da0bd046413d83f074d496966b46e7dc71d56a8b3c9c7f3142df2ba0ac9155ArtifactHash4253B21C:
+    Type: String
+    Description: Artifact hash for asset "87da0bd046413d83f074d496966b46e7dc71d56a8b3c9c7f3142df2ba0ac9155"
+Outputs:
+  meetingApiEndpoint7C2F29BD:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: meetingApi93492E06
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: meetingApiDeploymentStageprod10D319E4
+          - /
+  apiURL:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: meetingApi93492E06
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: meetingApiDeploymentStageprod10D319E4
+          - /
+

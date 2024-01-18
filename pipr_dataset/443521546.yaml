@@ -1,0 +1,579 @@
+Resources:
+  LocationsTable963AECFA:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: Id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: Id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      ContributorInsightsSpecification:
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: false
+      SSESpecification:
+        SSEEnabled: true
+      TableName: Locations
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AppStack/LocationsTable/Resource
+  ListLocationsHandlerServiceRole46A39286:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AppStack/ListLocationsHandler/ServiceRole/Resource
+  ListLocationsHandlerServiceRoleDefaultPolicy9897BFA2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:Scan
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LocationsTable963AECFA
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: ListLocationsHandlerServiceRoleDefaultPolicy9897BFA2
+      Roles:
+        - Ref: ListLocationsHandlerServiceRole46A39286
+    Metadata:
+      aws:cdk:path: AppStack/ListLocationsHandler/ServiceRole/DefaultPolicy/Resource
+  ListLocationsHandlerF4CE7D13:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 0ade9e478740aa75dd2eb8612f9f947e134a5b803430102b4e8d64f19235ab0c.zip
+      Role:
+        Fn::GetAtt:
+          - ListLocationsHandlerServiceRole46A39286
+          - Arn
+      Environment:
+        Variables:
+          LOCATIONS_TABLE:
+            Ref: LocationsTable963AECFA
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: list-locations-handler
+      Handler: index.listLocationsHandler
+      MemorySize: 1024
+      Runtime: nodejs14.x
+    DependsOn:
+      - ListLocationsHandlerServiceRoleDefaultPolicy9897BFA2
+      - ListLocationsHandlerServiceRole46A39286
+    Metadata:
+      aws:cdk:path: AppStack/ListLocationsHandler/Resource
+      aws:asset:path: asset.0ade9e478740aa75dd2eb8612f9f947e134a5b803430102b4e8d64f19235ab0c
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  PopulateLocationsHandlerServiceRole9FE8CEB5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AppStack/PopulateLocationsHandler/ServiceRole/Resource
+  PopulateLocationsHandlerServiceRoleDefaultPolicy753DAFB9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LocationsTable963AECFA
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: PopulateLocationsHandlerServiceRoleDefaultPolicy753DAFB9
+      Roles:
+        - Ref: PopulateLocationsHandlerServiceRole9FE8CEB5
+    Metadata:
+      aws:cdk:path: AppStack/PopulateLocationsHandler/ServiceRole/DefaultPolicy/Resource
+  PopulateLocationsHandlerCFC0A25E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: f0cbdcc00fa651e77907b11c519b737c2585b6cd12279f871ecd6a3c153f643a.zip
+      Role:
+        Fn::GetAtt:
+          - PopulateLocationsHandlerServiceRole9FE8CEB5
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: populate-locations-handler
+      Handler: index.populateLocationsHandler
+      MemorySize: 1024
+      Runtime: nodejs14.x
+    DependsOn:
+      - PopulateLocationsHandlerServiceRoleDefaultPolicy753DAFB9
+      - PopulateLocationsHandlerServiceRole9FE8CEB5
+    Metadata:
+      aws:cdk:path: AppStack/PopulateLocationsHandler/Resource
+      aws:asset:path: asset.f0cbdcc00fa651e77907b11c519b737c2585b6cd12279f871ecd6a3c153f643a
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  LocationsApi2E0FF0DA:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: locations api
+      Name: locations-api
+    Metadata:
+      aws:cdk:path: AppStack/LocationsApi/Resource
+  LocationsApiCloudWatchRole4F98F21A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: AppStack/LocationsApi/CloudWatchRole/Resource
+  LocationsApiAccount1A217CE9:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - LocationsApiCloudWatchRole4F98F21A
+          - Arn
+    DependsOn:
+      - LocationsApi2E0FF0DA
+    Metadata:
+      aws:cdk:path: AppStack/LocationsApi/Account
+  LocationsApiDeployment6681EF0Cc6a3277c7972a1a5e06e6549883008a6:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: LocationsApi2E0FF0DA
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - LocationsApilocationsGET843B77DC
+      - LocationsApilocationsF7962A31
+    Metadata:
+      aws:cdk:path: AppStack/LocationsApi/Deployment/Resource
+  LocationsApiDeploymentStageprodE076A7DE:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: LocationsApi2E0FF0DA
+      DeploymentId:
+        Ref: LocationsApiDeployment6681EF0Cc6a3277c7972a1a5e06e6549883008a6
+      MethodSettings:
+        - DataTraceEnabled: true
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          MetricsEnabled: true
+          ResourcePath: /*
+      StageName: prod
+      TracingEnabled: true
+    DependsOn:
+      - LocationsApiAccount1A217CE9
+    Metadata:
+      aws:cdk:path: AppStack/LocationsApi/DeploymentStage.prod/Resource
+  LocationsApilocationsF7962A31:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - LocationsApi2E0FF0DA
+          - RootResourceId
+      PathPart: locations
+      RestApiId:
+        Ref: LocationsApi2E0FF0DA
+    Metadata:
+      aws:cdk:path: AppStack/LocationsApi/Default/locations/Resource
+  LocationsApilocationsGETApiPermissionAppStackLocationsApi314D3EE6GETlocationsB68E4408:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ListLocationsHandlerF4CE7D13
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: LocationsApi2E0FF0DA
+            - /
+            - Ref: LocationsApiDeploymentStageprodE076A7DE
+            - /GET/locations
+    Metadata:
+      aws:cdk:path: AppStack/LocationsApi/Default/locations/GET/ApiPermission.AppStackLocationsApi314D3EE6.GET..locations
+  LocationsApilocationsGETApiPermissionTestAppStackLocationsApi314D3EE6GETlocations57AFAC75:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ListLocationsHandlerF4CE7D13
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: LocationsApi2E0FF0DA
+            - /test-invoke-stage/GET/locations
+    Metadata:
+      aws:cdk:path: AppStack/LocationsApi/Default/locations/GET/ApiPermission.Test.AppStackLocationsApi314D3EE6.GET..locations
+  LocationsApilocationsGET843B77DC:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: LocationsApilocationsF7962A31
+      RestApiId:
+        Ref: LocationsApi2E0FF0DA
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - ListLocationsHandlerF4CE7D13
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: AppStack/LocationsApi/Default/locations/GET/Resource
+  PopulateTableCustomResourceframeworkonEventServiceRole2F0B09A4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AppStack/PopulateTableCustomResource/framework-onEvent/ServiceRole/Resource
+  PopulateTableCustomResourceframeworkonEventServiceRoleDefaultPolicyCC5E03BE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PopulateLocationsHandlerCFC0A25E
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PopulateLocationsHandlerCFC0A25E
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: PopulateTableCustomResourceframeworkonEventServiceRoleDefaultPolicyCC5E03BE
+      Roles:
+        - Ref: PopulateTableCustomResourceframeworkonEventServiceRole2F0B09A4
+    Metadata:
+      aws:cdk:path: AppStack/PopulateTableCustomResource/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  PopulateTableCustomResourceframeworkonEvent79590C84:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: a25ad9c0d11729e2a901249c21b3095a071174c6fc98296269154dcebbb42a08.zip
+      Role:
+        Fn::GetAtt:
+          - PopulateTableCustomResourceframeworkonEventServiceRole2F0B09A4
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (AppStack/PopulateTableCustomResource)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - PopulateLocationsHandlerCFC0A25E
+              - Arn
+      FunctionName: populate-locations-lambda
+      Handler: framework.onEvent
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - PopulateTableCustomResourceframeworkonEventServiceRoleDefaultPolicyCC5E03BE
+      - PopulateTableCustomResourceframeworkonEventServiceRole2F0B09A4
+    Metadata:
+      aws:cdk:path: AppStack/PopulateTableCustomResource/framework-onEvent/Resource
+      aws:asset:path: asset.a25ad9c0d11729e2a901249c21b3095a071174c6fc98296269154dcebbb42a08
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  PopulateTableCustomResourceframeworkonEventLogRetentionCF7B4D40:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: PopulateTableCustomResourceframeworkonEvent79590C84
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: AppStack/PopulateTableCustomResource/framework-onEvent/LogRetention/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AppStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:DeleteRetentionPolicy
+              - logs:PutRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: AppStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 558dc75fbdc793c8e2f64f85d2d7ed2cb820c727ec7e9b08666ad1af0103992e.zip
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: AppStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+      aws:asset:path: asset.558dc75fbdc793c8e2f64f85d2d7ed2cb820c727ec7e9b08666ad1af0103992e
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - PopulateTableCustomResourceframeworkonEvent79590C84
+          - Arn
+      tableName:
+        Ref: LocationsTable963AECFA
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AppStack/CustomResource/Default
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VQy27CMBD8Fu5mW+DSa6DqqQ9Ee4+MvU0NsTfK2qAoyr/XD6D0tDOjndnHEpYreJzJM8+VPs5bs4fx00t1FFGqRz04aUlH8UvuWxSbb5fBJFpp91rWjjQeGN5zeQlOeUNOGGlh3FEx5Lql1qgh0YImwataMqNnqFKJHNZBHdGvJeMlHsZouKUmM/bWMCd2lSchO9NIj2c5xKHIvupMnvsHK6UoOC+esWtpsBhhVO9YPLnJyxYQrRR6hXmVK7lkFvyG/od0kgqKD6GG4ZWaHfqYmBe7decLU7RxTfJ8BN8FL1RgT7buL20M255ORmP/b9Qmd91vsSGnTRmR/g8HfjgtnmCxhMXswMbM+3issQi7Un8BWDDE4uUBAAA=
+    Metadata:
+      aws:cdk:path: AppStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  LocationsApiEndpoint3AF4F310:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: LocationsApi2E0FF0DA
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: LocationsApiDeploymentStageprodE076A7DE
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

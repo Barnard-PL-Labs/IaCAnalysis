@@ -1,0 +1,787 @@
+Resources:
+  PreTokenHandlerServiceRoleF7036E6E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PreTokenHandler/ServiceRole/Resource
+  PreTokenHandler5D22AFD8:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 097b679a1f0ae9ce0050a0605c3716d9c96dc0297cbf9f0e34c0fe864df41b80.zip
+      Role:
+        Fn::GetAtt:
+          - PreTokenHandlerServiceRoleF7036E6E
+          - Arn
+      Handler: pre-token-trigger.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - PreTokenHandlerServiceRoleF7036E6E
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PreTokenHandler/Resource
+      aws:asset:path: asset.097b679a1f0ae9ce0050a0605c3716d9c96dc0297cbf9f0e34c0fe864df41b80
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  PreTokenHandlerPreTokenGenerationCognito30178913:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PreTokenHandler5D22AFD8
+          - Arn
+      Principal: cognito-idp.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - CognitoUserPool53E37E69
+          - Arn
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PreTokenHandler/PreTokenGenerationCognito
+  CognitoUserPool53E37E69:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: Thanks for signing up. Your verification code is {####}
+      EmailVerificationSubject: Verify your email
+      EnabledMfas:
+        - SOFTWARE_TOKEN_MFA
+      LambdaConfig:
+        PreTokenGeneration:
+          Fn::GetAtt:
+            - PreTokenHandler5D22AFD8
+            - Arn
+      MfaConfiguration: OPTIONAL
+      Schema:
+        - Mutable: false
+          Name: email
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameConfiguration:
+        CaseSensitive: true
+      UserPoolName: AnyCompany-UserPool
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: Thanks for signing up. Your verification code is {####}
+        EmailSubject: Verify your email
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/CognitoUserPool/Resource
+  CognitoUserPoolCognitoDomain3CDBCF16:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: anycompany-domain-1705608002378
+      UserPoolId:
+        Ref: CognitoUserPool53E37E69
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/CognitoUserPool/CognitoDomain/Resource
+  ResourceServerF27E5189:
+    Type: AWS::Cognito::UserPoolResourceServer
+    Properties:
+      Identifier: anycompany
+      Name: anycompanyAPI
+      UserPoolId:
+        Ref: CognitoUserPool53E37E69
+      Scopes:
+        - ScopeDescription: Get all pets
+          ScopeName: read
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/ResourceServer/Resource
+  UserPoolClient2F5918F7:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: CognitoUserPool53E37E69
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - openid
+        - profile
+        - Fn::Join:
+            - ""
+            - - Ref: ResourceServerF27E5189
+              - /read
+      CallbackURLs:
+        - http://localhost
+      GenerateSecret: false
+      LogoutURLs:
+        - http://localhost
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/UserPoolClient/Resource
+  petsAuthorizer1062A498:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      Name: CognitoIdentityPoolSampleStackpetsAuthorizer1A84CF4D
+      RestApiId:
+        Ref: PetsApiGWBCC9AE52
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      ProviderARNs:
+        - Fn::GetAtt:
+            - CognitoUserPool53E37E69
+            - Arn
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/petsAuthorizer/Resource
+  PetsApiGWBCC9AE52:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: Example api gateway
+      Name: PetsApiGW
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PetsApiGW/Resource
+  PetsApiGWCloudWatchRoleBCFAF6B7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PetsApiGW/CloudWatchRole/Resource
+  PetsApiGWAccount6E2FCF44:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - PetsApiGWCloudWatchRoleBCFAF6B7
+          - Arn
+    DependsOn:
+      - PetsApiGWBCC9AE52
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PetsApiGW/Account
+  PetsApiGWDeploymentED1AD9F29ac8782a23de03612775ef02057b83b8:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: PetsApiGWBCC9AE52
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - PetsApiGWOPTIONS91D33273
+      - PetsApiGWpetsGETFBE8A157
+      - PetsApiGWpetsOPTIONSA2789BEC
+      - PetsApiGWpets15E0FD70
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PetsApiGW/Deployment/Resource
+  PetsApiGWDeploymentStageProdBD1C8D13:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: PetsApiGWBCC9AE52
+      DeploymentId:
+        Ref: PetsApiGWDeploymentED1AD9F29ac8782a23de03612775ef02057b83b8
+      StageName: Prod
+    DependsOn:
+      - PetsApiGWAccount6E2FCF44
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PetsApiGW/DeploymentStage.Prod/Resource
+  PetsApiGWOPTIONS91D33273:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - PetsApiGWBCC9AE52
+          - RootResourceId
+      RestApiId:
+        Ref: PetsApiGWBCC9AE52
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PetsApiGW/Default/OPTIONS/Resource
+  PetsApiGWpets15E0FD70:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - PetsApiGWBCC9AE52
+          - RootResourceId
+      PathPart: pets
+      RestApiId:
+        Ref: PetsApiGWBCC9AE52
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PetsApiGW/Default/pets/Resource
+  PetsApiGWpetsOPTIONSA2789BEC:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: PetsApiGWpets15E0FD70
+      RestApiId:
+        Ref: PetsApiGWBCC9AE52
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PetsApiGW/Default/pets/OPTIONS/Resource
+  PetsApiGWpetsGETFBE8A157:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: PetsApiGWpets15E0FD70
+      RestApiId:
+        Ref: PetsApiGWBCC9AE52
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: petsAuthorizer1062A498
+      Integration:
+        IntegrationHttpMethod: GET
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+            StatusCode: "200"
+        PassthroughBehavior: WHEN_NO_MATCH
+        Type: HTTP
+        Uri: http://petstore.execute-api.eu-west-2.amazonaws.com/petstore/pets
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/PetsApiGW/Default/pets/GET/Resource
+  S3Bucket07682993:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: anycompany-bucket-1705608002378
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+            AllowedOrigins:
+              - "*"
+            ExposedHeaders: []
+      Tags:
+        - Key: aws-cdk:cr-owned:Engineering:50347554
+          Value: "true"
+        - Key: aws-cdk:cr-owned:Legal:9d6df15b
+          Value: "true"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/S3Bucket/Resource
+  DeployEngineeringTestFileAwsCliLayer570E9DDB:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 55f133baccc1d0e4666b88328d51a8c2ff354c919b8e0fa9f045123a19df1b4e.zip
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/DeployEngineeringTestFile/AwsCliLayer/Resource
+      aws:asset:path: asset.55f133baccc1d0e4666b88328d51a8c2ff354c919b8e0fa9f045123a19df1b4e.zip
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  DeployEngineeringTestFileCustomResource24B9F38B:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+      SourceObjectKeys:
+        - 888e539fcde074e4c1aa90f2c4cd0181f5852b98dc491b55b4f77c57fe713f6a.zip
+      DestinationBucketName:
+        Ref: S3Bucket07682993
+      DestinationBucketKeyPrefix: Engineering
+      Prune: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/DeployEngineeringTestFile/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - S3Bucket07682993
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - S3Bucket07682993
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: f98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711da.zip
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: DeployEngineeringTestFileAwsCliLayer570E9DDB
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.f98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711da
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  DeployLegalTestFileAwsCliLayer583B71BB:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 55f133baccc1d0e4666b88328d51a8c2ff354c919b8e0fa9f045123a19df1b4e.zip
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/DeployLegalTestFile/AwsCliLayer/Resource
+      aws:asset:path: asset.55f133baccc1d0e4666b88328d51a8c2ff354c919b8e0fa9f045123a19df1b4e.zip
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  DeployLegalTestFileCustomResource2DF2B014:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+      SourceObjectKeys:
+        - 8a1552e69bf0b285e9b6f6231d3b9cfc89d18b214b6ae894106e095de3f3cc63.zip
+      DestinationBucketName:
+        Ref: S3Bucket07682993
+      DestinationBucketKeyPrefix: Legal
+      Prune: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/DeployLegalTestFile/CustomResource/Default
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: UserPoolClient2F5918F7
+          ProviderName:
+            Fn::GetAtt:
+              - CognitoUserPool53E37E69
+              - ProviderName
+      IdentityPoolName: AnyCompanyIdentityPool
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/IdentityPool
+  CognitoAuthRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action:
+              - sts:AssumeRoleWithWebIdentity
+              - sts:TagSession
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: IdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: s3:List*
+                Condition:
+                  StringEquals:
+                    s3:prefix: ${aws:PrincipalTag/department}
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - S3Bucket07682993
+                    - Arn
+            Version: "2012-10-17"
+          PolicyName: AuthRoleAccessPolicy
+      RoleName: CognitoIdentityPoolRole-Authorized
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/CognitoAuthRole
+  defaultRoles:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: IdentityPool
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - CognitoAuthRole
+            - Arn
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/defaultRoles
+  CustomResourcePrincipalTagsCustomResourcePolicy0A3BA6CC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cognito-identity:SetPrincipalTagAttributeMap
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:cognito-identity:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :identitypool/
+                  - Ref: IdentityPool
+        Version: "2012-10-17"
+      PolicyName: CustomResourcePrincipalTagsCustomResourcePolicy0A3BA6CC
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/CustomResourcePrincipalTags/CustomResourcePolicy/Resource
+  CustomResourcePrincipalTagsCAFCAFEC:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"action":"setPrincipalTagAttributeMap","service":"CognitoIdentity","parameters":{"IdentityPoolId":"'
+            - Ref: IdentityPool
+            - '","IdentityProviderName":"'
+            - Fn::GetAtt:
+                - CognitoUserPool53E37E69
+                - ProviderName
+            - '","PrincipalTags":{"department":"department"},"UseDefaults":false},"physicalResourceId":{"id":"'
+            - Ref: IdentityPool
+            - '"}}'
+      Update:
+        Fn::Join:
+          - ""
+          - - '{"action":"setPrincipalTagAttributeMap","service":"CognitoIdentity","parameters":{"IdentityPoolId":"'
+            - Ref: IdentityPool
+            - '","IdentityProviderName":"'
+            - Fn::GetAtt:
+                - CognitoUserPool53E37E69
+                - ProviderName
+            - '","PrincipalTags":{"department":"department"},"UseDefaults":false},"physicalResourceId":{"id":"'
+            - Ref: IdentityPool
+            - '"}}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - CustomResourcePrincipalTagsCustomResourcePolicy0A3BA6CC
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/CustomResourcePrincipalTags/Resource/Default
+  AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource
+  AWS679f53fac002430cb0da5b7982bd22872D164C4C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 39381d2c8b8ec42679de4960c24f0c83c56772cdc2b10b6fc14cd0a99aba42ed.zip
+      Role:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 120
+    DependsOn:
+      - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/AWS679f53fac002430cb0da5b7982bd2287/Resource
+      aws:asset:path: asset.39381d2c8b8ec42679de4960c24f0c83c56772cdc2b10b6fc14cd0a99aba42ed
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21SyU7DMBD9lt5dQ8sFjmkqJCQQVSu4Rq4zpNM6duSlVYjy73hJ2gg4+S2TyWxLunii9zN2MXNenuYC97TbWcZPxEtFJ1i9Lxntnp3kFpUk+Zec4g3oGo0Z2CtrQX+CjnyHshJg1TW+J8hq2m2VgBAc340SyNuYKaKemIeiY8aANTQLDymhEaqtQVq6cvwEdn0VQjTtkrpiBkiCIV1CPeGqkmgV7T4M6I1SIphXPIK1qhnKqTUoI92CUU5z2IE+g54G/nJGORfoC5wG3pSX0gO07VjOlIepZNYv4JAaZA1WzMKFtbTLUy9jQpM5e1Aav1NBE+ZrslmDcco3mHGunK/gNr+gTpjfexVXk8DYWZzsG/jsZTAHNLrDTyLuexJ3Fr732w/Wu7ONsyTdUSHCgRT+srhAml2Mn0m8GZI7Y1X9X07Co1XogZv43Z/wXMkS05VJVQI9mrvz4pEulnQxOxrEufatYw10m94fybj0J/gCAAA=
+    Metadata:
+      aws:cdk:path: CognitoIdentityPoolSampleStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  PetsApiGWEndpoint553B2C7F:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: PetsApiGWBCC9AE52
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: PetsApiGWDeploymentStageProdBD1C8D13
+          - /
+  BucketName:
+    Value:
+      Ref: S3Bucket07682993
+  ApiGatewayUrl:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: PetsApiGWBCC9AE52
+          - .execute-api.
+          - Ref: AWS::Region
+          - .amazonaws.com/Prod/pets
+  UserPoolId:
+    Value:
+      Ref: CognitoUserPool53E37E69
+  ClientId:
+    Value:
+      Ref: UserPoolClient2F5918F7
+  IdentityPoolId:
+    Value:
+      Ref: IdentityPool
+  Region:
+    Value:
+      Ref: AWS::Region
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

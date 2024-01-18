@@ -1,0 +1,412 @@
+Resources:
+  LandingPagePipelineBuildRoleA8A323F8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipelineBuild/Role/Resource
+  LandingPagePipelineBuildRoleDefaultPolicyD07B1706:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: LandingPagePipelineBuildDEA1FC9E
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: LandingPagePipelineBuildDEA1FC9E
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: LandingPagePipelineBuildDEA1FC9E
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LandingPagePipelineArtifactsBucket3B8411D6
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - LandingPagePipelineArtifactsBucket3B8411D6
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LandingPagePipelineArtifactsBucketEncryptionKey0B9B8AD4
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LandingPagePipelineArtifactsBucketEncryptionKey0B9B8AD4
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: LandingPagePipelineBuildRoleDefaultPolicyD07B1706
+      Roles:
+        - Ref: LandingPagePipelineBuildRoleA8A323F8
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipelineBuild/Role/DefaultPolicy/Resource
+  LandingPagePipelineBuildDEA1FC9E:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - LandingPagePipelineBuildRoleA8A323F8
+          - Arn
+      Source:
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - LandingPagePipelineArtifactsBucketEncryptionKey0B9B8AD4
+          - Arn
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipelineBuild/Resource
+  LandingPagePipelineArtifactsBucketEncryptionKey0B9B8AD4:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipeline/ArtifactsBucketEncryptionKey/Resource
+  LandingPagePipelineArtifactsBucketEncryptionKeyAlias24D85DE4:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-landingpagepipelinece0348c4
+      TargetKeyId:
+        Fn::GetAtt:
+          - LandingPagePipelineArtifactsBucketEncryptionKey0B9B8AD4
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  LandingPagePipelineArtifactsBucket3B8411D6:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - LandingPagePipelineArtifactsBucketEncryptionKey0B9B8AD4
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipeline/ArtifactsBucket/Resource
+  LandingPagePipelineRole87EF2610:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipeline/Role/Resource
+  LandingPagePipelineRoleDefaultPolicy7230C7B7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LandingPagePipelineArtifactsBucket3B8411D6
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - LandingPagePipelineArtifactsBucket3B8411D6
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LandingPagePipelineArtifactsBucketEncryptionKey0B9B8AD4
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LandingPagePipelineSourceCheckoutCodePipelineActionRole588CF2F9
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LandingPagePipelineBuildCodePipelineActionRoleF9B081A0
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: LandingPagePipelineRoleDefaultPolicy7230C7B7
+      Roles:
+        - Ref: LandingPagePipelineRole87EF2610
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipeline/Role/DefaultPolicy/Resource
+  LandingPagePipeline7D469C91:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - LandingPagePipelineRole87EF2610
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: "1"
+              Configuration:
+                ConnectionArn: arn:aws:codestar-connections:eu-west-1:691062780315:connection/5a5860b1-a9a0-4e2b-8c10-34b65c5f712c
+                FullRepositoryId: getfitr/landing-page
+                BranchName: main
+              Name: Checkout
+              OutputArtifacts:
+                - Name: LandingPagePipelineSrcOutput
+              RoleArn:
+                Fn::GetAtt:
+                  - LandingPagePipelineSourceCheckoutCodePipelineActionRole588CF2F9
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: LandingPagePipelineBuildDEA1FC9E
+              InputArtifacts:
+                - Name: LandingPagePipelineSrcOutput
+              Name: Build
+              OutputArtifacts:
+                - Name: LandingPagePipelineBuildOutput
+              RoleArn:
+                Fn::GetAtt:
+                  - LandingPagePipelineBuildCodePipelineActionRoleF9B081A0
+                  - Arn
+              RunOrder: 1
+          Name: Build
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - LandingPagePipelineArtifactsBucketEncryptionKey0B9B8AD4
+              - Arn
+          Type: KMS
+        Location:
+          Ref: LandingPagePipelineArtifactsBucket3B8411D6
+        Type: S3
+      RestartExecutionOnUpdate: false
+    DependsOn:
+      - LandingPagePipelineRoleDefaultPolicy7230C7B7
+      - LandingPagePipelineRole87EF2610
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipeline/Resource
+  LandingPagePipelineSourceCheckoutCodePipelineActionRole588CF2F9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipeline/Source/Checkout/CodePipelineActionRole/Resource
+  LandingPagePipelineSourceCheckoutCodePipelineActionRoleDefaultPolicy66E88000:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codestar-connections:UseConnection
+            Effect: Allow
+            Resource: arn:aws:codestar-connections:eu-west-1:691062780315:connection/5a5860b1-a9a0-4e2b-8c10-34b65c5f712c
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LandingPagePipelineArtifactsBucket3B8411D6
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - LandingPagePipelineArtifactsBucket3B8411D6
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LandingPagePipelineArtifactsBucketEncryptionKey0B9B8AD4
+                - Arn
+          - Action: s3:PutObjectAcl
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - LandingPagePipelineArtifactsBucket3B8411D6
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: LandingPagePipelineSourceCheckoutCodePipelineActionRoleDefaultPolicy66E88000
+      Roles:
+        - Ref: LandingPagePipelineSourceCheckoutCodePipelineActionRole588CF2F9
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipeline/Source/Checkout/CodePipelineActionRole/DefaultPolicy/Resource
+  LandingPagePipelineBuildCodePipelineActionRoleF9B081A0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipeline/Build/Build/CodePipelineActionRole/Resource
+  LandingPagePipelineBuildCodePipelineActionRoleDefaultPolicy5D882022:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LandingPagePipelineBuildDEA1FC9E
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: LandingPagePipelineBuildCodePipelineActionRoleDefaultPolicy5D882022
+      Roles:
+        - Ref: LandingPagePipelineBuildCodePipelineActionRoleF9B081A0
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/LandingPagePipeline/Build/Build/CodePipelineActionRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE0WNzQ7CIBAGn6V33Ba9eFR79NLUJ0C6JttSaPjRGMK7W2gTT9+QzA4ceMOhqS7i4w5ymOoojUWIDy/kxFqjnbdBeta+dI/OBCsxseyu3oDPQGqA2NGCijR21oy4yTsmRmKG2BuFJZG3M4rkt0iFEsupZW/8a8XYObFpdhDvWO7yXBUJlx8FEnMniLcgJyzfb5RSYnptw+jqNz8DPwKvRkd0sEF7mhH6bX+BLItFBgEAAA==
+    Metadata:
+      aws:cdk:path: LandingPagePipeline/CDKMetadata/Default
+

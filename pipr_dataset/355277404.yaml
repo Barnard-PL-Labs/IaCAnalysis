@@ -1,0 +1,428 @@
+Resources:
+  GlueExecutionRole9B3FD381:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - glue.amazonaws.com
+                - lakeformation.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - lakeformation:GetDataAccess
+                  - lakeformation:GrantPermissions
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: LakeFormationPermissionPolicy
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/GlueExecutionRole/Resource
+  GlueExecutionRoleDefaultPolicyC3E955D9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - GlueExecutionRole9B3FD381
+                - Arn
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Ref: SnowflakeCredentials68125450
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - GlueStudioBucketAFCC1143
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - GlueStudioBucketAFCC1143
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: GlueExecutionRoleDefaultPolicyC3E955D9
+      Roles:
+        - Ref: GlueExecutionRole9B3FD381
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/GlueExecutionRole/DefaultPolicy/Resource
+  DataBrewExecutionRole360857E4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: databrew.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSGlueDataBrewServiceRole
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/DataBrewExecutionRole/Resource
+  DataBrewExecutionRoleDefaultPolicy4C0BB5A8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - GlueStudioBucketAFCC1143
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - GlueStudioBucketAFCC1143
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: DataBrewExecutionRoleDefaultPolicy4C0BB5A8
+      Roles:
+        - Ref: DataBrewExecutionRole360857E4
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/DataBrewExecutionRole/DefaultPolicy/Resource
+  SnowflakeCredentials68125450:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Description: Credentials and Warehouse for Snowflake Connection
+      GenerateSecretString: {}
+      Name: snowflakeCreds
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/SnowflakeCredentials/Resource
+  GlueStudioBucketAFCC1143:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/GlueStudioBucket/Resource
+  WorkingBucketResource:
+    Type: AWS::LakeFormation::Resource
+    Properties:
+      ResourceArn:
+        Fn::GetAtt:
+          - GlueStudioBucketAFCC1143
+          - Arn
+      UseServiceLinkedRole: false
+      RoleArn:
+        Fn::GetAtt:
+          - GlueExecutionRole9B3FD381
+          - Arn
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/WorkingBucketResource
+  glueroledatapermission:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier:
+          Fn::GetAtt:
+            - GlueExecutionRole9B3FD381
+            - Arn
+      Resource:
+        DataLocationResource:
+          S3Resource:
+            Fn::GetAtt:
+              - GlueStudioBucketAFCC1143
+              - Arn
+      Permissions:
+        - DATA_LOCATION_ACCESS
+    DependsOn:
+      - WorkingBucketResource
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/glue-role-data-permission
+  brewroledatapermission:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier:
+          Fn::GetAtt:
+            - DataBrewExecutionRole360857E4
+            - Arn
+      Resource:
+        DataLocationResource:
+          S3Resource:
+            Fn::GetAtt:
+              - GlueStudioBucketAFCC1143
+              - Arn
+      Permissions:
+        - DATA_LOCATION_ACCESS
+    DependsOn:
+      - WorkingBucketResource
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/brew-role-data-permission
+  DeployFilesAwsCliLayerF562E16D:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/DeployFiles/AwsCliLayer/Resource
+      aws:asset:path: asset.e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68.zip
+      aws:asset:property: Content
+  DeployFilesCustomResource51EC1601:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameters289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1S3Bucket38A3122F
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1S3VersionKey1074B469
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1S3VersionKey1074B469
+      DestinationBucketName:
+        Ref: GlueStudioBucketAFCC1143
+      Prune: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/DeployFiles/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1S3Bucket38A3122F
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1S3Bucket38A3122F
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - GlueStudioBucketAFCC1143
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - GlueStudioBucketAFCC1143
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc24b999656e4fe6c609c31bae56a1cf4717a405619c3aa6ba1bc686b8c2c86cfS3Bucket55EFA30C
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc24b999656e4fe6c609c31bae56a1cf4717a405619c3aa6ba1bc686b8c2c86cfS3VersionKey60329B70
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc24b999656e4fe6c609c31bae56a1cf4717a405619c3aa6ba1bc686b8c2c86cfS3VersionKey60329B70
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: DeployFilesAwsCliLayerF562E16D
+      Runtime: python3.6
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.c24b999656e4fe6c609c31bae56a1cf4717a405619c3aa6ba1bc686b8c2c86cf
+      aws:asset:property: Code
+  nfldatabaseB516A2E6:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: "036406153779"
+      DatabaseInput:
+        Name: nfl
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/nfl-database/Resource
+  glueroledatabasepermission:
+    Type: AWS::LakeFormation::Permissions
+    Properties:
+      DataLakePrincipal:
+        DataLakePrincipalIdentifier:
+          Fn::GetAtt:
+            - GlueExecutionRole9B3FD381
+            - Arn
+      Resource:
+        DatabaseResource:
+          Name:
+            Ref: nfldatabaseB516A2E6
+      Permissions:
+        - ALTER
+        - CREATE_TABLE
+        - DROP
+        - DESCRIBE
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/glue-role-database-permission
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE12QTWvDMAyGf0vvjrt0MLbbupSdBist7K46anDjj2LJK8Xkv892aDd20ivp5dFHK1+e5MPiFS7UqH5cJuUDyrRnUKPoju4z8jmy6LwjDlGxWBMh5/ag3SB2SD4GhaKLxN7+pkf3V28hgEXGMIkyJ2mwMu28mY0lbr3R6lq9VU2CUAVksuBgwJA3qnlxzCo7HmV6i2qcq7OahIERjz5YYO2dTP83wWA1UW5RATSpx7PxV4uO5UzY3AsCyqkk68UFbA89VOIHXDF8YSgcsc+PMMjevUenylBxF9l605MYTMyP3QDDAaguc9PTDd6YAm7yj5TRcn2hzug6axLO9yhPtPxun2W7ku3iRFo3ITrWFuVujj8G/xMPzQEAAA==
+    Metadata:
+      aws:cdk:path: GlueStudioSnowflakeStack/CDKMetadata/Default
+Outputs:
+  GlueRole:
+    Value:
+      Fn::GetAtt:
+        - GlueExecutionRole9B3FD381
+        - Arn
+  DataBrewRole:
+    Value:
+      Fn::GetAtt:
+        - DataBrewExecutionRole360857E4
+        - Arn
+  SnowflakeCredsSecret:
+    Value:
+      Fn::Select:
+        - 0
+        - Fn::Split:
+            - "-"
+            - Fn::Select:
+                - 6
+                - Fn::Split:
+                    - ":"
+                    - Ref: SnowflakeCredentials68125450
+  WorkingBucket:
+    Value:
+      Ref: GlueStudioBucketAFCC1143
+Parameters:
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7:
+    Type: String
+    Description: S3 bucket for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F:
+    Type: String
+    Description: S3 key for asset version "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68ArtifactHashD9A515C3:
+    Type: String
+    Description: Artifact hash for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParametersc24b999656e4fe6c609c31bae56a1cf4717a405619c3aa6ba1bc686b8c2c86cfS3Bucket55EFA30C:
+    Type: String
+    Description: S3 bucket for asset "c24b999656e4fe6c609c31bae56a1cf4717a405619c3aa6ba1bc686b8c2c86cf"
+  AssetParametersc24b999656e4fe6c609c31bae56a1cf4717a405619c3aa6ba1bc686b8c2c86cfS3VersionKey60329B70:
+    Type: String
+    Description: S3 key for asset version "c24b999656e4fe6c609c31bae56a1cf4717a405619c3aa6ba1bc686b8c2c86cf"
+  AssetParametersc24b999656e4fe6c609c31bae56a1cf4717a405619c3aa6ba1bc686b8c2c86cfArtifactHash85F58E48:
+    Type: String
+    Description: Artifact hash for asset "c24b999656e4fe6c609c31bae56a1cf4717a405619c3aa6ba1bc686b8c2c86cf"
+  AssetParameters289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1S3Bucket38A3122F:
+    Type: String
+    Description: S3 bucket for asset "289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1"
+  AssetParameters289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1S3VersionKey1074B469:
+    Type: String
+    Description: S3 key for asset version "289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1"
+  AssetParameters289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1ArtifactHash0D7EBD18:
+    Type: String
+    Description: Artifact hash for asset "289e5c25828e71b83a10af2662866277c7a6743563a8ff44e480bd66df1226c1"
+

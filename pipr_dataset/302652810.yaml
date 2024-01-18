@@ -1,0 +1,346 @@
+Unable to find git repository name. Set the repository_url context value or configure a git remote
+Parameters:
+  topicArn:
+    Type: String
+    Description: The ARN of the SNS topic to send messages to
+  accountsAllowList:
+    Type: String
+    Description: A comma separated list of account numbers to include
+  prismUrl:
+    Type: String
+    Description: Base URL for Prism
+  VpcId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::VPC::Id>
+    Default: /account/vpc/primary/id
+    Description: Virtual Private Cloud to run EC2 instances within. Should NOT be the account default VPC.
+  PrivateSubnets:
+    Type: AWS::SSM::Parameter::Value<List<AWS::EC2::Subnet::Id>>
+    Default: /account/vpc/primary/subnets/private
+    Description: A list of private subnets
+  DistributionBucketName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /account/services/artifact.bucket
+    Description: SSM parameter containing the S3 bucket name holding distribution artifacts
+Resources:
+  tagjanitorlambdaServiceRoleD63E9AA7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Tags:
+        - Key: App
+          Value: tag-janitor
+        - Key: gu:cdk:version
+          Value: 47.0.0
+        - Key: Stack
+          Value: deploy
+        - Key: Stage
+          Value: PROD
+    Metadata:
+      aws:cdk:path: CdkStack/tag-janitor-lambda/ServiceRole/Resource
+  tagjanitorlambdaServiceRoleDefaultPolicy79766902:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: DistributionBucketName
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: DistributionBucketName
+                    - /*
+          - Action: ssm:GetParametersByPath
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/PROD/deploy/tag-janitor
+          - Action:
+              - ssm:GetParameters
+              - ssm:GetParameter
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/PROD/deploy/tag-janitor/*
+          - Action: SNS:Publish
+            Effect: Allow
+            Resource:
+              Ref: topicArn
+        Version: "2012-10-17"
+      PolicyName: tagjanitorlambdaServiceRoleDefaultPolicy79766902
+      Roles:
+        - Ref: tagjanitorlambdaServiceRoleD63E9AA7
+    Metadata:
+      aws:cdk:path: CdkStack/tag-janitor-lambda/ServiceRole/DefaultPolicy/Resource
+  tagjanitorlambdaSecurityGroupCDEEB485:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Automatic security group for Lambda Function CdkStacktagjanitorlambda669D3FE5
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      Tags:
+        - Key: App
+          Value: tag-janitor
+        - Key: gu:cdk:version
+          Value: 47.0.0
+        - Key: Stack
+          Value: deploy
+        - Key: Stage
+          Value: PROD
+      VpcId:
+        Ref: VpcId
+    Metadata:
+      aws:cdk:path: CdkStack/tag-janitor-lambda/SecurityGroup/Resource
+  tagjanitorlambda3E6E11A1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: DistributionBucketName
+        S3Key: deploy/PROD/tag-janitor/tag-janitor.zip
+      Role:
+        Fn::GetAtt:
+          - tagjanitorlambdaServiceRoleD63E9AA7
+          - Arn
+      Description: Lambda to notify about instances with missing tags
+      Environment:
+        Variables:
+          TOPIC_ARN:
+            Ref: topicArn
+          ACCOUNTS_ALLOW_LIST:
+            Ref: accountsAllowList
+          PRISM_URL:
+            Ref: prismUrl
+          STACK: deploy
+          STAGE: PROD
+          APP: tag-janitor
+      FunctionName: tag-janitor-PROD
+      Handler: index.handler
+      MemorySize: 512
+      Runtime: nodejs16.x
+      Tags:
+        - Key: App
+          Value: tag-janitor
+        - Key: gu:cdk:version
+          Value: 47.0.0
+        - Key: Stack
+          Value: deploy
+        - Key: Stage
+          Value: PROD
+      Timeout: 30
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::GetAtt:
+              - tagjanitorlambdaSecurityGroupCDEEB485
+              - GroupId
+        SubnetIds:
+          Ref: PrivateSubnets
+    DependsOn:
+      - tagjanitorlambdaServiceRoleDefaultPolicy79766902
+      - tagjanitorlambdaServiceRoleD63E9AA7
+    Metadata:
+      aws:cdk:path: CdkStack/tag-janitor-lambda/Resource
+  tagjanitorlambdatagjanitorlambdarate7days0B5F68379:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(7 days)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - tagjanitorlambda3E6E11A1
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: CdkStack/tag-janitor-lambda/tag-janitor-lambda-rate(7 days)-0/Resource
+  tagjanitorlambdatagjanitorlambdarate7days0AllowEventRuleCdkStacktagjanitorlambda669D3FE565287F2B:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - tagjanitorlambda3E6E11A1
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - tagjanitorlambdatagjanitorlambdarate7days0B5F68379
+          - Arn
+    Metadata:
+      aws:cdk:path: CdkStack/tag-janitor-lambda/tag-janitor-lambda-rate(7 days)-0/AllowEventRuleCdkStacktagjanitorlambda669D3FE5
+  tagjanitorlambdaErrorPercentageAlarmForLambda028453C9:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      ActionsEnabled: true
+      AlarmActions:
+        - Fn::Join:
+            - ""
+            - - "arn:aws:sns:"
+              - Ref: AWS::Region
+              - ":"
+              - Ref: AWS::AccountId
+              - :devx-alerts
+      AlarmDescription:
+        Fn::Join:
+          - ""
+          - - Ref: tagjanitorlambda3E6E11A1
+            - " exceeded 99% error rate"
+      AlarmName: High error % from tag-janitor-PROD
+      Metrics:
+        - Expression: 100*m1/m2
+          Id: expr_1
+          Label:
+            Fn::Join:
+              - ""
+              - - "Error % of "
+                - Ref: tagjanitorlambda3E6E11A1
+        - Id: m1
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: FunctionName
+                  Value:
+                    Ref: tagjanitorlambda3E6E11A1
+              MetricName: Errors
+              Namespace: AWS/Lambda
+            Period: 60
+            Stat: Sum
+          ReturnData: false
+        - Id: m2
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: FunctionName
+                  Value:
+                    Ref: tagjanitorlambda3E6E11A1
+              MetricName: Invocations
+              Namespace: AWS/Lambda
+            Period: 60
+            Stat: Sum
+          ReturnData: false
+      Threshold: 99
+      TreatMissingData: notBreaching
+    Metadata:
+      aws:cdk:path: CdkStack/tag-janitor-lambda-ErrorPercentageAlarmForLambda/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VQy04DMQz8Fu5Zo91euNJKcF1tuaPUa4S7eVRx0qqK8u8kASQ4zdgztsaeYDfB+KBvMuC6DYZPkI9R46YOH27WQVuKFNRC4lNAUtX4nmUH+4Qbxb0WUkbb06ohvySHkb1rk3/5TMGySK2KYm0hL95QEzrO3jDeu6+zoginmoEwBY731+DTpan/GtV0JRel7ko/uyoWhcan9aYjfkJ+NjrYJnVSlDiBN39hbKFLn/k9qvKDdyvHntH5leAsj9fxCcb2nLMwDyG5yJZg+cYvrLFupTgBAAA=
+    Metadata:
+      aws:cdk:path: CdkStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

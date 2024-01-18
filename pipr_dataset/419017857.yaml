@@ -1,0 +1,325 @@
+Resources:
+  emailArchiveBucket1256380B:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: bucket-name-to-be-changed
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CustomResourceStack/emailArchiveBucket/Resource
+  emailArchiveBucketPolicy8E959AC2:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: emailArchiveBucket1256380B
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                aws:Referer:
+                  Ref: AWS::AccountId
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - emailArchiveBucket1256380B
+                      - Arn
+                  - /emails/*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CustomResourceStack/emailArchiveBucket/Policy/Resource
+  ArchivalRuleSet943B9ED5:
+    Type: AWS::SES::ReceiptRuleSet
+    Properties:
+      RuleSetName: default
+    Metadata:
+      aws:cdk:path: CustomResourceStack/ArchivalRuleSet/Resource
+  ArchivalRuleSetRule06A0CFF7B:
+    Type: AWS::SES::ReceiptRule
+    Properties:
+      Rule:
+        Actions:
+          - S3Action:
+              BucketName:
+                Ref: emailArchiveBucket1256380B
+              ObjectKeyPrefix: emails/
+        Enabled: true
+      RuleSetName:
+        Ref: ArchivalRuleSet943B9ED5
+    DependsOn:
+      - emailArchiveBucketPolicy8E959AC2
+    Metadata:
+      aws:cdk:path: CustomResourceStack/ArchivalRuleSet/Rule0/Resource
+  cdkCallCustomResourceConstructsesdefaultrulesetcustomresourceCustomResourcePolicy37CAFE47:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ses:SetActiveReceiptRuleSet
+            Effect: Allow
+            Resource: "*"
+            Sid: SesCustomResourceSetActiveReceiptRuleSet
+        Version: "2012-10-17"
+      PolicyName: cdkCallCustomResourceConstructsesdefaultrulesetcustomresourceCustomResourcePolicy37CAFE47
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: CustomResourceStack/cdkCallCustomResourceConstruct/ses_default_rule_set_custom_resource/CustomResourcePolicy/Resource
+  cdkCallCustomResourceConstructsesdefaultrulesetcustomresource85F38D72:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"SES","action":"setActiveReceiptRuleSet","physicalResourceId":{"id":"DefaultSesCustomResource"},"parameters":{"RuleSetName":"'
+            - Ref: ArchivalRuleSet943B9ED5
+            - '"}}'
+      Update:
+        Fn::Join:
+          - ""
+          - - '{"service":"SES","action":"setActiveReceiptRuleSet","physicalResourceId":{"id":"DefaultSesCustomResource"},"parameters":{"RuleSetName":"'
+            - Ref: ArchivalRuleSet943B9ED5
+            - '"}}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - cdkCallCustomResourceConstructsesdefaultrulesetcustomresourceCustomResourcePolicy37CAFE47
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CustomResourceStack/cdkCallCustomResourceConstruct/ses_default_rule_set_custom_resource/Resource/Default
+  AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CustomResourceStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource
+  AWS679f53fac002430cb0da5b7982bd22872D164C4C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersf3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797S3BucketBEE108A9
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797S3VersionKeyA877E3C9
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797S3VersionKeyA877E3C9
+      Role:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 30
+    DependsOn:
+      - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: CustomResourceStack/AWS679f53fac002430cb0da5b7982bd2287/Resource
+      aws:asset:path: asset.f3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797
+      aws:asset:property: Code
+  AWS679f53fac002430cb0da5b7982bd2287LogRetentionCE72797A:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: AWS679f53fac002430cb0da5b7982bd22872D164C4C
+      RetentionInDays: 7
+    Metadata:
+      aws:cdk:path: CustomResourceStack/AWS679f53fac002430cb0da5b7982bd2287/LogRetention/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CustomResourceStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: CustomResourceStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket:
+          Ref: AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3Bucket4D46ABB5
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3VersionKeyB0F28861
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3VersionKeyB0F28861
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: CustomResourceStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/12RwW7DIAyGn6V3Qkd26XFtpJ12qOgTMOJFNAQmDKsmlHefCV3W5eTfxv79AYJn0Qr+tHtRN2x0P+6z9gF4vkSlR9Z5hzEkHVmXMPpJAvoUNLDuw636iAiR+gfjBvbYcVZBTRAhlISsehONdzPTi1cT7q3Ijzfc+BeabNX03itiIWML0bvX5HSxYKsg4189M6Mmns/eGv29rK9Kelt5Kc4MnxtVeGlpCZTzU9IjxJNCYNYPyN/8IInaLaYzE+3h3/ssaDSW61yxvqsa/gAec9pMF80SNJjPKJOFS53dVB7SzSmhLF+z/gkVnO+BX3H/JQ5ctFzsrmhMExKxT8BljT9JKnxV5AEAAA==
+    Metadata:
+      aws:cdk:path: CustomResourceStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParametersf3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797S3BucketBEE108A9:
+    Type: String
+    Description: S3 bucket for asset "f3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797"
+  AssetParametersf3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797S3VersionKeyA877E3C9:
+    Type: String
+    Description: S3 key for asset version "f3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797"
+  AssetParametersf3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797ArtifactHashAAFCA968:
+    Type: String
+    Description: Artifact hash for asset "f3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797"
+  AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3Bucket4D46ABB5:
+    Type: String
+    Description: S3 bucket for asset "67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24"
+  AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3VersionKeyB0F28861:
+    Type: String
+    Description: S3 key for asset version "67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24"
+  AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24ArtifactHashBA91B77F:
+    Type: String
+    Description: Artifact hash for asset "67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

@@ -1,0 +1,412 @@
+
+> factorio-server@1.0.0 start
+> ts-node src/index.ts
+
+Resources:
+  Vpc8378EB38:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: Factorio/Vpc
+    Metadata:
+      aws:cdk:path: Factorio/Vpc/Resource
+  VpcPublicSubnet1Subnet5C2D37C4:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/17
+      VpcId:
+        Ref: Vpc8378EB38
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: Factorio/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: Factorio/Vpc/PublicSubnet1/Subnet
+  VpcPublicSubnet1RouteTable6C95E38E:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: Vpc8378EB38
+      Tags:
+        - Key: Name
+          Value: Factorio/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: Factorio/Vpc/PublicSubnet1/RouteTable
+  VpcPublicSubnet1RouteTableAssociation97140677:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VpcPublicSubnet1RouteTable6C95E38E
+      SubnetId:
+        Ref: VpcPublicSubnet1Subnet5C2D37C4
+    Metadata:
+      aws:cdk:path: Factorio/Vpc/PublicSubnet1/RouteTableAssociation
+  VpcPublicSubnet1DefaultRoute3DA9E72A:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VpcPublicSubnet1RouteTable6C95E38E
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: VpcIGWD7BA715C
+    DependsOn:
+      - VpcVPCGWBF912B6E
+    Metadata:
+      aws:cdk:path: Factorio/Vpc/PublicSubnet1/DefaultRoute
+  VpcIsolatedSubnet1SubnetE48C5737:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/17
+      VpcId:
+        Ref: Vpc8378EB38
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Isolated
+        - Key: aws-cdk:subnet-type
+          Value: Isolated
+        - Key: Name
+          Value: Factorio/Vpc/IsolatedSubnet1
+    Metadata:
+      aws:cdk:path: Factorio/Vpc/IsolatedSubnet1/Subnet
+  VpcIsolatedSubnet1RouteTable4771E3E5:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: Vpc8378EB38
+      Tags:
+        - Key: Name
+          Value: Factorio/Vpc/IsolatedSubnet1
+    Metadata:
+      aws:cdk:path: Factorio/Vpc/IsolatedSubnet1/RouteTable
+  VpcIsolatedSubnet1RouteTableAssociationD300FCBB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VpcIsolatedSubnet1RouteTable4771E3E5
+      SubnetId:
+        Ref: VpcIsolatedSubnet1SubnetE48C5737
+    Metadata:
+      aws:cdk:path: Factorio/Vpc/IsolatedSubnet1/RouteTableAssociation
+  VpcIGWD7BA715C:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: Factorio/Vpc
+    Metadata:
+      aws:cdk:path: Factorio/Vpc/IGW
+  VpcVPCGWBF912B6E:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: Vpc8378EB38
+      InternetGatewayId:
+        Ref: VpcIGWD7BA715C
+    Metadata:
+      aws:cdk:path: Factorio/Vpc/VPCGW
+  FileSystem8A8E25C0:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      FileSystemTags:
+        - Key: Name
+          Value: Factorio/FileSystem
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: Factorio/FileSystem/Resource
+  FileSystemEfsSecurityGroup212D3ACB:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Factorio/FileSystem/EfsSecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      Tags:
+        - Key: Name
+          Value: Factorio/FileSystem
+      VpcId:
+        Ref: Vpc8378EB38
+    Metadata:
+      aws:cdk:path: Factorio/FileSystem/EfsSecurityGroup/Resource
+  FileSystemEfsSecurityGroupfromFactorioServiceSecurityGroupB449F87A20491D1BC76C:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: from FactorioServiceSecurityGroupB449F87A:2049
+      FromPort: 2049
+      GroupId:
+        Fn::GetAtt:
+          - FileSystemEfsSecurityGroup212D3ACB
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - ServiceSecurityGroupC96ED6A7
+          - GroupId
+      ToPort: 2049
+    Metadata:
+      aws:cdk:path: Factorio/FileSystem/EfsSecurityGroup/from FactorioServiceSecurityGroupB449F87A:2049
+  FileSystemEfsMountTarget1586453F0:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId:
+        Ref: FileSystem8A8E25C0
+      SecurityGroups:
+        - Fn::GetAtt:
+            - FileSystemEfsSecurityGroup212D3ACB
+            - GroupId
+      SubnetId:
+        Ref: VpcIsolatedSubnet1SubnetE48C5737
+    Metadata:
+      aws:cdk:path: Factorio/FileSystem/EfsMountTarget1
+  EcsCluster97242B84:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: Factorio/EcsCluster/Resource
+  TaskDefinitionTaskRoleFD40A61D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Factorio/TaskDefinition/TaskRole/Resource
+  TaskDefinitionB36D86D9:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Essential: true
+          Image: factoriotools/factorio:stable
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: TaskDefinitionContainerLogGroup4D0A87C1
+              awslogs-stream-prefix: Factorio
+              awslogs-region:
+                Ref: AWS::Region
+          MemoryReservation: 1024
+          MountPoints:
+            - ContainerPath: /factorio
+              ReadOnly: false
+              SourceVolume: FactorioEfsVolume
+          Name: Container
+          PortMappings:
+            - ContainerPort: 34197
+              HostPort: 34197
+              Protocol: udp
+            - ContainerPort: 27015
+              HostPort: 27015
+              Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - TaskDefinitionExecutionRole8D61C2FB
+          - Arn
+      Family: FactorioTaskDefinition61E7A730
+      Memory: "1024"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - TaskDefinitionTaskRoleFD40A61D
+          - Arn
+      Volumes:
+        - EFSVolumeConfiguration:
+            FilesystemId:
+              Ref: FileSystem8A8E25C0
+          Name: FactorioEfsVolume
+    Metadata:
+      aws:cdk:path: Factorio/TaskDefinition/Resource
+  TaskDefinitionContainerLogGroup4D0A87C1:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Factorio/TaskDefinition/Container/LogGroup/Resource
+  TaskDefinitionExecutionRole8D61C2FB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Factorio/TaskDefinition/ExecutionRole/Resource
+  TaskDefinitionExecutionRoleDefaultPolicy1F3406F5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TaskDefinitionContainerLogGroup4D0A87C1
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TaskDefinitionExecutionRoleDefaultPolicy1F3406F5
+      Roles:
+        - Ref: TaskDefinitionExecutionRole8D61C2FB
+    Metadata:
+      aws:cdk:path: Factorio/TaskDefinition/ExecutionRole/DefaultPolicy/Resource
+  ServiceD69D759B:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Ref: EcsCluster97242B84
+      DeploymentConfiguration:
+        MaximumPercent: 100
+        MinimumHealthyPercent: 0
+      DesiredCount: 1
+      EnableECSManagedTags: false
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - Fn::GetAtt:
+                - ServiceSecurityGroupC96ED6A7
+                - GroupId
+          Subnets:
+            - Ref: VpcPublicSubnet1Subnet5C2D37C4
+      PlatformVersion: 1.4.0
+      TaskDefinition:
+        Ref: TaskDefinitionB36D86D9
+    Metadata:
+      aws:cdk:path: Factorio/Service/Service
+  ServiceSecurityGroupC96ED6A7:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Factorio/Service/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: from 0.0.0.0/0:UDP 34197
+          FromPort: 34197
+          IpProtocol: udp
+          ToPort: 34197
+        - CidrIp: 0.0.0.0/0
+          Description: from 0.0.0.0/0:27015
+          FromPort: 27015
+          IpProtocol: tcp
+          ToPort: 27015
+      VpcId:
+        Ref: Vpc8378EB38
+    Metadata:
+      aws:cdk:path: Factorio/Service/SecurityGroup/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.56.0,@aws-cdk/aws-applicationautoscaling=1.56.0,@aws-cdk/aws-autoscaling=1.56.0,@aws-cdk/aws-autoscaling-common=1.56.0,@aws-cdk/aws-autoscaling-hooktargets=1.56.0,@aws-cdk/aws-cloudwatch=1.56.0,@aws-cdk/aws-codeguruprofiler=1.56.0,@aws-cdk/aws-ec2=1.56.0,@aws-cdk/aws-ecr=1.56.0,@aws-cdk/aws-ecr-assets=1.56.0,@aws-cdk/aws-ecs=1.56.0,@aws-cdk/aws-efs=1.56.0,@aws-cdk/aws-elasticloadbalancingv2=1.56.0,@aws-cdk/aws-events=1.56.0,@aws-cdk/aws-iam=1.56.0,@aws-cdk/aws-kms=1.56.0,@aws-cdk/aws-lambda=1.56.0,@aws-cdk/aws-logs=1.56.0,@aws-cdk/aws-s3=1.56.0,@aws-cdk/aws-s3-assets=1.56.0,@aws-cdk/aws-servicediscovery=1.56.0,@aws-cdk/aws-sns=1.56.0,@aws-cdk/aws-sns-subscriptions=1.56.0,@aws-cdk/aws-sqs=1.56.0,@aws-cdk/aws-ssm=1.56.0,@aws-cdk/cloud-assembly-schema=1.56.0,@aws-cdk/core=1.56.0,@aws-cdk/custom-resources=1.56.0,@aws-cdk/cx-api=1.56.0,@aws-cdk/region-info=1.56.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

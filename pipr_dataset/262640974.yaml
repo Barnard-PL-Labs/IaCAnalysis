@@ -1,0 +1,443 @@
+Resources:
+  DropzoneStore87E17C28:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStore/Resource
+  dzrole1F937037:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DropzoneStack/dzrole/Resource
+  dzroleDefaultPolicyE37CD55D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DropzoneStore87E17C28
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: dzroleDefaultPolicyE37CD55D
+      Roles:
+        - Ref: dzrole1F937037
+    Metadata:
+      aws:cdk:path: DropzoneStack/dzrole/DefaultPolicy/Resource
+  DropzoneFunctionServiceRole4E08DB56:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneFunction/ServiceRole/Resource
+  DropzoneFunctionServiceRoleDefaultPolicy565F8FB3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DropzoneStore87E17C28
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DropzoneFunctionServiceRoleDefaultPolicy565F8FB3
+      Roles:
+        - Ref: DropzoneFunctionServiceRole4E08DB56
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneFunction/ServiceRole/DefaultPolicy/Resource
+  DropzoneFunctionAC209A1A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters2736860a96fbb95a3710c3aff49f1cb06eb4e1101bbf19f86834d42406c56a70S3Bucket9D46FB69
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters2736860a96fbb95a3710c3aff49f1cb06eb4e1101bbf19f86834d42406c56a70S3VersionKey05E3F86D
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters2736860a96fbb95a3710c3aff49f1cb06eb4e1101bbf19f86834d42406c56a70S3VersionKey05E3F86D
+      Handler: handler.handler
+      Role:
+        Fn::GetAtt:
+          - DropzoneFunctionServiceRole4E08DB56
+          - Arn
+      Runtime: nodejs10.x
+      Environment:
+        Variables:
+          BUCKET:
+            Ref: DropzoneStore87E17C28
+      FunctionName: DropzoneFunction
+      MemorySize: 512
+      Timeout: 10
+    DependsOn:
+      - DropzoneFunctionServiceRoleDefaultPolicy565F8FB3
+      - DropzoneFunctionServiceRole4E08DB56
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneFunction/Resource
+      aws:asset:path: asset.2736860a96fbb95a3710c3aff49f1cb06eb4e1101bbf19f86834d42406c56a70
+      aws:asset:property: Code
+  DropzoneStackRestApi2D050AC6:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: DropzoneStackRestApi
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/Resource
+  DropzoneStackRestApiDeployment248DF1AA6839d4c7f1faed0414f0ee323a4ffe4b:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: DropzoneStackRestApi2D050AC6
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - DropzoneStackRestApiproxyANYA516AD27
+      - DropzoneStackRestApiproxyE6B1ECF4
+      - DropzoneStackRestApiANYD90E4324
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/Deployment/Resource
+  DropzoneStackRestApiDeploymentStagebeta11153827:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: DropzoneStackRestApi2D050AC6
+      DeploymentId:
+        Ref: DropzoneStackRestApiDeployment248DF1AA6839d4c7f1faed0414f0ee323a4ffe4b
+      MethodSettings:
+        - DataTraceEnabled: true
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          MetricsEnabled: true
+          ResourcePath: /*
+      StageName: beta
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/DeploymentStage.beta/Resource
+  DropzoneStackRestApiCloudWatchRoleF96DB68A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/CloudWatchRole/Resource
+  DropzoneStackRestApiAccount998ECD64:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - DropzoneStackRestApiCloudWatchRoleF96DB68A
+          - Arn
+    DependsOn:
+      - DropzoneStackRestApi2D050AC6
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/Account
+  DropzoneStackRestApiproxyE6B1ECF4:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - DropzoneStackRestApi2D050AC6
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: DropzoneStackRestApi2D050AC6
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/Default/{proxy+}/Resource
+  DropzoneStackRestApiproxyANYApiPermissionDropzoneStackDropzoneStackRestApiC38A7D42ANYproxy376D6FE5:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DropzoneFunctionAC209A1A
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: DropzoneStackRestApi2D050AC6
+            - /
+            - Ref: DropzoneStackRestApiDeploymentStagebeta11153827
+            - /*/{proxy+}
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/Default/{proxy+}/ANY/ApiPermission.DropzoneStackDropzoneStackRestApiC38A7D42.ANY..{proxy+}
+  DropzoneStackRestApiproxyANYApiPermissionTestDropzoneStackDropzoneStackRestApiC38A7D42ANYproxyFFB5D6E3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DropzoneFunctionAC209A1A
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: DropzoneStackRestApi2D050AC6
+            - /test-invoke-stage/*/{proxy+}
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/Default/{proxy+}/ANY/ApiPermission.Test.DropzoneStackDropzoneStackRestApiC38A7D42.ANY..{proxy+}
+  DropzoneStackRestApiproxyANYA516AD27:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: DropzoneStackRestApiproxyE6B1ECF4
+      RestApiId:
+        Ref: DropzoneStackRestApi2D050AC6
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - DropzoneFunctionAC209A1A
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/Default/{proxy+}/ANY/Resource
+  DropzoneStackRestApiANYApiPermissionDropzoneStackDropzoneStackRestApiC38A7D42ANYDFF75244:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DropzoneFunctionAC209A1A
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: DropzoneStackRestApi2D050AC6
+            - /
+            - Ref: DropzoneStackRestApiDeploymentStagebeta11153827
+            - /*/
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/Default/ANY/ApiPermission.DropzoneStackDropzoneStackRestApiC38A7D42.ANY..
+  DropzoneStackRestApiANYApiPermissionTestDropzoneStackDropzoneStackRestApiC38A7D42ANY1390D0A1:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DropzoneFunctionAC209A1A
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: DropzoneStackRestApi2D050AC6
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/Default/ANY/ApiPermission.Test.DropzoneStackDropzoneStackRestApiC38A7D42.ANY..
+  DropzoneStackRestApiANYD90E4324:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - DropzoneStackRestApi2D050AC6
+          - RootResourceId
+      RestApiId:
+        Ref: DropzoneStackRestApi2D050AC6
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - DropzoneFunctionAC209A1A
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: DropzoneStack/DropzoneStackRestApi/Default/ANY/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.38.0,@aws-cdk/aws-apigateway=1.38.0,@aws-cdk/aws-cloudwatch=1.38.0,@aws-cdk/aws-ec2=1.38.0,@aws-cdk/aws-events=1.38.0,@aws-cdk/aws-iam=1.38.0,@aws-cdk/aws-kms=1.38.0,@aws-cdk/aws-lambda=1.38.0,@aws-cdk/aws-logs=1.38.0,@aws-cdk/aws-s3=1.38.0,@aws-cdk/aws-s3-assets=1.38.0,@aws-cdk/aws-sqs=1.38.0,@aws-cdk/aws-ssm=1.38.0,@aws-cdk/cloud-assembly-schema=1.38.0,@aws-cdk/core=1.38.0,@aws-cdk/cx-api=1.38.0,@aws-cdk/region-info=1.38.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters2736860a96fbb95a3710c3aff49f1cb06eb4e1101bbf19f86834d42406c56a70S3Bucket9D46FB69:
+    Type: String
+    Description: S3 bucket for asset "2736860a96fbb95a3710c3aff49f1cb06eb4e1101bbf19f86834d42406c56a70"
+  AssetParameters2736860a96fbb95a3710c3aff49f1cb06eb4e1101bbf19f86834d42406c56a70S3VersionKey05E3F86D:
+    Type: String
+    Description: S3 key for asset version "2736860a96fbb95a3710c3aff49f1cb06eb4e1101bbf19f86834d42406c56a70"
+  AssetParameters2736860a96fbb95a3710c3aff49f1cb06eb4e1101bbf19f86834d42406c56a70ArtifactHash03C5514F:
+    Type: String
+    Description: Artifact hash for asset "2736860a96fbb95a3710c3aff49f1cb06eb4e1101bbf19f86834d42406c56a70"
+Outputs:
+  DropzoneStackRestApiEndpoint31D58A7E:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: DropzoneStackRestApi2D050AC6
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: DropzoneStackRestApiDeploymentStagebeta11153827
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

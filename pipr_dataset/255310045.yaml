@@ -1,0 +1,504 @@
+Resources:
+  events26E65764:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+      TableName: events
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/events/Resource
+  eventsApi:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: eventsApi
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/eventsApi
+  eventsApiKey:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - eventsApi
+          - ApiId
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/eventsApiKey
+  eventsSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - eventsApi
+          - ApiId
+      Definition: |-
+        input eventsInput {
+                name: String
+                topic: String
+                date: String
+              }
+              type events {
+                id: ID!
+                name: String
+                topic: String
+                date: String
+              }
+              type Query {
+                listEvents: [events]!
+                getEvent(id: ID!): events
+              }
+              type Mutation {
+                saveEvent(input: eventsInput!): events
+                deleteEvent(id: ID!): events
+              }
+              type Schema {
+                query: Query
+                mutation: Mutation
+              }
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/eventsSchema
+  eventsDynamoDBRole0594ED2C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonDynamoDBFullAccess
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/eventsDynamoDBRole/Resource
+  eventsDataSource:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - eventsApi
+          - ApiId
+      Name: eventsDataSource
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion:
+          Ref: AWS::Region
+        TableName:
+          Ref: events26E65764
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - eventsDynamoDBRole0594ED2C
+          - Arn
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/eventsDataSource
+  GetEventQueryResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - eventsApi
+          - ApiId
+      FieldName: getEvent
+      TypeName: Query
+      DataSourceName: eventsDataSource
+      RequestMappingTemplate: |-
+        {
+                "version": "2017-02-28",
+                "operation": "GetItem",
+                "key": {
+                  "id": $util.dynamodb.toDynamoDBJson($ctx.args.id)
+                }
+              }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - eventsSchema
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/GetEventQueryResolver
+  listEventsQueryResolver:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - eventsApi
+          - ApiId
+      FieldName: listEvents
+      TypeName: Query
+      DataSourceName: eventsDataSource
+      RequestMappingTemplate: |-
+        {
+                "version": "2017-02-28",
+                "operation": "Scan"
+              }
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - eventsSchema
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/listEventsQueryResolver
+  lambdarequestslayer827F4D30:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameters10d32d008c78d435ad9107462dc8480fde186280130b2ef217610295fc4aac49S3BucketE17847F2
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters10d32d008c78d435ad9107462dc8480fde186280130b2ef217610295fc4aac49S3VersionKey4CB736DA
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters10d32d008c78d435ad9107462dc8480fde186280130b2ef217610295fc4aac49S3VersionKey4CB736DA
+      CompatibleRuntimes:
+        - python3.8
+      Description: A layer for requests library dependency
+      LayerName: lambda_requests_layer
+      LicenseInfo: MIT
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/lambda_requests_layer/Resource
+      aws:asset:path: asset.10d32d008c78d435ad9107462dc8480fde186280130b2ef217610295fc4aac49.zip
+      aws:asset:property: Content
+  proxylambdaServiceRole43DD9531:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/proxy_lambda/ServiceRole/Resource
+  proxylambda2B50FDC7:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersbc56abb983eb12730d786b25357965d86932576641722396828fac846c38ada0S3Bucket8162E87D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbc56abb983eb12730d786b25357965d86932576641722396828fac846c38ada0S3VersionKeyC66D46A2
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbc56abb983eb12730d786b25357965d86932576641722396828fac846c38ada0S3VersionKeyC66D46A2
+      Handler: events_info.handler
+      Role:
+        Fn::GetAtt:
+          - proxylambdaServiceRole43DD9531
+          - Arn
+      Runtime: python3.8
+      Description: Request handler to get information about events. Triggered by API Gateway.
+      Environment:
+        Variables:
+          APPSYNC_API_KEY:
+            Fn::GetAtt:
+              - eventsApiKey
+              - ApiKey
+          APPSYNC_API_ENDPOINT_URL:
+            Fn::GetAtt:
+              - eventsApi
+              - GraphQLUrl
+      FunctionName: proxy_lambda
+      Layers:
+        - Ref: lambdarequestslayer827F4D30
+      MemorySize: 128
+    DependsOn:
+      - proxylambdaServiceRole43DD9531
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/proxy_lambda/Resource
+      aws:asset:path: asset.bc56abb983eb12730d786b25357965d86932576641722396828fac846c38ada0
+      aws:asset:property: Code
+  eventsrestapi4CE4AE99:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: Codescrum events REST API
+      Name: events_rest_api
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/events_rest_api/Resource
+  eventsrestapiDeploymentF12CEAC57864548983538faad9d63ce814ccdb7d:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: eventsrestapi4CE4AE99
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - eventsrestapigraphqlGET14D124CC
+      - eventsrestapigraphql10F5D94F
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/events_rest_api/Deployment/Resource
+  eventsrestapiDeploymentStageprod9488C1D8:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: eventsrestapi4CE4AE99
+      DeploymentId:
+        Ref: eventsrestapiDeploymentF12CEAC57864548983538faad9d63ce814ccdb7d
+      StageName: prod
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/events_rest_api/DeploymentStage.prod/Resource
+  eventsrestapiCloudWatchRoleED7AC7C4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/events_rest_api/CloudWatchRole/Resource
+  eventsrestapiAccount4840DCFD:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - eventsrestapiCloudWatchRoleED7AC7C4
+          - Arn
+    DependsOn:
+      - eventsrestapi4CE4AE99
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/events_rest_api/Account
+  eventsrestapigraphql10F5D94F:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - eventsrestapi4CE4AE99
+          - RootResourceId
+      PathPart: graphql
+      RestApiId:
+        Ref: eventsrestapi4CE4AE99
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/events_rest_api/Default/graphql/Resource
+  eventsrestapigraphqlGETApiPermissionCdkLambdaStackeventsrestapi6FEB557CGETgraphqlCBDC67AE:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - proxylambda2B50FDC7
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: eventsrestapi4CE4AE99
+            - /
+            - Ref: eventsrestapiDeploymentStageprod9488C1D8
+            - /GET/graphql
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/events_rest_api/Default/graphql/GET/ApiPermission.CdkLambdaStackeventsrestapi6FEB557C.GET..graphql
+  eventsrestapigraphqlGETApiPermissionTestCdkLambdaStackeventsrestapi6FEB557CGETgraphql37435770:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - proxylambda2B50FDC7
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: eventsrestapi4CE4AE99
+            - /test-invoke-stage/GET/graphql
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/events_rest_api/Default/graphql/GET/ApiPermission.Test.CdkLambdaStackeventsrestapi6FEB557C.GET..graphql
+  eventsrestapigraphqlGET14D124CC:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: eventsrestapigraphql10F5D94F
+      RestApiId:
+        Ref: eventsrestapi4CE4AE99
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - StatusCode: "400"
+          - StatusCode: "500"
+          - StatusCode: "200"
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - proxylambda2B50FDC7
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: CdkLambdaStack/events_rest_api/Default/graphql/GET/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.32.0,@aws-cdk/aws-apigateway=1.32.0,@aws-cdk/aws-applicationautoscaling=1.32.0,@aws-cdk/aws-appsync=1.32.0,@aws-cdk/aws-autoscaling=1.32.0,@aws-cdk/aws-autoscaling-common=1.32.0,@aws-cdk/aws-autoscaling-hooktargets=1.32.0,@aws-cdk/aws-cloudformation=1.32.0,@aws-cdk/aws-cloudwatch=1.32.0,@aws-cdk/aws-dynamodb=1.32.0,@aws-cdk/aws-ec2=1.32.0,@aws-cdk/aws-ecr=1.32.0,@aws-cdk/aws-ecr-assets=1.32.0,@aws-cdk/aws-ecs=1.32.0,@aws-cdk/aws-elasticloadbalancingv2=1.32.0,@aws-cdk/aws-events=1.32.0,@aws-cdk/aws-iam=1.32.0,@aws-cdk/aws-kms=1.32.0,@aws-cdk/aws-lambda=1.32.0,@aws-cdk/aws-logs=1.32.0,@aws-cdk/aws-s3=1.32.0,@aws-cdk/aws-s3-assets=1.32.0,@aws-cdk/aws-servicediscovery=1.32.0,@aws-cdk/aws-sns=1.32.0,@aws-cdk/aws-sns-subscriptions=1.32.0,@aws-cdk/aws-sqs=1.32.0,@aws-cdk/aws-ssm=1.32.0,@aws-cdk/aws-stepfunctions=1.32.0,@aws-cdk/aws-stepfunctions-tasks=1.32.0,@aws-cdk/core=1.32.0,@aws-cdk/custom-resources=1.32.0,@aws-cdk/cx-api=1.32.0,@aws-cdk/region-info=1.32.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters10d32d008c78d435ad9107462dc8480fde186280130b2ef217610295fc4aac49S3BucketE17847F2:
+    Type: String
+    Description: S3 bucket for asset "10d32d008c78d435ad9107462dc8480fde186280130b2ef217610295fc4aac49"
+  AssetParameters10d32d008c78d435ad9107462dc8480fde186280130b2ef217610295fc4aac49S3VersionKey4CB736DA:
+    Type: String
+    Description: S3 key for asset version "10d32d008c78d435ad9107462dc8480fde186280130b2ef217610295fc4aac49"
+  AssetParameters10d32d008c78d435ad9107462dc8480fde186280130b2ef217610295fc4aac49ArtifactHashCEC8E142:
+    Type: String
+    Description: Artifact hash for asset "10d32d008c78d435ad9107462dc8480fde186280130b2ef217610295fc4aac49"
+  AssetParametersbc56abb983eb12730d786b25357965d86932576641722396828fac846c38ada0S3Bucket8162E87D:
+    Type: String
+    Description: S3 bucket for asset "bc56abb983eb12730d786b25357965d86932576641722396828fac846c38ada0"
+  AssetParametersbc56abb983eb12730d786b25357965d86932576641722396828fac846c38ada0S3VersionKeyC66D46A2:
+    Type: String
+    Description: S3 key for asset version "bc56abb983eb12730d786b25357965d86932576641722396828fac846c38ada0"
+  AssetParametersbc56abb983eb12730d786b25357965d86932576641722396828fac846c38ada0ArtifactHash5CAA58EF:
+    Type: String
+    Description: Artifact hash for asset "bc56abb983eb12730d786b25357965d86932576641722396828fac846c38ada0"
+Outputs:
+  eventsrestapiEndpointBD4C43EB:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: eventsrestapi4CE4AE99
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: eventsrestapiDeploymentStageprod9488C1D8
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

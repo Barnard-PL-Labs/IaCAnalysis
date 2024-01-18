@@ -1,0 +1,207 @@
+Resources:
+  retrotable7C09C968:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: retro-table
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: retro-stack/retro-table/Resource
+  retroamplifyRole377C3881:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: amplify.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: retro-stack/retro-amplify/Role/Resource
+  retroamplifyBFBB79E2:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: retro-amplify
+      BasicAuthConfig:
+        EnableBasicAuth: false
+      BuildSpec: |
+        version: "1.0"
+        appRoot: frontend
+        frontend:
+          phases:
+            preBuild:
+              commands:
+                - yarn
+            build:
+              commands:
+                - yarn export
+          artifacts:
+            baseDirectory: out
+            files:
+              - "**/*"
+          cache:
+            paths:
+              - node_modules/**/*
+              - ../node_modules/**/*
+      CustomRules:
+        - Source: /<*>
+          Status: 404-200
+          Target: /[id].html
+      IAMServiceRole:
+        Fn::GetAtt:
+          - retroamplifyRole377C3881
+          - Arn
+      OauthToken:
+        Ref: SsmParameterValuegithubpersonalaccesstokenC96584B6F00A464EAD1953AFF4B05118Parameter
+      Repository: https://github.com/maxrchung/retro
+    Metadata:
+      aws:cdk:path: retro-stack/retro-amplify/Resource
+  retroamplifymainCC0E4158:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId:
+        Fn::GetAtt:
+          - retroamplifyBFBB79E2
+          - AppId
+      BranchName: main
+      EnableAutoBuild: true
+      EnablePullRequestPreview: true
+    Metadata:
+      aws:cdk:path: retro-stack/retro-amplify/main/Resource
+  retroamplifymaxrchungcom88A71CBD:
+    Type: AWS::Amplify::Domain
+    Properties:
+      AppId:
+        Fn::GetAtt:
+          - retroamplifyBFBB79E2
+          - AppId
+      DomainName: maxrchung.com
+      SubDomainSettings:
+        - BranchName:
+            Fn::GetAtt:
+              - retroamplifymainCC0E4158
+              - BranchName
+          Prefix: retro
+      AutoSubDomainCreationPatterns:
+        - "*"
+        - pr*
+      AutoSubDomainIAMRole:
+        Fn::GetAtt:
+          - retroamplifyRole377C3881
+          - Arn
+      EnableAutoSubDomain: false
+    Metadata:
+      aws:cdk:path: retro-stack/retro-amplify/maxrchung.com/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02Oyw6CMBBFv4V9GR5uXKr4AQbdm4GWMEgfKaAhTf9dCsS4upNzM3Mmh/wALo3wM8Q1f8U9VeDuI9YvtqCn47NCqfkCH1j1ghWNWgfPCCW4Um8spGcoTU/NDG4hZ2NCcbGo6jZMVy2RlPesFIOebL3u3dCiFKOw65G/otCK00haeZbG2JsWIY1O+5dJyF22ly74dtnPpDQX0A3JOztClkMWdQNRbCc1khRQbvkFABxFLAIBAAA=
+    Metadata:
+      aws:cdk:path: retro-stack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  SsmParameterValuegithubpersonalaccesstokenC96584B6F00A464EAD1953AFF4B05118Parameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: github-personal-access-token
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

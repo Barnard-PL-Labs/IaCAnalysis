@@ -1,0 +1,184 @@
+Resources:
+  ApiF70053CD:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: WS-API
+    Metadata:
+      aws:cdk:path: WebSocketAPI/Api/Resource
+  ApiSchema510EECD7:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Definition: |
+        schema {
+          query: Query
+          mutation: Mutation
+          subscription: Subscription
+        }
+        type Channel {
+          name: String!
+          data: AWSJSON!
+        }
+        type Query {
+          getChannel: Channel
+        }
+        type Mutation {
+          publish2channel(name: String! data: AWSJSON!): Channel
+        }
+        type Subscription {
+          subscribe2channel(name: String!): Channel
+          @aws_subscribe(mutations: ["publish2channel"])
+        }
+    Metadata:
+      aws:cdk:path: WebSocketAPI/Api/Schema
+  ApiDefaultApiKeyF991C37B:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+    DependsOn:
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: WebSocketAPI/Api/DefaultApiKey
+  ApipubsubEA7CE847:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Name: pubsub
+      Type: NONE
+    Metadata:
+      aws:cdk:path: WebSocketAPI/Api/pubsub/Resource
+  ApiMutationpublish2channelResolver38610912:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: publish2channel
+      TypeName: Mutation
+      DataSourceName: pubsub
+      Kind: UNIT
+      RequestMappingTemplate: |-2
+        
+                {
+                  "version": "2017-02-28",
+                  "payload": {
+                      "name": "$context.arguments.name",
+                      "data": $util.toJson($context.arguments.data)
+                  }
+                }
+      ResponseMappingTemplate: $util.toJson($context.result)
+    DependsOn:
+      - ApipubsubEA7CE847
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: WebSocketAPI/Api/Mutationpublish2channelResolver/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WOwQ6CMBBEv4V7WSxePGow8aDRCF/QlDUUtK3tFkMI/y7VaPS082Y3M8uBL3NYJGvx8Kmsu2yUxiGMFQnZseKiT4FsIFYY7ckFSdEr0ZvgJEY9L2pFyuiJxQhhrR+0hHHnhG3u141V8epF58M/VbLBm4jG7O9xYEejcStIVN/0H4ql1x7d54Gop4lpUyO0Puv5CngOPGm9UqkLmtQNoXzPJyF9EC/mAAAA
+    Metadata:
+      aws:cdk:path: WebSocketAPI/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  graphqlUrl:
+    Value:
+      Fn::GetAtt:
+        - ApiF70053CD
+        - GraphQLUrl
+  apiKey:
+    Value:
+      Fn::GetAtt:
+        - ApiDefaultApiKeyF991C37B
+        - ApiKey
+  apiId:
+    Value:
+      Fn::GetAtt:
+        - ApiF70053CD
+        - ApiId
+  region:
+    Value:
+      Ref: AWS::Region
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

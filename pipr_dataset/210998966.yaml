@@ -1,0 +1,389 @@
+Resources:
+  chat22ADE1FF:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: connectionId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: connectionId
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/chat/Resource
+  ChatHandlerServiceRole801A14FE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/ChatHandler/ServiceRole/Resource
+  ChatHandlerServiceRoleDefaultPolicy7E79112C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - chat22ADE1FF
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: execute-api:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: ChatHandlerServiceRoleDefaultPolicy7E79112C
+      Roles:
+        - Ref: ChatHandlerServiceRole801A14FE
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/ChatHandler/ServiceRole/DefaultPolicy/Resource
+  ChatHandler6667856F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersda92c57dd1b78ad34c488fb97b55acd4b9fb15bb60f463fb4c8fe8e4f682f480S3BucketC230C1B2
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersda92c57dd1b78ad34c488fb97b55acd4b9fb15bb60f463fb4c8fe8e4f682f480S3VersionKey33E97CA1
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersda92c57dd1b78ad34c488fb97b55acd4b9fb15bb60f463fb4c8fe8e4f682f480S3VersionKey33E97CA1
+      Role:
+        Fn::GetAtt:
+          - ChatHandlerServiceRole801A14FE
+          - Arn
+      Environment:
+        Variables:
+          PARTICIPANTS_TABLE:
+            Ref: chat22ADE1FF
+      Handler: index.handler
+      Runtime: nodejs10.x
+    DependsOn:
+      - ChatHandlerServiceRoleDefaultPolicy7E79112C
+      - ChatHandlerServiceRole801A14FE
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/ChatHandler/Resource
+      aws:asset:path: asset.da92c57dd1b78ad34c488fb97b55acd4b9fb15bb60f463fb4c8fe8e4f682f480
+      aws:asset:property: Code
+  ChatAPI:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: ChatAPI
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/ChatAPI
+  FunctionIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: ChatAPI
+      ContentHandlingStrategy: CONVERT_TO_TEXT
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::Join:
+          - ""
+          - - "arn:aws:apigateway:"
+            - Ref: AWS::Region
+            - :lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - ChatHandler6667856F
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/FunctionIntegration
+  Route0:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ChatAPI
+      RouteKey: $connect
+      Target:
+        Fn::Join:
+          - /
+          - - integrations
+            - Ref: FunctionIntegration
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/Route0
+  Route1:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ChatAPI
+      RouteKey: $disconnect
+      Target:
+        Fn::Join:
+          - /
+          - - integrations
+            - Ref: FunctionIntegration
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/Route1
+  Route2:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ChatAPI
+      RouteKey: $default
+      Target:
+        Fn::Join:
+          - /
+          - - integrations
+            - Ref: FunctionIntegration
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/Route2
+  Route3:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ChatAPI
+      RouteKey: personListReq
+      Target:
+        Fn::Join:
+          - /
+          - - integrations
+            - Ref: FunctionIntegration
+      RouteResponseSelectionExpression: $default
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/Route3
+  PersonListResponseRoute:
+    Type: AWS::ApiGatewayV2::RouteResponse
+    Properties:
+      ApiId:
+        Ref: ChatAPI
+      RouteId:
+        Ref: Route3
+      RouteResponseKey: $default
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/PersonListResponseRoute
+  InvokePermission0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ChatHandler6667856F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChatAPI
+            - /*/$connect
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/InvokePermission0
+  InvokePermission1:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ChatHandler6667856F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChatAPI
+            - /*/$disconnect
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/InvokePermission1
+  InvokePermission2:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ChatHandler6667856F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChatAPI
+            - /*/$default
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/InvokePermission2
+  InvokePermission3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ChatHandler6667856F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChatAPI
+            - /*/personListReq
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/InvokePermission3
+  Deployment:
+    Type: AWS::ApiGatewayV2::Deployment
+    Properties:
+      ApiId:
+        Ref: ChatAPI
+    DependsOn:
+      - PersonListResponseRoute
+      - Route0
+      - Route1
+      - Route2
+      - Route3
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/Deployment
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      StageName: devo
+      Description: Development Stage
+      DeploymentId:
+        Ref: Deployment
+      ApiId:
+        Ref: ChatAPI
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/Stage
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAEz2OwQ7CIAyGn8V71w29eNSYeDbTF+gADTogoUyzEN7dwaKnfm3/v/0Fiq7DbnOgDzdSvdokfdCYrpHkC3rNfgpSw5FZx2X2MO4BJ+84hklGON3dhQJZHXUozV+/8KJSJhrvMpTbSc2OrFcDphsNY5VUyDCSHRRhOk9OFkNZ/TiDIYup96uj1osfjZzr80oZeNdQSchYg+YMziuNT27fYo9ii2LzZGOaMLlorMZ+rV9JTRiE/QAAAA==
+    Metadata:
+      aws:cdk:path: ApiGatewayWebSocketDemo/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParametersda92c57dd1b78ad34c488fb97b55acd4b9fb15bb60f463fb4c8fe8e4f682f480S3BucketC230C1B2:
+    Type: String
+    Description: S3 bucket for asset "da92c57dd1b78ad34c488fb97b55acd4b9fb15bb60f463fb4c8fe8e4f682f480"
+  AssetParametersda92c57dd1b78ad34c488fb97b55acd4b9fb15bb60f463fb4c8fe8e4f682f480S3VersionKey33E97CA1:
+    Type: String
+    Description: S3 key for asset version "da92c57dd1b78ad34c488fb97b55acd4b9fb15bb60f463fb4c8fe8e4f682f480"
+  AssetParametersda92c57dd1b78ad34c488fb97b55acd4b9fb15bb60f463fb4c8fe8e4f682f480ArtifactHashFE769972:
+    Type: String
+    Description: Artifact hash for asset "da92c57dd1b78ad34c488fb97b55acd4b9fb15bb60f463fb4c8fe8e4f682f480"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

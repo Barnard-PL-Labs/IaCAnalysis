@@ -1,0 +1,331 @@
+Resources:
+  CodeBuildProjectServiceRole7C94F8A5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Effect: Allow
+                Resource: "*"
+                Sid: CloudWatchLogsStatement
+              - Action:
+                  - codebuild:StartBuild
+                  - codebuild:StopBuild
+                  - codebuild:BatchGet*
+                  - codebuild:GetResourcePolicy
+                  - codebuild:DescribeTestCases
+                  - codebuild:List*
+                Effect: Allow
+                Resource: "*"
+                Sid: CodeBuildStatment
+              - Action:
+                  - codebuild:ListConnectedOAuthAccounts
+                  - codebuild:ListRepositories
+                  - codebuild:PersistOAuthToken
+                  - codebuild:ImportSourceCredentials
+                Effect: Allow
+                Resource: "*"
+                Sid: SourceProviderStatement
+              - Action: secretsmanager:GetSecretValue
+                Effect: Allow
+                Resource: arn:aws:secretsmanager:us-east-2:510666016636:secret:NpmTokenReadOnlySecret-KOrg9f
+                Sid: NpmTokenSecretStatement
+              - Action:
+                  - ecr:GetAuthorizationToken
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                Effect: Allow
+                Resource: "*"
+                Sid: EcrLoginReadWriteStatement
+            Version: "2012-10-17"
+          PolicyName: CodebuildPolicy
+    Metadata:
+      aws:cdk:path: unet-images-undefined/CodeBuildProjectServiceRole/Resource
+  CodeBuildProjectServiceRoleDefaultPolicyB7DDA0E4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: secretsmanager:GetSecretValue
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":secretsmanager:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :secret:WandbApiTokenSecret-??????
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: SweepTaskImageSweepExperimentProjectC1154BE6
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: SweepTaskImageSweepExperimentProjectC1154BE6
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: SweepTaskImageSweepExperimentProjectC1154BE6
+                  - -*
+        Version: "2012-10-17"
+      PolicyName: CodeBuildProjectServiceRoleDefaultPolicyB7DDA0E4
+      Roles:
+        - Ref: CodeBuildProjectServiceRole7C94F8A5
+    Metadata:
+      aws:cdk:path: unet-images-undefined/CodeBuildProjectServiceRole/DefaultPolicy/Resource
+  SweepTaskDockerRepositoryCCB97E92:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName:
+        Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - sweep
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: unet-images-undefined/SweepTaskDockerRepository/Resource
+  SweepTaskImageSweepExperimentProjectC1154BE6:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: AWS_REGION
+            Type: PLAINTEXT
+            Value:
+              Ref: AWS::Region
+          - Name: DOCKER_REPO
+            Type: PLAINTEXT
+            Value:
+              Ref: SweepTaskDockerRepositoryCCB97E92
+          - Name: ECR_REGISTRY
+            Type: PLAINTEXT
+            Value:
+              Fn::Sub: ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+          - Name: TAG_COMMIT_ECR_BASE
+            Type: PLAINTEXT
+            Value:
+              Fn::Sub:
+                - ${ecrRegistry}/${dockerRepoName}
+                - ecrRegistry:
+                    Fn::Sub: ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+                  dockerRepoName:
+                    Ref: SweepTaskDockerRepositoryCCB97E92
+          - Name: TAG_LATEST_ECR
+            Type: PLAINTEXT
+            Value:
+              Fn::Sub:
+                - ${ecrRegistry}/${dockerRepoName}:latest
+                - dockerRepoName:
+                    Ref: SweepTaskDockerRepositoryCCB97E92
+                  ecrRegistry:
+                    Fn::Sub: ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com
+          - Name: WANDB_API_KEY
+            Type: SECRETS_MANAGER
+            Value: WandbApiTokenSecret:WandbApiKey
+        Image: aws/codebuild/standard:4.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CodeBuildProjectServiceRole7C94F8A5
+          - Arn
+      Source:
+        BuildSpec: |
+          version: "0.2"
+          phases:
+            pre_build:
+              commands:
+                - aws ecr get-login-password --region ${AWS_REGION} | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+            build:
+              commands:
+                - docker build -f exp/Dockerfile -t ${DOCKER_REPO}:${CODEBUILD_RESOLVED_SOURCE_VERSION} --build-arg WANDB_API_KEY=${WANDB_API_KEY} .
+            post_build:
+              commands:
+                - docker tag ${DOCKER_REPO}:${CODEBUILD_RESOLVED_SOURCE_VERSION} ${TAG_COMMIT_ECR_BASE}:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+                - docker tag ${DOCKER_REPO}:${CODEBUILD_RESOLVED_SOURCE_VERSION} ${TAG_LATEST_ECR}
+                - docker push ${TAG_COMMIT_ECR_BASE}:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+                - docker push ${TAG_LATEST_ECR}
+        Location: https://github.com/davidagold/unet.git
+        ReportBuildStatus: true
+        Type: GITHUB
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+      Triggers:
+        FilterGroups:
+          - - Pattern: PUSH
+              Type: EVENT
+            - ExcludeMatchedPattern: true
+              Pattern: ^.*skip\-build.*$
+              Type: COMMIT_MESSAGE
+        Webhook: true
+    Metadata:
+      aws:cdk:path: unet-images-undefined/SweepTaskImage/SweepExperimentProject/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/0WNQQ6DMAwE38I9uIUTdx5QRB9QQZJKhhCjxKGqovy9kBx62h3bu26hg3s1fXwt1VobnCE+eZKrOEeviNMGcSSjRf+2WQcyKL8XFpeElu680Tt5ZHJ59ackJCk9BzQK4uBo0ZJzuNiULngE3gOXoKfgZH7Xk1XISDYJe3bA4m9H00HTQlMtHrF2wTJuGsaiP27GJ4jKAAAA
+    Metadata:
+      aws:cdk:path: unet-images-undefined/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  SweepTaskDkrRepositoryArn:
+    Value:
+      Fn::GetAtt:
+        - SweepTaskDockerRepositoryCCB97E92
+        - Arn
+    Export:
+      Name:
+        Fn::Join:
+          - "-"
+          - - Ref: AWS::StackName
+            - SweepTaskDkrRepositoryArn
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

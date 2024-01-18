@@ -1,0 +1,505 @@
+Resources:
+  PipelineBucketB967BD35:
+    Type: AWS::S3::Bucket
+    Properties:
+      WebsiteConfiguration:
+        ErrorDocument: index.html
+        IndexDocument: index.html
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: InfrastructureStack/PipelineBucket/Resource
+  PipelineBucketPolicyD65CDEF5:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: PipelineBucketB967BD35
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - PipelineBucketB967BD35
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfrastructureStack/PipelineBucket/Policy/Resource
+  CloudFrontDistributionBA64CE3A:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: InfrastructureStackCloudFrontDistributionOrigin17BB9479C
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            DomainName:
+              Fn::Select:
+                - 2
+                - Fn::Split:
+                    - /
+                    - Fn::GetAtt:
+                        - PipelineBucketB967BD35
+                        - WebsiteURL
+            Id: InfrastructureStackCloudFrontDistributionOrigin17BB9479C
+    Metadata:
+      aws:cdk:path: InfrastructureStack/CloudFrontDistribution/Resource
+  PipelineArtifactsBucketEncryptionKey01D58D69:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Pipeline/ArtifactsBucketEncryptionKey/Resource
+  PipelineArtifactsBucketEncryptionKeyAlias5C510EEE:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-infrastructurestackpipelinebc797eef
+      TargetKeyId:
+        Fn::GetAtt:
+          - PipelineArtifactsBucketEncryptionKey01D58D69
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Pipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  PipelineArtifactsBucket22248F97:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - PipelineArtifactsBucketEncryptionKey01D58D69
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Pipeline/ArtifactsBucket/Resource
+  PipelineArtifactsBucketPolicyD4F9712A:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: PipelineArtifactsBucket22248F97
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Pipeline/ArtifactsBucket/Policy/Resource
+  PipelineRoleD68726F7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Pipeline/Role/Resource
+  PipelineRoleDefaultPolicyC7A05455:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineBuildCodePipelineActionRoleD77A08E6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineRoleDefaultPolicyC7A05455
+      Roles:
+        - Ref: PipelineRoleD68726F7
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Pipeline/Role/DefaultPolicy/Resource
+  PipelineC660917D:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - PipelineRoleD68726F7
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: hugumoraes
+                Repo: react-spa-boilerplate
+                Branch: main
+                PollForSourceChanges: false
+              Name: Source
+              OutputArtifacts:
+                - Name: Artifact_Source_Source
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineProjectDFFBB324
+              InputArtifacts:
+                - Name: Artifact_Source_Source
+              Name: Build
+              OutputArtifacts:
+                - Name: Artifact_Build_Build
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineBuildCodePipelineActionRoleD77A08E6
+                  - Arn
+              RunOrder: 1
+          Name: Build
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - PipelineArtifactsBucketEncryptionKey01D58D69
+              - Arn
+          Type: KMS
+        Location:
+          Ref: PipelineArtifactsBucket22248F97
+        Type: S3
+      Name: react-spa-boilerplate-pipeline-react-spa-boilerplate
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - PipelineRoleDefaultPolicyC7A05455
+      - PipelineRoleD68726F7
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Pipeline/Resource
+  PipelineSourceWebhookResourceD1089B44:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration: {}
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetAction: Source
+      TargetPipeline:
+        Ref: PipelineC660917D
+      TargetPipelineVersion: 1
+      RegisterWithThirdParty: true
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Pipeline/Source/Source/WebhookResource
+  PipelineBuildCodePipelineActionRoleD77A08E6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Pipeline/Build/Build/CodePipelineActionRole/Resource
+  PipelineBuildCodePipelineActionRoleDefaultPolicyC9CB73F8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineProjectDFFBB324
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineBuildCodePipelineActionRoleDefaultPolicyC9CB73F8
+      Roles:
+        - Ref: PipelineBuildCodePipelineActionRoleD77A08E6
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Pipeline/Build/Build/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineProjectRoleA63EF27D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfrastructureStack/PipelineProject/Role/Resource
+  PipelineProjectRoleDefaultPolicy9E9CBC9E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: PipelineProjectDFFBB324
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: PipelineProjectDFFBB324
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: PipelineProjectDFFBB324
+                  - -*
+          - Action: cloudfront:*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - arn:aws:cloudfront::036406153779:distribution/
+                  - Ref: CloudFrontDistributionBA64CE3A
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineBucketB967BD35
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineBucketB967BD35
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineProjectRoleDefaultPolicy9E9CBC9E
+      Roles:
+        - Ref: PipelineProjectRoleA63EF27D
+    Metadata:
+      aws:cdk:path: InfrastructureStack/PipelineProject/Role/DefaultPolicy/Resource
+  PipelineProjectDFFBB324:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: CLOUDFRONT_ID
+            Type: PLAINTEXT
+            Value:
+              Ref: CloudFrontDistributionBA64CE3A
+          - Name: BUCKET_NAME
+            Type: PLAINTEXT
+            Value:
+              Ref: PipelineBucketB967BD35
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineProjectRoleA63EF27D
+          - Arn
+      Source:
+        BuildSpec: ./web/buildspec.yml
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey:
+        Fn::GetAtt:
+          - PipelineArtifactsBucketEncryptionKey01D58D69
+          - Arn
+      Name: react-spa-boilerplate
+    Metadata:
+      aws:cdk:path: InfrastructureStack/PipelineProject/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02PO4/CMBCEfwu9sxBoaHl0NBEUV54SZxEbO17kx52Q5f9O4kSEar5ZzXrWWyh3sFnV/66QrSo0NRBvvpZKDKPf6HYQj0Eq9OJ0NzNNUrEm+VrGk09Cag7t3bLxEM/kvKUmeGIzJr/9kOQWn/RETQYhVjONuW/+webBrJJQvYN4wVw5ykFT7UaTIQmqe4hX1nkr63Li57ihsgmk26WvstyhzP+bMaX8AjoOVmISZliCzq3/yj2UWyhXnSMqbDCeeoTrpG8aIHvASQEAAA==
+    Metadata:
+      aws:cdk:path: InfrastructureStack/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

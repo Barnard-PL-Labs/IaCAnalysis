@@ -1,0 +1,369 @@
+Resources:
+  basicPackagesInstaller:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      Name: basicPackagesInstaller
+      Platform: Linux
+      Version: 1.0.0
+      Data: |
+        
+        name: BasicPackagesInstaller
+        description: this document installs basic packages on Amazon Linux 2
+        schemaVersion: 1.0
+        phases:
+          - name: build
+            steps:
+              - name: InstallYumPackages
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - yum update -y
+                    - amazon-linux-extras install -y epel lustre2.10
+                    - yum install -y yum-utils
+                    - yum install -y fuse s3fs-fuse nfs-utils
+                    - yum install -y jq sed bzip2 wget unzip
+              - name: InstallCloudWatch
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - wget -q https://s3.amazonaws.com/amazoncloudwatch-agent/amazon_linux/amd64/latest/amazon-cloudwatch-agent.rpm
+                    - rpm -U ./amazon-cloudwatch-agent.rpm
+                    - rm -f ./amazon-cloudwatch-agent.rpm
+              - name: CreateSSMUser
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - useradd -d /home/ssm-user -s /bin/bash ssm-user
+                    - usermod -aG docker ssm-user
+                    - echo "ssm-user ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/ssm-agent-users
+      Tags:
+        DEVELOPER: goinac
+        PROJECT: Huston
+        STAGE: dev
+        VERSION: 1.0.0
+    Metadata:
+      aws:cdk:path: AMIBuilder/basicPackagesInstaller
+  awscliInstaller:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      Name: awscliInstaller
+      Platform: Linux
+      Version: 1.0.0
+      Data: |
+        
+        name: AWSCLIInstaller
+        description: this document installs AWS CLI
+        schemaVersion: 1.0
+        phases:
+          - name: build
+            steps:
+              - name: InstallMiniconda
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    # Download and install miniconda in ec2-user's home dir
+                    - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda-install.sh
+                    - mkdir -p /home/ec2-user
+                    - bash miniconda-install.sh -b -f -p /home/ec2-user/miniconda
+                    - rm miniconda-install.sh
+              # Install awscli
+              - name: InstallAWSCLI
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - /home/ec2-user/miniconda/bin/conda install -c conda-forge -y awscli
+      Tags:
+        DEVELOPER: goinac
+        PROJECT: Huston
+        STAGE: dev
+        VERSION: 1.0.0
+    Metadata:
+      aws:cdk:path: AMIBuilder/awscliInstaller
+  stopDocker:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      Name: stopDocker
+      Platform: Linux
+      Version: 1.0.0
+      Data: |
+        
+        name: StopDocker
+        schemaVersion: 1.0
+        phases:
+          - name: build
+            steps:
+              - name: StopDocker
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - systemctl stop docker
+                    - systemctl stop ecs
+                    - rm -rf /var/lib/ecs/data/agent.db
+              - name: ConfigureECS
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - mkdir -p /etc/ecs
+                    - echo ECS_IMAGE_PULL_BEHAVIOR=once >> /etc/ecs/ecs.config
+                    - echo ECS_ENABLE_AWSLOGS_EXECUTIONROLE_OVERRIDE=true >> /etc/ecs/ecs.config
+      Tags:
+        DEVELOPER: goinac
+        PROJECT: Huston
+        STAGE: dev
+        VERSION: 1.0.0
+    Metadata:
+      aws:cdk:path: AMIBuilder/stopDocker
+  startDocker:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      Name: startDocker
+      Platform: Linux
+      Version: 1.0.0
+      Data: |
+        
+        name: StartDocker
+        schemaVersion: 1.0
+        phases:
+          - name: build
+            steps:
+              - name: StartDocker
+                action: ExecuteBash
+                inputs:
+                  commands:
+                    - systemctl start docker
+      Tags:
+        DEVELOPER: goinac
+        PROJECT: Huston
+        STAGE: dev
+        VERSION: 1.0.0
+    Metadata:
+      aws:cdk:path: AMIBuilder/startDocker
+  AMIRecipe:
+    Type: AWS::ImageBuilder::ImageRecipe
+    Properties:
+      Components:
+        - ComponentArn:
+            Fn::GetAtt:
+              - basicPackagesInstaller
+              - Arn
+        - ComponentArn:
+            Fn::GetAtt:
+              - awscliInstaller
+              - Arn
+        - ComponentArn:
+            Fn::GetAtt:
+              - stopDocker
+              - Arn
+        - ComponentArn:
+            Fn::GetAtt:
+              - startDocker
+              - Arn
+      Name: amiRecipe
+      ParentImage:
+        Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2gpurecommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+      Version: 1.0.0
+      Tags:
+        DEVELOPER: goinac
+        PROJECT: Huston
+        STAGE: dev
+        VERSION: 1.0.0
+      WorkingDirectory: /tmp
+    Metadata:
+      aws:cdk:path: AMIBuilder/AMIRecipe
+  ImageRole9FE45DB2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - ec2.
+                    - Ref: AWS::URLSuffix
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonSSMManagedInstanceCore
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/EC2InstanceProfileForImageBuilder
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchAgentServerPolicy
+      RoleName: AMIImageBuilerRole
+      Tags:
+        - Key: DEVELOPER
+          Value: goinac
+        - Key: PROJECT
+          Value: Huston
+        - Key: STAGE
+          Value: dev
+        - Key: VERSION
+          Value: 1.0.0
+    Metadata:
+      aws:cdk:path: AMIBuilder/ImageRole/Resource
+  AMIBuilderInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: ImageRole9FE45DB2
+      InstanceProfileName: AMIBuilderInstanceProfile
+    Metadata:
+      aws:cdk:path: AMIBuilder/AMIBuilderInstanceProfile
+  Infrastructure:
+    Type: AWS::ImageBuilder::InfrastructureConfiguration
+    Properties:
+      InstanceProfileName: AMIBuilderInstanceProfile
+      Name: Infrastructure
+      Tags:
+        DEVELOPER: goinac
+        PROJECT: Huston
+        STAGE: dev
+        VERSION: 1.0.0
+    DependsOn:
+      - AMIBuilderInstanceProfile
+    Metadata:
+      aws:cdk:path: AMIBuilder/Infrastructure
+  AMIBuilderPipeline:
+    Type: AWS::ImageBuilder::ImagePipeline
+    Properties:
+      InfrastructureConfigurationArn:
+        Fn::GetAtt:
+          - Infrastructure
+          - Arn
+      Name: AMIBuilderPipeline
+      ImageRecipeArn:
+        Fn::GetAtt:
+          - AMIRecipe
+          - Arn
+      Tags:
+        DEVELOPER: goinac
+        PROJECT: Huston
+        STAGE: dev
+        VERSION: 1.0.0
+    Metadata:
+      aws:cdk:path: AMIBuilder/AMIBuilderPipeline
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02OsW7DMAxEvyW7zNRe0t1TphruBxSMTAdMJMqgqHYw/O+xXSTIdLjjI+4aaE7wccC/XPnhXgW+wPxt6O9ujX5mjnilS+EwkMLcjtKmOCUhMbea83btyfNEu5VRMZsWb0WpTTLytSgaJ3nR3coGFlocY4S5T2F/fepZsqF46jSNHGhZtrBDxUhG6nrKqajf0a9iU9lnvKdr68Bb4+IkDQS3fPytP6FuoD7cMnOlRYwjQf+vD6qDd5YAAQAA
+    Metadata:
+      aws:cdk:path: AMIBuilder/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  SsmParameterValueawsserviceecsoptimizedamiamazonlinux2gpurecommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ecs/optimized-ami/amazon-linux-2/gpu/recommended/image_id
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Outputs:
+  AMIProfile:
+    Value: AMIBuilderInstanceProfile
+  AMIPipelineName:
+    Value:
+      Fn::GetAtt:
+        - AMIBuilderPipeline
+        - Name
+  AMIPipelineARN:
+    Value:
+      Fn::GetAtt:
+        - AMIBuilderPipeline
+        - Arn
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

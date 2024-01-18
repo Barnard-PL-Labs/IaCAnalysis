@@ -1,0 +1,362 @@
+Description: Serverless Dictionary
+Resources:
+  DictionaryTable004C8369:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: word
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: word
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/DictionaryTable/Resource
+  DictionaryLambdaServiceRole1A66B673:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/DictionaryLambda/ServiceRole/Resource
+  DictionaryLambdaServiceRoleDefaultPolicy1FDC388F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - DictionaryTable004C8369
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: DictionaryLambdaServiceRoleDefaultPolicy1FDC388F
+      Roles:
+        - Ref: DictionaryLambdaServiceRole1A66B673
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/DictionaryLambda/ServiceRole/DefaultPolicy/Resource
+  DictionaryLambda76B7E304:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters3c6a3f014d27201dd413e06f7eeb766271a334cfb68f1448a0e38af6dd4cba88S3BucketEF41DA71
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters3c6a3f014d27201dd413e06f7eeb766271a334cfb68f1448a0e38af6dd4cba88S3VersionKey07FD4853
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters3c6a3f014d27201dd413e06f7eeb766271a334cfb68f1448a0e38af6dd4cba88S3VersionKey07FD4853
+      Handler: dictionary.handler
+      Role:
+        Fn::GetAtt:
+          - DictionaryLambdaServiceRole1A66B673
+          - Arn
+      Runtime: nodejs12.x
+      Description: Handles requests to the dictionary
+      Environment:
+        Variables:
+          DICTIONARY_TABLE_NAME:
+            Ref: DictionaryTable004C8369
+          PARTITION_KEY: word
+    DependsOn:
+      - DictionaryLambdaServiceRoleDefaultPolicy1FDC388F
+      - DictionaryLambdaServiceRole1A66B673
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/DictionaryLambda/Resource
+      aws:asset:path: asset.3c6a3f014d27201dd413e06f7eeb766271a334cfb68f1448a0e38af6dd4cba88
+      aws:asset:property: Code
+  DictionaryLambdaLogRetention3A0DC906:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: DictionaryLambda76B7E304
+      RetentionInDays: 7
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/DictionaryLambda/LogRetention/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs10.x
+      Code:
+        S3Bucket:
+          Ref: AssetParameters27b58c1b3f137723c1cdbb881058a4b21230873b55318044de2a913e607a49f9S3Bucket8795CE3D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters27b58c1b3f137723c1cdbb881058a4b21230873b55318044de2a913e607a49f9S3VersionKeyFC482B2A
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters27b58c1b3f137723c1cdbb881058a4b21230873b55318044de2a913e607a49f9S3VersionKeyFC482B2A
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+  DictionaryApiCB3933E9:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: DictionaryApi
+      ProtocolType: HTTP
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/DictionaryApi/Resource
+  DictionaryApiDefaultStageD0DF0AD2:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: DictionaryApiCB3933E9
+      StageName: $default
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/DictionaryApi/DefaultStage/Resource
+  DictionaryApiPOSTServerlessDictionaryStackDictionaryApiPOST1411306BPermission51A43F17:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DictionaryLambda76B7E304
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: DictionaryApiCB3933E9
+            - /*/*/
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/DictionaryApi/POST--/ServerlessDictionaryStackDictionaryApiPOST1411306B-Permission
+  DictionaryApiPOSTPOSTIntegration25C84B8B:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: DictionaryApiCB3933E9
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::GetAtt:
+          - DictionaryLambda76B7E304
+          - Arn
+      PayloadFormatVersion: "2.0"
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/DictionaryApi/POST--/POST---Integration/Resource
+  DictionaryApiPOSTD4547082:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: DictionaryApiCB3933E9
+      RouteKey: POST /
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: DictionaryApiPOSTPOSTIntegration25C84B8B
+    Metadata:
+      aws:cdk:path: ServerlessDictionaryStack/DictionaryApi/POST--/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.61.1,@aws-cdk/aws-apigatewayv2=1.61.1,@aws-cdk/aws-applicationautoscaling=1.61.1,@aws-cdk/aws-autoscaling-common=1.61.1,@aws-cdk/aws-cloudwatch=1.61.1,@aws-cdk/aws-codeguruprofiler=1.61.1,@aws-cdk/aws-dynamodb=1.61.1,@aws-cdk/aws-ec2=1.61.1,@aws-cdk/aws-events=1.61.1,@aws-cdk/aws-iam=1.61.1,@aws-cdk/aws-kms=1.61.1,@aws-cdk/aws-lambda=1.61.1,@aws-cdk/aws-logs=1.61.1,@aws-cdk/aws-s3=1.61.1,@aws-cdk/aws-s3-assets=1.61.1,@aws-cdk/aws-sqs=1.61.1,@aws-cdk/aws-ssm=1.61.1,@aws-cdk/cloud-assembly-schema=1.61.1,@aws-cdk/core=1.61.1,@aws-cdk/custom-resources=1.61.1,@aws-cdk/cx-api=1.61.1,@aws-cdk/region-info=1.61.1,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters3c6a3f014d27201dd413e06f7eeb766271a334cfb68f1448a0e38af6dd4cba88S3BucketEF41DA71:
+    Type: String
+    Description: S3 bucket for asset "3c6a3f014d27201dd413e06f7eeb766271a334cfb68f1448a0e38af6dd4cba88"
+  AssetParameters3c6a3f014d27201dd413e06f7eeb766271a334cfb68f1448a0e38af6dd4cba88S3VersionKey07FD4853:
+    Type: String
+    Description: S3 key for asset version "3c6a3f014d27201dd413e06f7eeb766271a334cfb68f1448a0e38af6dd4cba88"
+  AssetParameters3c6a3f014d27201dd413e06f7eeb766271a334cfb68f1448a0e38af6dd4cba88ArtifactHashCBC39D3B:
+    Type: String
+    Description: Artifact hash for asset "3c6a3f014d27201dd413e06f7eeb766271a334cfb68f1448a0e38af6dd4cba88"
+  AssetParameters27b58c1b3f137723c1cdbb881058a4b21230873b55318044de2a913e607a49f9S3Bucket8795CE3D:
+    Type: String
+    Description: S3 bucket for asset "27b58c1b3f137723c1cdbb881058a4b21230873b55318044de2a913e607a49f9"
+  AssetParameters27b58c1b3f137723c1cdbb881058a4b21230873b55318044de2a913e607a49f9S3VersionKeyFC482B2A:
+    Type: String
+    Description: S3 key for asset version "27b58c1b3f137723c1cdbb881058a4b21230873b55318044de2a913e607a49f9"
+  AssetParameters27b58c1b3f137723c1cdbb881058a4b21230873b55318044de2a913e607a49f9ArtifactHash8DB7EB35:
+    Type: String
+    Description: Artifact hash for asset "27b58c1b3f137723c1cdbb881058a4b21230873b55318044de2a913e607a49f9"
+Outputs:
+  DictionaryTableName:
+    Value:
+      Ref: DictionaryTable004C8369
+  PublicDomainName:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: DictionaryApiCB3933E9
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

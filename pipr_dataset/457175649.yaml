@@ -1,0 +1,105 @@
+Resources:
+  SiteOAI1F7E9870:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Allows CloudFront to reach the bucket
+    Metadata:
+      aws:cdk:path: Default/SiteOAI/Resource
+  SiteBucket397A1860:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Default/SiteBucket/Resource
+  SiteBucketPolicy3AC1D0F8:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: SiteBucket397A1860
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - SiteOAI1F7E9870
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - SiteBucket397A1860
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Default/SiteBucket/Policy/Resource
+  SiteDistribution3FF9535D:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - "."
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: SiteDistributionOrigin1274C6474
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - SiteBucket397A1860
+                - RegionalDomainName
+            Id: SiteDistributionOrigin1274C6474
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: SiteOAI1F7E9870
+    Metadata:
+      aws:cdk:path: Default/SiteDistribution/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/22PwQ6CMBBEv4U7VMGLV8WYeMLgBxjYVrOAreluNaTpv0vFRA+eZmf2bTJbiLwQy6R5UgayzwZshT9xA306RWcPg3HyYo1m4SuLV9QbAEV0kEoz8piWF11GZh+Zv8QOiS22jtHoiP/6kNJK+K2DXnHcfaZZjmZAGL/x7EOISeX47t4ntSLjLKiQaiOV6GjxyNfxqTzpCDGzbqpxU6Ke9QWV7lRa8AAAAA==
+    Metadata:
+      aws:cdk:path: Default/CDKMetadata/Default
+Outputs:
+  BucketName:
+    Value:
+      Ref: SiteBucket397A1860
+  DistributionId:
+    Value:
+      Ref: SiteDistribution3FF9535D
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

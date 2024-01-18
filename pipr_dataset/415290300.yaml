@@ -1,0 +1,179 @@
+Resources:
+  SecretA720EF05:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString: {}
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/Secret/Resource
+  lambdaGetWeatherServiceRole0BBFF4D2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetWeather/ServiceRole/Resource
+  lambdaGetWeatherServiceRoleDefaultPolicyCBB027BF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Ref: SecretA720EF05
+        Version: "2012-10-17"
+      PolicyName: lambdaGetWeatherServiceRoleDefaultPolicyCBB027BF
+      Roles:
+        - Ref: lambdaGetWeatherServiceRole0BBFF4D2
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetWeather/ServiceRole/DefaultPolicy/Resource
+  lambdaGetWeatherC7AF2144:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          Fn::Join:
+            - ""
+            - - 036406153779.dkr.ecr.us-east-1.
+              - Ref: AWS::URLSuffix
+              - /aws-cdk/assets:5dc474e90d364cf191e205bee338655148becd40d8607b04c4f161da59ec0ad8
+      Role:
+        Fn::GetAtt:
+          - lambdaGetWeatherServiceRole0BBFF4D2
+          - Arn
+      Environment:
+        Variables:
+          API_KEY_SECRET_NAME:
+            Fn::Join:
+              - "-"
+              - - Fn::Select:
+                    - 0
+                    - Fn::Split:
+                        - "-"
+                        - Fn::Select:
+                            - 6
+                            - Fn::Split:
+                                - ":"
+                                - Ref: SecretA720EF05
+                - Fn::Select:
+                    - 1
+                    - Fn::Split:
+                        - "-"
+                        - Fn::Select:
+                            - 6
+                            - Fn::Split:
+                                - ":"
+                                - Ref: SecretA720EF05
+          API_ENDPOINT: https://api.airvisual.com/v2/nearest_city
+      FunctionName: swift-carplay-location-get-weather
+      MemorySize: 512
+      PackageType: Image
+      Timeout: 180
+    DependsOn:
+      - lambdaGetWeatherServiceRoleDefaultPolicyCBB027BF
+      - lambdaGetWeatherServiceRole0BBFF4D2
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetWeather/Resource
+  lambdaGetPlacesServiceRoleFD72A04F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetPlaces/ServiceRole/Resource
+  lambdaGetPlacesServiceRoleDefaultPolicy0BCABB77:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - geo:SearchPlaceIndexForPosition
+              - geo:SearchPlaceIndexForText
+            Effect: Allow
+            Resource: arn:aws:geo:us-east-1:036406153779:place-index/SwiftCarplayLocation
+        Version: "2012-10-17"
+      PolicyName: lambdaGetPlacesServiceRoleDefaultPolicy0BCABB77
+      Roles:
+        - Ref: lambdaGetPlacesServiceRoleFD72A04F
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetPlaces/ServiceRole/DefaultPolicy/Resource
+  lambdaGetPlaces9C2C4C08:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          Fn::Join:
+            - ""
+            - - 036406153779.dkr.ecr.us-east-1.
+              - Ref: AWS::URLSuffix
+              - /aws-cdk/assets:12ef05e3692dd440dc1b135d0aabfc24bac69cfbf6297291089d2518500ed567
+      Role:
+        Fn::GetAtt:
+          - lambdaGetPlacesServiceRoleFD72A04F
+          - Arn
+      Environment:
+        Variables:
+          API_ENDPOINT: https://places.geo.us-east-1.amazonaws.com/places/v0/indexes/SwiftCarplayLocation/search
+      FunctionName: swift-carplay-location-get-places
+      MemorySize: 512
+      PackageType: Image
+      Timeout: 180
+    DependsOn:
+      - lambdaGetPlacesServiceRoleDefaultPolicy0BCABB77
+      - lambdaGetPlacesServiceRoleFD72A04F
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/lambdaGetPlaces/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE02OQW/CMAyFfwv31Kyc2I2NCYnTpu4XZK5XhTYxih0QivLf17RC2uk920+fXwuve3jZHOxdGuzHbUaOBPlbLY7mTYR0toMLgzn+hs+k16TmyEE0JtS660g4RaRiKiILYSQVb4MdKM6gZa7B1RUzWf/TW8gfjCPFs59zpxRQHYcae/pinPWQO55oeVP1iyeHjzqurpiZ2djaUuAfb+ldb9DRlcUpx8e7FSrFBO4JLrK9tXtod9BuLuJcE1NQ5wm6Vf8AkhgQOhUBAAA=
+    Metadata:
+      aws:cdk:path: CdkAWSStackSwiftCarplayLocation/CDKMetadata/Default
+Outputs:
+  aqiAPIKeySecretName:
+    Value:
+      Fn::Join:
+        - "-"
+        - - Fn::Select:
+              - 0
+              - Fn::Split:
+                  - "-"
+                  - Fn::Select:
+                      - 6
+                      - Fn::Split:
+                          - ":"
+                          - Ref: SecretA720EF05
+          - Fn::Select:
+              - 1
+              - Fn::Split:
+                  - "-"
+                  - Fn::Select:
+                      - 6
+                      - Fn::Split:
+                          - ":"
+                          - Ref: SecretA720EF05
+

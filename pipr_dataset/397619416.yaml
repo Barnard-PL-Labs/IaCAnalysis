@@ -1,0 +1,414 @@
+Resources:
+  NiceIdFunctionServiceRoleE4AE7E1D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdFunction/ServiceRole/Resource
+  NiceIdFunctionServiceRoleDefaultPolicy81DE42F1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: secretsmanager:GetSecretValue
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:secretsmanager:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :secret:niceid*
+          - Action: ssm:GetParameter
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: NiceIdFunctionServiceRoleDefaultPolicy81DE42F1
+      Roles:
+        - Ref: NiceIdFunctionServiceRoleE4AE7E1D
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdFunction/ServiceRole/DefaultPolicy/Resource
+  NiceIdFunctionAC837DB2:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          Fn::Sub: ${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-${AWS::Region}:e1570efda9c2b37b21797d1e4d5fd9c2b0bf52992863b3312e8daa5259de050f
+      Role:
+        Fn::GetAtt:
+          - NiceIdFunctionServiceRoleE4AE7E1D
+          - Arn
+      Environment:
+        Variables:
+          DEPLOYMENT_ENV: dev
+          DEPLOYMENT_REGION:
+            Ref: AWS::Region
+      PackageType: Image
+    DependsOn:
+      - NiceIdFunctionServiceRoleDefaultPolicy81DE42F1
+      - NiceIdFunctionServiceRoleE4AE7E1D
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdFunction/Resource
+  NiceIdRestAPID30AC94F:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: NiceIdRestAPI
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/Resource
+  NiceIdRestAPICloudWatchRoleFAAAA259:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/CloudWatchRole/Resource
+  NiceIdRestAPIAccount3709AD9E:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - NiceIdRestAPICloudWatchRoleFAAAA259
+          - Arn
+    DependsOn:
+      - NiceIdRestAPID30AC94F
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/Account
+  NiceIdRestAPIDeploymentF7674812427368915f17ee27d6c7046f76018799:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: NiceIdRestAPID30AC94F
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - NiceIdRestAPIproxyANY4F97F21F
+      - NiceIdRestAPIproxy859F1519
+      - NiceIdRestAPIANYA3872C39
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/Deployment/Resource
+  NiceIdRestAPIDeploymentStagedev0F0DA115:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: NiceIdRestAPID30AC94F
+      DeploymentId:
+        Ref: NiceIdRestAPIDeploymentF7674812427368915f17ee27d6c7046f76018799
+      StageName: dev
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/DeploymentStage.dev/Resource
+  NiceIdRestAPIproxy859F1519:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - NiceIdRestAPID30AC94F
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: NiceIdRestAPID30AC94F
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/Default/{proxy+}/Resource
+  NiceIdRestAPIproxyANYApiPermissionCdkNiceIdStackdevNiceIdRestAPIC5F9F25CANYproxyD0689A37:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - NiceIdFunctionAC837DB2
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: NiceIdRestAPID30AC94F
+            - /
+            - Ref: NiceIdRestAPIDeploymentStagedev0F0DA115
+            - /*/*
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/Default/{proxy+}/ANY/ApiPermission.CdkNiceIdStackdevNiceIdRestAPIC5F9F25C.ANY..{proxy+}
+  NiceIdRestAPIproxyANYApiPermissionTestCdkNiceIdStackdevNiceIdRestAPIC5F9F25CANYproxyF733E59F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - NiceIdFunctionAC837DB2
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: NiceIdRestAPID30AC94F
+            - /test-invoke-stage/*/*
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/Default/{proxy+}/ANY/ApiPermission.Test.CdkNiceIdStackdevNiceIdRestAPIC5F9F25C.ANY..{proxy+}
+  NiceIdRestAPIproxyANY4F97F21F:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: NiceIdRestAPIproxy859F1519
+      RestApiId:
+        Ref: NiceIdRestAPID30AC94F
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - NiceIdFunctionAC837DB2
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/Default/{proxy+}/ANY/Resource
+  NiceIdRestAPIANYApiPermissionCdkNiceIdStackdevNiceIdRestAPIC5F9F25CANYFB6D53C1:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - NiceIdFunctionAC837DB2
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: NiceIdRestAPID30AC94F
+            - /
+            - Ref: NiceIdRestAPIDeploymentStagedev0F0DA115
+            - /*/
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/Default/ANY/ApiPermission.CdkNiceIdStackdevNiceIdRestAPIC5F9F25C.ANY..
+  NiceIdRestAPIANYApiPermissionTestCdkNiceIdStackdevNiceIdRestAPIC5F9F25CANY4B22F482:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - NiceIdFunctionAC837DB2
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: NiceIdRestAPID30AC94F
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/Default/ANY/ApiPermission.Test.CdkNiceIdStackdevNiceIdRestAPIC5F9F25C.ANY..
+  NiceIdRestAPIANYA3872C39:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - NiceIdRestAPID30AC94F
+          - RootResourceId
+      RestApiId:
+        Ref: NiceIdRestAPID30AC94F
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - NiceIdFunctionAC837DB2
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/NiceIdRestAPI/Default/ANY/Resource
+  RestApiEndpoint740A228A:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Fn::Join:
+          - ""
+          - - https://
+            - Ref: NiceIdRestAPID30AC94F
+            - .execute-api.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: NiceIdRestAPIDeploymentStagedev0F0DA115
+            - /
+      Name: /dev/NiceIdRestApiEndpoint
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/RestApiEndpoint/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE1WQwU7DMAyGn2X31Kw7IK5jExISiKo8wOSlpmRr4ipOGVXVdydJmRgnf/7t2P6zgTWsC6+hvF/hRQrdnIvOHGF6D6jPKkqHqUN7bBCmPesz+WeLLT0NTgfDTu0+3C1X5K0RidmsDFqYau4oFXKsuDN6zH2ZZkXaH1CEgsDN9G1SUg1q6llMYD8+opDC3rQY6IIjTC/5qpokbHuTV/zhVmseXFB76jseLUWM6k0W3bX5rgXiUx68pryk8vw9XpXfwQu/UvjkJkkLzUrEpq/yxrUVerQUyGd/12SeVXaT9sSmVHsbQj+Ef4Mj79g1JuSPc9wQnOTuq3yAcgPl6iTGFD4aMpagXuIPRN1PwLkBAAA=
+    Metadata:
+      aws:cdk:path: CdkNiceIdStackdev/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  NiceIdRestAPIEndpointFEE97762:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: NiceIdRestAPID30AC94F
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: NiceIdRestAPIDeploymentStagedev0F0DA115
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store.
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

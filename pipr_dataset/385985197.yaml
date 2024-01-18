@@ -1,0 +1,841 @@
+Resources:
+  CICDPipelineArtifactsBucketEncryptionKeyA192D562:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/ArtifactsBucketEncryptionKey/Resource
+  CICDPipelineArtifactsBucketEncryptionKeyAliasDF182C1D:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-examplepr2pmaincicdpipeline58693f86
+      TargetKeyId:
+        Fn::GetAtt:
+          - CICDPipelineArtifactsBucketEncryptionKeyA192D562
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  CICDPipelineArtifactsBucketF0034562:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - CICDPipelineArtifactsBucketEncryptionKeyA192D562
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/ArtifactsBucket/Resource
+  CICDPipelineRole52C923CF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/Role/Resource
+  CICDPipelineRoleDefaultPolicyCE7CA4C8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CICDPipelineArtifactsBucketF0034562
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CICDPipelineArtifactsBucketF0034562
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CICDPipelineArtifactsBucketEncryptionKeyA192D562
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CICDPipelineBuildSynthCodePipelineActionRole4B7D7866
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CICDPipelineUpdatePipelineSelfMutateCodePipelineActionRoleD4CA90FA
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CICDPipelineRoleDefaultPolicyCE7CA4C8
+      Roles:
+        - Ref: CICDPipelineRole52C923CF
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/Role/DefaultPolicy/Resource
+  CICDPipeline24C6C0EF:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - CICDPipelineRole52C923CF
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: rayjanwilson
+                Repo: cdk-pr-to-pipeline
+                Branch: main
+                OAuthToken: "{{resolve:secretsmanager:github-token:SecretString:::}}"
+                PollForSourceChanges: false
+              Name: Source
+              OutputArtifacts:
+                - Name: Artifact_Source_Source
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CICDPipelineBuildSynthCdkBuildProject0AA5CF9D
+                EnvironmentVariables: '[{"name":"branch","type":"PLAINTEXT","value":"main"},{"name":"_PROJECT_CONFIG_HASH","type":"PLAINTEXT","value":"d78345402265c33b82196d89fab3e787c10362fcf95a2c176f901bba53951558"}]'
+              InputArtifacts:
+                - Name: Artifact_Source_Source
+              Name: Synth
+              OutputArtifacts:
+                - Name: Artifact_Build_Synth
+              RoleArn:
+                Fn::GetAtt:
+                  - CICDPipelineBuildSynthCodePipelineActionRole4B7D7866
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CICDUpdatePipelineSelfMutation8BE9B5FE
+              InputArtifacts:
+                - Name: Artifact_Build_Synth
+              Name: SelfMutate
+              RoleArn:
+                Fn::GetAtt:
+                  - CICDPipelineUpdatePipelineSelfMutateCodePipelineActionRoleD4CA90FA
+                  - Arn
+              RunOrder: 1
+          Name: UpdatePipeline
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - CICDPipelineArtifactsBucketEncryptionKeyA192D562
+              - Arn
+          Type: KMS
+        Location:
+          Ref: CICDPipelineArtifactsBucketF0034562
+        Type: S3
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - CICDPipelineRoleDefaultPolicyCE7CA4C8
+      - CICDPipelineRole52C923CF
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/Resource
+  CICDPipelineSourceWebhookResource2F4D455B:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: "{{resolve:secretsmanager:github-token:SecretString:::}}"
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetAction: Source
+      TargetPipeline:
+        Ref: CICDPipeline24C6C0EF
+      TargetPipelineVersion: 1
+      RegisterWithThirdParty: true
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/Source/Source/WebhookResource
+  CICDPipelineBuildSynthCodePipelineActionRole4B7D7866:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/Build/Synth/CodePipelineActionRole/Resource
+  CICDPipelineBuildSynthCodePipelineActionRoleDefaultPolicyC0C404FF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CICDPipelineBuildSynthCdkBuildProject0AA5CF9D
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CICDPipelineBuildSynthCodePipelineActionRoleDefaultPolicyC0C404FF
+      Roles:
+        - Ref: CICDPipelineBuildSynthCodePipelineActionRole4B7D7866
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/Build/Synth/CodePipelineActionRole/DefaultPolicy/Resource
+  CICDPipelineBuildSynthCdkBuildProjectRole8623B92A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/Build/Synth/CdkBuildProject/Role/Resource
+  CICDPipelineBuildSynthCdkBuildProjectRoleDefaultPolicyE04FE85D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CICDPipelineBuildSynthCdkBuildProject0AA5CF9D
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CICDPipelineBuildSynthCdkBuildProject0AA5CF9D
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: CICDPipelineBuildSynthCdkBuildProject0AA5CF9D
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CICDPipelineArtifactsBucketF0034562
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CICDPipelineArtifactsBucketF0034562
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CICDPipelineArtifactsBucketEncryptionKeyA192D562
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CICDPipelineArtifactsBucketEncryptionKeyA192D562
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CICDPipelineBuildSynthCdkBuildProjectRoleDefaultPolicyE04FE85D
+      Roles:
+        - Ref: CICDPipelineBuildSynthCdkBuildProjectRole8623B92A
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/Build/Synth/CdkBuildProject/Role/DefaultPolicy/Resource
+  CICDPipelineBuildSynthCdkBuildProject0AA5CF9D:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: NPM_CONFIG_UNSAFE_PERM
+            Type: PLAINTEXT
+            Value: "true"
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CICDPipelineBuildSynthCdkBuildProjectRole8623B92A
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "pre_build": {
+                "commands": [
+                  "npm ci"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "npm install && npm run build",
+                  "npx cdk synth"
+                ]
+              }
+            },
+            "artifacts": {
+              "base-directory": "cdk.out",
+              "files": "**/*"
+            }
+          }
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - CICDPipelineArtifactsBucketEncryptionKeyA192D562
+          - Arn
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/Build/Synth/CdkBuildProject/Resource
+  CICDPipelineUpdatePipelineSelfMutateCodePipelineActionRoleD4CA90FA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/UpdatePipeline/SelfMutate/CodePipelineActionRole/Resource
+  CICDPipelineUpdatePipelineSelfMutateCodePipelineActionRoleDefaultPolicy49B8177E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CICDUpdatePipelineSelfMutation8BE9B5FE
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CICDPipelineUpdatePipelineSelfMutateCodePipelineActionRoleDefaultPolicy49B8177E
+      Roles:
+        - Ref: CICDPipelineUpdatePipelineSelfMutateCodePipelineActionRoleD4CA90FA
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/Pipeline/UpdatePipeline/SelfMutate/CodePipelineActionRole/DefaultPolicy/Resource
+  CICDUpdatePipelineSelfMutationRole82BAD78F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/UpdatePipeline/SelfMutation/Role/Resource
+  CICDUpdatePipelineSelfMutationRoleDefaultPolicy27827F03:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CICDUpdatePipelineSelfMutation8BE9B5FE
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CICDUpdatePipelineSelfMutation8BE9B5FE
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: CICDUpdatePipelineSelfMutation8BE9B5FE
+                  - -*
+          - Action: sts:AssumeRole
+            Condition:
+              ForAnyValue:StringEquals:
+                iam:ResourceTag/aws-cdk:bootstrap-role:
+                  - image-publishing
+                  - file-publishing
+                  - deploy
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:*:iam::"
+                  - Ref: AWS::AccountId
+                  - :role/*
+          - Action: cloudformation:DescribeStacks
+            Effect: Allow
+            Resource: "*"
+          - Action: s3:ListBucket
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CICDPipelineArtifactsBucketF0034562
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CICDPipelineArtifactsBucketF0034562
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CICDPipelineArtifactsBucketEncryptionKeyA192D562
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CICDPipelineArtifactsBucketEncryptionKeyA192D562
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CICDUpdatePipelineSelfMutationRoleDefaultPolicy27827F03
+      Roles:
+        - Ref: CICDUpdatePipelineSelfMutationRole82BAD78F
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/UpdatePipeline/SelfMutation/Role/DefaultPolicy/Resource
+  CICDUpdatePipelineSelfMutation8BE9B5FE:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CICDUpdatePipelineSelfMutationRole82BAD78F
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g aws-cdk"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk -a . deploy Example-PR2P-main --require-approval=never --verbose"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - CICDPipelineArtifactsBucketEncryptionKeyA192D562
+          - Arn
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CICD/UpdatePipeline/SelfMutation/Resource
+  PrTriggerProjectRoleD041B586:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/PrTrigger/Project/Role/Resource
+  PrTriggerProjectRoleDefaultPolicy2F7046EF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: PrTriggerProjectC7953F42
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: PrTriggerProjectC7953F42
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: PrTriggerProjectC7953F42
+                  - -*
+          - Action: cloudformation:*
+            Effect: Allow
+            Resource: "*"
+          - Action: ssm:*
+            Effect: Allow
+            Resource: "*"
+          - Action: s3:*
+            Effect: Allow
+            Resource: "*"
+          - Action: kms:*
+            Effect: Allow
+            Resource: "*"
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: PrTriggerProjectRoleDefaultPolicy2F7046EF
+      Roles:
+        - Ref: PrTriggerProjectRoleD041B586
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/PrTrigger/Project/Role/DefaultPolicy/Resource
+  PrTriggerProjectC7953F42:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PrTriggerProjectRoleD041B586
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": 0.2,
+            "phases": {
+              "install": {
+                "on-failure": "ABORT",
+                "runtime-versions": {
+                  "nodejs": 14
+                },
+                "commands": [
+                  "npm install"
+                ]
+              },
+              "build": {
+                "on-failure": "ABORT",
+                "commands": [
+                  "[ $CODEBUILD_WEBHOOK_EVENT = \"PULL_REQUEST_MERGED\" ] && npx ts-node ./lib/destroy-stacks.ts || npm run deploy"
+                ]
+              }
+            }
+          }
+        GitCloneDepth: 1
+        Location: https://github.com/rayjanwilson/cdk-pr-to-pipeline.git
+        ReportBuildStatus: true
+        Type: GITHUB
+      EncryptionKey: alias/aws/s3
+      Triggers:
+        FilterGroups:
+          - - Pattern: PULL_REQUEST_CREATED, PULL_REQUEST_REOPENED, PULL_REQUEST_MERGED
+              Type: EVENT
+        Webhook: true
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/PrTrigger/Project/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE02PS08EIRCEf8ve2V5xLx5d5+hlMsZ4ZqGNPczAhIfGEP67PHbUU30FdHXBgfMz3B0exZc/SqVPSVqHkF6CkJoN1vjgogxseDcTehudxMrlQlEgazLbaMOFDHpIg9LjzbHXTYmAu73I/rhuKRsU7lOQfidK7H9+w+uHtTozvZboZ/yuh1UuCwlfTYPM/BnSU5QaW8tOmZFYIU12aVlNR7uQbCmdMqtFrpEW9ddidHbG/t8db5pzZqYMwOxPn/wB+D3ww+yJji6aQCvC1PUHCqUfJlMBAAA=
+    Metadata:
+      aws:cdk:path: Example-PR2P-main/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store.
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

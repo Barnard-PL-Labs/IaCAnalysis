@@ -1,0 +1,269 @@
+Resources:
+  SourceTable70380C26:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      Tags:
+        - Key: Project
+          Value: SniffingGlue
+        - Key: TEST
+          Value: REMOVE IF YOU SEE THIS
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: InfraStack/SourceTable/Resource
+  TargetBucket6BBF3429:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: aws-glue-cirit-sniffing-glue-target
+      Tags:
+        - Key: Project
+          Value: SniffingGlue
+        - Key: TEST
+          Value: REMOVE IF YOU SEE THIS
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: InfraStack/TargetBucket/Resource
+  AthenaQueriesBucketABB8E1E2:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: athena-queries-cirit-sniffing-glue
+      Tags:
+        - Key: Project
+          Value: SniffingGlue
+        - Key: TEST
+          Value: REMOVE IF YOU SEE THIS
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: InfraStack/AthenaQueriesBucket/Resource
+  CrawlerRoleA9495AEE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+      RoleName: AWSGlueServiceRole-sniffing-glue
+      Tags:
+        - Key: Project
+          Value: SniffingGlue
+        - Key: TEST
+          Value: REMOVE IF YOU SEE THIS
+    Metadata:
+      aws:cdk:path: InfraStack/CrawlerRole/Resource
+  CrawlerRoleDefaultPolicy145A4322:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TargetBucket6BBF3429
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - TargetBucket6BBF3429
+                        - Arn
+                    - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SourceTable70380C26
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: CrawlerRoleDefaultPolicy145A4322
+      Roles:
+        - Ref: CrawlerRoleA9495AEE
+    Metadata:
+      aws:cdk:path: InfraStack/CrawlerRole/DefaultPolicy/Resource
+  GlueDB8556644B:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseInput:
+        Name: sniffing-glue-db
+    Metadata:
+      aws:cdk:path: InfraStack/GlueDB/Resource
+  DynamoCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role:
+        Fn::GetAtt:
+          - CrawlerRoleA9495AEE
+          - Arn
+      Targets:
+        DynamoDBTargets:
+          - Path:
+              Ref: SourceTable70380C26
+      DatabaseName:
+        Ref: GlueDB8556644B
+      Name: sniffing-glue-DynamoCrawler
+      TablePrefix: sniffing-glue-table
+      Tags:
+        Project: SniffingGlue
+        TEST: REMOVE IF YOU SEE THIS
+    Metadata:
+      aws:cdk:path: InfraStack/DynamoCrawler
+  ParquetCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role:
+        Fn::GetAtt:
+          - CrawlerRoleA9495AEE
+          - Arn
+      Targets:
+        S3Targets:
+          - Path:
+              Fn::Join:
+                - ""
+                - - s3://
+                  - Ref: TargetBucket6BBF3429
+      DatabaseName:
+        Ref: GlueDB8556644B
+      Description: ""
+      Name: sniffing-glue-ParquetCrawler
+      TablePrefix: dynamoathenaparquet
+      Tags:
+        Project: SniffingGlue
+        TEST: REMOVE IF YOU SEE THIS
+    Metadata:
+      aws:cdk:path: InfraStack/ParquetCrawler
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02PzQ7CIBCEn8U73QYbE4/GetdUX2ALaGgpGH5sGsK728Klp/l2ZzLZpUBPDdDDBWdXMT7WkRkrID49spF0wplgmSDtW9+D/wZPWqOdt4H5bbf3V4NLL41OZOuKfNE4Gd5DfGGvciRDIq6BeA1sFLmjUCISJ4idKcmsD6MkW7axUCIfFdbbbuixR5eDe24tzkrYlBLRhgsYXP2jZ6DH9b/BSVnZoL2cBHRF/8/ScaP8AAAA
+    Metadata:
+      aws:cdk:path: InfraStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  GlueDatabaseName:
+    Value:
+      Ref: GlueDB8556644B
+  S3TargetBucketName:
+    Value:
+      Ref: TargetBucket6BBF3429
+  DynamoCrawlerName:
+    Value: sniffing-glue-DynamoCrawler
+  ParquetCrawlerName:
+    Value: sniffing-glue-ParquetCrawler
+  RoleArn:
+    Value:
+      Fn::GetAtt:
+        - CrawlerRoleA9495AEE
+        - Arn
+  DynamoTableName:
+    Value:
+      Ref: SourceTable70380C26
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

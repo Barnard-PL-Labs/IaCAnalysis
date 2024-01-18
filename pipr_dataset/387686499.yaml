@@ -1,0 +1,180 @@
+Parameters:
+  bucketArnPath:
+    Type: String
+    Description: The bucket ARN with object path for permissions
+  AssetParametersd1faf6716bc470e0d1739f6bfcbe50fb53920e0bace51c5e58ddc9782a3c6e71S3BucketBFE19130:
+    Type: String
+    Description: S3 bucket for asset "d1faf6716bc470e0d1739f6bfcbe50fb53920e0bace51c5e58ddc9782a3c6e71"
+  AssetParametersd1faf6716bc470e0d1739f6bfcbe50fb53920e0bace51c5e58ddc9782a3c6e71S3VersionKey97131A37:
+    Type: String
+    Description: S3 key for asset version "d1faf6716bc470e0d1739f6bfcbe50fb53920e0bace51c5e58ddc9782a3c6e71"
+  AssetParametersd1faf6716bc470e0d1739f6bfcbe50fb53920e0bace51c5e58ddc9782a3c6e71ArtifactHashAE074762:
+    Type: String
+    Description: Artifact hash for asset "d1faf6716bc470e0d1739f6bfcbe50fb53920e0bace51c5e58ddc9782a3c6e71"
+Resources:
+  NuxeoDynamicAssetDeliveryLambdaRoleD4B8DC95:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+                - edgelambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: nuxeo-dynamic-asset-transformation-edge-lambda-stack/NuxeoDynamicAssetDeliveryLambdaRole/Resource
+  NuxeoDynamicAssetDeliveryLambdaRoleDefaultPolicy786DC8AD:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource: arn:aws:logs:*:*:*
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              Ref: bucketArnPath
+        Version: "2012-10-17"
+      PolicyName: NuxeoDynamicAssetDeliveryLambdaRoleDefaultPolicy786DC8AD
+      Roles:
+        - Ref: NuxeoDynamicAssetDeliveryLambdaRoleD4B8DC95
+    Metadata:
+      aws:cdk:path: nuxeo-dynamic-asset-transformation-edge-lambda-stack/NuxeoDynamicAssetDeliveryLambdaRole/DefaultPolicy/Resource
+  EdgeAuthHandlerFBE6AE91:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersd1faf6716bc470e0d1739f6bfcbe50fb53920e0bace51c5e58ddc9782a3c6e71S3BucketBFE19130
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd1faf6716bc470e0d1739f6bfcbe50fb53920e0bace51c5e58ddc9782a3c6e71S3VersionKey97131A37
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd1faf6716bc470e0d1739f6bfcbe50fb53920e0bace51c5e58ddc9782a3c6e71S3VersionKey97131A37
+      Role:
+        Fn::GetAtt:
+          - NuxeoDynamicAssetDeliveryLambdaRoleD4B8DC95
+          - Arn
+      Handler: edge-auth.handler
+      Runtime: nodejs10.x
+    DependsOn:
+      - NuxeoDynamicAssetDeliveryLambdaRoleDefaultPolicy786DC8AD
+      - NuxeoDynamicAssetDeliveryLambdaRoleD4B8DC95
+    Metadata:
+      aws:cdk:path: nuxeo-dynamic-asset-transformation-edge-lambda-stack/EdgeAuthHandler/Resource
+      aws:asset:path: asset.d1faf6716bc470e0d1739f6bfcbe50fb53920e0bace51c5e58ddc9782a3c6e71
+      aws:asset:property: Code
+  EdgeAuthHandlerCurrentVersion4DD035BF58c1ac65368c50621fcd11d587441d0b:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName:
+        Ref: EdgeAuthHandlerFBE6AE91
+    Metadata:
+      aws:cdk:path: nuxeo-dynamic-asset-transformation-edge-lambda-stack/EdgeAuthHandler/CurrentVersion/Resource
+  EdgeAuthHandlerCurrentVersionAliasliveED357889:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName:
+        Ref: EdgeAuthHandlerFBE6AE91
+      FunctionVersion:
+        Fn::GetAtt:
+          - EdgeAuthHandlerCurrentVersion4DD035BF58c1ac65368c50621fcd11d587441d0b
+          - Version
+      Name: live
+    Metadata:
+      aws:cdk:path: nuxeo-dynamic-asset-transformation-edge-lambda-stack/EdgeAuthHandler/CurrentVersion/Aliaslive/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE02Ouw7CMAxFv4U9NQQWRh4Sc1UkdpMaZNomUpyAUJR/pykPMfn4+tq+GrTWsJht8CGVabt5Ms4TpGNA06n9xdbocaBAXm1FKIz6le1V7Z2V4KMJqiFx0Rsq5n8eHS0HdjarcjsxDpAa17+NpdauZ/OcnkyUVY/DuUVIh2hNWS2zH5/Iy0f74rZnlCJMkJWsKiwpBaawYw+7aDoKOxTKWVnXEtxkftdr0EvQs5swVz7awANB864vZaT4wBMBAAA=
+    Metadata:
+      aws:cdk:path: nuxeo-dynamic-asset-transformation-edge-lambda-stack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

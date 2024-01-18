@@ -1,0 +1,646 @@
+Resources:
+  UserManagementUserPoolEBF9577D:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameConfiguration:
+        CaseSensitive: false
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/UserManagement/UserPool/Resource
+  UserManagementUserPoolWebApp6F86E1DE:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: UserManagementUserPoolEBF9577D
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ExplicitAuthFlows:
+        - ALLOW_CUSTOM_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/UserManagement/UserPool/WebApp/Resource
+  DatabasesDatabasesTableE646E100:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: partitionKey
+          KeyType: HASH
+        - AttributeName: sortKey
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: partitionKey
+          AttributeType: S
+        - AttributeName: sortKey
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      TableName: DatabasesTable
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Databases/DatabasesTable/Resource
+  ApiCD79AAA0:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      CorsConfiguration:
+        AllowCredentials: true
+        AllowHeaders:
+          - Authorization
+          - Content-Type
+        AllowMethods:
+          - GET
+          - PATCH
+          - HEAD
+          - OPTIONS
+          - POST
+        AllowOrigins:
+          - https://*
+          - http://*
+        MaxAge: 86400
+      Name: ApiApi
+      ProtocolType: HTTP
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/Resource
+  ApiDefaultStage1AAE989B:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: ApiCD79AAA0
+      StageName: $default
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/DefaultStage/Resource
+  ApiPOSTthingsCognitoLambdaDynamoApiStackApiPOSTthings7C3FD658Permission145BA3BD:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - newThing214D5A8E
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: ApiCD79AAA0
+            - /*/*/things
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/POST--things/CognitoLambdaDynamoApiStackApiPOSTthings7C3FD658-Permission
+  ApiPOSTthingsPOSTthingsIntegrationFE5E1824:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: ApiCD79AAA0
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::GetAtt:
+          - newThing214D5A8E
+          - Arn
+      PayloadFormatVersion: "2.0"
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/POST--things/POST--things-Integration/Resource
+  ApiPOSTthingsBD3E087C:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ApiCD79AAA0
+      RouteKey: POST /things
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: ApiCognitoAuthorizer9A06E3D6
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: ApiPOSTthingsPOSTthingsIntegrationFE5E1824
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/POST--things/Resource
+  ApiGETthingsCognitoLambdaDynamoApiStackApiGETthings0CBBADECPermission2E980849:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - getThings38852BBD
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: ApiCD79AAA0
+            - /*/*/things
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/GET--things/CognitoLambdaDynamoApiStackApiGETthings0CBBADEC-Permission
+  ApiGETthingsGETthingsIntegrationD0911871:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: ApiCD79AAA0
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::GetAtt:
+          - getThings38852BBD
+          - Arn
+      PayloadFormatVersion: "2.0"
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/GET--things/GET--things-Integration/Resource
+  ApiGETthingsCC75F8D5:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ApiCD79AAA0
+      RouteKey: GET /things
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: ApiCognitoAuthorizer9A06E3D6
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: ApiGETthingsGETthingsIntegrationD0911871
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/GET--things/Resource
+  ApiGETthingsidCognitoLambdaDynamoApiStackApiGETthingsid3AFCE078Permission7DC70F84:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - getThing39E24DD7
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: ApiCD79AAA0
+            - /*/*/things/{id}
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/GET--things--{id}/CognitoLambdaDynamoApiStackApiGETthingsid3AFCE078-Permission
+  ApiGETthingsidGETthingsidIntegration2A26261B:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: ApiCD79AAA0
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::GetAtt:
+          - getThing39E24DD7
+          - Arn
+      PayloadFormatVersion: "2.0"
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/GET--things--{id}/GET--things--{id}-Integration/Resource
+  ApiGETthingsidF8947664:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ApiCD79AAA0
+      RouteKey: GET /things/{id}
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: ApiCognitoAuthorizer9A06E3D6
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: ApiGETthingsidGETthingsidIntegration2A26261B
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/Api/GET--things--{id}/Resource
+  ApiCognitoAuthorizer9A06E3D6:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId:
+        Ref: ApiCD79AAA0
+      AuthorizerType: JWT
+      IdentitySource:
+        - $request.header.Authorization
+      Name: cognitoAuthorizer
+      JwtConfiguration:
+        Audience:
+          - Ref: UserManagementUserPoolWebApp6F86E1DE
+        Issuer:
+          Fn::Join:
+            - ""
+            - - https://cognito-idp.
+              - Ref: AWS::Region
+              - .amazonaws.com/
+              - Ref: UserManagementUserPoolEBF9577D
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/Api/CognitoAuthorizer
+  calculatorFunctionServiceRole74068D8B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/calculatorFunction/ServiceRole/Resource
+  calculatorFunctionServiceRoleDefaultPolicy43B3161E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - DatabasesDatabasesTableE646E100
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: calculatorFunctionServiceRoleDefaultPolicy43B3161E
+      Roles:
+        - Ref: calculatorFunctionServiceRole74068D8B
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/calculatorFunction/ServiceRole/DefaultPolicy/Resource
+  calculatorFunctionB93CE173:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersec3cf13637614747c30fee50782b850a84688ab2e91b59b602e54a967308d927S3Bucket82C55C9C
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersec3cf13637614747c30fee50782b850a84688ab2e91b59b602e54a967308d927S3VersionKey549033B6
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersec3cf13637614747c30fee50782b850a84688ab2e91b59b602e54a967308d927S3VersionKey549033B6
+      Role:
+        Fn::GetAtt:
+          - calculatorFunctionServiceRole74068D8B
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: DatabasesDatabasesTableE646E100
+      FunctionName: CognitoLambdaDynamoApiStackCalculatorFunction
+      Handler: index.handler
+      Runtime: python3.8
+      Timeout: 30
+    DependsOn:
+      - calculatorFunctionServiceRoleDefaultPolicy43B3161E
+      - calculatorFunctionServiceRole74068D8B
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/calculatorFunction/Resource
+      aws:asset:path: asset.ec3cf13637614747c30fee50782b850a84688ab2e91b59b602e54a967308d927
+      aws:asset:property: Code
+  newThingServiceRole702C4A7D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/newThing/newThing/ServiceRole/Resource
+  newThingServiceRoleDefaultPolicyE9D0C606:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - DatabasesDatabasesTableE646E100
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - calculatorFunctionB93CE173
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: newThingServiceRoleDefaultPolicyE9D0C606
+      Roles:
+        - Ref: newThingServiceRole702C4A7D
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/newThing/newThing/ServiceRole/DefaultPolicy/Resource
+  newThing214D5A8E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters29b584d8ff9f73d131f8edfbf2f233314e8bf5ebaaacd2c5bacde410af6bc276S3Bucket0C06B954
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters29b584d8ff9f73d131f8edfbf2f233314e8bf5ebaaacd2c5bacde410af6bc276S3VersionKeyD0D19752
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters29b584d8ff9f73d131f8edfbf2f233314e8bf5ebaaacd2c5bacde410af6bc276S3VersionKeyD0D19752
+      Role:
+        Fn::GetAtt:
+          - newThingServiceRole702C4A7D
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: DatabasesDatabasesTableE646E100
+          CALCULATOR_LAMBDA:
+            Ref: calculatorFunctionB93CE173
+      FunctionName: newThing
+      Handler: index.handler
+      Runtime: python3.8
+    DependsOn:
+      - newThingServiceRoleDefaultPolicyE9D0C606
+      - newThingServiceRole702C4A7D
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/newThing/newThing/Resource
+      aws:asset:path: asset.29b584d8ff9f73d131f8edfbf2f233314e8bf5ebaaacd2c5bacde410af6bc276
+      aws:asset:property: Code
+  getThingsServiceRole5F5FCE6C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/getThings/getThings/ServiceRole/Resource
+  getThingsServiceRoleDefaultPolicy768EDFDB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - DatabasesDatabasesTableE646E100
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: getThingsServiceRoleDefaultPolicy768EDFDB
+      Roles:
+        - Ref: getThingsServiceRole5F5FCE6C
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/getThings/getThings/ServiceRole/DefaultPolicy/Resource
+  getThings38852BBD:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6fS3Bucket9821F68B
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6fS3VersionKeyFBF5C500
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6fS3VersionKeyFBF5C500
+      Role:
+        Fn::GetAtt:
+          - getThingsServiceRole5F5FCE6C
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: DatabasesDatabasesTableE646E100
+      FunctionName: getThings
+      Handler: index.handler
+      Runtime: python3.8
+    DependsOn:
+      - getThingsServiceRoleDefaultPolicy768EDFDB
+      - getThingsServiceRole5F5FCE6C
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/getThings/getThings/Resource
+      aws:asset:path: asset.c6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6f
+      aws:asset:property: Code
+  getThingServiceRoleA9762B16:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/getThing/getThing/ServiceRole/Resource
+  getThingServiceRoleDefaultPolicyB7B7A9CE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - DatabasesDatabasesTableE646E100
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: getThingServiceRoleDefaultPolicyB7B7A9CE
+      Roles:
+        - Ref: getThingServiceRoleA9762B16
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/getThing/getThing/ServiceRole/DefaultPolicy/Resource
+  getThing39E24DD7:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6fS3Bucket9821F68B
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6fS3VersionKeyFBF5C500
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6fS3VersionKeyFBF5C500
+      Role:
+        Fn::GetAtt:
+          - getThingServiceRoleA9762B16
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: DatabasesDatabasesTableE646E100
+      FunctionName: getThing
+      Handler: index.handler
+      Runtime: python3.8
+    DependsOn:
+      - getThingServiceRoleDefaultPolicyB7B7A9CE
+      - getThingServiceRoleA9762B16
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/getThing/getThing/Resource
+      aws:asset:path: asset.c6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6f
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.85.0,@aws-cdk/aws-apigatewayv2=1.85.0,@aws-cdk/aws-apigatewayv2-integrations=1.85.0,@aws-cdk/aws-applicationautoscaling=1.85.0,@aws-cdk/aws-autoscaling-common=1.85.0,@aws-cdk/aws-cloudwatch=1.85.0,@aws-cdk/aws-codeguruprofiler=1.85.0,@aws-cdk/aws-cognito=1.85.0,@aws-cdk/aws-dynamodb=1.85.0,@aws-cdk/aws-ec2=1.85.0,@aws-cdk/aws-ecr=1.85.0,@aws-cdk/aws-ecr-assets=1.85.0,@aws-cdk/aws-elasticloadbalancingv2=1.85.0,@aws-cdk/aws-events=1.85.0,@aws-cdk/aws-iam=1.85.0,@aws-cdk/aws-kms=1.85.0,@aws-cdk/aws-lambda=1.85.0,@aws-cdk/aws-logs=1.85.0,@aws-cdk/aws-s3=1.85.0,@aws-cdk/aws-s3-assets=1.85.0,@aws-cdk/aws-sqs=1.85.0,@aws-cdk/aws-ssm=1.85.0,@aws-cdk/cloud-assembly-schema=1.85.0,@aws-cdk/core=1.85.0,@aws-cdk/custom-resources=1.85.0,@aws-cdk/cx-api=1.85.0,@aws-cdk/region-info=1.85.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: CognitoLambdaDynamoApiStack/CDKMetadata/Default
+Parameters:
+  AssetParametersec3cf13637614747c30fee50782b850a84688ab2e91b59b602e54a967308d927S3Bucket82C55C9C:
+    Type: String
+    Description: S3 bucket for asset "ec3cf13637614747c30fee50782b850a84688ab2e91b59b602e54a967308d927"
+  AssetParametersec3cf13637614747c30fee50782b850a84688ab2e91b59b602e54a967308d927S3VersionKey549033B6:
+    Type: String
+    Description: S3 key for asset version "ec3cf13637614747c30fee50782b850a84688ab2e91b59b602e54a967308d927"
+  AssetParametersec3cf13637614747c30fee50782b850a84688ab2e91b59b602e54a967308d927ArtifactHashD0181615:
+    Type: String
+    Description: Artifact hash for asset "ec3cf13637614747c30fee50782b850a84688ab2e91b59b602e54a967308d927"
+  AssetParameters29b584d8ff9f73d131f8edfbf2f233314e8bf5ebaaacd2c5bacde410af6bc276S3Bucket0C06B954:
+    Type: String
+    Description: S3 bucket for asset "29b584d8ff9f73d131f8edfbf2f233314e8bf5ebaaacd2c5bacde410af6bc276"
+  AssetParameters29b584d8ff9f73d131f8edfbf2f233314e8bf5ebaaacd2c5bacde410af6bc276S3VersionKeyD0D19752:
+    Type: String
+    Description: S3 key for asset version "29b584d8ff9f73d131f8edfbf2f233314e8bf5ebaaacd2c5bacde410af6bc276"
+  AssetParameters29b584d8ff9f73d131f8edfbf2f233314e8bf5ebaaacd2c5bacde410af6bc276ArtifactHash7852DDC4:
+    Type: String
+    Description: Artifact hash for asset "29b584d8ff9f73d131f8edfbf2f233314e8bf5ebaaacd2c5bacde410af6bc276"
+  AssetParametersc6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6fS3Bucket9821F68B:
+    Type: String
+    Description: S3 bucket for asset "c6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6f"
+  AssetParametersc6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6fS3VersionKeyFBF5C500:
+    Type: String
+    Description: S3 key for asset version "c6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6f"
+  AssetParametersc6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6fArtifactHash039774B5:
+    Type: String
+    Description: Artifact hash for asset "c6890f4440cb50cc4b11da56169c2de28ba71b389564199a15e05358037acc6f"
+

@@ -1,0 +1,504 @@
+Resources:
+  PayloadTableAFAF649A:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: payloadTable
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AppStack/PayloadTable/Resource
+  WriteHandlerServiceRole53B5A6A6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AppStack/WriteHandler/ServiceRole/Resource
+  WriteHandlerServiceRoleDefaultPolicy7E3B8B6C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PayloadTableAFAF649A
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: WriteHandlerServiceRoleDefaultPolicy7E3B8B6C
+      Roles:
+        - Ref: WriteHandlerServiceRole53B5A6A6
+    Metadata:
+      aws:cdk:path: AppStack/WriteHandler/ServiceRole/DefaultPolicy/Resource
+  WriteHandler5B025288:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765S3Bucket9089A5F0
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765S3VersionKey0A8364F6
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765S3VersionKey0A8364F6
+      Role:
+        Fn::GetAtt:
+          - WriteHandlerServiceRole53B5A6A6
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: PayloadTableAFAF649A
+      Handler: index.writeHandler
+      Runtime: nodejs12.x
+      Timeout: 90
+    DependsOn:
+      - WriteHandlerServiceRoleDefaultPolicy7E3B8B6C
+      - WriteHandlerServiceRole53B5A6A6
+    Metadata:
+      aws:cdk:path: AppStack/WriteHandler/Resource
+      aws:asset:path: asset.20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765
+      aws:asset:property: Code
+  ReadHandlerServiceRoleA29FEC2A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AppStack/ReadHandler/ServiceRole/Resource
+  ReadHandlerServiceRoleDefaultPolicy501B8337:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PayloadTableAFAF649A
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: ReadHandlerServiceRoleDefaultPolicy501B8337
+      Roles:
+        - Ref: ReadHandlerServiceRoleA29FEC2A
+    Metadata:
+      aws:cdk:path: AppStack/ReadHandler/ServiceRole/DefaultPolicy/Resource
+  ReadHandlerA659301C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765S3Bucket9089A5F0
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765S3VersionKey0A8364F6
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765S3VersionKey0A8364F6
+      Role:
+        Fn::GetAtt:
+          - ReadHandlerServiceRoleA29FEC2A
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: PayloadTableAFAF649A
+          ENVIRONMENT: local
+      Handler: index.readHandler
+      Runtime: nodejs12.x
+      Timeout: 90
+    DependsOn:
+      - ReadHandlerServiceRoleDefaultPolicy501B8337
+      - ReadHandlerServiceRoleA29FEC2A
+    Metadata:
+      aws:cdk:path: AppStack/ReadHandler/Resource
+      aws:asset:path: asset.20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765
+      aws:asset:property: Code
+  AppApiE7BADA01:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: AppApi
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/Resource
+  AppApiCloudWatchRole8CE3A2DC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/CloudWatchRole/Resource
+  AppApiAccountBFDB23F0:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - AppApiCloudWatchRole8CE3A2DC
+          - Arn
+    DependsOn:
+      - AppApiE7BADA01
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/Account
+  AppApiDeployment7658F3133228e4b10479b721388ce94edadcf44e:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: AppApiE7BADA01
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - AppApipayloadGET7A925B8C
+      - AppApipayloadPOST6DC47B6B
+      - AppApipayload691D783D
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/Deployment/Resource
+  AppApiDeploymentStageprod4B09D08C:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: AppApiE7BADA01
+      DeploymentId:
+        Ref: AppApiDeployment7658F3133228e4b10479b721388ce94edadcf44e
+      StageName: prod
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/DeploymentStage.prod/Resource
+  AppApipayload691D783D:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - AppApiE7BADA01
+          - RootResourceId
+      PathPart: payload
+      RestApiId:
+        Ref: AppApiE7BADA01
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/Default/payload/Resource
+  AppApipayloadPOSTApiPermissionAppStackAppApiD417D791POSTpayload2DBFCFB0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - WriteHandler5B025288
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /
+            - Ref: AppApiDeploymentStageprod4B09D08C
+            - /POST/payload
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/Default/payload/POST/ApiPermission.AppStackAppApiD417D791.POST..payload
+  AppApipayloadPOSTApiPermissionTestAppStackAppApiD417D791POSTpayloadDC74CBC1:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - WriteHandler5B025288
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /test-invoke-stage/POST/payload
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/Default/payload/POST/ApiPermission.Test.AppStackAppApiD417D791.POST..payload
+  AppApipayloadPOST6DC47B6B:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: AppApipayload691D783D
+      RestApiId:
+        Ref: AppApiE7BADA01
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - WriteHandler5B025288
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/Default/payload/POST/Resource
+  AppApipayloadGETApiPermissionAppStackAppApiD417D791GETpayload507A3023:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ReadHandlerA659301C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /
+            - Ref: AppApiDeploymentStageprod4B09D08C
+            - /GET/payload
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/Default/payload/GET/ApiPermission.AppStackAppApiD417D791.GET..payload
+  AppApipayloadGETApiPermissionTestAppStackAppApiD417D791GETpayload762BBC0E:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ReadHandlerA659301C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: AppApiE7BADA01
+            - /test-invoke-stage/GET/payload
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/Default/payload/GET/ApiPermission.Test.AppStackAppApiD417D791.GET..payload
+  AppApipayloadGET7A925B8C:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: AppApipayload691D783D
+      RestApiId:
+        Ref: AppApiE7BADA01
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - ReadHandlerA659301C
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: AppStack/AppApi/Default/payload/GET/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02RzW7DIAzHn6V3Spft0uPSTr1Ni7K9gANeRhMgwrAqQnn3AVmrnPyzsf/+oOLV85E/7V7hRnshh0MU1iGPnx7EwFokG5xAVhOhT7FemZ6drSHvgvDs/G0acKDRo8vOR/BTKOFHZeKUL5VX1iwsd4lyNqCt7Hj8gm4sKQUWNoLuJPB4CUbkgvy05QadVkRFSoHmsbVrfbGNHZWYS16hhdHLHvLkxMsCyeenIAb0JyBkMKkePN5gTkJIvp7U/+h3rIWwwXj2htNoZ42m7Lbx8knKACvcty7y2xM8+B39j5U5tNKyLMxYifxKh9/qmH6DV7srKbV3qbHSyNvV/gHYl+T3qQEAAA==
+    Metadata:
+      aws:cdk:path: AppStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765S3Bucket9089A5F0:
+    Type: String
+    Description: S3 bucket for asset "20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765"
+  AssetParameters20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765S3VersionKey0A8364F6:
+    Type: String
+    Description: S3 key for asset version "20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765"
+  AssetParameters20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765ArtifactHash96AAD48E:
+    Type: String
+    Description: Artifact hash for asset "20f1b8cb35967287837aacc025d7be742f48490a565dcaf329c8e73a1c3b0765"
+Outputs:
+  AppApiEndpoint979256A8:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: AppApiE7BADA01
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: AppApiDeploymentStageprod4B09D08C
+          - /
+  LocalstackAPIUrl:
+    Value:
+      Fn::Join:
+        - ""
+        - - http://localhost:4566/restapis/
+          - Ref: AppApiE7BADA01
+          - /prod/_user_request_/payload
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

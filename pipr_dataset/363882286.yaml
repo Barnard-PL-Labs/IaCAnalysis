@@ -1,0 +1,276 @@
+Resources:
+  lambdaRoleC844FDB1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: TimeStreamRuuvi/lambdaRole/Resource
+  timestreamWriteD5B1B299:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - timestream:*
+              - kms:DescribeKey
+              - kms:CreateGrant
+              - kms:Decrypt
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: timestreamWriteD5B1B299
+      Roles:
+        - Ref: lambdaRoleC844FDB1
+    Metadata:
+      aws:cdk:path: TimeStreamRuuvi/timestreamWrite/Resource
+  timestreamIngest02AFC168:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters42d3e01ebd346a73837a0e18bb868a569423eb271da4b3fc30f242292f8ebbaaS3Bucket06334260
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters42d3e01ebd346a73837a0e18bb868a569423eb271da4b3fc30f242292f8ebbaaS3VersionKey967A16EE
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters42d3e01ebd346a73837a0e18bb868a569423eb271da4b3fc30f242292f8ebbaaS3VersionKey967A16EE
+      Role:
+        Fn::GetAtt:
+          - lambdaRoleC844FDB1
+          - Arn
+      Environment:
+        Variables:
+          DB_NAME: ruuvi
+          TABLE_NAME: sensors
+          TIMESTREAM_REGION: us-east-1
+      Handler: lambda.handler
+      MemorySize: 128
+      Runtime: python3.8
+    DependsOn:
+      - lambdaRoleC844FDB1
+    Metadata:
+      aws:cdk:path: TimeStreamRuuvi/timestreamIngest/Resource
+      aws:asset:path: asset.42d3e01ebd346a73837a0e18bb868a569423eb271da4b3fc30f242292f8ebbaa
+      aws:asset:property: Code
+  timestreamIngestiotrule0D4731E7:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - timestreamIngest02AFC168
+          - Arn
+      Principal: iot.amazonaws.com
+    Metadata:
+      aws:cdk:path: TimeStreamRuuvi/timestreamIngest/iot-rule
+  ruuviToTimestream:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        Actions:
+          - Lambda:
+              FunctionArn:
+                Fn::GetAtt:
+                  - timestreamIngest02AFC168
+                  - Arn
+        AwsIotSqlVersion: "2016-03-23"
+        Description: Enriches and send the Ruuvi tag messages to a Lambda function to TimeStream
+        RuleDisabled: false
+        Sql: SELECT topic(2) as d_location, 'home' as d_site, * from 'd/+'
+    Metadata:
+      aws:cdk:path: TimeStreamRuuvi/ruuviToTimestream
+  queryFunc5889C450:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters0c4ff2173b22ace33c1026743317f24bb47401c8ea884bb7ece97aefa86b69e0S3BucketEB2416B9
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters0c4ff2173b22ace33c1026743317f24bb47401c8ea884bb7ece97aefa86b69e0S3VersionKeyAE22EFD6
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters0c4ff2173b22ace33c1026743317f24bb47401c8ea884bb7ece97aefa86b69e0S3VersionKeyAE22EFD6
+      Role:
+        Fn::GetAtt:
+          - lambdaRoleC844FDB1
+          - Arn
+      Environment:
+        Variables:
+          DB_NAME: ruuvi
+          TABLE_NAME: sensors
+          TIMESTREAM_REGION: us-east-1
+      Handler: lambda.handler
+      MemorySize: 256
+      Runtime: python3.8
+      Timeout: 300
+    DependsOn:
+      - lambdaRoleC844FDB1
+    Metadata:
+      aws:cdk:path: TimeStreamRuuvi/queryFunc/Resource
+      aws:asset:path: asset.0c4ff2173b22ace33c1026743317f24bb47401c8ea884bb7ece97aefa86b69e0
+      aws:asset:property: Code
+  queryFuncapiV2B539240E:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - queryFunc5889C450
+          - Arn
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      aws:cdk:path: TimeStreamRuuvi/queryFunc/apiV2
+  timestreamRuuviQueryApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      CorsConfiguration:
+        AllowMethods:
+          - "*"
+        AllowOrigins:
+          - "*"
+      Name: timestreamRuuviQueryApi
+      ProtocolType: HTTP
+      Target:
+        Fn::GetAtt:
+          - queryFunc5889C450
+          - Arn
+    Metadata:
+      aws:cdk:path: TimeStreamRuuvi/timestreamRuuviQueryApi
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE01OMW7DMAx8S3aZidKlY4MAXWu4/QArMwYTSzJEKkEg+O+11KGd7sg7Hs+CPVg47N7wIZ0bb/viYiIon4ruZk4ipBudOExmIIk5OTLnGERTdmrOl9BjQk9KqQ4fWZfc1n/mS9j8IyvHsJr6pTB6KEOcm9iwjzO7Z4trbDUz+u8Robzn4Opp1f7znpJnkRYqLx3WogKtr+GosFm+4sJuyFs8Ljyh0gOf92NVTguvqwlxJLjK/m5fwR7B7q7C3KUclD3B8Is/tj0niSABAAA=
+    Metadata:
+      aws:cdk:path: TimeStreamRuuvi/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters42d3e01ebd346a73837a0e18bb868a569423eb271da4b3fc30f242292f8ebbaaS3Bucket06334260:
+    Type: String
+    Description: S3 bucket for asset "42d3e01ebd346a73837a0e18bb868a569423eb271da4b3fc30f242292f8ebbaa"
+  AssetParameters42d3e01ebd346a73837a0e18bb868a569423eb271da4b3fc30f242292f8ebbaaS3VersionKey967A16EE:
+    Type: String
+    Description: S3 key for asset version "42d3e01ebd346a73837a0e18bb868a569423eb271da4b3fc30f242292f8ebbaa"
+  AssetParameters42d3e01ebd346a73837a0e18bb868a569423eb271da4b3fc30f242292f8ebbaaArtifactHash21A7E9CE:
+    Type: String
+    Description: Artifact hash for asset "42d3e01ebd346a73837a0e18bb868a569423eb271da4b3fc30f242292f8ebbaa"
+  AssetParameters0c4ff2173b22ace33c1026743317f24bb47401c8ea884bb7ece97aefa86b69e0S3BucketEB2416B9:
+    Type: String
+    Description: S3 bucket for asset "0c4ff2173b22ace33c1026743317f24bb47401c8ea884bb7ece97aefa86b69e0"
+  AssetParameters0c4ff2173b22ace33c1026743317f24bb47401c8ea884bb7ece97aefa86b69e0S3VersionKeyAE22EFD6:
+    Type: String
+    Description: S3 key for asset version "0c4ff2173b22ace33c1026743317f24bb47401c8ea884bb7ece97aefa86b69e0"
+  AssetParameters0c4ff2173b22ace33c1026743317f24bb47401c8ea884bb7ece97aefa86b69e0ArtifactHash0003704B:
+    Type: String
+    Description: Artifact hash for asset "0c4ff2173b22ace33c1026743317f24bb47401c8ea884bb7ece97aefa86b69e0"
+Outputs:
+  apiUrl:
+    Description: the query api
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: timestreamRuuviQueryApi
+          - .execute-api.
+          - Ref: AWS::Region
+          - .amazonaws.com
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

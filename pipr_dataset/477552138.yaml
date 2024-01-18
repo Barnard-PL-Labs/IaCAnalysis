@@ -1,0 +1,224 @@
+Resources:
+  lexCustomResourceRole1A161537:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - lex:UpdateSlot
+                  - lex:ListBots
+                  - lex:UpdateBotAlias
+                  - lex:DeleteCustomVocabulary
+                  - lex:DeleteBotVersion
+                  - lex:DeleteBotChannel
+                  - lex:CreateResourcePolicy
+                  - lex:UpdateBotLocale
+                  - lex:ListBotAliases
+                  - lex:CreateCustomVocabulary
+                  - lex:CreateBotLocale
+                  - lex:DeleteIntent
+                  - lex:StartImport
+                  - lex:UpdateSlotType
+                  - lex:BuildBotLocale
+                  - lex:CreateBot
+                  - lex:DeleteBotAlias
+                  - lex:CreateIntent
+                  - lex:CreateUploadUrl
+                  - lex:DeleteBot
+                  - lex:CreateBotAlias
+                  - lex:CreateSlotType
+                  - lex:DeleteBotLocale
+                  - lex:UpdateCustomVocabulary
+                  - lex:UpdateResourcePolicy
+                  - lex:CreateSlot
+                  - lex:DeleteSlot
+                  - lex:UpdateBot
+                  - lex:DeleteSlotType
+                  - lex:UpdateIntent
+                  - lex:DeleteResourcePolicy
+                  - iam:PassRole
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: lambdaPolicy
+    Metadata:
+      aws:cdk:path: LexDeploy/lexCustomResourceRole/Resource
+  lexRoleE3E65104:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lex.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - polly:SynthesizeSpeech
+                  - comprehend:DetectSentiment
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: lexPolicy
+    Metadata:
+      aws:cdk:path: LexDeploy/lexRole/Resource
+  lexDeployLambdaD1E685F5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 949978c10c9a8d54b79b0d3c8486e6f7ad2ee56f289a2f8e6ce12b84613e87e7.zip
+      Role:
+        Fn::GetAtt:
+          - lexCustomResourceRole1A161537
+          - Arn
+      Architectures:
+        - arm64
+      Handler: index.handler
+      Runtime: python3.9
+      Timeout: 60
+    DependsOn:
+      - lexCustomResourceRole1A161537
+    Metadata:
+      aws:cdk:path: LexDeploy/lexDeployLambda/Resource
+      aws:asset:path: asset.949978c10c9a8d54b79b0d3c8486e6f7ad2ee56f289a2f8e6ce12b84613e87e7
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  LexResourceProviderframeworkonEventServiceRoleF4A29C32:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: LexDeploy/LexResourceProvider/framework-onEvent/ServiceRole/Resource
+  LexResourceProviderframeworkonEventServiceRoleDefaultPolicy3BE23700:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - lexDeployLambdaD1E685F5
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - lexDeployLambdaD1E685F5
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: LexResourceProviderframeworkonEventServiceRoleDefaultPolicy3BE23700
+      Roles:
+        - Ref: LexResourceProviderframeworkonEventServiceRoleF4A29C32
+    Metadata:
+      aws:cdk:path: LexDeploy/LexResourceProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  LexResourceProviderframeworkonEventE1C16B88:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: eaeb69bc290b516fe3b049f89d6118b22249df682fbabf56af300cf345198574.zip
+      Role:
+        Fn::GetAtt:
+          - LexResourceProviderframeworkonEventServiceRoleF4A29C32
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (LexDeploy/LexResourceProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - lexDeployLambdaD1E685F5
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - LexResourceProviderframeworkonEventServiceRoleDefaultPolicy3BE23700
+      - LexResourceProviderframeworkonEventServiceRoleF4A29C32
+    Metadata:
+      aws:cdk:path: LexDeploy/LexResourceProvider/framework-onEvent/Resource
+      aws:asset:path: asset.eaeb69bc290b516fe3b049f89d6118b22249df682fbabf56af300cf345198574
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  LexCustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LexResourceProviderframeworkonEventE1C16B88
+          - Arn
+      uid: LexDeploy
+      lex_role_arn:
+        Fn::GetAtt:
+          - lexRoleE3E65104
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: LexDeploy/LexCustomResource/Default
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02Oyw6CMBBFv4V9GQVj4lZM3ErwA0gpIxmgrem0GEP4d3lo4uqce+9iJoX0CPtIvjhWdRf3VMF491J1Yq7KkaSGsbA9isvDrMxtT+q9xM0m0Utd1RLGazDKkzXL9vNJ8KGUzOgZzgvmDFlQHfpMMk5iLeeDDZlGqMDe6tIh2+AUMuTODlSjE5d1Kb7D+syf34J/Bj8JY2uElndDcoIkhSRqmSh2wXjSCMXGD4pNKBbyAAAA
+    Metadata:
+      aws:cdk:path: LexDeploy/CDKMetadata/Default
+Outputs:
+  botid:
+    Value:
+      Fn::GetAtt:
+        - LexCustomResource
+        - bot_id
+  botaliasid:
+    Value:
+      Fn::GetAtt:
+        - LexCustomResource
+        - bot_alias_id
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,1278 @@
+Description: Fake Payments App to demo async testing
+Resources:
+  AppStackNestedStackAppStackNestedStackResource7180F534:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        Fn::Join:
+          - ""
+          - - https://s3.us-east-1.
+            - Ref: AWS::URLSuffix
+            - /cdk-hnb659fds-assets-036406153779-us-east-1/061e9d79af295f873010a3b8090fbd4a1a256ca3958cb0fc0aa52dc4aee451ed.json
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/AppStack.NestedStack/AppStack.NestedStackResource
+      aws:asset:path: PaymentsAppStack787E3BD2.nested.template.json
+      aws:asset:property: TemplateURL
+  PaymentsTable48A42630:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: payments
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/PaymentsTable/Resource
+  collectFunctionServiceRoleBD487856:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/collectFunction/ServiceRole/Resource
+  collectFunctionF1DD4A0C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 9a1ea8bfca0b780e49ec559299b1ab4bd5c8ec681ab69a251d79d339286bc924.zip
+      Role:
+        Fn::GetAtt:
+          - collectFunctionServiceRoleBD487856
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: collect
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - collectFunctionServiceRoleBD487856
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/collectFunction/Resource
+      aws:asset:path: asset.9a1ea8bfca0b780e49ec559299b1ab4bd5c8ec681ab69a251d79d339286bc924
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  collectionFailureFunctionServiceRole662CE2FF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/collectionFailureFunction/ServiceRole/Resource
+  collectionFailureFunctionServiceRoleDefaultPolicyB9F37612:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PaymentsTable48A42630
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: collectionFailureFunctionServiceRoleDefaultPolicyB9F37612
+      Roles:
+        - Ref: collectionFailureFunctionServiceRole662CE2FF
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/collectionFailureFunction/ServiceRole/DefaultPolicy/Resource
+  collectionFailureFunction682979FB:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: fd5ec1289370b246f7ccc40fb2b79d787ff2a0926de4d07a5f097b489d685327.zip
+      Role:
+        Fn::GetAtt:
+          - collectionFailureFunctionServiceRole662CE2FF
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: collectionFailure
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - collectionFailureFunctionServiceRoleDefaultPolicyB9F37612
+      - collectionFailureFunctionServiceRole662CE2FF
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/collectionFailureFunction/Resource
+      aws:asset:path: asset.fd5ec1289370b246f7ccc40fb2b79d787ff2a0926de4d07a5f097b489d685327
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  collectionSuccessFunctionServiceRole727C0164:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/collectionSuccessFunction/ServiceRole/Resource
+  collectionSuccessFunctionServiceRoleDefaultPolicyA0766DBC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PaymentsTable48A42630
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: collectionSuccessFunctionServiceRoleDefaultPolicyA0766DBC
+      Roles:
+        - Ref: collectionSuccessFunctionServiceRole727C0164
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/collectionSuccessFunction/ServiceRole/DefaultPolicy/Resource
+  collectionSuccessFunction5C4E05C2:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 16d4e73c431840de0aea62deee70a56d87d5513002a8f11f9607b4f97c317e8b.zip
+      Role:
+        Fn::GetAtt:
+          - collectionSuccessFunctionServiceRole727C0164
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: collectionSuccess
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - collectionSuccessFunctionServiceRoleDefaultPolicyA0766DBC
+      - collectionSuccessFunctionServiceRole727C0164
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/collectionSuccessFunction/Resource
+      aws:asset:path: asset.16d4e73c431840de0aea62deee70a56d87d5513002a8f11f9607b4f97c317e8b
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  openCollectionFunctionServiceRole5D634737:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/openCollectionFunction/ServiceRole/Resource
+  openCollectionFunctionServiceRoleDefaultPolicy7EB84761:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PaymentsTable48A42630
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: openCollectionFunctionServiceRoleDefaultPolicy7EB84761
+      Roles:
+        - Ref: openCollectionFunctionServiceRole5D634737
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/openCollectionFunction/ServiceRole/DefaultPolicy/Resource
+  openCollectionFunctionAD7A9939:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 27eb5f9eb01e2893146d266e42dbbd4831585662f565340f409b5fe0ac0882a2.zip
+      Role:
+        Fn::GetAtt:
+          - openCollectionFunctionServiceRole5D634737
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: openCollection
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - openCollectionFunctionServiceRoleDefaultPolicy7EB84761
+      - openCollectionFunctionServiceRole5D634737
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/openCollectionFunction/Resource
+      aws:asset:path: asset.27eb5f9eb01e2893146d266e42dbbd4831585662f565340f409b5fe0ac0882a2
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  paymentFailureFunctionServiceRole7EB3B3AA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/paymentFailureFunction/ServiceRole/Resource
+  paymentFailureFunctionServiceRoleDefaultPolicy78A9826D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PaymentsTable48A42630
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PaymentBus7030EAFE
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: paymentFailureFunctionServiceRoleDefaultPolicy78A9826D
+      Roles:
+        - Ref: paymentFailureFunctionServiceRole7EB3B3AA
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/paymentFailureFunction/ServiceRole/DefaultPolicy/Resource
+  paymentFailureFunction2E4A54C2:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: d107458b1566d61d146adc00545222f14bb42a509ee1a0d83d090e7017196b11.zip
+      Role:
+        Fn::GetAtt:
+          - paymentFailureFunctionServiceRole7EB3B3AA
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: paymentFailure
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - paymentFailureFunctionServiceRoleDefaultPolicy78A9826D
+      - paymentFailureFunctionServiceRole7EB3B3AA
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/paymentFailureFunction/Resource
+      aws:asset:path: asset.d107458b1566d61d146adc00545222f14bb42a509ee1a0d83d090e7017196b11
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  paymentSuccessFunctionServiceRole417E5467:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/paymentSuccessFunction/ServiceRole/Resource
+  paymentSuccessFunctionServiceRoleDefaultPolicyBD68F7D7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PaymentsTable48A42630
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: paymentSuccessFunctionServiceRoleDefaultPolicyBD68F7D7
+      Roles:
+        - Ref: paymentSuccessFunctionServiceRole417E5467
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/paymentSuccessFunction/ServiceRole/DefaultPolicy/Resource
+  paymentSuccessFunction82B44889:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: ad3af76646895f37b63718035de36eac360757343979ef17bd7857659ce45a42.zip
+      Role:
+        Fn::GetAtt:
+          - paymentSuccessFunctionServiceRole417E5467
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: paymentSuccess
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - paymentSuccessFunctionServiceRoleDefaultPolicyBD68F7D7
+      - paymentSuccessFunctionServiceRole417E5467
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/paymentSuccessFunction/Resource
+      aws:asset:path: asset.ad3af76646895f37b63718035de36eac360757343979ef17bd7857659ce45a42
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  StateMachineRoleB840431D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: states.us-east-1.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/StateMachine/Role/Resource
+  StateMachineRoleDefaultPolicyDF1E6607:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - openCollectionFunctionAD7A9939
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - openCollectionFunctionAD7A9939
+                        - Arn
+                    - :*
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - collectFunctionF1DD4A0C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - collectFunctionF1DD4A0C
+                        - Arn
+                    - :*
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - collectionSuccessFunction5C4E05C2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - collectionSuccessFunction5C4E05C2
+                        - Arn
+                    - :*
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - collectionFailureFunction682979FB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - collectionFailureFunction682979FB
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: StateMachineRoleDefaultPolicyDF1E6607
+      Roles:
+        - Ref: StateMachineRoleB840431D
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/StateMachine/Role/DefaultPolicy/Resource
+  StateMachine2E01A3A5:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - StateMachineRoleB840431D
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"OpenCollection","States":{"OpenCollection":{"Next":"Collect","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - openCollectionFunctionAD7A9939
+                - Arn
+            - '","Payload.$":"$"}},"Collect":{"Next":"Is Collection Successful?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - collectFunctionF1DD4A0C
+                - Arn
+            - '","Payload.$":"$"}},"Is Collection Successful?":{"Type":"Choice","Choices":[{"Variable":"$.Payload.Status","NumericEquals":0,"Next":"CollectionSuccess"},{"Variable":"$.Payload.Status","NumericEquals":1,"Next":"CollectionFailure"}]},"CollectionSuccess":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - collectionSuccessFunction5C4E05C2
+                - Arn
+            - '","Payload.$":"$"}},"CollectionFailure":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - collectionFailureFunction682979FB
+                - Arn
+            - '","Payload.$":"$"}}}}'
+      StateMachineName: CollectionsStateMachine
+    DependsOn:
+      - StateMachineRoleDefaultPolicyDF1E6607
+      - StateMachineRoleB840431D
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/StateMachine/Resource
+  StateMachineEventsRoleDBCDECD1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/StateMachine/EventsRole/Resource
+  StateMachineEventsRoleDefaultPolicyFB602CA9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: StateMachine2E01A3A5
+        Version: "2012-10-17"
+      PolicyName: StateMachineEventsRoleDefaultPolicyFB602CA9
+      Roles:
+        - Ref: StateMachineEventsRoleDBCDECD1
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/StateMachine/EventsRole/DefaultPolicy/Resource
+  PaymentBus7030EAFE:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: PaymentBus
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/PaymentBus/Resource
+  PaymentSuccessRule6A2E1881:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: We got paid
+      EventBusName:
+        Ref: PaymentBus7030EAFE
+      EventPattern:
+        detail-type:
+          - success
+        source:
+          - payments
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - paymentSuccessFunction82B44889
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/PaymentSuccessRule/Resource
+  PaymentSuccessRuleAllowEventRulePaymentsAppStackpaymentSuccessFunctionBBEB3DB9633BBB65:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - paymentSuccessFunction82B44889
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - PaymentSuccessRule6A2E1881
+          - Arn
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/PaymentSuccessRule/AllowEventRulePaymentsAppStackpaymentSuccessFunctionBBEB3DB9
+  PaymentFailureRule210588D7:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: We did not get paid
+      EventBusName:
+        Ref: PaymentBus7030EAFE
+      EventPattern:
+        detail-type:
+          - failure
+        source:
+          - payments
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - paymentFailureFunction2E4A54C2
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/PaymentFailureRule/Resource
+  PaymentFailureRuleAllowEventRulePaymentsAppStackpaymentFailureFunctionFB4B8D74C35DC7E1:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - paymentFailureFunction2E4A54C2
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - PaymentFailureRule210588D7
+          - Arn
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/PaymentFailureRule/AllowEventRulePaymentsAppStackpaymentFailureFunctionFB4B8D74
+  CollectionsRule86D4223F:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Need to call in Knuckles
+      EventBusName:
+        Ref: PaymentBus7030EAFE
+      EventPattern:
+        detail-type:
+          - collections
+        source:
+          - payments
+      State: ENABLED
+      Targets:
+        - Arn:
+            Ref: StateMachine2E01A3A5
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - StateMachineEventsRoleDBCDECD1
+              - Arn
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/CollectionsRule/Resource
+  IntegrationTestStackNestedStackIntegrationTestStackNestedStackResource6D5B58C2:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        Fn::Join:
+          - ""
+          - - https://s3.us-east-1.
+            - Ref: AWS::URLSuffix
+            - /cdk-hnb659fds-assets-036406153779-us-east-1/f4d35964912517beeeea3707e432ff8675f5afd30fdbe0df6bd7b7acd707332f.json
+    DependsOn:
+      - AppStackNestedStackAppStackNestedStackResource7180F534
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntegrationTestStack.NestedStack/IntegrationTestStack.NestedStackResource
+      aws:asset:path: PaymentsAppStackIntegrationTestStackDB03B000.nested.template.json
+      aws:asset:property: TemplateURL
+  IntTestEventServiceRoleB0485C55:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestEvent/ServiceRole/Resource
+  IntTestEventServiceRoleDefaultPolicy507D225D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PaymentBus7030EAFE
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: IntTestEventServiceRoleDefaultPolicy507D225D
+      Roles:
+        - Ref: IntTestEventServiceRoleB0485C55
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestEvent/ServiceRole/DefaultPolicy/Resource
+  IntTestEvent6B0C674C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 8ec901832750cc2e82279fc54cdaa59de2111e0055e89bdf80eadf37ce7da324.zip
+      Role:
+        Fn::GetAtt:
+          - IntTestEventServiceRoleB0485C55
+          - Arn
+      Environment:
+        Variables:
+          BUS_NAME:
+            Ref: PaymentBus7030EAFE
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: IntTestEvent
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - IntTestEventServiceRoleDefaultPolicy507D225D
+      - IntTestEventServiceRoleB0485C55
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestEvent/Resource
+      aws:asset:path: asset.8ec901832750cc2e82279fc54cdaa59de2111e0055e89bdf80eadf37ce7da324
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  IntTestIsCompleteServiceRoleB4AAE9B5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestIsComplete/ServiceRole/Resource
+  IntTestIsCompleteServiceRoleDefaultPolicy242C1B70:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:GetItem
+            Condition:
+              ForAllValues:StringLike:
+                dynamodb:LeadingKeys:
+                  - TEST#*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PaymentsTable48A42630
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: IntTestIsCompleteServiceRoleDefaultPolicy242C1B70
+      Roles:
+        - Ref: IntTestIsCompleteServiceRoleB4AAE9B5
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestIsComplete/ServiceRole/DefaultPolicy/Resource
+  IntTestIsComplete2C6DF3B6:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 19825f164c2b91dc1e6f648dc4589e80abcd0e8cafbddd0d35d5a9ac4fb84def.zip
+      Role:
+        Fn::GetAtt:
+          - IntTestIsCompleteServiceRoleB4AAE9B5
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: IntTestIsComplete
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - IntTestIsCompleteServiceRoleDefaultPolicy242C1B70
+      - IntTestIsCompleteServiceRoleB4AAE9B5
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestIsComplete/Resource
+      aws:asset:path: asset.19825f164c2b91dc1e6f648dc4589e80abcd0e8cafbddd0d35d5a9ac4fb84def
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  IntTestProviderframeworkonEventServiceRole76B9D4E0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-onEvent/ServiceRole/Resource
+  IntTestProviderframeworkonEventServiceRoleDefaultPolicy5899AF2D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - IntTestEvent6B0C674C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - IntTestEvent6B0C674C
+                        - Arn
+                    - :*
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - IntTestIsComplete2C6DF3B6
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - IntTestIsComplete2C6DF3B6
+                        - Arn
+                    - :*
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: IntTestProviderwaiterstatemachine7D760B62
+        Version: "2012-10-17"
+      PolicyName: IntTestProviderframeworkonEventServiceRoleDefaultPolicy5899AF2D
+      Roles:
+        - Ref: IntTestProviderframeworkonEventServiceRole76B9D4E0
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  IntTestProviderframeworkonEvent3F461415:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85.zip
+      Role:
+        Fn::GetAtt:
+          - IntTestProviderframeworkonEventServiceRole76B9D4E0
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (PaymentsAppStack/IntTestProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - IntTestEvent6B0C674C
+              - Arn
+          USER_IS_COMPLETE_FUNCTION_ARN:
+            Fn::GetAtt:
+              - IntTestIsComplete2C6DF3B6
+              - Arn
+          WAITER_STATE_MACHINE_ARN:
+            Ref: IntTestProviderwaiterstatemachine7D760B62
+      Handler: framework.onEvent
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - IntTestProviderframeworkonEventServiceRoleDefaultPolicy5899AF2D
+      - IntTestProviderframeworkonEventServiceRole76B9D4E0
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-onEvent/Resource
+      aws:asset:path: asset.e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  IntTestProviderframeworkonEventLogRetention004914F2:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: IntTestProviderframeworkonEvent3F461415
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-onEvent/LogRetention/Resource
+  IntTestProviderframeworkisCompleteServiceRole8B65A706:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-isComplete/ServiceRole/Resource
+  IntTestProviderframeworkisCompleteServiceRoleDefaultPolicy79A88BEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - IntTestEvent6B0C674C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - IntTestEvent6B0C674C
+                        - Arn
+                    - :*
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - IntTestIsComplete2C6DF3B6
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - IntTestIsComplete2C6DF3B6
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: IntTestProviderframeworkisCompleteServiceRoleDefaultPolicy79A88BEB
+      Roles:
+        - Ref: IntTestProviderframeworkisCompleteServiceRole8B65A706
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-isComplete/ServiceRole/DefaultPolicy/Resource
+  IntTestProviderframeworkisComplete90F9EA47:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85.zip
+      Role:
+        Fn::GetAtt:
+          - IntTestProviderframeworkisCompleteServiceRole8B65A706
+          - Arn
+      Description: AWS CDK resource provider framework - isComplete (PaymentsAppStack/IntTestProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - IntTestEvent6B0C674C
+              - Arn
+          USER_IS_COMPLETE_FUNCTION_ARN:
+            Fn::GetAtt:
+              - IntTestIsComplete2C6DF3B6
+              - Arn
+      Handler: framework.isComplete
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - IntTestProviderframeworkisCompleteServiceRoleDefaultPolicy79A88BEB
+      - IntTestProviderframeworkisCompleteServiceRole8B65A706
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-isComplete/Resource
+      aws:asset:path: asset.e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  IntTestProviderframeworkisCompleteLogRetention08FE281D:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: IntTestProviderframeworkisComplete90F9EA47
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-isComplete/LogRetention/Resource
+  IntTestProviderframeworkonTimeoutServiceRoleF123FB0A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-onTimeout/ServiceRole/Resource
+  IntTestProviderframeworkonTimeoutServiceRoleDefaultPolicy7155D320:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - IntTestEvent6B0C674C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - IntTestEvent6B0C674C
+                        - Arn
+                    - :*
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - IntTestIsComplete2C6DF3B6
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - IntTestIsComplete2C6DF3B6
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: IntTestProviderframeworkonTimeoutServiceRoleDefaultPolicy7155D320
+      Roles:
+        - Ref: IntTestProviderframeworkonTimeoutServiceRoleF123FB0A
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-onTimeout/ServiceRole/DefaultPolicy/Resource
+  IntTestProviderframeworkonTimeout64952C65:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85.zip
+      Role:
+        Fn::GetAtt:
+          - IntTestProviderframeworkonTimeoutServiceRoleF123FB0A
+          - Arn
+      Description: AWS CDK resource provider framework - onTimeout (PaymentsAppStack/IntTestProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - IntTestEvent6B0C674C
+              - Arn
+          USER_IS_COMPLETE_FUNCTION_ARN:
+            Fn::GetAtt:
+              - IntTestIsComplete2C6DF3B6
+              - Arn
+      Handler: framework.onTimeout
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - IntTestProviderframeworkonTimeoutServiceRoleDefaultPolicy7155D320
+      - IntTestProviderframeworkonTimeoutServiceRoleF123FB0A
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-onTimeout/Resource
+      aws:asset:path: asset.e7c95e1a12d903d913ebdd526c735f1ac58b2024882a5562110221fe685ebe85
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  IntTestProviderframeworkonTimeoutLogRetention5F05E760:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: IntTestProviderframeworkonTimeout64952C65
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/framework-onTimeout/LogRetention/Resource
+  IntTestProviderwaiterstatemachineRole8DC2DBE7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: states.us-east-1.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/waiter-state-machine/Role/Resource
+  IntTestProviderwaiterstatemachineRoleDefaultPolicy7610AA12:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - IntTestProviderframeworkisComplete90F9EA47
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - IntTestProviderframeworkisComplete90F9EA47
+                        - Arn
+                    - :*
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - IntTestProviderframeworkonTimeout64952C65
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - IntTestProviderframeworkonTimeout64952C65
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: IntTestProviderwaiterstatemachineRoleDefaultPolicy7610AA12
+      Roles:
+        - Ref: IntTestProviderwaiterstatemachineRole8DC2DBE7
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/waiter-state-machine/Role/DefaultPolicy/Resource
+  IntTestProviderwaiterstatemachine7D760B62:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"framework-isComplete-task","States":{"framework-isComplete-task":{"End":true,"Retry":[{"ErrorEquals":["States.ALL"],"IntervalSeconds":5,"MaxAttempts":12,"BackoffRate":1}],"Catch":[{"ErrorEquals":["States.ALL"],"Next":"framework-onTimeout-task"}],"Type":"Task","Resource":"'
+            - Fn::GetAtt:
+                - IntTestProviderframeworkisComplete90F9EA47
+                - Arn
+            - '"},"framework-onTimeout-task":{"End":true,"Type":"Task","Resource":"'
+            - Fn::GetAtt:
+                - IntTestProviderframeworkonTimeout64952C65
+                - Arn
+            - '"}}}'
+      RoleArn:
+        Fn::GetAtt:
+          - IntTestProviderwaiterstatemachineRole8DC2DBE7
+          - Arn
+    DependsOn:
+      - IntTestProviderwaiterstatemachineRoleDefaultPolicy7610AA12
+      - IntTestProviderwaiterstatemachineRole8DC2DBE7
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestProvider/waiter-state-machine/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: ae967c277459e8936ac565a71d34ea5dcff7b98e556466c36a4d6da023a2d9aa.zip
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+      aws:asset:path: asset.ae967c277459e8936ac565a71d34ea5dcff7b98e556466c36a4d6da023a2d9aa
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  IntTestResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - IntTestProviderframeworkonEvent3F461415
+          - Arn
+      Version: "1705565851488"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/IntTestResource/Default
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VRy26DMBD8lt7NViSXXkvUSpXSNqK9I2M2xDzsiLWpIsS/d20IVU+z49mZ9do72O8gfZA/lKiqTTpdwvTlpGrF4WyWgrViqm5G9rZi9VuWHQY1FrPoZF9WsjC2wobgI8KrN8ppa4SWPUy5XQwRT7bT6hboUs2C9oUkQkfwHIA5ZF616DJJuMbDxIYtNZhx6DVRYPdjTnJ4Pa+MCiepJThG/5sZbYv/GzjzYrVCwWs6fJfqog2ua298Fjii4btNLwEzT6Fjq3O/rubjU9iaB9o6R8d6vFKOZP3AQ+JunFxrUwvlydm+GFaR4DTYUVc4xKy75RC7/ujZfHp39W4W4bGhoccxfYI0/F9DWieD56E9Qr7gLyE5HH7bAQAA
+    Metadata:
+      aws:cdk:path: PaymentsAppStack/CDKMetadata/Default
+Outputs:
+  IntTestResult:
+    Value:
+      Fn::GetAtt:
+        - IntTestResource
+        - Result
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

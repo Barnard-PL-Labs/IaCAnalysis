@@ -1,0 +1,330 @@
+Resources:
+  SpaceAPIF8883A5B:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: SpaceAPI
+    Metadata:
+      aws:cdk:path: Space-Finder/SpaceAPI/Resource
+  SpaceAPICloudWatchRole9D3A24FA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: Space-Finder/SpaceAPI/CloudWatchRole/Resource
+  SpaceAPIAccount6E3BD35E:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - SpaceAPICloudWatchRole9D3A24FA
+          - Arn
+    DependsOn:
+      - SpaceAPIF8883A5B
+    Metadata:
+      aws:cdk:path: Space-Finder/SpaceAPI/Account
+  SpaceAPIDeployment4ED34517f0367ac7562ff39976896eed3e6680ad:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: SpaceAPIF8883A5B
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - SpaceAPIHelloGET18D74C94
+      - SpaceAPIHelloF9BA305A
+    Metadata:
+      aws:cdk:path: Space-Finder/SpaceAPI/Deployment/Resource
+  SpaceAPIDeploymentStageprod4F17B592:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: SpaceAPIF8883A5B
+      DeploymentId:
+        Ref: SpaceAPIDeployment4ED34517f0367ac7562ff39976896eed3e6680ad
+      StageName: prod
+    DependsOn:
+      - SpaceAPIAccount6E3BD35E
+    Metadata:
+      aws:cdk:path: Space-Finder/SpaceAPI/DeploymentStage.prod/Resource
+  SpaceAPIHelloF9BA305A:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - SpaceAPIF8883A5B
+          - RootResourceId
+      PathPart: Hello
+      RestApiId:
+        Ref: SpaceAPIF8883A5B
+    Metadata:
+      aws:cdk:path: Space-Finder/SpaceAPI/Default/Hello/Resource
+  SpaceAPIHelloGETApiPermissionSpaceFinderSpaceAPIF36879F8GETHelloD9428886:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - helloLambdaNodeJs14E63891
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: SpaceAPIF8883A5B
+            - /
+            - Ref: SpaceAPIDeploymentStageprod4F17B592
+            - /GET/Hello
+    Metadata:
+      aws:cdk:path: Space-Finder/SpaceAPI/Default/Hello/GET/ApiPermission.SpaceFinderSpaceAPIF36879F8.GET..Hello
+  SpaceAPIHelloGETApiPermissionTestSpaceFinderSpaceAPIF36879F8GETHelloF4A88659:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - helloLambdaNodeJs14E63891
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: SpaceAPIF8883A5B
+            - /test-invoke-stage/GET/Hello
+    Metadata:
+      aws:cdk:path: Space-Finder/SpaceAPI/Default/Hello/GET/ApiPermission.Test.SpaceFinderSpaceAPIF36879F8.GET..Hello
+  SpaceAPIHelloGET18D74C94:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: SpaceAPIHelloF9BA305A
+      RestApiId:
+        Ref: SpaceAPIF8883A5B
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - helloLambdaNodeJs14E63891
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: Space-Finder/SpaceAPI/Default/Hello/GET/Resource
+  SpacesTable8A997355:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: spaceId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: spaceId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: SpacesTable
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Space-Finder/SpacesTable/Resource
+  helloLambdaNodeJsServiceRole17C143C3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Space-Finder/helloLambdaNodeJs/ServiceRole/Resource
+  helloLambdaNodeJsServiceRoleDefaultPolicy14D90D8C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:ListAllMyBuckets
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: helloLambdaNodeJsServiceRoleDefaultPolicy14D90D8C
+      Roles:
+        - Ref: helloLambdaNodeJsServiceRole17C143C3
+    Metadata:
+      aws:cdk:path: Space-Finder/helloLambdaNodeJs/ServiceRole/DefaultPolicy/Resource
+  helloLambdaNodeJs14E63891:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: fb486f628e09bf4be0df92e69deab5d3ac635d8eed12a3aba5a50613b3d0a57d.zip
+      Role:
+        Fn::GetAtt:
+          - helloLambdaNodeJsServiceRole17C143C3
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - helloLambdaNodeJsServiceRoleDefaultPolicy14D90D8C
+      - helloLambdaNodeJsServiceRole17C143C3
+    Metadata:
+      aws:cdk:path: Space-Finder/helloLambdaNodeJs/Resource
+      aws:asset:path: asset.fb486f628e09bf4be0df92e69deab5d3ac635d8eed12a3aba5a50613b3d0a57d
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WQy26DMBBFvyV7My100W5Jqu76UNo9GuwpMWAbMaYRQvx7bdwo6eqeuZqHrwsoHuF+h2fOpOqyXtewfHqUnQhWteCgG/R0xhmWI7EvBy0O3/YGSyndZL14pqF3s6GAwb2pwraGopcgjLpplLRHvhZ/OxO/kj85Fa1Eq9BownnXp76oH67Xco5lolX0aGqFsESLRqOZtbOx4WWy0gdehZotGqdCwi+s07INLsOVdYpahrdNLnOCHypkJs9QRgk17CfZkY8R1rjlffLD5K9ptr4YV9vmX7TAB2eVTu+J56Dlu5/8CfIC8l3LWmdj+E1tCI5JfwH7iELZoQEAAA==
+    Metadata:
+      aws:cdk:path: Space-Finder/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  SpaceAPIEndpoint8BA5A7C4:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: SpaceAPIF8883A5B
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: SpaceAPIDeploymentStageprod4F17B592
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

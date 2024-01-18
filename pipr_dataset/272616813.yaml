@@ -1,0 +1,635 @@
+Resources:
+  preAuthTriggerServiceRoleAC6EFF16:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AuthStack/preAuthTrigger/ServiceRole/Resource
+  preAuthTrigger993ACD21:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3BucketC417F1EE
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3VersionKeyC7D42839
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3VersionKeyC7D42839
+      Handler: preAuthTrigger.handler
+      Role:
+        Fn::GetAtt:
+          - preAuthTriggerServiceRoleAC6EFF16
+          - Arn
+      Runtime: nodejs12.x
+    DependsOn:
+      - preAuthTriggerServiceRoleAC6EFF16
+    Metadata:
+      aws:cdk:path: AuthStack/preAuthTrigger/Resource
+      aws:asset:path: asset.5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592
+      aws:asset:property: Code
+  preAuthTriggerPreAuthenticationCognitoB3CA1373:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - preAuthTrigger993ACD21
+          - Arn
+      Principal: cognito-idp.amazonaws.com
+    Metadata:
+      aws:cdk:path: AuthStack/preAuthTrigger/PreAuthenticationCognito
+  postAuthTriggerServiceRoleF86355CB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AuthStack/postAuthTrigger/ServiceRole/Resource
+  postAuthTriggerB1E2CEE1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3BucketC417F1EE
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3VersionKeyC7D42839
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3VersionKeyC7D42839
+      Handler: postAuthTrigger.handler
+      Role:
+        Fn::GetAtt:
+          - postAuthTriggerServiceRoleF86355CB
+          - Arn
+      Runtime: nodejs12.x
+    DependsOn:
+      - postAuthTriggerServiceRoleF86355CB
+    Metadata:
+      aws:cdk:path: AuthStack/postAuthTrigger/Resource
+      aws:asset:path: asset.5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592
+      aws:asset:property: Code
+  postAuthTriggerPostAuthenticationCognito5540FB79:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - postAuthTriggerB1E2CEE1
+          - Arn
+      Principal: cognito-idp.amazonaws.com
+    Metadata:
+      aws:cdk:path: AuthStack/postAuthTrigger/PostAuthenticationCognito
+  TomeUserPoolsmsRoleC1B9FF88:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: AuthStackTomeUserPoolF6EB7F8B
+            Effect: Allow
+            Principal:
+              Service: cognito-idp.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: sns:Publish
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: sns-publish
+    Metadata:
+      aws:cdk:path: AuthStack/TomeUserPool/smsRole/Resource
+  TomeUserPool39BBD8AA:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      LambdaConfig:
+        PostAuthentication:
+          Fn::GetAtt:
+            - postAuthTriggerB1E2CEE1
+            - Arn
+        PreAuthentication:
+          Fn::GetAtt:
+            - preAuthTrigger993ACD21
+            - Arn
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      SmsConfiguration:
+        ExternalId: AuthStackTomeUserPoolF6EB7F8B
+        SnsCallerArn:
+          Fn::GetAtt:
+            - TomeUserPoolsmsRoleC1B9FF88
+            - Arn
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameAttributes:
+        - email
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    Metadata:
+      aws:cdk:path: AuthStack/TomeUserPool/Resource
+  TomeUserPoolClient73667605:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: TomeUserPool39BBD8AA
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ClientName: Tome User Pool Client
+      ExplicitAuthFlows:
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: AuthStack/TomeUserPoolClient/Resource
+  TomeIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: TomeUserPoolClient73667605
+          ProviderName:
+            Fn::GetAtt:
+              - TomeUserPool39BBD8AA
+              - ProviderName
+    Metadata:
+      aws:cdk:path: AuthStack/TomeIdentityPool
+  CognitoDefaultUnauthenticatedRoleABBF7267:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: TomeIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AuthStack/CognitoDefaultUnauthenticatedRole/Resource
+  CognitoDefaultUnauthenticatedRoleDefaultPolicy2B700C08:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - mobileanalytics:PutEvents
+              - cognito-sync:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CognitoDefaultUnauthenticatedRoleDefaultPolicy2B700C08
+      Roles:
+        - Ref: CognitoDefaultUnauthenticatedRoleABBF7267
+    Metadata:
+      aws:cdk:path: AuthStack/CognitoDefaultUnauthenticatedRole/DefaultPolicy/Resource
+  CognitoDefaultAuthenticatedRoleC5D5C31E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: TomeIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AuthStack/CognitoDefaultAuthenticatedRole/Resource
+  CognitoDefaultAuthenticatedRoleDefaultPolicy4C5EB799:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - mobileanalytics:PutEvents
+              - cognito-sync:*
+              - cognito-identity:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CognitoDefaultAuthenticatedRoleDefaultPolicy4C5EB799
+      Roles:
+        - Ref: CognitoDefaultAuthenticatedRoleC5D5C31E
+    Metadata:
+      aws:cdk:path: AuthStack/CognitoDefaultAuthenticatedRole/DefaultPolicy/Resource
+  DefaultValid:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: TomeIdentityPool
+      Roles:
+        unauthenticated:
+          Fn::GetAtt:
+            - CognitoDefaultUnauthenticatedRoleABBF7267
+            - Arn
+        authenticated:
+          Fn::GetAtt:
+            - CognitoDefaultAuthenticatedRoleC5D5C31E
+            - Arn
+    Metadata:
+      aws:cdk:path: AuthStack/DefaultValid
+  helloWorldFunctionServiceRole8475DBF0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AuthStack/helloWorldFunction/ServiceRole/Resource
+  helloWorldFunction00C940B5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3BucketC417F1EE
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3VersionKeyC7D42839
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3VersionKeyC7D42839
+      Handler: helloworld.handler
+      Role:
+        Fn::GetAtt:
+          - helloWorldFunctionServiceRole8475DBF0
+          - Arn
+      Runtime: nodejs12.x
+    DependsOn:
+      - helloWorldFunctionServiceRole8475DBF0
+    Metadata:
+      aws:cdk:path: AuthStack/helloWorldFunction/Resource
+      aws:asset:path: asset.5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592
+      aws:asset:property: Code
+  TomeApiGateway3238DF2A:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: Tome Rest API Gateway
+    Metadata:
+      aws:cdk:path: AuthStack/TomeApiGateway/Resource
+  TomeApiGatewayCloudWatchRole44EBC02F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: AuthStack/TomeApiGateway/CloudWatchRole/Resource
+  TomeApiGatewayAccountFD9D0648:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - TomeApiGatewayCloudWatchRole44EBC02F
+          - Arn
+    DependsOn:
+      - TomeApiGateway3238DF2A
+    Metadata:
+      aws:cdk:path: AuthStack/TomeApiGateway/Account
+  TomeApiGatewayDeploymentA3E78AE5372e3e1bd9332c98a98f8c4ac441401b:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: TomeApiGateway3238DF2A
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - TomeApiGatewayHELLOGET0981CC78
+      - TomeApiGatewayHELLO2D1CF1CD
+    Metadata:
+      aws:cdk:path: AuthStack/TomeApiGateway/Deployment/Resource
+  TomeApiGatewayDeploymentStageprod0732493A:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: TomeApiGateway3238DF2A
+      DeploymentId:
+        Ref: TomeApiGatewayDeploymentA3E78AE5372e3e1bd9332c98a98f8c4ac441401b
+      StageName: prod
+    Metadata:
+      aws:cdk:path: AuthStack/TomeApiGateway/DeploymentStage.prod/Resource
+  TomeApiGatewayHELLO2D1CF1CD:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - TomeApiGateway3238DF2A
+          - RootResourceId
+      PathPart: HELLO
+      RestApiId:
+        Ref: TomeApiGateway3238DF2A
+    Metadata:
+      aws:cdk:path: AuthStack/TomeApiGateway/Default/HELLO/Resource
+  TomeApiGatewayHELLOGETApiPermissionAuthStackTomeApiGatewayA68264A7GETHELLO03CF762F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - helloWorldFunction00C940B5
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: TomeApiGateway3238DF2A
+            - /
+            - Ref: TomeApiGatewayDeploymentStageprod0732493A
+            - /GET/HELLO
+    Metadata:
+      aws:cdk:path: AuthStack/TomeApiGateway/Default/HELLO/GET/ApiPermission.AuthStackTomeApiGatewayA68264A7.GET..HELLO
+  TomeApiGatewayHELLOGETApiPermissionTestAuthStackTomeApiGatewayA68264A7GETHELLOE9E64AD7:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - helloWorldFunction00C940B5
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: TomeApiGateway3238DF2A
+            - /test-invoke-stage/GET/HELLO
+    Metadata:
+      aws:cdk:path: AuthStack/TomeApiGateway/Default/HELLO/GET/ApiPermission.Test.AuthStackTomeApiGatewayA68264A7.GET..HELLO
+  TomeApiGatewayHELLOGET0981CC78:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: TomeApiGatewayHELLO2D1CF1CD
+      RestApiId:
+        Ref: TomeApiGateway3238DF2A
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: cfnAuth
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - helloWorldFunction00C940B5
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: AuthStack/TomeApiGateway/Default/HELLO/GET/Resource
+  cfnAuth:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      RestApiId:
+        Ref: TomeApiGateway3238DF2A
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      Name: HelloWorldAPIAuthorizer
+      ProviderARNs:
+        - Fn::GetAtt:
+            - TomeUserPool39BBD8AA
+            - Arn
+    Metadata:
+      aws:cdk:path: AuthStack/cfnAuth
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.47.1,@aws-cdk/aws-apigateway=1.47.1,@aws-cdk/aws-cloudwatch=1.47.1,@aws-cdk/aws-cognito=1.47.1,@aws-cdk/aws-ec2=1.47.1,@aws-cdk/aws-events=1.47.1,@aws-cdk/aws-iam=1.47.1,@aws-cdk/aws-kms=1.47.1,@aws-cdk/aws-lambda=1.47.1,@aws-cdk/aws-logs=1.47.1,@aws-cdk/aws-s3=1.47.1,@aws-cdk/aws-s3-assets=1.47.1,@aws-cdk/aws-sqs=1.47.1,@aws-cdk/aws-ssm=1.47.1,@aws-cdk/cloud-assembly-schema=1.47.1,@aws-cdk/core=1.47.1,@aws-cdk/custom-resources=1.47.1,@aws-cdk/cx-api=1.47.1,@aws-cdk/region-info=1.47.1,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3BucketC417F1EE:
+    Type: String
+    Description: S3 bucket for asset "5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592"
+  AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592S3VersionKeyC7D42839:
+    Type: String
+    Description: S3 key for asset version "5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592"
+  AssetParameters5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592ArtifactHashCE8DE05B:
+    Type: String
+    Description: Artifact hash for asset "5375eb641c5859e52e94ae8a21acd5884b28a70dfd1fb70f315db9936f95b592"
+Outputs:
+  TomeApiGatewayEndpointDAC61333:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: TomeApiGateway3238DF2A
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: TomeApiGatewayDeploymentStageprod0732493A
+          - /
+  UserPoolIdOutput:
+    Description: UserPool ID
+    Value:
+      Ref: TomeUserPool39BBD8AA
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

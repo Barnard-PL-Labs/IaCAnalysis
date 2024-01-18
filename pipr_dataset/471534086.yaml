@@ -1,0 +1,403 @@
+Resources:
+  TextLogGroupsEBFB9F42:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: TextLogs
+      RetentionInDays: 1
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextLogGroups/Resource
+  TextLogGroupsPolicyResourcePolicyB4E96605:
+    Type: AWS::Logs::ResourcePolicy
+    Properties:
+      PolicyDocument:
+        Fn::Join:
+          - ""
+          - - '{"Statement":[{"Action":["logs:CreateLogStream","logs:PutLogEvents"],"Effect":"Allow","Principal":{"Service":"apigateway.amazonaws.com"},"Resource":"'
+            - Fn::GetAtt:
+                - TextLogGroupsEBFB9F42
+                - Arn
+            - '"}],"Version":"2012-10-17"}'
+      PolicyName: awstextanalisysdevTextLogGroupsPolicy179EC5ED
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextLogGroups/Policy/ResourcePolicy
+  TextTableAD0EFD79:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: txt
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: txt
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: TextTable
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextTable/Resource
+  TextStateMachineRoleA1896FF6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: states.us-east-1.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextStateMachine/Role/Resource
+  TextStateMachineRoleDefaultPolicy7A727CB5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogDelivery
+              - logs:GetLogDelivery
+              - logs:UpdateLogDelivery
+              - logs:DeleteLogDelivery
+              - logs:ListLogDeliveries
+              - logs:PutResourcePolicy
+              - logs:DescribeResourcePolicies
+              - logs:DescribeLogGroups
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+              - xray:GetSamplingRules
+              - xray:GetSamplingTargets
+            Effect: Allow
+            Resource: "*"
+          - Action: dynamodb:PutItem
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :dynamodb:us-east-1:036406153779:table/
+                  - Ref: TextTableAD0EFD79
+          - Action: comprehend:detectDominantLanguage
+            Effect: Allow
+            Resource: "*"
+          - Action: dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :dynamodb:us-east-1:036406153779:table/
+                  - Ref: TextTableAD0EFD79
+        Version: "2012-10-17"
+      PolicyName: TextStateMachineRoleDefaultPolicy7A727CB5
+      Roles:
+        - Ref: TextStateMachineRoleA1896FF6
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextStateMachine/Role/DefaultPolicy/Resource
+  TextStateMachine95BF0DB2:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - TextStateMachineRoleA1896FF6
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"DynamoDBPutText","States":{"DynamoDBPutText":{"Next":"DetectDominantLanguage","Type":"Task","ResultPath":null,"Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::dynamodb:putItem","Parameters":{"Item":{"txt":{"S.$":"$.txt"}},"TableName":"
+            - Ref: TextTableAD0EFD79
+            - '"}},"DetectDominantLanguage":{"Next":"ListLanguages","Type":"Task","Comment":"Comprehend Detect Dominant Language","OutputPath":"$","ResultPath":"$.result","Resource":"arn:'
+            - Ref: AWS::Partition
+            - ':states:::aws-sdk:comprehend:detectDominantLanguage","Parameters":{"Text.$":"$.txt"}},"ListLanguages":{"Type":"Map","End":true,"InputPath":"$","Parameters":{"item.$":"$$.Map.Item.Value","txt.$":"$.txt"},"Iterator":{"StartAt":"DynamoDBUpdateLanguage","States":{"DynamoDBUpdateLanguage":{"End":true,"Type":"Task","InputPath":"$","ResultPath":null,"Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::dynamodb:updateItem","Parameters":{"Key":{"txt":{"S.$":"$.txt"}},"TableName":"
+            - Ref: TextTableAD0EFD79
+            - "\",\"ExpressionAttributeNames\":{\"#Score.$\":\"$.item.LanguageCode\"},\"ExpressionAttributeValues\":{\":score\":{\"N.$\":\"States.Format('{}', $.item.Score)\"}},\"UpdateExpression\":\"SET #Score = :score\"}}}},\"ItemsPath\":\"$.result.Languages\"}}}"
+      LoggingConfiguration:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn:
+                Fn::GetAtt:
+                  - TextLogGroupsEBFB9F42
+                  - Arn
+        Level: ALL
+      StateMachineName: TextAnalisysStateMachine
+      TracingConfiguration:
+        Enabled: true
+    DependsOn:
+      - TextStateMachineRoleDefaultPolicy7A727CB5
+      - TextStateMachineRoleA1896FF6
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextStateMachine/Resource
+  TextApiGateway437DBC5F:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: TextAnalisys
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/Resource
+  TextApiGatewayCloudWatchRoleE5030C8C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/CloudWatchRole/Resource
+  TextApiGatewayAccount54FA72E1:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - TextApiGatewayCloudWatchRoleE5030C8C
+          - Arn
+    DependsOn:
+      - TextApiGateway437DBC5F
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/Account
+  TextApiGatewayDeployment754CD1968b61440082219c62f598784aa6ed60e1:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: TextApiGateway437DBC5F
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - TextApiGatewaySendTextPOST0FFD62E4
+      - TextApiGatewaySendText3EB8530A
+      - TextApiGatewayPostModel7A560F00
+      - TextApiGatewayPostValidatorD406F27C
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/Deployment/Resource
+  TextApiGatewayDeploymentStageprod2573B67D:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: TextApiGateway437DBC5F
+      AccessLogSetting:
+        DestinationArn:
+          Fn::GetAtt:
+            - TextLogGroupsEBFB9F42
+            - Arn
+        Format: $context.identity.sourceIp $context.identity.caller $context.identity.user [$context.requestTime] "$context.httpMethod $context.resourcePath $context.protocol" $context.status $context.responseLength $context.requestId
+      DeploymentId:
+        Ref: TextApiGatewayDeployment754CD1968b61440082219c62f598784aa6ed60e1
+      MethodSettings:
+        - DataTraceEnabled: false
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          ResourcePath: /*
+      StageName: prod
+      TracingEnabled: true
+    DependsOn:
+      - TextApiGatewayAccount54FA72E1
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/DeploymentStage.prod/Resource
+  TextApiGatewaySendText3EB8530A:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - TextApiGateway437DBC5F
+          - RootResourceId
+      PathPart: SendText
+      RestApiId:
+        Ref: TextApiGateway437DBC5F
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/Default/SendText/Resource
+  TextApiGatewaySendTextPOST0FFD62E4:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: TextApiGatewaySendText3EB8530A
+      RestApiId:
+        Ref: TextApiGateway437DBC5F
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - TextApiGatewayTextAnalisysRole882C4790
+            - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: "
+
+                \              #if ($input.path('$.__type') != \"\")
+
+                \                #set ($context.responseOverride.status = 500)
+
+                \                {
+
+                \                  \"requestId\": \"$context.requestId\",
+
+                \                  \"message\": \"$input.path('$.message').trim()\"
+
+                \                }
+
+                \              #else
+
+                \                #set ($context.responseOverride.status = 200)
+
+                \                {
+
+                \                  \"requestId\": \"$context.requestId\",
+
+                \                  \"executionArn\": \"$input.path('$.executionArn').trim()\",
+
+                \                  \"startDate\": \"$input.path('$.startDate')\"
+
+                \                }
+
+                \              #end
+
+                \            "
+            StatusCode: "200"
+        RequestTemplates:
+          application/json:
+            Fn::Join:
+              - ""
+              - - |-2
+                  
+                          {
+                            "input": "$util.escapeJavaScript($input.body)",
+                            "name": "
+                - Fn::GetAtt:
+                    - TextStateMachine95BF0DB2
+                    - Name
+                - |-
+                  -$util.base64Encode(
+                              $util.escapeJavaScript(
+                                $input.body
+                              )
+                            ).hashCode()",
+                            "stateMachineArn": "
+                - Ref: TextStateMachine95BF0DB2
+                - |-
+                  "
+                          }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:states:action/StartExecution
+      MethodResponses:
+        - StatusCode: "200"
+      RequestModels:
+        application/json:
+          Ref: TextApiGatewayPostModel7A560F00
+      RequestValidatorId:
+        Ref: TextApiGatewayPostValidatorD406F27C
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/Default/SendText/POST/Resource
+  TextApiGatewayTextAnalisysRole882C4790:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/TextAnalisysRole/Resource
+  TextApiGatewayTextAnalisysPolicy1BACED98:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: TextStateMachine95BF0DB2
+        Version: "2012-10-17"
+      PolicyName: TextApiGatewayTextAnalisysPolicy1BACED98
+      Roles:
+        - Ref: TextApiGatewayTextAnalisysRole882C4790
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/TextAnalisysPolicy/Resource
+  TextApiGatewayPostModel7A560F00:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: TextApiGateway437DBC5F
+      ContentType: application/json
+      Schema:
+        title: PostRequest
+        type: object
+        $schema: http://json-schema.org/draft-04/schema#
+        properties:
+          txt:
+            type: string
+        required:
+          - txt
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/PostModel/Resource
+  TextApiGatewayPostValidatorD406F27C:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: TextApiGateway437DBC5F
+      Name: validator
+      ValidateRequestBody: true
+      ValidateRequestParameters: false
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/TextApiGateway/PostValidator/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/11QwW7CMAz9Fu4hW7ls1w6kadKqobLtikxqSmiaZE0Cqqr++0xKR9nJ770479le8OSJP87g7OaiqOZK7ni38SAqRtK2U6Z0vHs35WtjgmXLvf7DOToTGoFro6RoL0/3Ss+KVkNtCnL8hJ3CS0sEPXMe7T5o4aXRbuvBVZSyiu3r4N881mxgX7YAj1FYglLp2W2wOUnx34N3GVhGg3vMQBykjmlT3jMJNe9yMwwS6230cWSwsqQ/Z2ipFZ1PrbxuNsJUCBO0Zyu0yrQ1EiR1wii0HNMJjEd5AXcj02uxDP3BFBfpijJToIo8ghx/AuV/g5J0DNMMn++1vr/z/gjeBj9N6ZkmM350D6fkmScLnsyOTsp5Q7vIGnk+1F9FY3bXDwIAAA==
+    Metadata:
+      aws:cdk:path: aws-text-analisys-dev/CDKMetadata/Default
+Outputs:
+  TextApiGatewayEndpoint1B713D84:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: TextApiGateway437DBC5F
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: TextApiGatewayDeploymentStageprod2573B67D
+          - /
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

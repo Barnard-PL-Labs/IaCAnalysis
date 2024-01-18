@@ -1,0 +1,683 @@
+Parameters:
+  applicationPrefix:
+    Type: String
+    AllowedPattern: ^[a-z0-9]*$
+    Description: Prefix for the Amazon Cognito domain and the Amazon Elasticsearch Service domain
+    MaxLength: 20
+    MinLength: 3
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store.
+Resources:
+  userPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+    Metadata:
+      aws:cdk:path: searchStack/userPool
+  cognitoDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain:
+        Fn::Join:
+          - ""
+          - - Ref: applicationPrefix
+            - "-"
+            - Fn::Select:
+                - 4
+                - Fn::Split:
+                    - "-"
+                    - Fn::Select:
+                        - 2
+                        - Fn::Split:
+                            - /
+                            - Ref: AWS::StackId
+      UserPoolId:
+        Ref: userPool
+    Metadata:
+      aws:cdk:path: searchStack/cognitoDomain
+  identityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders: []
+    Metadata:
+      aws:cdk:path: searchStack/identityPool
+  esLimitedUserRole9E074D76:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: identityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: searchStack/esLimitedUserRole/Resource
+  esAdminFnRoleA6D321E0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: searchStack/esAdminFnRole/Resource
+  esAdminUserRole84A2026F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: identityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: searchStack/esAdminUserRole/Resource
+  elasticsearchHttpPolicy8039AFFE:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - es:ESHttpPost
+              - es:ESHttpGet
+              - es:ESHttpPut
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:es:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :domain/
+                  - Ref: applicationPrefix
+                  - /*
+        Version: "2012-10-17"
+      Description: ""
+      Path: /
+      Roles:
+        - Ref: esAdminUserRole84A2026F
+        - Ref: esAdminFnRoleA6D321E0
+    Metadata:
+      aws:cdk:path: searchStack/elasticsearchHttpPolicy/Resource
+  userPoolAdminGroupPool:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId:
+        Ref: userPool
+      GroupName: es-admins
+      RoleArn:
+        Fn::GetAtt:
+          - esAdminUserRole84A2026F
+          - Arn
+    Metadata:
+      aws:cdk:path: searchStack/userPoolAdminGroupPool
+  esRoleF5B460B7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: es.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonESCognitoAccess
+    Metadata:
+      aws:cdk:path: searchStack/esRole/Resource
+  searchDomain:
+    Type: AWS::Elasticsearch::Domain
+    Properties:
+      AccessPolicies:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "*"
+            Action: es:ESHttp*
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:es:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :domain/
+                  - Ref: applicationPrefix
+                  - /*
+      AdvancedSecurityOptions:
+        Enabled: true
+        MasterUserOptions:
+          MasterUserARN:
+            Fn::GetAtt:
+              - esAdminFnRoleA6D321E0
+              - Arn
+      CognitoOptions:
+        Enabled: true
+        IdentityPoolId:
+          Ref: identityPool
+        RoleArn:
+          Fn::GetAtt:
+            - esRoleF5B460B7
+            - Arn
+        UserPoolId:
+          Ref: userPool
+      DomainEndpointOptions:
+        EnforceHTTPS: true
+      DomainName:
+        Ref: applicationPrefix
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 10
+      ElasticsearchClusterConfig:
+        InstanceType: t3.small.elasticsearch
+      ElasticsearchVersion: "7.9"
+      EncryptionAtRestOptions:
+        Enabled: true
+      NodeToNodeEncryptionOptions:
+        Enabled: true
+    Metadata:
+      aws:cdk:path: searchStack/searchDomain
+  clientIdResourceCustomResourcePolicyF6D41C35:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cognito-idp:ListUserPoolClients
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - userPool
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: clientIdResourceCustomResourcePolicyF6D41C35
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    DependsOn:
+      - searchDomain
+    Metadata:
+      aws:cdk:path: searchStack/clientIdResource/CustomResourcePolicy/Resource
+  clientIdResource4DD3A5C0:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"CognitoIdentityServiceProvider","action":"listUserPoolClients","parameters":{"UserPoolId":"'
+            - Ref: userPool
+            - '"},"physicalResourceId":{"id":"ClientId-'
+            - Ref: applicationPrefix
+            - '"}}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - clientIdResourceCustomResourcePolicyF6D41C35
+      - searchDomain
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: searchStack/clientIdResource/Resource/Default
+  AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: searchStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource
+  AWS679f53fac002430cb0da5b7982bd22872D164C4C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: f3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797.zip
+      Role:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 120
+    DependsOn:
+      - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: searchStack/AWS679f53fac002430cb0da5b7982bd2287/Resource
+      aws:asset:path: asset.f3d3a3cc7f26921b237eff24fc5dd7aef8f0465a1f376b8f7918eb3d4b3e8797
+      aws:asset:property: Code
+  roleMappingsJson77641558:
+    Type: Custom::AWSCDKCfnJson
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWSCDKCfnUtilsProviderCustomResourceProviderHandlerCF82AA57
+          - Arn
+      Value:
+        Fn::Join:
+          - ""
+          - - '{"cognito-idp.'
+            - Ref: AWS::Region
+            - .amazonaws.com/
+            - Ref: userPool
+            - ":"
+            - Fn::GetAtt:
+                - clientIdResource4DD3A5C0
+                - UserPoolClients.0.ClientId
+            - '":{"Type":"Token","AmbiguousRoleResolution":"AuthenticatedRole"}}'
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: searchStack/roleMappingsJson/Resource/Default
+  AWSCDKCfnUtilsProviderCustomResourceProviderRoleFE0EE867:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: searchStack/AWSCDKCfnUtilsProviderCustomResourceProvider/Role
+  AWSCDKCfnUtilsProviderCustomResourceProviderHandlerCF82AA57:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - AWSCDKCfnUtilsProviderCustomResourceProviderRoleFE0EE867
+          - Arn
+      Runtime: nodejs12.x
+    DependsOn:
+      - AWSCDKCfnUtilsProviderCustomResourceProviderRoleFE0EE867
+    Metadata:
+      aws:cdk:path: searchStack/AWSCDKCfnUtilsProviderCustomResourceProvider/Handler
+  userPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: identityPool
+      RoleMappings:
+        Fn::GetAtt:
+          - roleMappingsJson77641558
+          - Value
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - esLimitedUserRole9E074D76
+            - Arn
+    Metadata:
+      aws:cdk:path: searchStack/userPoolRoleAttachment
+  esRequestsFnCD6C47E5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 68a25f0c2e3aa42832c39550a9631eb25a7ff4722508907d83b94c276e88b0c9.zip
+      Role:
+        Fn::GetAtt:
+          - esAdminFnRoleA6D321E0
+          - Arn
+      Environment:
+        Variables:
+          DOMAIN:
+            Fn::GetAtt:
+              - searchDomain
+              - DomainEndpoint
+          REGION:
+            Ref: AWS::Region
+      Handler: es-requests.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - esAdminFnRoleA6D321E0
+    Metadata:
+      aws:cdk:path: searchStack/esRequestsFn/Resource
+      aws:asset:path: asset.68a25f0c2e3aa42832c39550a9631eb25a7ff4722508907d83b94c276e88b0c9
+      aws:asset:property: Code
+  esRequestProviderframeworkonEventServiceRoleF348ECD7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: searchStack/esRequestProvider/framework-onEvent/ServiceRole/Resource
+  esRequestProviderframeworkonEventServiceRoleDefaultPolicy547BD935:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - esRequestsFnCD6C47E5
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: esRequestProviderframeworkonEventServiceRoleDefaultPolicy547BD935
+      Roles:
+        - Ref: esRequestProviderframeworkonEventServiceRoleF348ECD7
+    Metadata:
+      aws:cdk:path: searchStack/esRequestProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  esRequestProviderframeworkonEvent12E93BDA:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c.zip
+      Role:
+        Fn::GetAtt:
+          - esRequestProviderframeworkonEventServiceRoleF348ECD7
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (searchStack/esRequestProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - esRequestsFnCD6C47E5
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - esRequestProviderframeworkonEventServiceRoleDefaultPolicy547BD935
+      - esRequestProviderframeworkonEventServiceRoleF348ECD7
+    Metadata:
+      aws:cdk:path: searchStack/esRequestProvider/framework-onEvent/Resource
+      aws:asset:path: asset.c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c
+      aws:asset:property: Code
+  esRequestsResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - esRequestProviderframeworkonEvent12E93BDA
+          - Arn
+      requests:
+        - method: PUT
+          path: _opendistro/_security/api/tenants/logs-tenant
+          body:
+            description: A tenant for the sample kibana objects.
+        - method: PUT
+          path: _opendistro/_security/api/rolesmapping/all_access
+          body:
+            backend_roles:
+              - Fn::GetAtt:
+                  - esAdminUserRole84A2026F
+                  - Arn
+              - Fn::GetAtt:
+                  - esAdminFnRoleA6D321E0
+                  - Arn
+            hosts: []
+            users: []
+        - method: PUT
+          path: _opendistro/_security/api/rolesmapping/security_manager
+          body:
+            backend_roles:
+              - Fn::GetAtt:
+                  - esAdminFnRoleA6D321E0
+                  - Arn
+              - Fn::GetAtt:
+                  - esAdminUserRole84A2026F
+                  - Arn
+            hosts: []
+            users: []
+        - method: PUT
+          path: _template/example-index-template
+          body: |-
+            {
+                "index_patterns": [
+                    "logs-*"
+                ],
+                "mappings": {
+                    "properties": {
+                        "temperature": {
+                            "type": "long"
+                        },
+                        "timestamp": {
+                            "type": "date"
+                        }
+                    }
+                },
+                "settings" : {
+                    "number_of_shards" : "1",
+                    "number_of_replicas" : "0"
+                }
+            }
+        - method: POST
+          path: _plugin/kibana/api/saved_objects/_import?overwrite=true
+          body: |-
+            {"attributes":{"fields":"[{\"name\":\"_id\",\"type\":\"string\",\"esTypes\":[\"_id\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":false},{\"name\":\"_index\",\"type\":\"string\",\"esTypes\":[\"_index\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":false},{\"name\":\"_score\",\"type\":\"number\",\"count\":0,\"scripted\":false,\"searchable\":false,\"aggregatable\":false,\"readFromDocValues\":false},{\"name\":\"_source\",\"type\":\"_source\",\"esTypes\":[\"_source\"],\"count\":0,\"scripted\":false,\"searchable\":false,\"aggregatable\":false,\"readFromDocValues\":false},{\"name\":\"_type\",\"type\":\"string\",\"esTypes\":[\"_type\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":false},{\"name\":\"temperature\",\"type\":\"number\",\"esTypes\":[\"long\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true},{\"name\":\"timestamp\",\"type\":\"date\",\"esTypes\":[\"date\"],\"count\":0,\"scripted\":false,\"searchable\":true,\"aggregatable\":true,\"readFromDocValues\":true}]","timeFieldName":"timestamp","title":"logs-*"},"id":"d9bda310-114d-11eb-a3ce-1d703b366825","migrationVersion":{"index-pattern":"7.6.0"},"references":[],"type":"index-pattern","updated_at":"2020-10-18T14:26:04.537Z","version":"WzMsMV0="}
+            {"attributes":{"description":"","kibanaSavedObjectMeta":{"searchSourceJSON":"{\n  \"query\": {\n    \"query\": \"\",\n    \"language\": \"kuery\"\n  },\n  \"filter\": [],\n  \"indexRefName\": \"kibanaSavedObjectMeta.searchSourceJSON.index\"\n}"},"title":"Example Graph","uiStateJSON":"{}","version":1,"visState":"{\"title\":\"Example Graph\",\"type\":\"line\",\"params\":{\"type\":\"line\",\"grid\":{\"categoryLines\":false},\"categoryAxes\":[{\"id\":\"CategoryAxis-1\",\"type\":\"category\",\"position\":\"bottom\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\"},\"labels\":{\"show\":true,\"truncate\":100},\"title\":{}}],\"valueAxes\":[{\"id\":\"ValueAxis-1\",\"name\":\"LeftAxis-1\",\"type\":\"value\",\"position\":\"left\",\"show\":true,\"style\":{},\"scale\":{\"type\":\"linear\",\"mode\":\"normal\"},\"labels\":{\"show\":true,\"rotate\":0,\"filter\":false,\"truncate\":100},\"title\":{\"text\":\"Average temperature\"}}],\"seriesParams\":[{\"show\":\"true\",\"type\":\"line\",\"mode\":\"normal\",\"data\":{\"label\":\"Average temperature\",\"id\":\"1\"},\"valueAxis\":\"ValueAxis-1\",\"drawLinesBetweenPoints\":true,\"showCircles\":true}],\"addTooltip\":true,\"addLegend\":true,\"legendPosition\":\"right\",\"times\":[],\"addTimeMarker\":false},\"aggs\":[{\"id\":\"1\",\"enabled\":true,\"type\":\"avg\",\"schema\":\"metric\",\"params\":{\"field\":\"temperature\"}},{\"id\":\"2\",\"enabled\":true,\"type\":\"date_histogram\",\"schema\":\"segment\",\"params\":{\"field\":\"timestamp\",\"useNormalizedEsInterval\":true,\"interval\":\"auto\",\"drop_partials\":false,\"min_doc_count\":1,\"extended_bounds\":{}}}]}"},"id":"f5e6efd0-2e52-11ea-a276-c5724fe7e4f3","migrationVersion":{"visualization":"7.7.0"},"references":[{"id":"d9bda310-114d-11eb-a3ce-1d703b366825","name":"kibanaSavedObjectMeta.searchSourceJSON.index","type":"index-pattern"}],"type":"visualization","updated_at":"2020-10-18T17:34:08.781Z","version":"WzcsMV0="}
+            {"attributes":{"description":"","kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"query\":\"\",\"language\":\"kuery\"},\"filter\":[]}"},"title":"Example Instructions","uiStateJSON":"{}","version":1,"visState":"{\"title\":\"Example Instructions\",\"type\":\"markdown\",\"params\":{\"fontSize\":12,\"openLinksInNewTab\":false,\"markdown\":\"# Welcome\\n\\nThis is an example dashboard which has been created by the `amazon-elasticsearch-service-with-cognito` template.\\n\\nYou can now add a new doc to the index by using the [Kibana Dev Tools](#/dev_tools/console) to issue the following request:\\n\\n```\\nPOST logs-2020-01/_doc\\n{\\n    \\\"temperature\\\": \\\"5\\\",\\n    \\\"timestamp\\\": \\\"2020-01-03T17:00:00.00+0000\\\"\\n}\\n```\\n\\nAfter you posted the doc, come back to this dashboard, and adjust the time range on the top right to see the new data.\"},\"aggs\":[]}"},"id":"16f7f1a0-2e54-11ea-a276-c5724fe7e4f3","migrationVersion":{"visualization":"7.7.0"},"references":[],"type":"visualization","updated_at":"2020-10-18T17:39:40.197Z","version":"WzExLDFd"}
+            {"attributes":{"description":"Example dashboard as created by the amazon-elasticsearch-service-with-cognito template.","hits":0,"kibanaSavedObjectMeta":{"searchSourceJSON":"{\"query\":{\"language\":\"kuery\",\"query\":\"\"},\"filter\":[]}"},"optionsJSON":"{\"hidePanelTitles\":false,\"useMargins\":true}","panelsJSON":"[{\"embeddableConfig\":{},\"gridData\":{\"x\":24,\"y\":0,\"w\":24,\"h\":18,\"i\":\"1\"},\"panelIndex\":\"1\",\"version\":\"7.3.0\",\"panelRefName\":\"panel_0\"},{\"gridData\":{\"x\":0,\"y\":0,\"w\":24,\"h\":18,\"i\":\"2\"},\"version\":\"7.3.0\",\"panelIndex\":\"2\",\"embeddableConfig\":{},\"panelRefName\":\"panel_1\"}]","timeRestore":false,"title":"Example Dashboard","version":1},"id":"1f9d0990-2e53-11ea-a276-c5724fe7e4f3","migrationVersion":{"dashboard":"7.3.0"},"references":[{"id":"f5e6efd0-2e52-11ea-a276-c5724fe7e4f3","name":"panel_0","type":"visualization"},{"id":"16f7f1a0-2e54-11ea-a276-c5724fe7e4f3","name":"panel_1","type":"visualization"}],"type":"dashboard","updated_at":"2020-10-18T17:34:09.690Z","version":"WzgsMV0="}
+            {"exportedCount":4,"missingRefCount":0,"missingReferences":[]}
+          securitytenant: logs-tenant
+          filename: dashboard.ndjson
+        - method: PUT
+          path: _opendistro/_security/api/roles/logs-role
+          body:
+            cluster_permissions:
+              - cluster_composite_ops
+              - cluster_monitor
+            index_permissions:
+              - index_patterns:
+                  - logs-*
+                dls: ""
+                fls: []
+                masked_fields: []
+                allowed_actions:
+                  - crud
+                  - create_index
+            tenant_permissions:
+              - tenant_patterns:
+                  - logs-tenant
+                allowed_actions:
+                  - kibana_all_write
+        - method: PUT
+          path: _opendistro/_security/api/rolesmapping/logs-role
+          body:
+            backend_roles:
+              - Fn::GetAtt:
+                  - esLimitedUserRole9E074D76
+                  - Arn
+            hosts: []
+            users: []
+        - method: PUT
+          path: _opendistro/_security/api/rolesmapping/kibana_user
+          body:
+            backend_roles:
+              - Fn::GetAtt:
+                  - esLimitedUserRole9E074D76
+                  - Arn
+            hosts: []
+            users: []
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: searchStack/esRequestsResource/Default
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE11RXU/DMAz8LbynGYUXHqmKmEBCVEP8gJB4XbYmnmJn01Tlv5Psi9EnX87nyHeuZX3/JOu7Z7WnSpvNbNQYQI5frPRGtEvfqaAcMATRRmJ0CyCMQUPpXXFDBJxHeut7cat4J/STwS7gzpry39J/Rt5GFi164hA1Fy4/jGWLPomyU96n95ZRjrn3TRA6xEHc4Bd0yvrCvBnwbPkwVcwDxu1UsMABGs4uVy6TSVjl5FjIo7FSP5RXPZgOB6sPhf1P/PEnlAQMithqAhX0SubGebVBuR+jcqY5nQEY/Wv0ujgUV5DFF5wEPVaqBErymGsS+hhgFc4JkhybPU3OcYk1JeHRgFzTbFfnyz7k467J2irE7N2BXJzqL5ftc//5AQAA
+    Metadata:
+      aws:cdk:path: searchStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  createUserUrl:
+    Description: Create a new user in the user pool here - add it to the es-admins group if fine grained access controls should not apply.
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: AWS::Region
+          - .console.aws.amazon.com/cognito/users?region=
+          - Ref: AWS::Region
+          - "#/pool/"
+          - Ref: userPool
+          - /users
+  kibanaUrl:
+    Description: Access Kibana via this URL.
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Fn::GetAtt:
+              - searchDomain
+              - DomainEndpoint
+          - /_plugin/kibana/
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 4 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

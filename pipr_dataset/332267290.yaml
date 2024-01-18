@@ -1,0 +1,670 @@
+Resources:
+  ApiF70053CD:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: NeptuneAPI
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+    Metadata:
+      aws:cdk:path: NeptuneStack/Api/Resource
+  ApiSchema510EECD7:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Definition: |-
+        type Post {
+          id: ID!
+          title: String!
+          content: String!
+        }
+
+        input PostInput {
+          id: ID
+          title: String!
+          content: String!
+        }
+
+        type Query {
+          listPosts: [Post]
+        }
+
+        type Mutation {
+          createPost(post: PostInput!): Post
+        }
+
+        type Subscription {
+          onCreatePost: Post
+            @aws_subscribe(mutations: ["createPost"])
+        }
+    Metadata:
+      aws:cdk:path: NeptuneStack/Api/Schema
+  ApiDefaultApiKeyF991C37B:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+    DependsOn:
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: NeptuneStack/Api/DefaultApiKey
+  ApilambdaDatasourceServiceRole2CA75790:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+    Metadata:
+      aws:cdk:path: NeptuneStack/Api/lambdaDatasource/ServiceRole/Resource
+  ApilambdaDatasourceServiceRoleDefaultPolicy3A97E34D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LambdaFunctionF16729B4
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ApilambdaDatasourceServiceRoleDefaultPolicy3A97E34D
+      Roles:
+        - Ref: ApilambdaDatasourceServiceRole2CA75790
+    Metadata:
+      aws:cdk:path: NeptuneStack/Api/lambdaDatasource/ServiceRole/DefaultPolicy/Resource
+  ApilambdaDatasource2C776EE2:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Name: lambdaDatasource
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - LambdaFunctionF16729B4
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ApilambdaDatasourceServiceRole2CA75790
+          - Arn
+    Metadata:
+      aws:cdk:path: NeptuneStack/Api/lambdaDatasource/Resource
+  ApilambdaDatasourceQuerylistPostsResolver98BAE20F:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: listPosts
+      TypeName: Query
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApilambdaDatasource2C776EE2
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: NeptuneStack/Api/lambdaDatasource/QuerylistPostsResolver/Resource
+  ApilambdaDatasourceMutationcreatePostResolverAF0B5A16:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: createPost
+      TypeName: Mutation
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApilambdaDatasource2C776EE2
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: NeptuneStack/Api/lambdaDatasource/MutationcreatePostResolver/Resource
+  NeptuneVPCC2F535B3:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/Resource
+  NeptuneVPCPublicSubnet1SubnetDFDB765F:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/18
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet1/Subnet
+  NeptuneVPCPublicSubnet1RouteTableAFA5BBAC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+      Tags:
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet1/RouteTable
+  NeptuneVPCPublicSubnet1RouteTableAssociation92E64AC6:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: NeptuneVPCPublicSubnet1RouteTableAFA5BBAC
+      SubnetId:
+        Ref: NeptuneVPCPublicSubnet1SubnetDFDB765F
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet1/RouteTableAssociation
+  NeptuneVPCPublicSubnet1DefaultRouteA63A0E00:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: NeptuneVPCPublicSubnet1RouteTableAFA5BBAC
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: NeptuneVPCIGWF975608C
+    DependsOn:
+      - NeptuneVPCVPCGW90F13E23
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet1/DefaultRoute
+  NeptuneVPCPublicSubnet1EIP944D50F4:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet1/EIP
+  NeptuneVPCPublicSubnet1NATGatewayED853EB5:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - NeptuneVPCPublicSubnet1EIP944D50F4
+          - AllocationId
+      SubnetId:
+        Ref: NeptuneVPCPublicSubnet1SubnetDFDB765F
+      Tags:
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet1/NATGateway
+  NeptuneVPCPublicSubnet2SubnetA62B3100:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.64.0/18
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet2/Subnet
+  NeptuneVPCPublicSubnet2RouteTableCCD71A47:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+      Tags:
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet2/RouteTable
+  NeptuneVPCPublicSubnet2RouteTableAssociation50842CE4:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: NeptuneVPCPublicSubnet2RouteTableCCD71A47
+      SubnetId:
+        Ref: NeptuneVPCPublicSubnet2SubnetA62B3100
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet2/RouteTableAssociation
+  NeptuneVPCPublicSubnet2DefaultRoute8974335D:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: NeptuneVPCPublicSubnet2RouteTableCCD71A47
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: NeptuneVPCIGWF975608C
+    DependsOn:
+      - NeptuneVPCVPCGW90F13E23
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet2/DefaultRoute
+  NeptuneVPCPublicSubnet2EIP48D3C525:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet2/EIP
+  NeptuneVPCPublicSubnet2NATGateway906C139E:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - NeptuneVPCPublicSubnet2EIP48D3C525
+          - AllocationId
+      SubnetId:
+        Ref: NeptuneVPCPublicSubnet2SubnetA62B3100
+      Tags:
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PublicSubnet2/NATGateway
+  NeptuneVPCPrivateSubnet1Subnet1FB11E34:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/18
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PrivateSubnet1/Subnet
+  NeptuneVPCPrivateSubnet1RouteTable49A005FF:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+      Tags:
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PrivateSubnet1/RouteTable
+  NeptuneVPCPrivateSubnet1RouteTableAssociation4080D6E8:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: NeptuneVPCPrivateSubnet1RouteTable49A005FF
+      SubnetId:
+        Ref: NeptuneVPCPrivateSubnet1Subnet1FB11E34
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PrivateSubnet1/RouteTableAssociation
+  NeptuneVPCPrivateSubnet1DefaultRoute00563774:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: NeptuneVPCPrivateSubnet1RouteTable49A005FF
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NeptuneVPCPublicSubnet1NATGatewayED853EB5
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PrivateSubnet1/DefaultRoute
+  NeptuneVPCPrivateSubnet2SubnetA323B4AE:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.192.0/18
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PrivateSubnet2/Subnet
+  NeptuneVPCPrivateSubnet2RouteTable19EAE16C:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+      Tags:
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PrivateSubnet2/RouteTable
+  NeptuneVPCPrivateSubnet2RouteTableAssociation5D6B5E84:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: NeptuneVPCPrivateSubnet2RouteTable19EAE16C
+      SubnetId:
+        Ref: NeptuneVPCPrivateSubnet2SubnetA323B4AE
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PrivateSubnet2/RouteTableAssociation
+  NeptuneVPCPrivateSubnet2DefaultRoute17E3DD0E:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: NeptuneVPCPrivateSubnet2RouteTable19EAE16C
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NeptuneVPCPublicSubnet2NATGateway906C139E
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/PrivateSubnet2/DefaultRoute
+  NeptuneVPCIGWF975608C:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: NeptuneStack/NeptuneVPC
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/IGW
+  NeptuneVPCVPCGW90F13E23:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+      InternetGatewayId:
+        Ref: NeptuneVPCIGWF975608C
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneVPC/VPCGW
+  LambdaFunctionServiceRoleEFC7EA2E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+    Metadata:
+      aws:cdk:path: NeptuneStack/Lambda Function/ServiceRole/Resource
+  LambdaFunctionSecurityGroup8AE23CE6:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Automatic security group for Lambda Function NeptuneStackLambdaFunction4841BFB3
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+    Metadata:
+      aws:cdk:path: NeptuneStack/Lambda Function/SecurityGroup/Resource
+  LambdaFunctionF16729B4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters23166e4ed49ea5e86b330e7947faa78cd6b1685552058a5e19d3e32548d13749S3BucketE1746D54
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters23166e4ed49ea5e86b330e7947faa78cd6b1685552058a5e19d3e32548d13749S3VersionKey24D5527A
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters23166e4ed49ea5e86b330e7947faa78cd6b1685552058a5e19d3e32548d13749S3VersionKey24D5527A
+      Role:
+        Fn::GetAtt:
+          - LambdaFunctionServiceRoleEFC7EA2E
+          - Arn
+      Environment:
+        Variables:
+          WRITER:
+            Fn::Join:
+              - ""
+              - - Fn::GetAtt:
+                    - NeptuneCluster7FC72740
+                    - Endpoint
+                - ":"
+                - Fn::GetAtt:
+                    - NeptuneCluster7FC72740
+                    - Port
+          READER:
+            Fn::Join:
+              - ""
+              - - Fn::GetAtt:
+                    - NeptuneCluster7FC72740
+                    - ReadEndpoint
+                - ":"
+                - Fn::GetAtt:
+                    - NeptuneCluster7FC72740
+                    - Port
+      Handler: main.handler
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::GetAtt:
+              - LambdaFunctionSecurityGroup8AE23CE6
+              - GroupId
+        SubnetIds:
+          - Ref: NeptuneVPCPrivateSubnet1Subnet1FB11E34
+          - Ref: NeptuneVPCPrivateSubnet2SubnetA323B4AE
+    DependsOn:
+      - LambdaFunctionServiceRoleEFC7EA2E
+    Metadata:
+      aws:cdk:path: NeptuneStack/Lambda Function/Resource
+      aws:asset:path: asset.23166e4ed49ea5e86b330e7947faa78cd6b1685552058a5e19d3e32548d13749
+      aws:asset:property: Code
+  NeptuneClusterSubnetsCDB62775:
+    Type: AWS::Neptune::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets for NeptuneCluster database
+      SubnetIds:
+        - Ref: NeptuneVPCPrivateSubnet1Subnet1FB11E34
+        - Ref: NeptuneVPCPrivateSubnet2SubnetA323B4AE
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneCluster/Subnets/Resource
+  NeptuneClusterSecurityGroup644E519E:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Neptune security group
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+      VpcId:
+        Ref: NeptuneVPCC2F535B3
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneCluster/SecurityGroup/Resource
+  NeptuneClusterSecurityGroupfrom00000IndirectPort08F3E9D6:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      CidrIp: 0.0.0.0/0
+      Description: Open to the world
+      FromPort:
+        Fn::GetAtt:
+          - NeptuneCluster7FC72740
+          - Port
+      GroupId:
+        Fn::GetAtt:
+          - NeptuneClusterSecurityGroup644E519E
+          - GroupId
+      ToPort:
+        Fn::GetAtt:
+          - NeptuneCluster7FC72740
+          - Port
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneCluster/SecurityGroup/from 0.0.0.0_0:{IndirectPort}
+  NeptuneCluster7FC72740:
+    Type: AWS::Neptune::DBCluster
+    Properties:
+      DBSubnetGroupName:
+        Ref: NeptuneClusterSubnetsCDB62775
+      StorageEncrypted: true
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+      VpcSecurityGroupIds:
+        - Fn::GetAtt:
+            - NeptuneClusterSecurityGroup644E519E
+            - GroupId
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneCluster/Resource
+  NeptuneClusterInstance1D301D758:
+    Type: AWS::Neptune::DBInstance
+    Properties:
+      DBInstanceClass: db.r5.large
+      DBClusterIdentifier:
+        Ref: NeptuneCluster7FC72740
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+    DependsOn:
+      - NeptuneVPCPrivateSubnet1DefaultRoute00563774
+      - NeptuneVPCPrivateSubnet2DefaultRoute17E3DD0E
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneCluster/Instance1
+  NeptuneRole07EB8873:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: sagemaker.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneRole/Resource
+  NeptuneNotebook:
+    Type: AWS::SageMaker::NotebookInstance
+    Properties:
+      InstanceType: ml.t2.medium
+      RoleArn:
+        Fn::GetAtt:
+          - NeptuneRole07EB8873
+          - Arn
+      Tags:
+        - Key: Name
+          Value: NeptuneStack
+      VolumeSizeInGB: 5
+    Metadata:
+      aws:cdk:path: NeptuneStack/NeptuneNotebook
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE31SwVLCMBD9Fu4hWDyoNxGUYWS0Uof7NqwQaJOabGA6nf67SWpBxxlPee/tdvOyrwm/u+FXg3s42aHYHEaN0AZ5kxGIA1uh1c4IZBNrkby2lWrLplpZMk4Qm36oFAyUSGgCeXVUuSj3X7YsDG6gqmytBG/mBqrdZzGpZOiK7G35m2VihyUEwevPWLMllPkGZkCQdW586QcLVxXHzkCPWyah5M1KF7E7nqkupKij54hahmLMm3UlgrZOpyx1uS9kLlcYH3FBK+0I3yHvxnX6RfPb0UICSa3OzQE8LtJwvADNgfAENUuNPHp4GbxQfnUe9w2dk282IZ/CrkRFLEPhjKR6brSrood/hYXaGrS2ZUXcHW+enBK9vx63zF4PISRreQyYKazIKR9/WG8OFqeFsyHbzvD5rtnDH6HvjGThfxBQIX0LWx/mAQ0Pi9CEudaHc7llSm+Q7+3omNzyZMyTwd5KOTROkSyRr7rzC9pKnGqkAgAA
+    Metadata:
+      aws:cdk:path: NeptuneStack/CDKMetadata/Default
+Parameters:
+  AssetParameters23166e4ed49ea5e86b330e7947faa78cd6b1685552058a5e19d3e32548d13749S3BucketE1746D54:
+    Type: String
+    Description: S3 bucket for asset "23166e4ed49ea5e86b330e7947faa78cd6b1685552058a5e19d3e32548d13749"
+  AssetParameters23166e4ed49ea5e86b330e7947faa78cd6b1685552058a5e19d3e32548d13749S3VersionKey24D5527A:
+    Type: String
+    Description: S3 key for asset version "23166e4ed49ea5e86b330e7947faa78cd6b1685552058a5e19d3e32548d13749"
+  AssetParameters23166e4ed49ea5e86b330e7947faa78cd6b1685552058a5e19d3e32548d13749ArtifactHash35261B2F:
+    Type: String
+    Description: Artifact hash for asset "23166e4ed49ea5e86b330e7947faa78cd6b1685552058a5e19d3e32548d13749"
+Outputs:
+  writeaddress:
+    Value:
+      Fn::Join:
+        - ""
+        - - Fn::GetAtt:
+              - NeptuneCluster7FC72740
+              - Endpoint
+          - ":"
+          - Fn::GetAtt:
+              - NeptuneCluster7FC72740
+              - Port
+  readaddress:
+    Value:
+      Fn::Join:
+        - ""
+        - - Fn::GetAtt:
+              - NeptuneCluster7FC72740
+              - ReadEndpoint
+          - ":"
+          - Fn::GetAtt:
+              - NeptuneCluster7FC72740
+              - Port
+

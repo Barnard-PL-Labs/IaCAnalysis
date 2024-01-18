@@ -1,0 +1,1435 @@
+Resources:
+  PollyAssetStore920EE247:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyAssetStore/Resource
+  PollyAssetStorePolicy1318F078:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: PollyAssetStore920EE247
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - PollyAssetStore920EE247
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PollyAssetStore920EE247
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyAssetStore/Policy/Resource
+  PollyAssetStoreNotificationsB016E70A:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: PollyAssetStore920EE247
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: prefix
+                    Value: text
+                  - Name: suffix
+                    Value: json
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - PollyLambdaCC0E84BA
+                - Arn
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: prefix
+                    Value: audio/full
+                  - Name: suffix
+                    Value: mp3
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - FadeOutLambdaA0054A15
+                - Arn
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: prefix
+                    Value: audio/preview
+                  - Name: suffix
+                    Value: wav
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - ImagesLambdaF7C0805F
+                - Arn
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: prefix
+                    Value: video-trigger
+                  - Name: suffix
+                    Value: json
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - VideoLambdaEA35D087
+                - Arn
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: prefix
+                    Value: output/preview
+                  - Name: suffix
+                    Value: mp4
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - FinalizeUpdateLambda6AFAA7A0
+                - Arn
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: prefix
+                    Value: output/full/hls
+                  - Name: suffix
+                    Value: m3u8
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - FinalizeUpdateLambda6AFAA7A0
+                - Arn
+      Managed: true
+    DependsOn:
+      - PollyAssetStoreAllowBucketNotificationsToPollyPreviewSimpleStackFadeOutLambdaB6F6984780ABD487
+      - PollyAssetStoreAllowBucketNotificationsToPollyPreviewSimpleStackFinalizeUpdateLambda848E69BDBA5C932F
+      - PollyAssetStoreAllowBucketNotificationsToPollyPreviewSimpleStackImagesLambda959B044CDBF9EB18
+      - PollyAssetStoreAllowBucketNotificationsToPollyPreviewSimpleStackPollyLambdaD5723117E1B7D419
+      - PollyAssetStoreAllowBucketNotificationsToPollyPreviewSimpleStackVideoLambdaA3EFEBF540F2A5D6
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyAssetStore/Notifications/Resource
+  PollyAssetStoreAllowBucketNotificationsToPollyPreviewSimpleStackPollyLambdaD5723117E1B7D419:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PollyLambdaCC0E84BA
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - PollyAssetStore920EE247
+          - Arn
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyAssetStore/AllowBucketNotificationsToPollyPreviewSimpleStackPollyLambdaD5723117
+  PollyAssetStoreAllowBucketNotificationsToPollyPreviewSimpleStackFadeOutLambdaB6F6984780ABD487:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FadeOutLambdaA0054A15
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - PollyAssetStore920EE247
+          - Arn
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyAssetStore/AllowBucketNotificationsToPollyPreviewSimpleStackFadeOutLambdaB6F69847
+  PollyAssetStoreAllowBucketNotificationsToPollyPreviewSimpleStackImagesLambda959B044CDBF9EB18:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ImagesLambdaF7C0805F
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - PollyAssetStore920EE247
+          - Arn
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyAssetStore/AllowBucketNotificationsToPollyPreviewSimpleStackImagesLambda959B044C
+  PollyAssetStoreAllowBucketNotificationsToPollyPreviewSimpleStackVideoLambdaA3EFEBF540F2A5D6:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - VideoLambdaEA35D087
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - PollyAssetStore920EE247
+          - Arn
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyAssetStore/AllowBucketNotificationsToPollyPreviewSimpleStackVideoLambdaA3EFEBF5
+  PollyAssetStoreAllowBucketNotificationsToPollyPreviewSimpleStackFinalizeUpdateLambda848E69BDBA5C932F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - FinalizeUpdateLambda6AFAA7A0
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - PollyAssetStore920EE247
+          - Arn
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyAssetStore/AllowBucketNotificationsToPollyPreviewSimpleStackFinalizeUpdateLambda848E69BD
+  PollyMetadataStoreD3C47057:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: AssetId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: AssetId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyMetadataStore/Resource
+  MediaconvertPassDownRoleA9CA6459:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: mediaconvert.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSElementalMediaConvertFullAccess
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - s3:Get*
+                  - s3:List*
+                Effect: Allow
+                Resource:
+                  - Fn::GetAtt:
+                      - PollyAssetStore920EE247
+                      - Arn
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - PollyAssetStore920EE247
+                            - Arn
+                        - /*
+                  - arn:aws:s3:::gbatt-blogs/narratives
+                  - arn:aws:s3:::gbatt-blogs/narratives/*
+              - Action:
+                  - s3:Put*
+                  - s3:*MultipartUpload*
+                Effect: Allow
+                Resource:
+                  - Fn::GetAtt:
+                      - PollyAssetStore920EE247
+                      - Arn
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - PollyAssetStore920EE247
+                            - Arn
+                        - /*
+            Version: "2012-10-17"
+          PolicyName: S3MediaConvertInline
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/MediaconvertPassDownRole/Resource
+  ScrapeLambdaServiceRoleAD267DBB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/ScrapeLambda/ServiceRole/Resource
+  ScrapeLambdaServiceRoleDefaultPolicyD5CB85CA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: comprehend:detect*
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyAssetStore920EE247
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PollyAssetStore920EE247
+                        - Arn
+                    - /*
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - PollyAssetStore920EE247
+                      - Arn
+                  - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyMetadataStoreD3C47057
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: ScrapeLambdaServiceRoleDefaultPolicyD5CB85CA
+      Roles:
+        - Ref: ScrapeLambdaServiceRoleAD267DBB
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/ScrapeLambda/ServiceRole/DefaultPolicy/Resource
+  ScrapeLambda8F20793D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersbd297045724e011d34f1d3f5cd915ed1de5174bb2f03177ef5e4e34bf0e413dcS3Bucket83587C68
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbd297045724e011d34f1d3f5cd915ed1de5174bb2f03177ef5e4e34bf0e413dcS3VersionKey73751CB8
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbd297045724e011d34f1d3f5cd915ed1de5174bb2f03177ef5e4e34bf0e413dcS3VersionKey73751CB8
+      Role:
+        Fn::GetAtt:
+          - ScrapeLambdaServiceRoleAD267DBB
+          - Arn
+      Environment:
+        Variables:
+          Table:
+            Ref: PollyMetadataStoreD3C47057
+          OutputS3BucketName:
+            Ref: PollyAssetStore920EE247
+          FFMPEG_PREVIEW_DURATION: "30"
+          FFMPEG_FADEOUT_DURATION: "3"
+      Handler: scrape.handler
+      MemorySize: 512
+      Runtime: nodejs14.x
+      Timeout: 29
+    DependsOn:
+      - ScrapeLambdaServiceRoleDefaultPolicyD5CB85CA
+      - ScrapeLambdaServiceRoleAD267DBB
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/ScrapeLambda/Resource
+      aws:asset:path: asset.bd297045724e011d34f1d3f5cd915ed1de5174bb2f03177ef5e4e34bf0e413dc
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  scrapeapi8DBB03C5:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: This service starts scraping an article.
+      Name: Scraping Service
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/scrape-api/Resource
+  scrapeapiCloudWatchRoleF2886E9A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/scrape-api/CloudWatchRole/Resource
+  scrapeapiAccount165788A3:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - scrapeapiCloudWatchRoleF2886E9A
+          - Arn
+    DependsOn:
+      - scrapeapi8DBB03C5
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/scrape-api/Account
+  scrapeapiDeploymentEF7A21C16ecba6db053bc3952873c7caa4ecf795:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: scrapeapi8DBB03C5
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - scrapeapiPOST82E763FB
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/scrape-api/Deployment/Resource
+  scrapeapiDeploymentStageprodC6F0BE88:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: scrapeapi8DBB03C5
+      DeploymentId:
+        Ref: scrapeapiDeploymentEF7A21C16ecba6db053bc3952873c7caa4ecf795
+      StageName: prod
+    DependsOn:
+      - scrapeapiAccount165788A3
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/scrape-api/DeploymentStage.prod/Resource
+  scrapeapiPOSTApiPermissionPollyPreviewSimpleStackscrapeapi76CFF420POST16C2D670:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ScrapeLambda8F20793D
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: scrapeapi8DBB03C5
+            - /
+            - Ref: scrapeapiDeploymentStageprodC6F0BE88
+            - /POST/
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/scrape-api/Default/POST/ApiPermission.PollyPreviewSimpleStackscrapeapi76CFF420.POST..
+  scrapeapiPOSTApiPermissionTestPollyPreviewSimpleStackscrapeapi76CFF420POST65A26DE5:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ScrapeLambda8F20793D
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: scrapeapi8DBB03C5
+            - /test-invoke-stage/POST/
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/scrape-api/Default/POST/ApiPermission.Test.PollyPreviewSimpleStackscrapeapi76CFF420.POST..
+  scrapeapiPOST82E763FB:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Fn::GetAtt:
+          - scrapeapi8DBB03C5
+          - RootResourceId
+      RestApiId:
+        Ref: scrapeapi8DBB03C5
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        RequestTemplates:
+          application/json: '{ "statusCode": "200" }'
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - ScrapeLambda8F20793D
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/scrape-api/Default/POST/Resource
+  PollyLambdaServiceRoleEEA63C4F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyLambda/ServiceRole/Resource
+  PollyLambdaServiceRoleDefaultPolicy81DBEB21:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: polly:startSpeechSynthesisTask
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyAssetStore920EE247
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PollyAssetStore920EE247
+                        - Arn
+                    - /*
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - PollyAssetStore920EE247
+                      - Arn
+                  - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyMetadataStoreD3C47057
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: PollyLambdaServiceRoleDefaultPolicy81DBEB21
+      Roles:
+        - Ref: PollyLambdaServiceRoleEEA63C4F
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyLambda/ServiceRole/DefaultPolicy/Resource
+  PollyLambdaCC0E84BA:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters8133f9982e92a10b9eaca6849bc719d92bc972c099bbcbe902bd908e41147ab4S3Bucket44D5C11E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8133f9982e92a10b9eaca6849bc719d92bc972c099bbcbe902bd908e41147ab4S3VersionKey7C762A56
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8133f9982e92a10b9eaca6849bc719d92bc972c099bbcbe902bd908e41147ab4S3VersionKey7C762A56
+      Role:
+        Fn::GetAtt:
+          - PollyLambdaServiceRoleEEA63C4F
+          - Arn
+      Environment:
+        Variables:
+          Table:
+            Ref: PollyMetadataStoreD3C47057
+          OutputS3BucketName:
+            Ref: PollyAssetStore920EE247
+      Handler: polly.handler
+      MemorySize: 512
+      Runtime: nodejs14.x
+    DependsOn:
+      - PollyLambdaServiceRoleDefaultPolicy81DBEB21
+      - PollyLambdaServiceRoleEEA63C4F
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/PollyLambda/Resource
+      aws:asset:path: asset.8133f9982e92a10b9eaca6849bc719d92bc972c099bbcbe902bd908e41147ab4
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  FadeOutLambdaServiceRole38532E0E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/FadeOutLambda/ServiceRole/Resource
+  FadeOutLambdaServiceRoleDefaultPolicy82B43169:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyAssetStore920EE247
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PollyAssetStore920EE247
+                        - Arn
+                    - /*
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - PollyAssetStore920EE247
+                      - Arn
+                  - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyMetadataStoreD3C47057
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: FadeOutLambdaServiceRoleDefaultPolicy82B43169
+      Roles:
+        - Ref: FadeOutLambdaServiceRole38532E0E
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/FadeOutLambda/ServiceRole/DefaultPolicy/Resource
+  FadeOutLambdaA0054A15:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4S3Bucket72CAA8C1
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4S3VersionKeyA7869890
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4S3VersionKeyA7869890
+      Role:
+        Fn::GetAtt:
+          - FadeOutLambdaServiceRole38532E0E
+          - Arn
+      Environment:
+        Variables:
+          POLLY_METADATA_STORE:
+            Ref: PollyMetadataStoreD3C47057
+          FFMPEG_PREVIEW_DURATION: "30"
+          FFMPEG_FADEOUT_DURATION: "3"
+      Handler: fadeout.handler
+      MemorySize: 512
+      Runtime: python3.8
+    DependsOn:
+      - FadeOutLambdaServiceRoleDefaultPolicy82B43169
+      - FadeOutLambdaServiceRole38532E0E
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/FadeOutLambda/Resource
+      aws:asset:path: asset.4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ImagesLambdaServiceRole52337EDE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/ImagesLambda/ServiceRole/Resource
+  ImagesLambdaServiceRoleDefaultPolicy7FDF6DDE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyAssetStore920EE247
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PollyAssetStore920EE247
+                        - Arn
+                    - /*
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - PollyAssetStore920EE247
+                      - Arn
+                  - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyMetadataStoreD3C47057
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: ImagesLambdaServiceRoleDefaultPolicy7FDF6DDE
+      Roles:
+        - Ref: ImagesLambdaServiceRole52337EDE
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/ImagesLambda/ServiceRole/DefaultPolicy/Resource
+  ImagesLambdaF7C0805F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4S3Bucket72CAA8C1
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4S3VersionKeyA7869890
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4S3VersionKeyA7869890
+      Role:
+        Fn::GetAtt:
+          - ImagesLambdaServiceRole52337EDE
+          - Arn
+      Environment:
+        Variables:
+          POLLY_METADATA_STORE:
+            Ref: PollyMetadataStoreD3C47057
+      Handler: images.handler
+      MemorySize: 2048
+      Runtime: python3.8
+      Timeout: 90
+    DependsOn:
+      - ImagesLambdaServiceRoleDefaultPolicy7FDF6DDE
+      - ImagesLambdaServiceRole52337EDE
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/ImagesLambda/Resource
+      aws:asset:path: asset.4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  VideoLambdaServiceRoleEB56AC67:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AWSElementalMediaConvertFullAccess
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/VideoLambda/ServiceRole/Resource
+  VideoLambdaServiceRoleDefaultPolicyDC0862EA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MediaconvertPassDownRoleA9CA6459
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyAssetStore920EE247
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PollyAssetStore920EE247
+                        - Arn
+                    - /*
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - PollyAssetStore920EE247
+                      - Arn
+                  - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyMetadataStoreD3C47057
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: VideoLambdaServiceRoleDefaultPolicyDC0862EA
+      Roles:
+        - Ref: VideoLambdaServiceRoleEB56AC67
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/VideoLambda/ServiceRole/DefaultPolicy/Resource
+  VideoLambdaEA35D087:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters3aa939f3aa311987d91941a6d576627558b6111b2171d0e9ab8baee772165d99S3BucketFB78D08E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters3aa939f3aa311987d91941a6d576627558b6111b2171d0e9ab8baee772165d99S3VersionKey9D602F7F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters3aa939f3aa311987d91941a6d576627558b6111b2171d0e9ab8baee772165d99S3VersionKey9D602F7F
+      Role:
+        Fn::GetAtt:
+          - VideoLambdaServiceRoleEB56AC67
+          - Arn
+      Environment:
+        Variables:
+          POLLY_METADATA_STORE:
+            Ref: PollyMetadataStoreD3C47057
+          DestinationBucket:
+            Ref: PollyAssetStore920EE247
+          Application: VOD
+          MediaConvertRole:
+            Fn::GetAtt:
+              - MediaconvertPassDownRoleA9CA6459
+              - Arn
+      Handler: video.handler
+      MemorySize: 512
+      Runtime: python3.8
+    DependsOn:
+      - VideoLambdaServiceRoleDefaultPolicyDC0862EA
+      - VideoLambdaServiceRoleEB56AC67
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/VideoLambda/Resource
+      aws:asset:path: asset.3aa939f3aa311987d91941a6d576627558b6111b2171d0e9ab8baee772165d99
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  FinalizeUpdateLambdaServiceRole519E233D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/FinalizeUpdateLambda/ServiceRole/Resource
+  FinalizeUpdateLambdaServiceRoleDefaultPolicyAC140DF8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyMetadataStoreD3C47057
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: FinalizeUpdateLambdaServiceRoleDefaultPolicyAC140DF8
+      Roles:
+        - Ref: FinalizeUpdateLambdaServiceRole519E233D
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/FinalizeUpdateLambda/ServiceRole/DefaultPolicy/Resource
+  FinalizeUpdateLambda6AFAA7A0:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc941027460132bf7a6156831224b982465e8c76e3bc262bd2fb835f2c4ed6574S3Bucket63EEA871
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc941027460132bf7a6156831224b982465e8c76e3bc262bd2fb835f2c4ed6574S3VersionKeyFFB638CE
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc941027460132bf7a6156831224b982465e8c76e3bc262bd2fb835f2c4ed6574S3VersionKeyFFB638CE
+      Role:
+        Fn::GetAtt:
+          - FinalizeUpdateLambdaServiceRole519E233D
+          - Arn
+      Environment:
+        Variables:
+          POLLY_METADATA_STORE:
+            Ref: PollyMetadataStoreD3C47057
+      Handler: finalize.handler
+      MemorySize: 512
+      Runtime: python3.8
+    DependsOn:
+      - FinalizeUpdateLambdaServiceRoleDefaultPolicyAC140DF8
+      - FinalizeUpdateLambdaServiceRole519E233D
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/FinalizeUpdateLambda/Resource
+      aws:asset:path: asset.c941027460132bf7a6156831224b982465e8c76e3bc262bd2fb835f2c4ed6574
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |
+          import boto3  # type: ignore
+          import json
+          import logging
+          import urllib.request
+
+          s3 = boto3.client("s3")
+
+          EVENTBRIDGE_CONFIGURATION = 'EventBridgeConfiguration'
+
+          CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+          def handler(event: dict, context):
+            response_status = "SUCCESS"
+            error_message = ""
+            try:
+              props = event["ResourceProperties"]
+              bucket = props["BucketName"]
+              notification_configuration = props["NotificationConfiguration"]
+              request_type = event["RequestType"]
+              managed = props.get('Managed', 'true').lower() == 'true'
+              stack_id = event['StackId']
+
+              if managed:
+                config = handle_managed(request_type, notification_configuration)
+              else:
+                config = handle_unmanaged(bucket, stack_id, request_type, notification_configuration)
+
+              put_bucket_notification_configuration(bucket, config)
+            except Exception as e:
+              logging.exception("Failed to put bucket notification configuration")
+              response_status = "FAILED"
+              error_message = f"Error: {str(e)}. "
+            finally:
+              submit_response(event, context, response_status, error_message)
+
+          def handle_managed(request_type, notification_configuration):
+            if request_type == 'Delete':
+              return {}
+            return notification_configuration
+
+          def handle_unmanaged(bucket, stack_id, request_type, notification_configuration):
+            external_notifications = find_external_notifications(bucket, stack_id)
+
+            if request_type == 'Delete':
+              return external_notifications
+
+            def with_id(notification):
+              notification['Id'] = f"{stack_id}-{hash(json.dumps(notification, sort_keys=True))}"
+              return notification
+
+            notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external = external_notifications.get(t, [])
+              incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+              notifications[t] = external + incoming
+
+            if EVENTBRIDGE_CONFIGURATION in notification_configuration:
+              notifications[EVENTBRIDGE_CONFIGURATION] = notification_configuration[EVENTBRIDGE_CONFIGURATION]
+            elif EVENTBRIDGE_CONFIGURATION in external_notifications:
+              notifications[EVENTBRIDGE_CONFIGURATION] = external_notifications[EVENTBRIDGE_CONFIGURATION]
+
+            return notifications
+
+          def find_external_notifications(bucket, stack_id):
+            existing_notifications = get_bucket_notification_configuration(bucket)
+            external_notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+
+            if EVENTBRIDGE_CONFIGURATION in existing_notifications:
+              external_notifications[EVENTBRIDGE_CONFIGURATION] = existing_notifications[EVENTBRIDGE_CONFIGURATION]
+
+            return external_notifications
+
+          def get_bucket_notification_configuration(bucket):
+            return s3.get_bucket_notification_configuration(Bucket=bucket)
+
+          def put_bucket_notification_configuration(bucket, notification_configuration):
+            s3.put_bucket_notification_configuration(Bucket=bucket, NotificationConfiguration=notification_configuration)
+
+          def submit_response(event: dict, context, response_status: str, error_message: str):
+            response_body = json.dumps(
+              {
+                "Status": response_status,
+                "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                "StackId": event["StackId"],
+                "RequestId": event["RequestId"],
+                "LogicalResourceId": event["LogicalResourceId"],
+                "NoEcho": False,
+              }
+            ).encode("utf-8")
+            headers = {"content-type": "", "content-length": str(len(response_body))}
+            try:
+              req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+              with urllib.request.urlopen(req) as response:
+                print(response.read().decode("utf-8"))
+              print("Status code: " + response.reason)
+            except Exception as e:
+                print("send(..) failed executing request.urlopen(..): " + str(e))
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: python3.7
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02Q3U4CMRCFn4X7obiQGC8FjHdGgr7A0I5Y2LabTivZNH13ty2IV/PN78mZTnSPS/Ewe8YLz6U6L5J0nkT6CCjPsHWWg48ywPbL7old9JLgD9bMFKbJo7bHMrFDj4YC+ZK8xzDEujhdUTpoZzMUlcQrkTZRnql2r9TCzvVajvfyNW/JBpky9GgOCkUqeuSNZp4uw2u0skiU1RtnUKNF49RBpE889FSaFTJoNCLtXavVeJdulIFXcywOWVSjgIM+YqALjtMqcVgP+vqXG66ldNEGeKGhd6MhWx3+y8qzqmSD2yeLM3ij8O1UaTbKOYN1isSJFz/dk+iWopudWOu5nzS0IbFv8Rem2cYOxAEAAA==
+    Metadata:
+      aws:cdk:path: PollyPreviewSimpleStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParametersbd297045724e011d34f1d3f5cd915ed1de5174bb2f03177ef5e4e34bf0e413dcS3Bucket83587C68:
+    Type: String
+    Description: S3 bucket for asset "bd297045724e011d34f1d3f5cd915ed1de5174bb2f03177ef5e4e34bf0e413dc"
+  AssetParametersbd297045724e011d34f1d3f5cd915ed1de5174bb2f03177ef5e4e34bf0e413dcS3VersionKey73751CB8:
+    Type: String
+    Description: S3 key for asset version "bd297045724e011d34f1d3f5cd915ed1de5174bb2f03177ef5e4e34bf0e413dc"
+  AssetParametersbd297045724e011d34f1d3f5cd915ed1de5174bb2f03177ef5e4e34bf0e413dcArtifactHash50FD2761:
+    Type: String
+    Description: Artifact hash for asset "bd297045724e011d34f1d3f5cd915ed1de5174bb2f03177ef5e4e34bf0e413dc"
+  AssetParameters8133f9982e92a10b9eaca6849bc719d92bc972c099bbcbe902bd908e41147ab4S3Bucket44D5C11E:
+    Type: String
+    Description: S3 bucket for asset "8133f9982e92a10b9eaca6849bc719d92bc972c099bbcbe902bd908e41147ab4"
+  AssetParameters8133f9982e92a10b9eaca6849bc719d92bc972c099bbcbe902bd908e41147ab4S3VersionKey7C762A56:
+    Type: String
+    Description: S3 key for asset version "8133f9982e92a10b9eaca6849bc719d92bc972c099bbcbe902bd908e41147ab4"
+  AssetParameters8133f9982e92a10b9eaca6849bc719d92bc972c099bbcbe902bd908e41147ab4ArtifactHash0AF601DA:
+    Type: String
+    Description: Artifact hash for asset "8133f9982e92a10b9eaca6849bc719d92bc972c099bbcbe902bd908e41147ab4"
+  AssetParameters4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4S3Bucket72CAA8C1:
+    Type: String
+    Description: S3 bucket for asset "4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4"
+  AssetParameters4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4S3VersionKeyA7869890:
+    Type: String
+    Description: S3 key for asset version "4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4"
+  AssetParameters4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4ArtifactHashB78248C0:
+    Type: String
+    Description: Artifact hash for asset "4c7050cb4828ed667d83cc1fb7aca63f768825053578d804dec5a6a850b8b9c4"
+  AssetParameters3aa939f3aa311987d91941a6d576627558b6111b2171d0e9ab8baee772165d99S3BucketFB78D08E:
+    Type: String
+    Description: S3 bucket for asset "3aa939f3aa311987d91941a6d576627558b6111b2171d0e9ab8baee772165d99"
+  AssetParameters3aa939f3aa311987d91941a6d576627558b6111b2171d0e9ab8baee772165d99S3VersionKey9D602F7F:
+    Type: String
+    Description: S3 key for asset version "3aa939f3aa311987d91941a6d576627558b6111b2171d0e9ab8baee772165d99"
+  AssetParameters3aa939f3aa311987d91941a6d576627558b6111b2171d0e9ab8baee772165d99ArtifactHash53E081DA:
+    Type: String
+    Description: Artifact hash for asset "3aa939f3aa311987d91941a6d576627558b6111b2171d0e9ab8baee772165d99"
+  AssetParametersc941027460132bf7a6156831224b982465e8c76e3bc262bd2fb835f2c4ed6574S3Bucket63EEA871:
+    Type: String
+    Description: S3 bucket for asset "c941027460132bf7a6156831224b982465e8c76e3bc262bd2fb835f2c4ed6574"
+  AssetParametersc941027460132bf7a6156831224b982465e8c76e3bc262bd2fb835f2c4ed6574S3VersionKeyFFB638CE:
+    Type: String
+    Description: S3 key for asset version "c941027460132bf7a6156831224b982465e8c76e3bc262bd2fb835f2c4ed6574"
+  AssetParametersc941027460132bf7a6156831224b982465e8c76e3bc262bd2fb835f2c4ed6574ArtifactHashA8A1F066:
+    Type: String
+    Description: Artifact hash for asset "c941027460132bf7a6156831224b982465e8c76e3bc262bd2fb835f2c4ed6574"
+Outputs:
+  scrapeapiEndpointDF7F6C0E:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: scrapeapi8DBB03C5
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: scrapeapiDeploymentStageprodC6F0BE88
+          - /
+  APIEndpoint:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: scrapeapi8DBB03C5
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: scrapeapiDeploymentStageprodC6F0BE88
+          - /
+  AssetStoreBucketName:
+    Value:
+      Ref: PollyAssetStore920EE247
+  AssetStoreBucketArn:
+    Value:
+      Fn::GetAtt:
+        - PollyAssetStore920EE247
+        - Arn
+  MetadataStoreName:
+    Value:
+      Ref: PollyMetadataStoreD3C47057
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

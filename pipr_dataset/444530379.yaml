@@ -1,0 +1,314 @@
+{
+  scope: <ref *1> Rule {
+    node: ConstructNode { host: [Circular *1], _actualNode: [Node] },
+    stack: CdkStack {
+      node: [ConstructNode],
+      _missingContext: [],
+      _stackDependencies: {},
+      templateOptions: {},
+      _logicalIds: [LogicalIDs],
+      account: '036406153779',
+      region: 'us-east-1',
+      environment: 'aws://036406153779/us-east-1',
+      terminationProtection: undefined,
+      _stackName: 'CovidNotifyStack',
+      tags: [TagManager],
+      artifactId: 'CovidNotifyStack',
+      templateFile: 'CovidNotifyStack.template.json',
+      _versionReportingEnabled: true,
+      synthesizer: [LegacyStackSynthesizer],
+      [Symbol(@aws-cdk/core.DependableTrait)]: [Object]
+    },
+    env: { account: '036406153779', region: 'us-east-1' },
+    _physicalName: undefined,
+    _allowCrossEnvironment: false,
+    physicalName: '${Token[TOKEN.337]}',
+    targets: [],
+    eventPattern: {},
+    _xEnvTargetsAdded: Set(0) {},
+    description: undefined,
+    scheduleExpression: 'rate(5 minutes)',
+    ruleArn: '${Token[TOKEN.340]}',
+    ruleName: '${Token[TOKEN.342]}',
+    [Symbol(@aws-cdk/core.DependableTrait)]: { dependencyRoots: [Array] }
+  },
+  action: 'lambda:InvokeFunction',
+  principal: <ref *2> ServicePrincipal {
+    grantPrincipal: [Circular *2],
+    principalAccount: undefined,
+    assumeRoleAction: 'sts:AssumeRole',
+    service: 'events.amazonaws.com',
+    opts: {}
+  },
+  sourceArn: '${Token[TOKEN.340]}'
+}
+Resources:
+  covidtracker16EE4A8A:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: "N"
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/covid-tracker/Resource
+  pollerRoleE7F1DE89:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/pollerRole/Resource
+  pollerRoleDefaultPolicyE83BDCAC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - covidtracker16EE4A8A
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: pollerRoleDefaultPolicyE83BDCAC
+      Roles:
+        - Ref: pollerRoleE7F1DE89
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/pollerRole/DefaultPolicy/Resource
+  poller92632E39:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc77a1ca94e18a43972cd5390bb84a00a0d3ad88b2c04699658723a38bc2cda9cS3BucketE6E19F4F
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc77a1ca94e18a43972cd5390bb84a00a0d3ad88b2c04699658723a38bc2cda9cS3VersionKey5DD12D53
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc77a1ca94e18a43972cd5390bb84a00a0d3ad88b2c04699658723a38bc2cda9cS3VersionKey5DD12D53
+      Role:
+        Fn::GetAtt:
+          - pollerRoleE7F1DE89
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: covidtracker16EE4A8A
+          STATE: Vermont
+      Handler: poller.handler
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - pollerRoleDefaultPolicyE83BDCAC
+      - pollerRoleE7F1DE89
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/poller/Resource
+      aws:asset:path: asset.c77a1ca94e18a43972cd5390bb84a00a0d3ad88b2c04699658723a38bc2cda9c
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  pollerRule81C0BDB8:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(5 minutes)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - poller92632E39
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/pollerRule/Resource
+  pollerRuleAllowEventRuleCovidNotifyStackpollerDD5A19E1DD3649FB:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - poller92632E39
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - pollerRule81C0BDB8
+          - Arn
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/pollerRule/AllowEventRuleCovidNotifyStackpollerDD5A19E1
+  SecretA720EF05:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString: {}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/Secret/Resource
+  tweeterRole7C9D0CB2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/tweeterRole/Resource
+  tweeterRoleDefaultPolicyC294E98A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Ref: SecretA720EF05
+          - Action: dynamodb:ListStreams
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:DescribeStream
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - covidtracker16EE4A8A
+                - StreamArn
+        Version: "2012-10-17"
+      PolicyName: tweeterRoleDefaultPolicyC294E98A
+      Roles:
+        - Ref: tweeterRole7C9D0CB2
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/tweeterRole/DefaultPolicy/Resource
+  tweeterC48B93BC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameterseedd359b4e66062eebeba50d9e1f7857c354315ab2a7fde271b984f36960917dS3Bucket058ADA7E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterseedd359b4e66062eebeba50d9e1f7857c354315ab2a7fde271b984f36960917dS3VersionKey52149032
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterseedd359b4e66062eebeba50d9e1f7857c354315ab2a7fde271b984f36960917dS3VersionKey52149032
+      Role:
+        Fn::GetAtt:
+          - tweeterRole7C9D0CB2
+          - Arn
+      Environment:
+        Variables:
+          TWITTER_SECRET:
+            Ref: SecretA720EF05
+      Handler: tweeter.handler
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - tweeterRoleDefaultPolicyC294E98A
+      - tweeterRole7C9D0CB2
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/tweeter/Resource
+      aws:asset:path: asset.eedd359b4e66062eebeba50d9e1f7857c354315ab2a7fde271b984f36960917d
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  tweeterDynamoDBEventSourceCovidNotifyStackcovidtracker3D32BBEAD629F586:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: tweeterC48B93BC
+      BatchSize: 1
+      EventSourceArn:
+        Fn::GetAtt:
+          - covidtracker16EE4A8A
+          - StreamArn
+      MaximumRetryAttempts: 3
+      StartingPosition: TRIM_HORIZON
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/tweeter/DynamoDBEventSource:CovidNotifyStackcovidtracker3D32BBEA/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2VQTU/DMAz9LbunHmUHOMImuCFVHX/ATb0pa+NMcTI0RfnvNClISJz83vPXs1tod0/wsHnBL2n0OG2Tdp4gHQPqSfUkLnpN6lWEwqKdDZ/VwbEEH3VQhxN36NFSIF/Ib31WZVwa74zWjQOkTxxmKhUVZGXQQurdqtXYudnoe51YUVYz2mFESO+RdTCOS+4v7shbI1LY2404HOvqD7xeq8kT/1ezkl2D5RaBetLCYR/1RGGPQopKhyzO4o+zWMwKab90WGQ8k19+U3nJryjnrNiNBBfZ3tpnaB+h3VzEmMZHDsYS9Gv8BrTG1HhtAQAA
+    Metadata:
+      aws:cdk:path: CovidNotifyStack/CDKMetadata/Default
+Parameters:
+  AssetParametersc77a1ca94e18a43972cd5390bb84a00a0d3ad88b2c04699658723a38bc2cda9cS3BucketE6E19F4F:
+    Type: String
+    Description: S3 bucket for asset "c77a1ca94e18a43972cd5390bb84a00a0d3ad88b2c04699658723a38bc2cda9c"
+  AssetParametersc77a1ca94e18a43972cd5390bb84a00a0d3ad88b2c04699658723a38bc2cda9cS3VersionKey5DD12D53:
+    Type: String
+    Description: S3 key for asset version "c77a1ca94e18a43972cd5390bb84a00a0d3ad88b2c04699658723a38bc2cda9c"
+  AssetParametersc77a1ca94e18a43972cd5390bb84a00a0d3ad88b2c04699658723a38bc2cda9cArtifactHash32985A10:
+    Type: String
+    Description: Artifact hash for asset "c77a1ca94e18a43972cd5390bb84a00a0d3ad88b2c04699658723a38bc2cda9c"
+  AssetParameterseedd359b4e66062eebeba50d9e1f7857c354315ab2a7fde271b984f36960917dS3Bucket058ADA7E:
+    Type: String
+    Description: S3 bucket for asset "eedd359b4e66062eebeba50d9e1f7857c354315ab2a7fde271b984f36960917d"
+  AssetParameterseedd359b4e66062eebeba50d9e1f7857c354315ab2a7fde271b984f36960917dS3VersionKey52149032:
+    Type: String
+    Description: S3 key for asset version "eedd359b4e66062eebeba50d9e1f7857c354315ab2a7fde271b984f36960917d"
+  AssetParameterseedd359b4e66062eebeba50d9e1f7857c354315ab2a7fde271b984f36960917dArtifactHash3B72A195:
+    Type: String
+    Description: Artifact hash for asset "eedd359b4e66062eebeba50d9e1f7857c354315ab2a7fde271b984f36960917d"
+

@@ -1,0 +1,967 @@
+Resources:
+  WillItThrottle982F7158:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/WillItThrottle/Resource
+  WillItThrottleDashBoard012C0D09:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardBody:
+        Fn::Join:
+          - ""
+          - - '{"widgets":[{"type":"metric","width":6,"height":6,"x":0,"y":0,"properties":{"view":"timeSeries","title":"DynamoDB Test","region":"'
+            - Ref: AWS::Region
+            - '","metrics":[["AWS/DynamoDB","ReadThrottleEvents","TableName","'
+            - Ref: WillItThrottle982F7158
+            - '",{"period":60,"stat":"Sum"}],["AWS/DynamoDB","WriteThrottleEvents","TableName","'
+            - Ref: WillItThrottle982F7158
+            - '",{"period":60,"stat":"Sum"}],[{"label":"Consumed RCUs","color":"#114477","expression":"r/60","yAxis":"right"}],["AWS/DynamoDB","ConsumedReadCapacityUnits","TableName","'
+            - Ref: WillItThrottle982F7158
+            - '",{"period":60,"stat":"Sum","visible":false,"id":"r"}],[{"label":"Consumed WCUs","color":"#117744","expression":"w/60","yAxis":"right"}],["AWS/DynamoDB","ConsumedWriteCapacityUnits","TableName","'
+            - Ref: WillItThrottle982F7158
+            - '",{"period":60,"stat":"Sum","visible":false,"id":"w"}]],"annotations":{"horizontal":[{"label":"RCU Node Limit","color":"#114477","value":3000,"yAxis":"right"},{"label":"WCU Node Limit","color":"#117744","value":1000,"yAxis":"right"}]},"yAxis":{}}}]}'
+      DashboardName: DynamoDB-AC-Auto-Split-Tests
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/WillItThrottleDashBoard/WillItThrottleDashBoard/Resource
+  Vpc8378EB38:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: DynamodbLoadTestStack/Vpc
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/Resource
+  VpcPublicSubnet1Subnet5C2D37C4:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/17
+      VpcId:
+        Ref: Vpc8378EB38
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: DynamodbLoadTestStack/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/PublicSubnet1/Subnet
+  VpcPublicSubnet1RouteTable6C95E38E:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: Vpc8378EB38
+      Tags:
+        - Key: Name
+          Value: DynamodbLoadTestStack/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/PublicSubnet1/RouteTable
+  VpcPublicSubnet1RouteTableAssociation97140677:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VpcPublicSubnet1RouteTable6C95E38E
+      SubnetId:
+        Ref: VpcPublicSubnet1Subnet5C2D37C4
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/PublicSubnet1/RouteTableAssociation
+  VpcPublicSubnet1DefaultRoute3DA9E72A:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VpcPublicSubnet1RouteTable6C95E38E
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: VpcIGWD7BA715C
+    DependsOn:
+      - VpcVPCGWBF912B6E
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/PublicSubnet1/DefaultRoute
+  VpcPublicSubnet1EIPD7E02669:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: DynamodbLoadTestStack/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/PublicSubnet1/EIP
+  VpcPublicSubnet1NATGateway4D7517AA:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - VpcPublicSubnet1EIPD7E02669
+          - AllocationId
+      SubnetId:
+        Ref: VpcPublicSubnet1Subnet5C2D37C4
+      Tags:
+        - Key: Name
+          Value: DynamodbLoadTestStack/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/PublicSubnet1/NATGateway
+  VpcPrivateSubnet1Subnet536B997A:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/17
+      VpcId:
+        Ref: Vpc8378EB38
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: DynamodbLoadTestStack/Vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/PrivateSubnet1/Subnet
+  VpcPrivateSubnet1RouteTableB2C5B500:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: Vpc8378EB38
+      Tags:
+        - Key: Name
+          Value: DynamodbLoadTestStack/Vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/PrivateSubnet1/RouteTable
+  VpcPrivateSubnet1RouteTableAssociation70C59FA6:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VpcPrivateSubnet1RouteTableB2C5B500
+      SubnetId:
+        Ref: VpcPrivateSubnet1Subnet536B997A
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/PrivateSubnet1/RouteTableAssociation
+  VpcPrivateSubnet1DefaultRouteBE02A9ED:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VpcPrivateSubnet1RouteTableB2C5B500
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: VpcPublicSubnet1NATGateway4D7517AA
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/PrivateSubnet1/DefaultRoute
+  VpcIGWD7BA715C:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: DynamodbLoadTestStack/Vpc
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/IGW
+  VpcVPCGWBF912B6E:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: Vpc8378EB38
+      InternetGatewayId:
+        Ref: VpcIGWD7BA715C
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/Vpc/VPCGW
+  FargateCluster7CCD5F93:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/FargateCluster/Resource
+  TestWorkerRole9F777ACE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/TestWorkerRole/Resource
+  TestWorkerRoleDefaultPolicy92F24278:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - WillItThrottle982F7158
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: TestWorkerRoleDefaultPolicy92F24278
+      Roles:
+        - Ref: TestWorkerRole9F777ACE
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/TestWorkerRole/DefaultPolicy/Resource
+  FargateWorkerDDBTestWorkerTask14A2E37E:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: TABLE_NAME
+              Value:
+                Ref: WillItThrottle982F7158
+          Essential: true
+          Image:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::AccountId
+                - .dkr.ecr.
+                - Ref: AWS::Region
+                - "."
+                - Ref: AWS::URLSuffix
+                - /aws-cdk/assets:b64f0cf8a25ff896da9af7119b55213778b8c03aab4370c9aeb0c3c000fe78bb
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: FargateWorkerDDBTestWorkerTaskDDBTestWorkerTaskContainerLogGroupA9411027
+              awslogs-stream-prefix: DDBTestWorkerTaskContainer
+              awslogs-region:
+                Ref: AWS::Region
+          Name: DDBTestWorkerTaskContainer
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - FargateWorkerDDBTestWorkerTaskExecutionRole2524BB02
+          - Arn
+      Family: DynamodbLoadTestStackFargateWorkerDDBTestWorkerTaskACDBF2B9
+      Memory: "1024"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - TestWorkerRole9F777ACE
+          - Arn
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/FargateWorker/DDBTestWorkerTask/Resource
+  FargateWorkerDDBTestWorkerTaskDDBTestWorkerTaskContainerLogGroupA9411027:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/FargateWorker/DDBTestWorkerTask/DDBTestWorkerTaskContainer/LogGroup/Resource
+  FargateWorkerDDBTestWorkerTaskExecutionRole2524BB02:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/FargateWorker/DDBTestWorkerTask/ExecutionRole/Resource
+  FargateWorkerDDBTestWorkerTaskExecutionRoleDefaultPolicyCCE7FFA5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ecr:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :repository/aws-cdk/assets
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - FargateWorkerDDBTestWorkerTaskDDBTestWorkerTaskContainerLogGroupA9411027
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: FargateWorkerDDBTestWorkerTaskExecutionRoleDefaultPolicyCCE7FFA5
+      Roles:
+        - Ref: FargateWorkerDDBTestWorkerTaskExecutionRole2524BB02
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/FargateWorker/DDBTestWorkerTask/ExecutionRole/DefaultPolicy/Resource
+  InsertWorker0SecurityGroupFBACA377:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DynamodbLoadTestStack/InsertWorker 0/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: Vpc8378EB38
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/InsertWorker 0/SecurityGroup/Resource
+  ReadWorker0SecurityGroup41387CED:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DynamodbLoadTestStack/ReadWorker 0/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: Vpc8378EB38
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/ReadWorker 0/SecurityGroup/Resource
+  UpdateWorker0SecurityGroup6DF4FC63:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DynamodbLoadTestStack/UpdateWorker 0/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: Vpc8378EB38
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/UpdateWorker 0/SecurityGroup/Resource
+  TestDeploymentDeploymentManagerF8FDD47D:
+    Type: Custom::DeploymentManager
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - comgisscustomresourcesdeploymentmanagerproviderframeworkonEvent1955B04B
+          - Arn
+      StartTime: "1705546783244"
+      ExecInput: '{"resumeTo":"InsertData","runNext":"YES"}'
+      StateMachine:
+        Ref: comgissawsstepfunctionsdeploymentmanagerstatemachine90B6F847
+      LastCfnUpdate: "1705546783261"
+    DependsOn:
+      - VpcIGWD7BA715C
+      - VpcPrivateSubnet1DefaultRouteBE02A9ED
+      - VpcPrivateSubnet1RouteTableB2C5B500
+      - VpcPrivateSubnet1RouteTableAssociation70C59FA6
+      - VpcPrivateSubnet1Subnet536B997A
+      - VpcPublicSubnet1DefaultRoute3DA9E72A
+      - VpcPublicSubnet1EIPD7E02669
+      - VpcPublicSubnet1NATGateway4D7517AA
+      - VpcPublicSubnet1RouteTable6C95E38E
+      - VpcPublicSubnet1RouteTableAssociation97140677
+      - VpcPublicSubnet1Subnet5C2D37C4
+      - Vpc8378EB38
+      - VpcVPCGWBF912B6E
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/TestDeployment/DeploymentManager/Default
+  comgisscustomresourcesdeploymentmanagerproviderdeploymentoneventServiceRole9D3F5582:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/com.giss.custom-resources.deploymentmanager-provider/deployment-on-event/ServiceRole/Resource
+  comgisscustomresourcesdeploymentmanagerproviderdeploymentoneventServiceRoleDefaultPolicy0D87B9BF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - states:DescribeStateMachine
+              - states:StartExecution
+              - states:DeleteStateMachine
+              - states:ListExecutions
+              - states:UpdateStateMachine
+              - states:DescribeExecution
+              - states:DescribeStateMachineForExecution
+              - states:GetExecutionHistory
+              - states:StopExecution
+            Effect: Allow
+            Resource:
+              - arn:aws:states:*:*:stateMachine:DeploymentManager*
+              - arn:aws:states:*:*:execution:*:DeploymentManager*
+        Version: "2012-10-17"
+      PolicyName: comgisscustomresourcesdeploymentmanagerproviderdeploymentoneventServiceRoleDefaultPolicy0D87B9BF
+      Roles:
+        - Ref: comgisscustomresourcesdeploymentmanagerproviderdeploymentoneventServiceRole9D3F5582
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/com.giss.custom-resources.deploymentmanager-provider/deployment-on-event/ServiceRole/DefaultPolicy/Resource
+  comgisscustomresourcesdeploymentmanagerproviderdeploymentonevent9C935C4C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters59b0d0116f0cb86bf754338e557c07beaf0086b3345ef703e230a26dd5453dabS3Bucket7AFC507C
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters59b0d0116f0cb86bf754338e557c07beaf0086b3345ef703e230a26dd5453dabS3VersionKey3BA5F753
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters59b0d0116f0cb86bf754338e557c07beaf0086b3345ef703e230a26dd5453dabS3VersionKey3BA5F753
+      Handler: index.onEvent
+      Role:
+        Fn::GetAtt:
+          - comgisscustomresourcesdeploymentmanagerproviderdeploymentoneventServiceRole9D3F5582
+          - Arn
+      Runtime: nodejs10.x
+    DependsOn:
+      - comgisscustomresourcesdeploymentmanagerproviderdeploymentoneventServiceRoleDefaultPolicy0D87B9BF
+      - comgisscustomresourcesdeploymentmanagerproviderdeploymentoneventServiceRole9D3F5582
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/com.giss.custom-resources.deploymentmanager-provider/deployment-on-event/Resource
+      aws:asset:path: asset.59b0d0116f0cb86bf754338e557c07beaf0086b3345ef703e230a26dd5453dab
+      aws:asset:property: Code
+  comgisscustomresourcesdeploymentmanagerproviderframeworkonEventServiceRoleEBF1B140:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/com.giss.custom-resources.deploymentmanager-provider/com.giss.custom-resources.deploymentmanager-provider/framework-onEvent/ServiceRole/Resource
+  comgisscustomresourcesdeploymentmanagerproviderframeworkonEventServiceRoleDefaultPolicyB502BD90:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - comgisscustomresourcesdeploymentmanagerproviderdeploymentonevent9C935C4C
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: comgisscustomresourcesdeploymentmanagerproviderframeworkonEventServiceRoleDefaultPolicyB502BD90
+      Roles:
+        - Ref: comgisscustomresourcesdeploymentmanagerproviderframeworkonEventServiceRoleEBF1B140
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/com.giss.custom-resources.deploymentmanager-provider/com.giss.custom-resources.deploymentmanager-provider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  comgisscustomresourcesdeploymentmanagerproviderframeworkonEvent1955B04B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4c2988a57571fd4c34de12bae67441541aeea1a59e085f95e5b708922ff45061S3Bucket0A1029B1
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4c2988a57571fd4c34de12bae67441541aeea1a59e085f95e5b708922ff45061S3VersionKeyFB75FDAC
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4c2988a57571fd4c34de12bae67441541aeea1a59e085f95e5b708922ff45061S3VersionKeyFB75FDAC
+      Handler: framework.onEvent
+      Role:
+        Fn::GetAtt:
+          - comgisscustomresourcesdeploymentmanagerproviderframeworkonEventServiceRoleEBF1B140
+          - Arn
+      Runtime: nodejs10.x
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - comgisscustomresourcesdeploymentmanagerproviderdeploymentonevent9C935C4C
+              - Arn
+      Timeout: 900
+    DependsOn:
+      - comgisscustomresourcesdeploymentmanagerproviderframeworkonEventServiceRoleDefaultPolicyB502BD90
+      - comgisscustomresourcesdeploymentmanagerproviderframeworkonEventServiceRoleEBF1B140
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/com.giss.custom-resources.deploymentmanager-provider/com.giss.custom-resources.deploymentmanager-provider/framework-onEvent/Resource
+      aws:asset:path: asset.4c2988a57571fd4c34de12bae67441541aeea1a59e085f95e5b708922ff45061
+      aws:asset:property: Code
+  comgissawsstepfunctionsdeploymentmanagerstatemachineRoleD31B7BC0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/com.giss.aws-stepfunctions.deploymentmanager-statemachine/Role/Resource
+  comgissawsstepfunctionsdeploymentmanagerstatemachineRoleDefaultPolicy7D7453EC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ecs:RunTask
+            Effect: Allow
+            Resource:
+              Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+          - Action:
+              - ecs:StopTask
+              - ecs:DescribeTasks
+            Effect: Allow
+            Resource: "*"
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TestWorkerRole9F777ACE
+                  - Arn
+              - Fn::GetAtt:
+                  - FargateWorkerDDBTestWorkerTaskExecutionRole2524BB02
+                  - Arn
+          - Action:
+              - events:PutTargets
+              - events:PutRule
+              - events:DescribeRule
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":events:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :rule/StepFunctionsGetEventsForECSTaskRule
+        Version: "2012-10-17"
+      PolicyName: comgissawsstepfunctionsdeploymentmanagerstatemachineRoleDefaultPolicy7D7453EC
+      Roles:
+        - Ref: comgissawsstepfunctionsdeploymentmanagerstatemachineRoleD31B7BC0
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/com.giss.aws-stepfunctions.deploymentmanager-statemachine/Role/DefaultPolicy/Resource
+  comgissawsstepfunctionsdeploymentmanagerstatemachine90B6F847:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - comgissawsstepfunctionsdeploymentmanagerstatemachineRoleD31B7BC0
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"ResumeTo","States":{"ResumeTo":{"Type":"Choice","Choices":[{"Variable":"$.resumeTo","StringEquals":"InsertData","Next":"InsertData"},{"Variable":"$.resumeTo","StringEquals":"QuitAfterInsert?","Next":"QuitAfterInsert?"},{"Variable":"$.resumeTo","StringEquals":"ReadData","Next":"ReadData"},{"Variable":"$.resumeTo","StringEquals":"Quit","Next":"Quit"},{"Variable":"$.resumeTo","StringEquals":"QuitAfterRead?","Next":"QuitAfterRead?"},{"Variable":"$.resumeTo","StringEquals":"UpdateData","Next":"UpdateData"}],"Default":"InsertData"},"InsertData":{"Type":"Parallel","ResultPath":null,"Next":"QuitAfterInsert?","Branches":[{"StartAt":"INSERT 0","States":{"INSERT 0":{"Type":"Wait","Seconds":0,"Next":"InsertWorker 0"},"InsertWorker 0":{"End":true,"Parameters":{"Cluster":"'
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - InsertWorker0SecurityGroupFBACA377
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/insert.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"INSERT 1","States":{"INSERT 1":{"Type":"Wait","Seconds":1,"Next":"InsertWorker 1"},"InsertWorker 1":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - InsertWorker0SecurityGroupFBACA377
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/insert.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"INSERT 2","States":{"INSERT 2":{"Type":"Wait","Seconds":2,"Next":"InsertWorker 2"},"InsertWorker 2":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - InsertWorker0SecurityGroupFBACA377
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/insert.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}}]},"QuitAfterInsert?":{"Type":"Choice","Choices":[{"Variable":"$.runNext","StringEquals":"NO","Next":"Quit"}],"Default":"ReadData"},"ReadData":{"Type":"Parallel","ResultPath":null,"Next":"QuitAfterRead?","Branches":[{"StartAt":"READ 0","States":{"READ 0":{"Type":"Wait","Seconds":0,"Next":"ReadWorker 0"},"ReadWorker 0":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - ReadWorker0SecurityGroup41387CED
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/read.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"READ 1","States":{"READ 1":{"Type":"Wait","Seconds":1,"Next":"ReadWorker 1"},"ReadWorker 1":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - ReadWorker0SecurityGroup41387CED
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/read.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"READ 2","States":{"READ 2":{"Type":"Wait","Seconds":2,"Next":"ReadWorker 2"},"ReadWorker 2":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - ReadWorker0SecurityGroup41387CED
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/read.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"READ 3","States":{"READ 3":{"Type":"Wait","Seconds":3,"Next":"ReadWorker 3"},"ReadWorker 3":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - ReadWorker0SecurityGroup41387CED
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/read.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"READ 4","States":{"READ 4":{"Type":"Wait","Seconds":4,"Next":"ReadWorker 4"},"ReadWorker 4":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - ReadWorker0SecurityGroup41387CED
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/read.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"READ 5","States":{"READ 5":{"Type":"Wait","Seconds":5,"Next":"ReadWorker 5"},"ReadWorker 5":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - ReadWorker0SecurityGroup41387CED
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/read.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"READ 6","States":{"READ 6":{"Type":"Wait","Seconds":6,"Next":"ReadWorker 6"},"ReadWorker 6":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - ReadWorker0SecurityGroup41387CED
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/read.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"READ 7","States":{"READ 7":{"Type":"Wait","Seconds":7,"Next":"ReadWorker 7"},"ReadWorker 7":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - ReadWorker0SecurityGroup41387CED
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/read.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"READ 8","States":{"READ 8":{"Type":"Wait","Seconds":8,"Next":"ReadWorker 8"},"ReadWorker 8":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - ReadWorker0SecurityGroup41387CED
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/read.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}}]},"QuitAfterRead?":{"Type":"Choice","Choices":[{"Variable":"$.runNext","StringEquals":"NO","Next":"Quit"}],"Default":"UpdateData"},"UpdateData":{"Type":"Parallel","ResultPath":null,"End":true,"Branches":[{"StartAt":"UPDATE 0","States":{"UPDATE 0":{"Type":"Wait","Seconds":0,"Next":"UpdateWorker 0"},"UpdateWorker 0":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - UpdateWorker0SecurityGroup6DF4FC63
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/update.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"UPDATE 1","States":{"UPDATE 1":{"Type":"Wait","Seconds":1,"Next":"UpdateWorker 1"},"UpdateWorker 1":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - UpdateWorker0SecurityGroup6DF4FC63
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/update.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}},{"StartAt":"UPDATE 2","States":{"UPDATE 2":{"Type":"Wait","Seconds":2,"Next":"UpdateWorker 2"},"UpdateWorker 2":{"End":true,"Parameters":{"Cluster":"
+            - Fn::GetAtt:
+                - FargateCluster7CCD5F93
+                - Arn
+            - '","TaskDefinition":"'
+            - Ref: FargateWorkerDDBTestWorkerTask14A2E37E
+            - '","NetworkConfiguration":{"AwsvpcConfiguration":{"Subnets":["'
+            - Ref: VpcPrivateSubnet1Subnet536B997A
+            - '"],"SecurityGroups":["'
+            - Fn::GetAtt:
+                - UpdateWorker0SecurityGroup6DF4FC63
+                - GroupId
+            - '"]}},"Overrides":{"ContainerOverrides":[{"Name":"DDBTestWorkerTaskContainer","Command":["ts-node","/opt/update.ts"],"Environment":[{"Name":"DURATION","Value":"60"},{"Name":"LOAD","Value":"200"},{"Name":"INTERVAL","Value":"1000"},{"Name":"INCREMENT","Value":"0.00"},{"Name":"LOAD_LIMIT","Value":"-1"},{"Name":"INC_TIME","Value":"60"}]}]},"LaunchType":"FARGATE"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::ecs:runTask.sync"}}}]},"Quit":{"Type":"Pass","End":true}}}
+      StateMachineName: DeploymentManager-DynamodbLoadTestStack
+    DependsOn:
+      - comgissawsstepfunctionsdeploymentmanagerstatemachineRoleDefaultPolicy7D7453EC
+      - comgissawsstepfunctionsdeploymentmanagerstatemachineRoleD31B7BC0
+    Metadata:
+      aws:cdk:path: DynamodbLoadTestStack/com.giss.aws-stepfunctions.deploymentmanager-statemachine/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.42.0,@aws-cdk/aws-applicationautoscaling=1.42.0,@aws-cdk/aws-autoscaling=1.42.0,@aws-cdk/aws-autoscaling-common=1.42.0,@aws-cdk/aws-autoscaling-hooktargets=1.42.0,@aws-cdk/aws-cloudformation=1.42.0,@aws-cdk/aws-cloudwatch=1.42.0,@aws-cdk/aws-dynamodb=1.42.0,@aws-cdk/aws-ec2=1.42.0,@aws-cdk/aws-ecr=1.42.0,@aws-cdk/aws-ecr-assets=1.42.0,@aws-cdk/aws-ecs=1.42.0,@aws-cdk/aws-elasticloadbalancingv2=1.42.0,@aws-cdk/aws-events=1.42.0,@aws-cdk/aws-iam=1.42.0,@aws-cdk/aws-kms=1.42.0,@aws-cdk/aws-lambda=1.42.0,@aws-cdk/aws-logs=1.42.0,@aws-cdk/aws-s3=1.42.0,@aws-cdk/aws-s3-assets=1.42.0,@aws-cdk/aws-servicediscovery=1.42.0,@aws-cdk/aws-sns=1.42.0,@aws-cdk/aws-sns-subscriptions=1.42.0,@aws-cdk/aws-sqs=1.42.0,@aws-cdk/aws-ssm=1.42.0,@aws-cdk/aws-stepfunctions=1.42.0,@aws-cdk/aws-stepfunctions-tasks=1.42.0,@aws-cdk/cdk-assets-schema=1.42.0,@aws-cdk/cloud-assembly-schema=1.42.0,@aws-cdk/core=1.42.0,@aws-cdk/custom-resources=1.42.0,@aws-cdk/cx-api=1.42.0,@aws-cdk/region-info=1.42.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Outputs:
+  TestDeploymentTaskStatesCEDEC084:
+    Value:
+      Fn::Join:
+        - ""
+        - - '"'
+          - Fn::GetAtt:
+              - TestDeploymentDeploymentManagerF8FDD47D
+              - AttrTaskStates
+          - '"'
+  TestDeploymentCurrentStatus371BAFE8:
+    Value:
+      Fn::GetAtt:
+        - TestDeploymentDeploymentManagerF8FDD47D
+        - CurrentStatus
+  TestDeploymentLinkToConsole9C1869BC:
+    Description: description
+    Value:
+      Fn::Join:
+        - ""
+        - - https://console.aws.amazon.com/states/home?region=
+          - Ref: AWS::Region
+          - "#/executions/details/"
+          - Fn::GetAtt:
+              - TestDeploymentDeploymentManagerF8FDD47D
+              - LastExecutionArn
+    Export:
+      Name: exportName
+Parameters:
+  AssetParameters59b0d0116f0cb86bf754338e557c07beaf0086b3345ef703e230a26dd5453dabS3Bucket7AFC507C:
+    Type: String
+    Description: S3 bucket for asset "59b0d0116f0cb86bf754338e557c07beaf0086b3345ef703e230a26dd5453dab"
+  AssetParameters59b0d0116f0cb86bf754338e557c07beaf0086b3345ef703e230a26dd5453dabS3VersionKey3BA5F753:
+    Type: String
+    Description: S3 key for asset version "59b0d0116f0cb86bf754338e557c07beaf0086b3345ef703e230a26dd5453dab"
+  AssetParameters59b0d0116f0cb86bf754338e557c07beaf0086b3345ef703e230a26dd5453dabArtifactHash28FC2312:
+    Type: String
+    Description: Artifact hash for asset "59b0d0116f0cb86bf754338e557c07beaf0086b3345ef703e230a26dd5453dab"
+  AssetParameters4c2988a57571fd4c34de12bae67441541aeea1a59e085f95e5b708922ff45061S3Bucket0A1029B1:
+    Type: String
+    Description: S3 bucket for asset "4c2988a57571fd4c34de12bae67441541aeea1a59e085f95e5b708922ff45061"
+  AssetParameters4c2988a57571fd4c34de12bae67441541aeea1a59e085f95e5b708922ff45061S3VersionKeyFB75FDAC:
+    Type: String
+    Description: S3 key for asset version "4c2988a57571fd4c34de12bae67441541aeea1a59e085f95e5b708922ff45061"
+  AssetParameters4c2988a57571fd4c34de12bae67441541aeea1a59e085f95e5b708922ff45061ArtifactHash40CCFA64:
+    Type: String
+    Description: Artifact hash for asset "4c2988a57571fd4c34de12bae67441541aeea1a59e085f95e5b708922ff45061"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

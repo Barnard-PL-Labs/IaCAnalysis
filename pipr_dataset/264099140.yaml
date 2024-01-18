@@ -1,0 +1,93 @@
+Resources:
+  SecurityGroupDD263621:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow mqtt, rdp and opc/tcp access to ec2 instances from anywhere
+      GroupName: windows-opcua-security-group
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: allow public rdp access
+          FromPort: 3389
+          IpProtocol: tcp
+          ToPort: 3389
+        - CidrIp: 0.0.0.0/0
+          Description: allow public mqtt access
+          FromPort: 8883
+          IpProtocol: tcp
+          ToPort: 8883
+        - CidrIp: 0.0.0.0/0
+          Description: allow public mqtt access
+          FromPort: 1883
+          IpProtocol: tcp
+          ToPort: 1883
+        - CidrIp: 0.0.0.0/0
+          Description: allow public opc-ua access
+          FromPort: 4840
+          IpProtocol: tcp
+          ToPort: 4840
+        - CidrIp: 0.0.0.0/0
+          Description: allow public opc-ua access
+          FromPort: 48030
+          IpProtocol: tcp
+          ToPort: 48030
+      VpcId: vpc-03e3cbf7aad43a723
+    Metadata:
+      aws:cdk:path: Ec2CustomAmiStack/SecurityGroup/Resource
+  WindowsEC2InstanceInstanceRoleA5A23425:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: Name
+          Value: Ec2CustomAmiStack/Windows EC2 Instance
+    Metadata:
+      aws:cdk:path: Ec2CustomAmiStack/Windows EC2 Instance/InstanceRole/Resource
+  WindowsEC2InstanceInstanceProfileCFADF74C:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: WindowsEC2InstanceInstanceRoleA5A23425
+    Metadata:
+      aws:cdk:path: Ec2CustomAmiStack/Windows EC2 Instance/InstanceProfile
+  WindowsEC2Instance662D4F30:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: eu-central-1a
+      IamInstanceProfile:
+        Ref: WindowsEC2InstanceInstanceProfileCFADF74C
+      ImageId: ami-03b8ccac039488e94
+      InstanceType: t3.medium
+      KeyName: my_keypair_name
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - SecurityGroupDD263621
+            - GroupId
+      SubnetId: subnet-0121efb2a573ef6f5
+      Tags:
+        - Key: Name
+          Value: Ec2CustomAmiStack/Windows EC2 Instance
+      UserData:
+        Fn::Base64: <powershell></powershell>
+    DependsOn:
+      - WindowsEC2InstanceInstanceRoleA5A23425
+    Metadata:
+      aws:cdk:path: Ec2CustomAmiStack/Windows EC2 Instance/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/aws-cloudwatch=1.45.0,@aws-cdk/aws-ec2=1.45.0,@aws-cdk/aws-events=1.45.0,@aws-cdk/aws-iam=1.45.0,@aws-cdk/aws-kms=1.45.0,@aws-cdk/aws-logs=1.45.0,@aws-cdk/aws-s3=1.45.0,@aws-cdk/aws-ssm=1.45.0,@aws-cdk/cdk-assets-schema=1.45.0,@aws-cdk/cloud-assembly-schema=1.45.0,@aws-cdk/core=1.45.0,@aws-cdk/cx-api=1.45.0,@aws-cdk/region-info=1.45.0,jsii-runtime=node.js/v18.12.1
+Outputs:
+  EC2instance:
+    Value:
+      Ref: WindowsEC2Instance662D4F30
+

@@ -1,0 +1,1225 @@
+Resources:
+  AppEventBusAEEA9E1B:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name:
+        Fn::Join:
+          - ""
+          - - AppEventBus-
+            - Ref: AWS::StackName
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/AppEventBus/Resource
+  EventStoreTable42ED2C65:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: who
+          KeyType: HASH
+        - AttributeName: timeWhat
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: who
+          AttributeType: S
+        - AttributeName: timeWhat
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/EventStoreTable/Resource
+  EventStoreFunctionServiceRole63739D3F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/EventStoreFunction/ServiceRole/Resource
+  EventStoreFunctionServiceRoleDefaultPolicy8965952F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - EventStoreTable42ED2C65
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: EventStoreFunctionServiceRoleDefaultPolicy8965952F
+      Roles:
+        - Ref: EventStoreFunctionServiceRole63739D3F
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/EventStoreFunction/ServiceRole/DefaultPolicy/Resource
+  EventStoreFunctionD0069C2C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: e49f13675666feeef616e27e6748110ec89bba058cf97bbf6929cbf48d347f7a.zip
+      Role:
+        Fn::GetAtt:
+          - EventStoreFunctionServiceRole63739D3F
+          - Arn
+      Environment:
+        Variables:
+          STORE_TABLE:
+            Ref: EventStoreTable42ED2C65
+      Handler: app.lambdaHandler
+      Runtime: nodejs14.x
+    DependsOn:
+      - EventStoreFunctionServiceRoleDefaultPolicy8965952F
+      - EventStoreFunctionServiceRole63739D3F
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/EventStoreFunction/Resource
+      aws:asset:path: asset.e49f13675666feeef616e27e6748110ec89bba058cf97bbf6929cbf48d347f7a
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  StoreEventRule3434876C:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Ref: AppEventBusAEEA9E1B
+      EventPattern:
+        source:
+          - prefix: ""
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - EventStoreFunctionD0069C2C
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/StoreEventRule/Resource
+  StoreEventRuleAllowEventRuleCdkEventbridgeStackEventStoreFunction5D0827C00868C2B5:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - EventStoreFunctionD0069C2C
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - StoreEventRule3434876C
+          - Arn
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/StoreEventRule/AllowEventRuleCdkEventbridgeStackEventStoreFunction5D0827C0
+  HelpersLayerA1EB159D:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: c4be13c9835d308530918d82ce24243a83b8e224a556c5a5ee55a65c034460b0.zip
+      CompatibleRuntimes:
+        - nodejs14.x
+      Description: Layer that will be shared across multiple microservices
+      LayerName: CDK-Events-Advanced-Helpers
+      LicenseInfo: Available under the MIT license
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/HelpersLayer/Resource
+      aws:asset:path: asset.c4be13c9835d308530918d82ce24243a83b8e224a556c5a5ee55a65c034460b0
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  UuidLayer956C9E47:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 62117392a13d4b0962343803d3eb7d9ddf14cf1cddda6f7b52cbad0abef58b6d.zip
+      CompatibleRuntimes:
+        - nodejs14.x
+      Description: Layer that contains one version of UUID library
+      LayerName: CDK-Events-Advanced-Uuid
+      LicenseInfo: Available under the MIT license
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/UuidLayer/Resource
+      aws:asset:path: asset.62117392a13d4b0962343803d3eb7d9ddf14cf1cddda6f7b52cbad0abef58b6d
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  OrderTable416EB896:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: customerId
+          KeyType: HASH
+        - AttributeName: orderId
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: customerId
+          AttributeType: S
+        - AttributeName: orderId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderTable/Resource
+  OrderFunctionServiceRole3E66F569:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderFunction/ServiceRole/Resource
+  OrderFunctionServiceRoleDefaultPolicyC38EDEDD:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - OrderTable416EB896
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: OrderFunctionServiceRoleDefaultPolicyC38EDEDD
+      Roles:
+        - Ref: OrderFunctionServiceRole3E66F569
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderFunction/ServiceRole/DefaultPolicy/Resource
+  OrderFunctionFABF799C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: fb660766c4cb35f2290cc32661aefb44d3b44805015be886ee1e469071a4cd26.zip
+      Role:
+        Fn::GetAtt:
+          - OrderFunctionServiceRole3E66F569
+          - Arn
+      Environment:
+        Variables:
+          ORDER_TABLE:
+            Ref: OrderTable416EB896
+          EVENT_BUS:
+            Ref: AppEventBusAEEA9E1B
+      Handler: app.lambdaHandler
+      Layers:
+        - Ref: HelpersLayerA1EB159D
+        - Ref: UuidLayer956C9E47
+      Runtime: nodejs14.x
+    DependsOn:
+      - OrderFunctionServiceRoleDefaultPolicyC38EDEDD
+      - OrderFunctionServiceRole3E66F569
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderFunction/Resource
+      aws:asset:path: asset.fb660766c4cb35f2290cc32661aefb44d3b44805015be886ee1e469071a4cd26
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  OrderEventRule133ACC9B:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Ref: AppEventBusAEEA9E1B
+      EventPattern:
+        detail-type:
+          - OrderCreate
+          - PaymentMade
+          - PaymentFailed
+          - PaymentCanceled
+          - DeliveryStarted
+          - DeliveryWasDelivered
+          - DeliveryWasCanceled
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - OrderFunctionFABF799C
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderEventRule/Resource
+  OrderEventRuleAllowEventRuleCdkEventbridgeStackOrderFunctionA179AD3C2CA184FC:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - OrderFunctionFABF799C
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - OrderEventRule133ACC9B
+          - Arn
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderEventRule/AllowEventRuleCdkEventbridgeStackOrderFunctionA179AD3C
+  OrderCreateAPI55CF0E33:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: OrderCreateAPI
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/Resource
+  OrderCreateAPICloudWatchRole09F376C8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/CloudWatchRole/Resource
+  OrderCreateAPIAccount9E773F2B:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - OrderCreateAPICloudWatchRole09F376C8
+          - Arn
+    DependsOn:
+      - OrderCreateAPI55CF0E33
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/Account
+  OrderCreateAPIDeployment928B82275a5e05edb36d3b6017e8d8d505c91ed7:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: OrderCreateAPI55CF0E33
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - OrderCreateAPIorderactioncustomerIdwhatGETEE83A449
+      - OrderCreateAPIorderactioncustomerIdwhat7D27B70A
+      - OrderCreateAPIorderactioncustomerIdB351DD85
+      - OrderCreateAPIorderactionA6AB0ACB
+      - OrderCreateAPIorderE4D23C94
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/Deployment/Resource
+  OrderCreateAPIDeploymentStageprodE1611875:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: OrderCreateAPI55CF0E33
+      DeploymentId:
+        Ref: OrderCreateAPIDeployment928B82275a5e05edb36d3b6017e8d8d505c91ed7
+      StageName: prod
+    DependsOn:
+      - OrderCreateAPIAccount9E773F2B
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/DeploymentStage.prod/Resource
+  OrderCreateAPIorderE4D23C94:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - OrderCreateAPI55CF0E33
+          - RootResourceId
+      PathPart: order
+      RestApiId:
+        Ref: OrderCreateAPI55CF0E33
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/Default/order/Resource
+  OrderCreateAPIorderactionA6AB0ACB:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: OrderCreateAPIorderE4D23C94
+      PathPart: "{action}"
+      RestApiId:
+        Ref: OrderCreateAPI55CF0E33
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/Default/order/{action}/Resource
+  OrderCreateAPIorderactioncustomerIdB351DD85:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: OrderCreateAPIorderactionA6AB0ACB
+      PathPart: "{customerId}"
+      RestApiId:
+        Ref: OrderCreateAPI55CF0E33
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/Default/order/{action}/{customerId}/Resource
+  OrderCreateAPIorderactioncustomerIdwhat7D27B70A:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: OrderCreateAPIorderactioncustomerIdB351DD85
+      PathPart: "{what}"
+      RestApiId:
+        Ref: OrderCreateAPI55CF0E33
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/Default/order/{action}/{customerId}/{what}/Resource
+  OrderCreateAPIorderactioncustomerIdwhatGETApiPermissionCdkEventbridgeStackOrderCreateAPI0324A92DGETorderactioncustomerIdwhat2CC81585:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - OrderFunctionFABF799C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: OrderCreateAPI55CF0E33
+            - /
+            - Ref: OrderCreateAPIDeploymentStageprodE1611875
+            - /GET/order/*/*/*
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/Default/order/{action}/{customerId}/{what}/GET/ApiPermission.CdkEventbridgeStackOrderCreateAPI0324A92D.GET..order.{action}.{customerId}.{what}
+  OrderCreateAPIorderactioncustomerIdwhatGETApiPermissionTestCdkEventbridgeStackOrderCreateAPI0324A92DGETorderactioncustomerIdwhat94FC5B82:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - OrderFunctionFABF799C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: OrderCreateAPI55CF0E33
+            - /test-invoke-stage/GET/order/*/*/*
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/Default/order/{action}/{customerId}/{what}/GET/ApiPermission.Test.CdkEventbridgeStackOrderCreateAPI0324A92D.GET..order.{action}.{customerId}.{what}
+  OrderCreateAPIorderactioncustomerIdwhatGETEE83A449:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: OrderCreateAPIorderactioncustomerIdwhat7D27B70A
+      RestApiId:
+        Ref: OrderCreateAPI55CF0E33
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - OrderFunctionFABF799C
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/OrderCreateAPI/Default/order/{action}/{customerId}/{what}/GET/Resource
+  InventoryTableFD135387:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: itemId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: itemId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/InventoryTable/Resource
+  InventoryFunctionServiceRole4B011DDA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/InventoryFunction/ServiceRole/Resource
+  InventoryFunctionServiceRoleDefaultPolicyC8FEE94F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - InventoryTableFD135387
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: InventoryFunctionServiceRoleDefaultPolicyC8FEE94F
+      Roles:
+        - Ref: InventoryFunctionServiceRole4B011DDA
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/InventoryFunction/ServiceRole/DefaultPolicy/Resource
+  InventoryFunction7E1DD6ED:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 16dcc108fafa692860ba435fb996494f5c5e116e894d6e56241547adc6a1beb6.zip
+      Role:
+        Fn::GetAtt:
+          - InventoryFunctionServiceRole4B011DDA
+          - Arn
+      Environment:
+        Variables:
+          INVENTORY_TABLE:
+            Ref: InventoryTableFD135387
+          EVENT_BUS:
+            Ref: AppEventBusAEEA9E1B
+      Handler: app.lambdaHandler
+      Layers:
+        - Ref: HelpersLayerA1EB159D
+      Runtime: nodejs14.x
+    DependsOn:
+      - InventoryFunctionServiceRoleDefaultPolicyC8FEE94F
+      - InventoryFunctionServiceRole4B011DDA
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/InventoryFunction/Resource
+      aws:asset:path: asset.16dcc108fafa692860ba435fb996494f5c5e116e894d6e56241547adc6a1beb6
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  InventoryEventRule775B9784:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Ref: AppEventBusAEEA9E1B
+      EventPattern:
+        detail-type:
+          - OrderCreated
+          - OrderCanceled
+          - ItemReserved
+          - PaymentMade
+          - PaymentFailed
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - InventoryFunction7E1DD6ED
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/InventoryEventRule/Resource
+  InventoryEventRuleAllowEventRuleCdkEventbridgeStackInventoryFunction26C02E2EABB4CC88:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - InventoryFunction7E1DD6ED
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - InventoryEventRule775B9784
+          - Arn
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/InventoryEventRule/AllowEventRuleCdkEventbridgeStackInventoryFunction26C02E2E
+  PaymentTableE140D25E:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: paymentId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: paymentId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/PaymentTable/Resource
+  PaymentFunctionServiceRole3E19EBA3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/PaymentFunction/ServiceRole/Resource
+  PaymentFunctionServiceRoleDefaultPolicy46863023:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PaymentTableE140D25E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: PaymentFunctionServiceRoleDefaultPolicy46863023
+      Roles:
+        - Ref: PaymentFunctionServiceRole3E19EBA3
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/PaymentFunction/ServiceRole/DefaultPolicy/Resource
+  PaymentFunctionCCA5A1C6:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 86395cf5e12aa33dde28e645e597e846ba43a468d548b561c43228109e37938c.zip
+      Role:
+        Fn::GetAtt:
+          - PaymentFunctionServiceRole3E19EBA3
+          - Arn
+      Environment:
+        Variables:
+          PAYMENT_TABLE:
+            Ref: PaymentTableE140D25E
+          PAYMENT_FAIL_PROBABILITY: "0"
+          EVENT_BUS:
+            Ref: AppEventBusAEEA9E1B
+      Handler: app.lambdaHandler
+      Layers:
+        - Ref: HelpersLayerA1EB159D
+        - Ref: UuidLayer956C9E47
+      Runtime: nodejs14.x
+    DependsOn:
+      - PaymentFunctionServiceRoleDefaultPolicy46863023
+      - PaymentFunctionServiceRole3E19EBA3
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/PaymentFunction/Resource
+      aws:asset:path: asset.86395cf5e12aa33dde28e645e597e846ba43a468d548b561c43228109e37938c
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  PaymentEventRuleB4F1DE2B:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Ref: AppEventBusAEEA9E1B
+      EventPattern:
+        detail-type:
+          - DeliveryEstimated
+          - ItemReturned
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - PaymentFunctionCCA5A1C6
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/PaymentEventRule/Resource
+  PaymentEventRuleAllowEventRuleCdkEventbridgeStackPaymentFunctionDFAC96DB5B51ACE9:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PaymentFunctionCCA5A1C6
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - PaymentEventRuleB4F1DE2B
+          - Arn
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/PaymentEventRule/AllowEventRuleCdkEventbridgeStackPaymentFunctionDFAC96DB
+  CustomerTable260DCC08:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: customerId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: customerId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/CustomerTable/Resource
+  CustomerFunctionServiceRole50D6D359:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/CustomerFunction/ServiceRole/Resource
+  CustomerFunctionServiceRoleDefaultPolicy64B1128D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CustomerTable260DCC08
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CustomerFunctionServiceRoleDefaultPolicy64B1128D
+      Roles:
+        - Ref: CustomerFunctionServiceRole50D6D359
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/CustomerFunction/ServiceRole/DefaultPolicy/Resource
+  CustomerFunction1EB87008:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 7d850e529198c461245777ccf3203d6f0c3417bd34d6fd2cbc2fd92eb6477a3b.zip
+      Role:
+        Fn::GetAtt:
+          - CustomerFunctionServiceRole50D6D359
+          - Arn
+      Environment:
+        Variables:
+          CUSTOMER_TABLE:
+            Ref: CustomerTable260DCC08
+          EVENT_BUS:
+            Ref: AppEventBusAEEA9E1B
+      Handler: app.lambdaHandler
+      Layers:
+        - Ref: HelpersLayerA1EB159D
+      Runtime: nodejs14.x
+    DependsOn:
+      - CustomerFunctionServiceRoleDefaultPolicy64B1128D
+      - CustomerFunctionServiceRole50D6D359
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/CustomerFunction/Resource
+      aws:asset:path: asset.7d850e529198c461245777ccf3203d6f0c3417bd34d6fd2cbc2fd92eb6477a3b
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CustomerEventRuleC528982C:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Ref: AppEventBusAEEA9E1B
+      EventPattern:
+        detail-type:
+          - ItemDescribed
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - CustomerFunction1EB87008
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/CustomerEventRule/Resource
+  CustomerEventRuleAllowEventRuleCdkEventbridgeStackCustomerFunction19D4DB5DFD78C4A0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - CustomerFunction1EB87008
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - CustomerEventRuleC528982C
+          - Arn
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/CustomerEventRule/AllowEventRuleCdkEventbridgeStackCustomerFunction19D4DB5D
+  MyPlaceIndex:
+    Type: AWS::Location::PlaceIndex
+    Properties:
+      DataSource: Esri
+      IndexName:
+        Fn::Join:
+          - ""
+          - - my-place-index-
+            - Ref: AWS::StackName
+      PricingPlan: RequestBasedUsage
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/MyPlaceIndex
+  MyRouteCalculator:
+    Type: AWS::Location::RouteCalculator
+    Properties:
+      CalculatorName:
+        Fn::Join:
+          - ""
+          - - my-route-calculator-
+            - Ref: AWS::StackName
+      DataSource: Esri
+      PricingPlan: RequestBasedUsage
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/MyRouteCalculator
+  DeliveryTableA495CE88:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: customerId
+          KeyType: HASH
+        - AttributeName: orderId
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: customerId
+          AttributeType: S
+        - AttributeName: orderId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryTable/Resource
+  DeliveryFunctionServiceRoleBA84088B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryFunction/ServiceRole/Resource
+  DeliveryFunctionServiceRoleDefaultPolicy2384EDB6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - DeliveryTableA495CE88
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource: "*"
+          - Action: geo:SearchPlaceIndexForText
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MyPlaceIndex
+                - Arn
+          - Action: geo:CalculateRoute
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MyRouteCalculator
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DeliveryFunctionServiceRoleDefaultPolicy2384EDB6
+      Roles:
+        - Ref: DeliveryFunctionServiceRoleBA84088B
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryFunction/ServiceRole/DefaultPolicy/Resource
+  DeliveryFunction5A9A0228:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 00fc7c67060e241a98ea30508c1e8fc390a46513ab57cff35f0704fddc5e7205.zip
+      Role:
+        Fn::GetAtt:
+          - DeliveryFunctionServiceRoleBA84088B
+          - Arn
+      Environment:
+        Variables:
+          PLACE_INDEX:
+            Fn::Join:
+              - ""
+              - - my-place-index-
+                - Ref: AWS::StackName
+          ROUTE_CALCULATOR:
+            Fn::Join:
+              - ""
+              - - my-route-calculator-
+                - Ref: AWS::StackName
+          DELIVERY_TABLE:
+            Ref: DeliveryTableA495CE88
+          EVENT_BUS:
+            Ref: AppEventBusAEEA9E1B
+      Handler: app.lambdaHandler
+      Layers:
+        - Ref: HelpersLayerA1EB159D
+      Runtime: nodejs14.x
+    DependsOn:
+      - DeliveryFunctionServiceRoleDefaultPolicy2384EDB6
+      - DeliveryFunctionServiceRoleBA84088B
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryFunction/Resource
+      aws:asset:path: asset.00fc7c67060e241a98ea30508c1e8fc390a46513ab57cff35f0704fddc5e7205
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  DeliveryEventRule6224DADD:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Ref: AppEventBusAEEA9E1B
+      EventPattern:
+        detail-type:
+          - CustomerDescribed
+          - ItemRemoved
+          - Delivered
+          - DeliveryCanceled
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - DeliveryFunction5A9A0228
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryEventRule/Resource
+  DeliveryEventRuleAllowEventRuleCdkEventbridgeStackDeliveryFunction122C844351A168F1:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DeliveryFunction5A9A0228
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - DeliveryEventRule6224DADD
+          - Arn
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryEventRule/AllowEventRuleCdkEventbridgeStackDeliveryFunction122C8443
+  DeliveryConnectionF93AA214:
+    Type: AWS::Events::Connection
+    Properties:
+      AuthorizationType: API_KEY
+      AuthParameters:
+        ApiKeyAuthParameters:
+          ApiKeyName: ApiKeyName
+          ApiKeyValue: "{{resolve:secretsmanager:api-key-cdk-stack:SecretString:::}}"
+      Description: Connection with an API key
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryConnection/Connection
+  DeliveryApiDestination0F350A92:
+    Type: AWS::Events::ApiDestination
+    Properties:
+      ConnectionArn:
+        Fn::GetAtt:
+          - DeliveryConnectionF93AA214
+          - Arn
+      HttpMethod: POST
+      InvocationEndpoint: https://webhook.site/926a07bb-2d15-4521-8852-bdcb7fb31906
+      InvocationRateLimitPerSecond: 10
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryApiDestination/ApiDestination
+  DeliveryApiDestinationEventsRoleAC166629:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryApiDestination/EventsRole/Resource
+  DeliveryApiDestinationEventsRoleDefaultPolicy95BB2D8D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: events:InvokeApiDestination
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DeliveryApiDestination0F350A92
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DeliveryApiDestinationEventsRoleDefaultPolicy95BB2D8D
+      Roles:
+        - Ref: DeliveryApiDestinationEventsRoleAC166629
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryApiDestination/EventsRole/DefaultPolicy/Resource
+  DeliveryApiEventRule8F798BA9:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName:
+        Ref: AppEventBusAEEA9E1B
+      EventPattern:
+        detail-type:
+          - DeliveryMarkedAsStarted
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - DeliveryApiDestination0F350A92
+              - Arn
+          DeadLetterConfig:
+            Arn:
+              Fn::GetAtt:
+                - DeliveryServiceDLQueue517232D3
+                - Arn
+          Id: Target0
+          RetryPolicy:
+            MaximumEventAgeInSeconds: 60
+            MaximumRetryAttempts: 4
+          RoleArn:
+            Fn::GetAtt:
+              - DeliveryApiDestinationEventsRoleAC166629
+              - Arn
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryApiEventRule/Resource
+  DeliveryServiceDLQueue517232D3:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryServiceDLQueue/Resource
+  DeliveryServiceDLQueuePolicy21D2F616:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Fn::GetAtt:
+                    - DeliveryApiEventRule8F798BA9
+                    - Arn
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - DeliveryServiceDLQueue517232D3
+                - Arn
+            Sid: AllowEventRuleCdkEventbridgeStackDeliveryApiEventRule505FD09A
+        Version: "2012-10-17"
+      Queues:
+        - Ref: DeliveryServiceDLQueue517232D3
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/DeliveryServiceDLQueue/Policy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VRTVPCMBT8LdxDBLx4LaAzzuiI1fHKPJInBtKkNgnY6fS/+5LwUS59u5t2u/sy47MJn4zg6MZC7sdabXj34UHsGUnrDg9ovOPdY5zz4Nji21xwGTRGIU9rDAqvrInSgBW1WqLzysD58FbpmWwNVFbSnz9hky0T6JmGaiOBd0/BXKyHeIVNpZyL7AVabL6wcaejIe+Zgop3pT3ljXNltRJtMkmoZ+5+Dc4h1S3iIM7nQezRz8Ehg1ptweMRWjKi9FQieV1hIYQNxrMl1tq2FS0pqgNGe92mABnQpzY0ApP9mZw8M35F/2NllDKihViRlsa7GFyDwGcj8S+3Ch4XoEXQ4G1DfX7p4t4DhmSaQXpeqw9o318zpP4xpDLb+Npb8HXwN9HyHUuVb9BYiXzn7g7TBz6d8elo55QaN7QNVSEv8/wHs6x31msCAAA=
+    Metadata:
+      aws:cdk:path: CdkEventbridgeStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  OrderCreateAPIEndpointAEA05F3B:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: OrderCreateAPI55CF0E33
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: OrderCreateAPIDeploymentStageprodE1611875
+          - /
+  EventStoreTableOutput:
+    Value:
+      Ref: EventStoreTable42ED2C65
+  OrderTableOutput:
+    Value:
+      Ref: OrderTable416EB896
+  InventoryTableOutput:
+    Value:
+      Ref: InventoryTableFD135387
+  PaymentTableOutput:
+    Value:
+      Ref: PaymentTableE140D25E
+  CustomerTableOutput:
+    Value:
+      Ref: CustomerTable260DCC08
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

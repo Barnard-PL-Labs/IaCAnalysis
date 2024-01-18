@@ -1,0 +1,793 @@
+Resources:
+  QuoteBotRoleF4CE5F58:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotRole/Default/Resource
+  QuoteBotRoleDefaultPolicy83A3A513:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ssm:DescribeParameters
+              - ssm:GetParameters
+              - ssm:GetParameter
+              - ssm:GetParameterHistory
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/quoteBot/token
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - QuoteBucketBackupCCFF500B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - QuoteBucketBackupCCFF500B
+                        - Arn
+                    - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - Quotes4DCFF1CF
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: QuoteBotRoleDefaultPolicy83A3A513
+      Roles:
+        - Ref: QuoteBotRoleF4CE5F58
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotRole/Default/DefaultPolicy/Resource
+  QuoteBotPolicy2814B931:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cloudformation:DescribeStacks
+            Effect: Allow
+            Resource:
+              Ref: AWS::StackId
+        Version: "2012-10-17"
+      PolicyName: QuoteBotPolicy2814B931
+      Roles:
+        - Ref: QuoteBotRoleF4CE5F58
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotPolicy/Resource
+  QuoteBucketBackupCCFF500B:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBucketBackup/Resource
+  Quotes4DCFF1CF:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: quoteIndex
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: quoteIndex
+          AttributeType: "N"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: QuoteBotStack/Quotes/Resource
+  QuoteBotVpcV2CA2683AC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: QuoteBotStack/QuoteBotVpcV2
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotVpcV2/Resource
+  QuoteBotVpcV2Public01Subnet1SubnetFBA2A5D6:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      VpcId:
+        Ref: QuoteBotVpcV2CA2683AC
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public01
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: QuoteBotStack/QuoteBotVpcV2/Public01Subnet1
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotVpcV2/Public01Subnet1/Subnet
+  QuoteBotVpcV2Public01Subnet1RouteTableF1917E13:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: QuoteBotVpcV2CA2683AC
+      Tags:
+        - Key: Name
+          Value: QuoteBotStack/QuoteBotVpcV2/Public01Subnet1
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotVpcV2/Public01Subnet1/RouteTable
+  QuoteBotVpcV2Public01Subnet1RouteTableAssociation67C33D30:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: QuoteBotVpcV2Public01Subnet1RouteTableF1917E13
+      SubnetId:
+        Ref: QuoteBotVpcV2Public01Subnet1SubnetFBA2A5D6
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotVpcV2/Public01Subnet1/RouteTableAssociation
+  QuoteBotVpcV2Public01Subnet1DefaultRouteF3831AE6:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: QuoteBotVpcV2Public01Subnet1RouteTableF1917E13
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: QuoteBotVpcV2IGWEE35B72F
+    DependsOn:
+      - QuoteBotVpcV2VPCGWC29709B3
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotVpcV2/Public01Subnet1/DefaultRoute
+  QuoteBotVpcV2IGWEE35B72F:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: QuoteBotStack/QuoteBotVpcV2
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotVpcV2/IGW
+  QuoteBotVpcV2VPCGWC29709B3:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: QuoteBotVpcV2CA2683AC
+      InternetGatewayId:
+        Ref: QuoteBotVpcV2IGWEE35B72F
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotVpcV2/VPCGW
+  QuoteBotCluster23EC1ED2:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/Resource
+  QuoteBotClusterDefaultAutoScalingGroupInstanceSecurityGroup30936973:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/InstanceSecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      Tags:
+        - Key: Name
+          Value: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup
+      VpcId:
+        Ref: QuoteBotVpcV2CA2683AC
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/InstanceSecurityGroup/Resource
+  QuoteBotClusterDefaultAutoScalingGroupInstanceRole52C78C06:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - ec2.
+                    - Ref: AWS::URLSuffix
+        Version: "2012-10-17"
+      Tags:
+        - Key: Name
+          Value: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/InstanceRole/Resource
+  QuoteBotClusterDefaultAutoScalingGroupInstanceRoleDefaultPolicy255B0921:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecs:DeregisterContainerInstance
+              - ecs:RegisterContainerInstance
+              - ecs:Submit*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - QuoteBotCluster23EC1ED2
+                - Arn
+          - Action:
+              - ecs:Poll
+              - ecs:StartTelemetrySession
+            Condition:
+              ArnEquals:
+                ecs:cluster:
+                  Fn::GetAtt:
+                    - QuoteBotCluster23EC1ED2
+                    - Arn
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - ecs:DiscoverPollEndpoint
+              - ecr:GetAuthorizationToken
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: QuoteBotClusterDefaultAutoScalingGroupInstanceRoleDefaultPolicy255B0921
+      Roles:
+        - Ref: QuoteBotClusterDefaultAutoScalingGroupInstanceRole52C78C06
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/InstanceRole/DefaultPolicy/Resource
+  QuoteBotClusterDefaultAutoScalingGroupInstanceProfileA8EC6A6C:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: QuoteBotClusterDefaultAutoScalingGroupInstanceRole52C78C06
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/InstanceProfile
+  QuoteBotClusterDefaultAutoScalingGroupLaunchConfig12A18C8E:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:
+        Ref: SsmParameterValueawsserviceecsoptimizedamiamazonlinux2recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter
+      InstanceType: t3.micro
+      AssociatePublicIpAddress: true
+      IamInstanceProfile:
+        Ref: QuoteBotClusterDefaultAutoScalingGroupInstanceProfileA8EC6A6C
+      SecurityGroups:
+        - Fn::GetAtt:
+            - QuoteBotClusterDefaultAutoScalingGroupInstanceSecurityGroup30936973
+            - GroupId
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+            - ""
+            - - |-
+                #!/bin/bash
+                echo ECS_CLUSTER=
+              - Ref: QuoteBotCluster23EC1ED2
+              - |-2
+                 >> /etc/ecs/ecs.config
+                sudo iptables --insert FORWARD 1 --in-interface docker+ --destination 169.254.169.254/32 --jump DROP
+                sudo service iptables save
+                echo ECS_AWSVPC_BLOCK_IMDS=true >> /etc/ecs/ecs.config
+    DependsOn:
+      - QuoteBotClusterDefaultAutoScalingGroupInstanceRoleDefaultPolicy255B0921
+      - QuoteBotClusterDefaultAutoScalingGroupInstanceRole52C78C06
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/LaunchConfig
+  QuoteBotClusterDefaultAutoScalingGroupASGA19B5858:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MaxSize: "1"
+      MinSize: "1"
+      LaunchConfigurationName:
+        Ref: QuoteBotClusterDefaultAutoScalingGroupLaunchConfig12A18C8E
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup
+      VPCZoneIdentifier:
+        - Ref: QuoteBotVpcV2Public01Subnet1SubnetFBA2A5D6
+    UpdatePolicy:
+      AutoScalingReplacingUpdate:
+        WillReplace: true
+      AutoScalingScheduledAction:
+        IgnoreUnmodifiedGroupSizeProperties: true
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/ASG
+  QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunctionServiceRole5EA7DEE9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Name
+          Value: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/DrainECSHook/Function/ServiceRole/Resource
+  QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunctionServiceRoleDefaultPolicy08D0A19D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ec2:DescribeInstances
+              - ec2:DescribeInstanceAttribute
+              - ec2:DescribeInstanceStatus
+              - ec2:DescribeHosts
+            Effect: Allow
+            Resource: "*"
+          - Action: autoscaling:CompleteLifecycleAction
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":autoscaling:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :autoScalingGroup:*:autoScalingGroupName/
+                  - Ref: QuoteBotClusterDefaultAutoScalingGroupASGA19B5858
+          - Action:
+              - ecs:DescribeContainerInstances
+              - ecs:DescribeTasks
+            Condition:
+              ArnEquals:
+                ecs:cluster:
+                  Fn::GetAtt:
+                    - QuoteBotCluster23EC1ED2
+                    - Arn
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - ecs:ListContainerInstances
+              - ecs:SubmitContainerStateChange
+              - ecs:SubmitTaskStateChange
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - QuoteBotCluster23EC1ED2
+                - Arn
+          - Action:
+              - ecs:UpdateContainerInstancesState
+              - ecs:ListTasks
+            Condition:
+              ArnEquals:
+                ecs:cluster:
+                  Fn::GetAtt:
+                    - QuoteBotCluster23EC1ED2
+                    - Arn
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunctionServiceRoleDefaultPolicy08D0A19D
+      Roles:
+        - Ref: QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunctionServiceRole5EA7DEE9
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/DrainECSHook/Function/ServiceRole/DefaultPolicy/Resource
+  QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunction13D724B1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3, json, os, time
+
+          ecs = boto3.client('ecs')
+          autoscaling = boto3.client('autoscaling')
+
+
+          def lambda_handler(event, context):
+            print(json.dumps(event))
+            cluster = os.environ['CLUSTER']
+            snsTopicArn = event['Records'][0]['Sns']['TopicArn']
+            lifecycle_event = json.loads(event['Records'][0]['Sns']['Message'])
+            instance_id = lifecycle_event.get('EC2InstanceId')
+            if not instance_id:
+              print('Got event without EC2InstanceId: %s', json.dumps(event))
+              return
+
+            instance_arn = container_instance_arn(cluster, instance_id)
+            print('Instance %s has container instance ARN %s' % (lifecycle_event['EC2InstanceId'], instance_arn))
+
+            if not instance_arn:
+              return
+
+            while has_tasks(cluster, instance_arn):
+              time.sleep(10)
+
+            try:
+              print('Terminating instance %s' % instance_id)
+              autoscaling.complete_lifecycle_action(
+                  LifecycleActionResult='CONTINUE',
+                  **pick(lifecycle_event, 'LifecycleHookName', 'LifecycleActionToken', 'AutoScalingGroupName'))
+            except Exception as e:
+              # Lifecycle action may have already completed.
+              print(str(e))
+
+
+          def container_instance_arn(cluster, instance_id):
+            """Turn an instance ID into a container instance ARN."""
+            arns = ecs.list_container_instances(cluster=cluster, filter='ec2InstanceId==' + instance_id)['containerInstanceArns']
+            if not arns:
+              return None
+            return arns[0]
+
+
+          def has_tasks(cluster, instance_arn):
+            """Return True if the instance is running tasks for the given cluster."""
+            instances = ecs.describe_container_instances(cluster=cluster, containerInstances=[instance_arn])['containerInstances']
+            if not instances:
+              return False
+            instance = instances[0]
+
+            if instance['status'] == 'ACTIVE':
+              # Start draining, then try again later
+              set_container_instance_to_draining(cluster, instance_arn)
+              return True
+
+            tasks = instance['runningTasksCount'] + instance['pendingTasksCount']
+            print('Instance %s has %s tasks' % (instance_arn, tasks))
+
+            return tasks > 0
+
+
+          def set_container_instance_to_draining(cluster, instance_arn):
+            ecs.update_container_instances_state(
+                cluster=cluster,
+                containerInstances=[instance_arn], status='DRAINING')
+
+
+          def pick(dct, *keys):
+            """Pick a subset of a dict."""
+            return {k: v for k, v in dct.items() if k in keys}
+      Role:
+        Fn::GetAtt:
+          - QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunctionServiceRole5EA7DEE9
+          - Arn
+      Environment:
+        Variables:
+          CLUSTER:
+            Ref: QuoteBotCluster23EC1ED2
+      Handler: index.lambda_handler
+      Runtime: python3.6
+      Tags:
+        - Key: Name
+          Value: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup
+      Timeout: 310
+    DependsOn:
+      - QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunctionServiceRoleDefaultPolicy08D0A19D
+      - QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunctionServiceRole5EA7DEE9
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/DrainECSHook/Function/Resource
+  QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunctionAllowInvokeQuoteBotStackQuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookTopicD9757D70E0FE671E:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunction13D724B1
+          - Arn
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookTopicAB3C7EAA
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/DrainECSHook/Function/AllowInvoke:QuoteBotStackQuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookTopicD9757D70
+  QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunctionTopic449870CA:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn:
+        Ref: QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookTopicAB3C7EAA
+      Endpoint:
+        Fn::GetAtt:
+          - QuoteBotClusterDefaultAutoScalingGroupDrainECSHookFunction13D724B1
+          - Arn
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/DrainECSHook/Function/Topic/Resource
+  QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookRoleACA4BB2C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: autoscaling.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: Name
+          Value: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/LifecycleHookDrainHook/Role/Resource
+  QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookRoleDefaultPolicy8A6231DD:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookTopicAB3C7EAA
+        Version: "2012-10-17"
+      PolicyName: QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookRoleDefaultPolicy8A6231DD
+      Roles:
+        - Ref: QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookRoleACA4BB2C
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/LifecycleHookDrainHook/Role/DefaultPolicy/Resource
+  QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookTopicAB3C7EAA:
+    Type: AWS::SNS::Topic
+    Properties:
+      Tags:
+        - Key: Name
+          Value: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/LifecycleHookDrainHook/Topic/Resource
+  QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookF4D9345E:
+    Type: AWS::AutoScaling::LifecycleHook
+    Properties:
+      AutoScalingGroupName:
+        Ref: QuoteBotClusterDefaultAutoScalingGroupASGA19B5858
+      LifecycleTransition: autoscaling:EC2_INSTANCE_TERMINATING
+      DefaultResult: CONTINUE
+      HeartbeatTimeout: 300
+      NotificationTargetARN:
+        Ref: QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookTopicAB3C7EAA
+      RoleARN:
+        Fn::GetAtt:
+          - QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookRoleACA4BB2C
+          - Arn
+    DependsOn:
+      - QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookRoleDefaultPolicy8A6231DD
+      - QuoteBotClusterDefaultAutoScalingGroupLifecycleHookDrainHookRoleACA4BB2C
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotCluster/DefaultAutoScalingGroup/LifecycleHookDrainHook/Resource
+  QuoteBotTaskDefinition24F9ABA8:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: QUALIFIER
+              Value: "-"
+            - Name: AWS_REGION
+              Value:
+                Ref: AWS::Region
+          Essential: true
+          Image:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::AccountId
+                - .dkr.ecr.
+                - Ref: AWS::Region
+                - "."
+                - Ref: AWS::URLSuffix
+                - /aws-cdk/assets:d7cc4aa7c9745129fd25f56e96df4005b46bb873847eeef22fd8a859cc2415e1
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: QuoteBotTaskDefinitionQuoteBotContainerLogGroup92F15ABE
+              awslogs-stream-prefix: quoteBot
+              awslogs-region:
+                Ref: AWS::Region
+          MemoryReservation: 300
+          Name: QuoteBotContainer
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - QuoteBotTaskDefinitionExecutionRole65B515B3
+          - Arn
+      Family: QuoteBotStackQuoteBotTaskDefinition9E37FA87
+      NetworkMode: bridge
+      RequiresCompatibilities:
+        - EC2
+      TaskRoleArn:
+        Fn::GetAtt:
+          - QuoteBotRoleF4CE5F58
+          - Arn
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotTaskDefinition/Resource
+  QuoteBotTaskDefinitionQuoteBotContainerLogGroup92F15ABE:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotTaskDefinition/QuoteBotContainer/LogGroup/Resource
+  QuoteBotTaskDefinitionExecutionRole65B515B3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotTaskDefinition/ExecutionRole/Resource
+  QuoteBotTaskDefinitionExecutionRoleDefaultPolicy5676F470:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ecr:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :repository/aws-cdk/assets
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - QuoteBotTaskDefinitionQuoteBotContainerLogGroup92F15ABE
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: QuoteBotTaskDefinitionExecutionRoleDefaultPolicy5676F470
+      Roles:
+        - Ref: QuoteBotTaskDefinitionExecutionRole65B515B3
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotTaskDefinition/ExecutionRole/DefaultPolicy/Resource
+  QuoteBotService97DD23F2:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Ref: QuoteBotCluster23EC1ED2
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      EnableECSManagedTags: false
+      LaunchType: EC2
+      SchedulingStrategy: REPLICA
+      TaskDefinition:
+        Ref: QuoteBotTaskDefinition24F9ABA8
+    Metadata:
+      aws:cdk:path: QuoteBotStack/QuoteBotService/Service
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.88.0,@aws-cdk/aws-applicationautoscaling=1.88.0,@aws-cdk/aws-autoscaling=1.88.0,@aws-cdk/aws-autoscaling-common=1.88.0,@aws-cdk/aws-autoscaling-hooktargets=1.88.0,@aws-cdk/aws-cloudwatch=1.88.0,@aws-cdk/aws-codeguruprofiler=1.88.0,@aws-cdk/aws-dynamodb=1.88.0,@aws-cdk/aws-ec2=1.88.0,@aws-cdk/aws-ecr=1.88.0,@aws-cdk/aws-ecr-assets=1.88.0,@aws-cdk/aws-ecs=1.88.0,@aws-cdk/aws-elasticloadbalancingv2=1.88.0,@aws-cdk/aws-events=1.88.0,@aws-cdk/aws-iam=1.88.0,@aws-cdk/aws-kms=1.88.0,@aws-cdk/aws-lambda=1.88.0,@aws-cdk/aws-logs=1.88.0,@aws-cdk/aws-s3=1.88.0,@aws-cdk/aws-s3-assets=1.88.0,@aws-cdk/aws-servicediscovery=1.88.0,@aws-cdk/aws-sns=1.88.0,@aws-cdk/aws-sns-subscriptions=1.88.0,@aws-cdk/aws-sqs=1.88.0,@aws-cdk/aws-ssm=1.88.0,@aws-cdk/cloud-assembly-schema=1.88.0,@aws-cdk/core=1.88.0,@aws-cdk/custom-resources=1.88.0,@aws-cdk/cx-api=1.88.0,@aws-cdk/region-info=1.88.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: QuoteBotStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  QuoteBotParamParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /quoteBot/token
+  SsmParameterValueawsserviceecsoptimizedamiamazonlinux2recommendedimageidC96584B6F00A464EAD1953AFF4B05118Parameter:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ecs/optimized-ami/amazon-linux-2/recommended/image_id
+Outputs:
+  S3Bucket:
+    Value:
+      Ref: QuoteBucketBackupCCFF500B
+  DynamoDBTable:
+    Value:
+      Ref: Quotes4DCFF1CF
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

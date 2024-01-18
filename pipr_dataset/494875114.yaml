@@ -1,0 +1,380 @@
+Resources:
+  TextLogGroupsEBFB9F42:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: TextLogs
+      RetentionInDays: 1
+      Tags:
+        - Key: AppType
+          Value: GatewaySFTextSentiment
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/TextLogGroups/Resource
+  TextLogGroupsPolicyResourcePolicyB4E96605:
+    Type: AWS::Logs::ResourcePolicy
+    Properties:
+      PolicyDocument:
+        Fn::Join:
+          - ""
+          - - '{"Statement":[{"Action":["logs:CreateLogStream","logs:PutLogEvents"],"Effect":"Allow","Principal":{"Service":"apigateway.amazonaws.com"},"Resource":"'
+            - Fn::GetAtt:
+                - TextLogGroupsEBFB9F42
+                - Arn
+            - '"}],"Version":"2012-10-17"}'
+      PolicyName: gatewaysftextsentimentdevTextLogGroupsPolicyDAC32F63
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/TextLogGroups/Policy/ResourcePolicy
+  SentimentAnalisysRoleA9B58964:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: states.us-east-1.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: AppType
+          Value: GatewaySFTextSentiment
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/SentimentAnalisys/Role/Resource
+  SentimentAnalisysRoleDefaultPolicy77AF7877:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogDelivery
+              - logs:GetLogDelivery
+              - logs:UpdateLogDelivery
+              - logs:DeleteLogDelivery
+              - logs:ListLogDeliveries
+              - logs:PutResourcePolicy
+              - logs:DescribeResourcePolicies
+              - logs:DescribeLogGroups
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+              - xray:GetSamplingRules
+              - xray:GetSamplingTargets
+            Effect: Allow
+            Resource: "*"
+          - Action: comprehend:detectDominantLanguage
+            Effect: Allow
+            Resource: "*"
+          - Action: comprehend:detectSentiment
+            Effect: Allow
+            Resource: "*"
+          - Action: translate:translateText
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: SentimentAnalisysRoleDefaultPolicy77AF7877
+      Roles:
+        - Ref: SentimentAnalisysRoleA9B58964
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/SentimentAnalisys/Role/DefaultPolicy/Resource
+  SentimentAnalisysADC6FB96:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - SentimentAnalisysRoleA9B58964
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"DetectDominantLanguage","States":{"DetectDominantLanguage":{"Next":"FormatResult","Type":"Task","OutputPath":"$","ResultPath":"$.result","Resource":"arn:'
+            - Ref: AWS::Partition
+            - ':states:::aws-sdk:comprehend:detectDominantLanguage","Parameters":{"Text.$":"$.txt"}},"FormatResult":{"Type":"Pass","Parameters":{"Text.$":"$.txt","Language.$":"$.result.Languages[0].LanguageCode"},"Next":"TranslateNonPTLanguage"},"TranslateNonPTLanguage":{"Type":"Choice","Choices":[{"Variable":"$.Language","StringEquals":"pt","Next":"DetectSentiment"},{"Not":{"Variable":"$.Language","StringEquals":"pt"},"Next":"TranslateText"}]},"DetectSentiment":{"End":true,"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - ':states:::aws-sdk:comprehend:detectSentiment","Parameters":{"Text.$":"$.Text","LanguageCode.$":"$.Language"}},"FormatTranslatedResult":{"Type":"Pass","Parameters":{"Text.$":"$.result.TranslatedText","Language.$":"$.result.TargetLanguageCode"},"Next":"DetectSentiment"},"TranslateText":{"Next":"FormatTranslatedResult","Type":"Task","OutputPath":"$","ResultPath":"$.result","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::aws-sdk:translate:translateText","Parameters":{"Text.$":"$.Text","SourceLanguageCode.$":"$.Language","TargetLanguageCode":"pt"}}}}
+      LoggingConfiguration:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn:
+                Fn::GetAtt:
+                  - TextLogGroupsEBFB9F42
+                  - Arn
+        Level: ALL
+      StateMachineName: SentimentAnalisys
+      Tags:
+        - Key: AppType
+          Value: GatewaySFTextSentiment
+      TracingConfiguration:
+        Enabled: true
+    DependsOn:
+      - SentimentAnalisysRoleDefaultPolicy77AF7877
+      - SentimentAnalisysRoleA9B58964
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/SentimentAnalisys/Resource
+  GatewayStepFunctionsRole06DD3F97:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: AppType
+          Value: GatewaySFTextSentiment
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/GatewayStepFunctionsRole/Resource
+  TextSentimentPolicy89F000DC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: SentimentAnalisysADC6FB96
+        Version: "2012-10-17"
+      PolicyName: TextSentimentPolicy89F000DC
+      Roles:
+        - Ref: GatewayStepFunctionsRole06DD3F97
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/TextSentimentPolicy/Resource
+  RestApi0C43BF4B:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: gateway-sf-text-sentiment
+      Tags:
+        - Key: AppType
+          Value: GatewaySFTextSentiment
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/RestApi/Resource
+  RestApiCloudWatchRoleE3ED6605:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+      Tags:
+        - Key: AppType
+          Value: GatewaySFTextSentiment
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/RestApi/CloudWatchRole/Resource
+  RestApiAccount7C83CF5A:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - RestApiCloudWatchRoleE3ED6605
+          - Arn
+    DependsOn:
+      - RestApi0C43BF4B
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/RestApi/Account
+  RestApiDeployment180EC50309c34ec26b11325d7e8297808e14f701:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: RestApi0C43BF4B
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - PostModelD4C7F5B5
+      - PostValidator2B2DDAD7
+      - RestApisentimentPOSTE4DAF107
+      - RestApisentimentE1581EA4
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/RestApi/Deployment/Resource
+  RestApiDeploymentStageprod3855DE66:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: RestApi0C43BF4B
+      AccessLogSetting:
+        DestinationArn:
+          Fn::GetAtt:
+            - TextLogGroupsEBFB9F42
+            - Arn
+        Format: $context.identity.sourceIp $context.identity.caller $context.identity.user [$context.requestTime] "$context.httpMethod $context.resourcePath $context.protocol" $context.status $context.responseLength $context.requestId
+      DeploymentId:
+        Ref: RestApiDeployment180EC50309c34ec26b11325d7e8297808e14f701
+      MethodSettings:
+        - DataTraceEnabled: false
+          HttpMethod: "*"
+          LoggingLevel: INFO
+          ResourcePath: /*
+      StageName: prod
+      Tags:
+        - Key: AppType
+          Value: GatewaySFTextSentiment
+      TracingEnabled: true
+    DependsOn:
+      - RestApiAccount7C83CF5A
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/RestApi/DeploymentStage.prod/Resource
+  RestApisentimentE1581EA4:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - RestApi0C43BF4B
+          - RootResourceId
+      PathPart: sentiment
+      RestApiId:
+        Ref: RestApi0C43BF4B
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/RestApi/Default/sentiment/Resource
+  RestApisentimentPOSTE4DAF107:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: RestApisentimentE1581EA4
+      RestApiId:
+        Ref: RestApi0C43BF4B
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - GatewayStepFunctionsRole06DD3F97
+            - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: "
+
+                \              #if ($input.path('$.__type') != \"\")
+
+                \                #set ($context.responseOverride.status = 500)
+
+                \                {
+
+                \                  \"requestId\": \"$context.requestId\",
+
+                \                  \"message\": \"$input.path('$.message').trim()\"
+
+                \                }
+
+                \              #else
+
+                \                #set ($context.responseOverride.status = 500)
+
+                \                {
+
+                \                  \"requestId\": \"$context.requestId\",
+
+                \                  \"executionArn\": \"$input.path('$.executionArn').trim()\",
+
+                \                  \"startDate\": \"$input.path('$.startDate')\"
+
+                \                }
+
+                \              #end
+
+                \            "
+            StatusCode: "200"
+        RequestTemplates:
+          application/json:
+            Fn::Join:
+              - ""
+              - - |-
+                  {
+                            "input": "$util.escapeJavaScript($input.body)",
+                            "stateMachineArn": "
+                - Ref: SentimentAnalisysADC6FB96
+                - |-
+                  "
+                          }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:states:action/StartExecution
+      MethodResponses:
+        - StatusCode: "200"
+      RequestModels:
+        application/json:
+          Ref: PostModelD4C7F5B5
+      RequestValidatorId:
+        Ref: PostValidator2B2DDAD7
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/RestApi/Default/sentiment/POST/Resource
+  PostModelD4C7F5B5:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: RestApi0C43BF4B
+      ContentType: application/json
+      Schema:
+        title: PostRequest
+        type: object
+        $schema: http://json-schema.org/draft-04/schema#
+        properties:
+          txt:
+            type: string
+        required:
+          - txt
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/PostModel/Resource
+  PostValidator2B2DDAD7:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: RestApi0C43BF4B
+      Name: validator
+      ValidateRequestBody: true
+      ValidateRequestParameters: false
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/PostValidator/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VPwW6DMAz9lt5DtiJN2pUxaZehVVTatcqCCykhznBShBD/vkDLCie/92y/Z8c8fuHPO9FRJIs60uqHD0cnZM2CdBo0lsSHTyw/WvSWpWfzj3Mg9K2EA2ol+6m1VUZGDuzZG+kUGjo5QTXxVGiddHSE9qokbEf4cBBELK1waoUrHGRCVsrA5L7mI1Oi4UOOem7N9XHHki+sKsNOJ/owCuQSq+5nLjCREr1x7B2sxr6BAIO6YiG0XNIDWD58E/Qg69dZBq7CYpLuKMMC9MxnkMOvD/nfQqtCOGxvy1ttHCf1yzvr3dp8ZCZ48As9XfevfB/z/e5CSkVteEE1wPNb/QNKd1gW0wEAAA==
+    Metadata:
+      aws:cdk:path: gateway-sf-text-sentiment-dev/CDKMetadata/Default
+Outputs:
+  RestApiEndpoint0551178A:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: RestApi0C43BF4B
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: RestApiDeploymentStageprod3855DE66
+          - /
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,270 @@
+Resources:
+  GitHubOicdProviderBD746D0A:
+    Type: Custom::AWSCDKOpenIdConnectProvider
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomAWSCDKOpenIdConnectProviderCustomResourceProviderHandlerF2C543E0
+          - Arn
+      ClientIDList:
+        - sts.amazonaws.com
+      ThumbprintList:
+        - a031c46782e6e6c662c2c87c76da9aa62ccabd8e
+        - 6938fd4d98bab03faadb97b34396831e3780aea1
+      Url: https://token.actions.githubusercontent.com
+      CodeHash: c2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284ee
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: GuruCdkSetupStack/GitHubOicdProvider/Resource/Default
+  CustomAWSCDKOpenIdConnectProviderCustomResourceProviderRole517FED65:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: Inline
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Resource: "*"
+                Action:
+                  - iam:CreateOpenIDConnectProvider
+                  - iam:DeleteOpenIDConnectProvider
+                  - iam:UpdateOpenIDConnectProviderThumbprint
+                  - iam:AddClientIDToOpenIDConnectProvider
+                  - iam:RemoveClientIDFromOpenIDConnectProvider
+    Metadata:
+      aws:cdk:path: GuruCdkSetupStack/Custom::AWSCDKOpenIdConnectProviderCustomResourceProvider/Role
+  CustomAWSCDKOpenIdConnectProviderCustomResourceProviderHandlerF2C543E0:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284eeS3Bucket0C0F7E55
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284eeS3VersionKeyE5FD9866
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284eeS3VersionKeyE5FD9866
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomAWSCDKOpenIdConnectProviderCustomResourceProviderRole517FED65
+          - Arn
+      Runtime: nodejs16.x
+    DependsOn:
+      - CustomAWSCDKOpenIdConnectProviderCustomResourceProviderRole517FED65
+    Metadata:
+      aws:cdk:path: GuruCdkSetupStack/Custom::AWSCDKOpenIdConnectProviderCustomResourceProvider/Handler
+      aws:asset:path: asset.c2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284ee
+      aws:asset:property: Code
+  GitHubActionRole5D264369:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringLike:
+                token.actions.githubusercontent.com:sub:
+                  - repo:aws-samples/*:*
+            Effect: Allow
+            Principal:
+              Federated:
+                Ref: GitHubOicdProviderBD746D0A
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - codeguru-reviewer:ListRepositoryAssociations
+                  - codeguru-reviewer:AssociateRepository
+                  - codeguru-reviewer:DescribeRepositoryAssociation
+                  - codeguru-reviewer:CreateCodeReview
+                  - codeguru-reviewer:ListCodeReviews
+                  - codeguru-reviewer:DescribeCodeReview
+                  - codeguru-reviewer:ListRecommendations
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: guruCiCdPolicy
+      RoleName: GitHubActionRole
+    Metadata:
+      aws:cdk:path: GuruCdkSetupStack/GitHubActionRole/Resource
+  GitHubActionRoleDefaultPolicy2549DCF5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - codegurureviewerbuildartifacts6F4BAA51
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - codegurureviewerbuildartifacts6F4BAA51
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: GitHubActionRoleDefaultPolicy2549DCF5
+      Roles:
+        - Ref: GitHubActionRole5D264369
+    Metadata:
+      aws:cdk:path: GuruCdkSetupStack/GitHubActionRole/DefaultPolicy/Resource
+  codegurureviewerbuildartifacts6F4BAA51:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Fn::Join:
+          - ""
+          - - codeguru-reviewer-build-artifacts-
+            - Ref: AWS::AccountId
+            - "-"
+            - Ref: AWS::Region
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: GuruCdkSetupStack/codeguru-reviewer-build-artifacts/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WPPW7DMAyFz5JdYSKnQ8e2njrFcE4gSGygOBYDkUoRCLp7ZRlo04kff/Deo4asDx3sN2/mm7fWTTtLESGfxNhJ9RRYYrKi+q8wmGhmFIxLc0xyS208IlOKFheu986Lp1BUt395Vs0LZG9myMcbhk9XTwNaGSLdvauaI12bRKsDXb19NNNGRfEB8keyEzbPlUpRa9g+sdD8HOSP/61+3d6ZUeqPZx/OpeoEcggX3t31K+gO9ObC3m9jCuJnhHGtP+yj74gsAQAA
+    Metadata:
+      aws:cdk:path: GuruCdkSetupStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParametersc2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284eeS3Bucket0C0F7E55:
+    Type: String
+    Description: S3 bucket for asset "c2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284ee"
+  AssetParametersc2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284eeS3VersionKeyE5FD9866:
+    Type: String
+    Description: S3 key for asset version "c2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284ee"
+  AssetParametersc2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284eeArtifactHash0D59E0F3:
+    Type: String
+    Description: Artifact hash for asset "c2b7ecf3138b4c3d09c3a41dace2f5869f3a9c22f9fa632a14bd0c18a37284ee"
+Outputs:
+  Role:
+    Description: The ARN of the role that will be used in your CICD configuration.
+    Value:
+      Fn::GetAtt:
+        - GitHubActionRole5D264369
+        - Arn
+    Export:
+      Name: Role
+  Region:
+    Description: The Region that will be used in your CICD configuration.
+    Value:
+      Ref: AWS::Region
+    Export:
+      Name: Region
+  Bucket:
+    Description: The name of the S3 Bucket that will be used in your CICD configuration.
+    Value:
+      Ref: codegurureviewerbuildartifacts6F4BAA51
+    Export:
+      Name: Bucket
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

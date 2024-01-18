@@ -1,0 +1,143 @@
+Resources:
+  samplereactcdkappRoleFB7D43AF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: amplify.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfraStack/sample-react-cdk-app /Role/Resource
+  samplereactcdkapp277B5E44:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: "sample-react-cdk-app "
+      BasicAuthConfig:
+        EnableBasicAuth: false
+      IAMServiceRole:
+        Fn::GetAtt:
+          - samplereactcdkappRoleFB7D43AF
+          - Arn
+      OauthToken: "{{resolve:secretsmanager:sample-react-cdk-app-github:SecretString:github_access_token::}}"
+      Repository: https://github.com/qiweiii/sample-react-cdk-app
+    Metadata:
+      aws:cdk:path: InfraStack/sample-react-cdk-app /Resource
+  samplereactcdkappmainF7BE757B:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId:
+        Fn::GetAtt:
+          - samplereactcdkapp277B5E44
+          - AppId
+      BranchName: main
+      EnableAutoBuild: true
+      EnablePullRequestPreview: true
+    Metadata:
+      aws:cdk:path: InfraStack/sample-react-cdk-app /main/Resource
+  InfraStacksrcaUserPoolCA695389:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Schema:
+        - AttributeDataType: String
+          Mutable: true
+          Name: userPool
+          Required: false
+          StringAttributeConstraints:
+            MaxLength: "2000"
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameAttributes:
+        - email
+      UserPoolAddOns:
+        AdvancedSecurityMode: ENFORCED
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: InfraStack/InfraStacksrca-UserPool/Resource
+  srcaAdminsGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId:
+        Ref: InfraStacksrcaUserPoolCA695389
+      GroupName: admin
+    Metadata:
+      aws:cdk:path: InfraStack/srca-AdminsGroup
+  srcaUsersGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      UserPoolId:
+        Ref: InfraStacksrcaUserPoolCA695389
+      GroupName: users
+    Metadata:
+      aws:cdk:path: InfraStack/srca-UsersGroup
+  srcaUserPoolClient98DB447F:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: InfraStacksrcaUserPoolCA695389
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      GenerateSecret: false
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: InfraStack/srca-UserPoolClient/Resource
+  srcaIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: srcaUserPoolClient98DB447F
+          ProviderName:
+            Fn::GetAtt:
+              - InfraStacksrcaUserPoolCA695389
+              - ProviderName
+    Metadata:
+      aws:cdk:path: InfraStack/srca-IdentityPool
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE22MzQ7CIBCEn8U73YoH41HtwXjS1PgAhFKlpSzhR9MQ3t1iY/Tgab6Z2R0KlK5hudiypyt405eRoxUQL57xnlStPgVvgicVaudt4D5ntXAYLBeJ5K/IBqNkO0LcGZPrLHvLNL9nN1Mikg0Qa1TivTBpIhxvWnqEeHXCnhFVrv7xwWIw5OMqJYX2v/03OTYTSD/mNKVENDYCOlc+6AboCuiic1IWNkxHg4B61heMVb8+BQEAAA==
+    Metadata:
+      aws:cdk:path: InfraStack/CDKMetadata/Default
+Outputs:
+  UserPoolId:
+    Value:
+      Ref: InfraStacksrcaUserPoolCA695389
+  UserPoolClientId:
+    Value:
+      Ref: srcaUserPoolClient98DB447F
+  IdentityPoolId:
+    Value:
+      Ref: srcaIdentityPool
+

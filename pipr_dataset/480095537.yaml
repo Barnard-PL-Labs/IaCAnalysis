@@ -1,0 +1,757 @@
+Resources:
+  StaticSiteWebsiteBucketFA93F687:
+    Type: AWS::S3::Bucket
+    Properties:
+      WebsiteConfiguration:
+        IndexDocument: index.html
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/WebsiteBucket/Resource
+  StaticSiteWebsiteBucketPolicyB2BF76A4:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: StaticSiteWebsiteBucketFA93F687
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - StaticSiteWebsiteBucketFA93F687
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/WebsiteBucket/Policy/Resource
+  StaticSiteRepository016346DF:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: MyModelPackage
+      RepositoryDescription: Model package containing Smithy.
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/Repository/Resource
+  StaticSiteRepositoryStaticSiteS3StackStaticSiteModelToStaticWebsite33B39693EventRuleBAFD2E0C:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::GetAtt:
+              - StaticSiteRepository016346DF
+              - Arn
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - master
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":"
+                - Ref: StaticSiteModelToStaticWebsite578457AD
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - StaticSiteModelToStaticWebsiteEventsRoleE4396393
+              - Arn
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/Repository/StaticSiteS3StackStaticSiteModelToStaticWebsite33B39693EventRule/Resource
+  StaticSiteMyProjectRole8CB81C3B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/MyProject/Role/Resource
+  StaticSiteMyProjectRoleDefaultPolicy0D061AEA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: StaticSiteMyProject96550237
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: StaticSiteMyProject96550237
+          - Action:
+              - codebuild:BatchPutCodeCoverages
+              - codebuild:BatchPutTestCases
+              - codebuild:CreateReport
+              - codebuild:CreateReportGroup
+              - codebuild:UpdateReport
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: StaticSiteMyProject96550237
+                  - -*
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - StaticSiteModelToStaticWebsiteArtifactsBucketEncryptionKey39ABD1DF
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: StaticSiteMyProjectRoleDefaultPolicy0D061AEA
+      Roles:
+        - Ref: StaticSiteMyProjectRole8CB81C3B
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/MyProject/Role/DefaultPolicy/Resource
+  StaticSiteMyProject96550237:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - StaticSiteMyProjectRole8CB81C3B
+          - Arn
+      Source:
+        BuildSpec: buildspec.yml
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey:
+        Fn::GetAtt:
+          - StaticSiteModelToStaticWebsiteArtifactsBucketEncryptionKey39ABD1DF
+          - Arn
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/MyProject/Resource
+  StaticSiteModelToStaticWebsiteArtifactsBucketEncryptionKey39ABD1DF:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/ArtifactsBucketEncryptionKey/Resource
+  StaticSiteModelToStaticWebsiteArtifactsBucketEncryptionKeyAlias61ED082E:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-staticsites3stackstaticsitemodeltostaticwebsite33b39693
+      TargetKeyId:
+        Fn::GetAtt:
+          - StaticSiteModelToStaticWebsiteArtifactsBucketEncryptionKey39ABD1DF
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/ArtifactsBucketEncryptionKeyAlias/Resource
+  StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteArtifactsBucketEncryptionKey39ABD1DF
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/ArtifactsBucket/Resource
+  StaticSiteModelToStaticWebsiteArtifactsBucketPolicyC09AB1A6:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/ArtifactsBucket/Policy/Resource
+  StaticSiteModelToStaticWebsiteRole5AD2F9BD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/Role/Resource
+  StaticSiteModelToStaticWebsiteRoleDefaultPolicy5F5FE3E4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - StaticSiteModelToStaticWebsiteArtifactsBucketEncryptionKey39ABD1DF
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteBuildCodeBuildCodePipelineActionRoleA1494ABF
+                  - Arn
+              - Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteReleaseS3DeployCodePipelineActionRoleD664EAC9
+                  - Arn
+              - Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteSourceCodeCommitCodePipelineActionRole347D6928
+                  - Arn
+        Version: "2012-10-17"
+      PolicyName: StaticSiteModelToStaticWebsiteRoleDefaultPolicy5F5FE3E4
+      Roles:
+        - Ref: StaticSiteModelToStaticWebsiteRole5AD2F9BD
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/Role/DefaultPolicy/Resource
+  StaticSiteModelToStaticWebsite578457AD:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - StaticSiteModelToStaticWebsiteRole5AD2F9BD
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::GetAtt:
+                    - StaticSiteRepository016346DF
+                    - Name
+                BranchName: master
+                PollForSourceChanges: false
+              Name: CodeCommit
+              OutputArtifacts:
+                - Name: Artifact_Source_CodeCommit
+              RoleArn:
+                Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteSourceCodeCommitCodePipelineActionRole347D6928
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: StaticSiteMyProject96550237
+              InputArtifacts:
+                - Name: Artifact_Source_CodeCommit
+              Name: CodeBuild
+              OutputArtifacts:
+                - Name: Artifact_Build_CodeBuild
+              RoleArn:
+                Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteBuildCodeBuildCodePipelineActionRoleA1494ABF
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              Configuration:
+                BucketName:
+                  Ref: StaticSiteWebsiteBucketFA93F687
+                Extract: "true"
+              InputArtifacts:
+                - Name: Artifact_Build_CodeBuild
+              Name: S3Deploy
+              RoleArn:
+                Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteReleaseS3DeployCodePipelineActionRoleD664EAC9
+                  - Arn
+              RunOrder: 1
+          Name: Release
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - StaticSiteModelToStaticWebsiteArtifactsBucketEncryptionKey39ABD1DF
+              - Arn
+          Type: KMS
+        Location:
+          Ref: StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+        Type: S3
+      Name: ModelToStaticWebsite
+    DependsOn:
+      - StaticSiteModelToStaticWebsiteRoleDefaultPolicy5F5FE3E4
+      - StaticSiteModelToStaticWebsiteRole5AD2F9BD
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/Resource
+  StaticSiteModelToStaticWebsiteSourceCodeCommitCodePipelineActionRole347D6928:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/Source/CodeCommit/CodePipelineActionRole/Resource
+  StaticSiteModelToStaticWebsiteSourceCodeCommitCodePipelineActionRoleDefaultPolicy4603F982:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - StaticSiteModelToStaticWebsiteArtifactsBucketEncryptionKey39ABD1DF
+                - Arn
+          - Action:
+              - codecommit:CancelUploadArchive
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:UploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - StaticSiteRepository016346DF
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: StaticSiteModelToStaticWebsiteSourceCodeCommitCodePipelineActionRoleDefaultPolicy4603F982
+      Roles:
+        - Ref: StaticSiteModelToStaticWebsiteSourceCodeCommitCodePipelineActionRole347D6928
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/Source/CodeCommit/CodePipelineActionRole/DefaultPolicy/Resource
+  StaticSiteModelToStaticWebsiteEventsRoleE4396393:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/EventsRole/Resource
+  StaticSiteModelToStaticWebsiteEventsRoleDefaultPolicyE21F0CFE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codepipeline:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: StaticSiteModelToStaticWebsite578457AD
+        Version: "2012-10-17"
+      PolicyName: StaticSiteModelToStaticWebsiteEventsRoleDefaultPolicyE21F0CFE
+      Roles:
+        - Ref: StaticSiteModelToStaticWebsiteEventsRoleE4396393
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/EventsRole/DefaultPolicy/Resource
+  StaticSiteModelToStaticWebsiteBuildCodeBuildCodePipelineActionRoleA1494ABF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/Build/CodeBuild/CodePipelineActionRole/Resource
+  StaticSiteModelToStaticWebsiteBuildCodeBuildCodePipelineActionRoleDefaultPolicy62CD2270:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - StaticSiteMyProject96550237
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: StaticSiteModelToStaticWebsiteBuildCodeBuildCodePipelineActionRoleDefaultPolicy62CD2270
+      Roles:
+        - Ref: StaticSiteModelToStaticWebsiteBuildCodeBuildCodePipelineActionRoleA1494ABF
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/Build/CodeBuild/CodePipelineActionRole/DefaultPolicy/Resource
+  StaticSiteModelToStaticWebsiteReleaseS3DeployCodePipelineActionRoleD664EAC9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/Release/S3Deploy/CodePipelineActionRole/Resource
+  StaticSiteModelToStaticWebsiteReleaseS3DeployCodePipelineActionRoleDefaultPolicyDD635227:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - StaticSiteWebsiteBucketFA93F687
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - StaticSiteWebsiteBucketFA93F687
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - StaticSiteModelToStaticWebsiteArtifactsBucket4F4D6E8B
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - StaticSiteModelToStaticWebsiteArtifactsBucketEncryptionKey39ABD1DF
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: StaticSiteModelToStaticWebsiteReleaseS3DeployCodePipelineActionRoleDefaultPolicyDD635227
+      Roles:
+        - Ref: StaticSiteModelToStaticWebsiteReleaseS3DeployCodePipelineActionRoleD664EAC9
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/StaticSite/ModelToStaticWebsite/Release/S3Deploy/CodePipelineActionRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01OQY7DIBB7S+9k2qSXvXZ73EvUPqBKyaw0CTBRgFYV4u9LACl7sj3Yxh10Jzgdhrdt5Dg3ip4Q7m6Qs0inR7BnCN9ezujE9ddUVqBnRfKzn4uOQvKIkrUmB+GGC1tyvGbfrqLAFxpnk8MrzG8JS/bpSY0QelpQkcF+5Qll/r7SKGjQKck1ueE+5v+MpXbsbdlReRSzTgt+MOc2uCga7CYyibGMtuxXmZNXNiM5YhOFSfUw2eOr/YK2g/YwWaJm9caRRrgV/AOtJaWIXQEAAA==
+    Metadata:
+      aws:cdk:path: StaticSiteS3Stack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

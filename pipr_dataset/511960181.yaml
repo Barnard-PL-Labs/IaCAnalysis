@@ -1,0 +1,65 @@
+Resources:
+  WhiteListIPSet:
+    Type: AWS::WAFv2::IPSet
+    Properties:
+      Addresses:
+        - 0.0.0.1/32
+        - 0.0.0.2/32
+      IPAddressVersion: IPV4
+      Scope: CLOUDFRONT
+      Name: WhiteListIPSet
+    Metadata:
+      aws:cdk:path: WafCdkIpRestrictionsStack/WhiteListIPSet
+  WebAcl:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      DefaultAction:
+        Block: {}
+      Scope: CLOUDFRONT
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: WebAcl
+        SampledRequestsEnabled: true
+      Name: WebAcl
+      Rules:
+        - Action:
+            Allow: {}
+          Name: WhiteListIPSet-Rule
+          Priority: 0
+          Statement:
+            IPSetReferenceStatement:
+              Arn:
+                Fn::GetAtt:
+                  - WhiteListIPSet
+                  - Arn
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: WhiteListIPSet-Rule
+            SampledRequestsEnabled: true
+    Metadata:
+      aws:cdk:path: WafCdkIpRestrictionsStack/WebAcl
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/zPSMzbUM1BMLC/WTU7J1s3JTNKrDi5JTM7WAQrFlyemlRnpVTun5XkGBKeW6AAZ4alJjs4+tSBmUGpxfmlRcmqtTl5+SqpeVrF+maGFnqGRnqFiVnFmpm5RaV5JZm6qXhCEBgC2iVs5awAAAA==
+    Metadata:
+      aws:cdk:path: WafCdkIpRestrictionsStack/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

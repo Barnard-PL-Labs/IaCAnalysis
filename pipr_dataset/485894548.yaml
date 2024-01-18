@@ -1,0 +1,1157 @@
+Resources:
+  LibraryPipelineQaPullRequestProjectRoleA81A3B35:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/LibraryPipelineQaPullRequestProject/Role/Resource
+  LibraryPipelineQaPullRequestProjectRoleDefaultPolicy45346225:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: LibraryPipelineQaPullRequestProject99184CD6
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: LibraryPipelineQaPullRequestProject99184CD6
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:282485216722:report-group/
+                  - Ref: LibraryPipelineQaPullRequestProject99184CD6
+                  - -*
+        Version: "2012-10-17"
+      PolicyName: LibraryPipelineQaPullRequestProjectRoleDefaultPolicy45346225
+      Roles:
+        - Ref: LibraryPipelineQaPullRequestProjectRoleA81A3B35
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/LibraryPipelineQaPullRequestProject/Role/DefaultPolicy/Resource
+  LibraryPipelineQaPullRequestProject99184CD6:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - LibraryPipelineQaPullRequestProjectRoleA81A3B35
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": 0.2,
+            "phases": {
+              "install": {
+                "runtime-versions": {
+                  "nodejs": "14"
+                },
+                "commands": [
+                  "yarn install"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "yarn test --ci"
+                ]
+              }
+            }
+          }
+        Location: https://github.com/opauloxavier/library-ci-cd.git
+        ReportBuildStatus: true
+        Type: GITHUB
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+      Triggers:
+        FilterGroups:
+          - - Pattern: PULL_REQUEST_CREATED, PULL_REQUEST_UPDATED, PULL_REQUEST_REOPENED
+              Type: EVENT
+            - Pattern: refs/heads/main
+              Type: BASE_REF
+        Webhook: true
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/LibraryPipelineQaPullRequestProject/Resource
+  CdkPipelineArtifactsBucket830AD299:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/ArtifactsBucket/Resource
+  CdkPipelineArtifactsBucketPolicyF0459275:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: CdkPipelineArtifactsBucket830AD299
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - CdkPipelineArtifactsBucket830AD299
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CdkPipelineArtifactsBucket830AD299
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/ArtifactsBucket/Policy/Resource
+  CdkPipelineRoleE3F28D69:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Role/Resource
+  CdkPipelineRoleDefaultPolicy5CDBB5CF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CdkPipelineArtifactsBucket830AD299
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CdkPipelineArtifactsBucket830AD299
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CdkPipelineBuildSynthCodePipelineActionRole82C33DE3
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CdkPipelineUpdatePipelineSelfMutateCodePipelineActionRole8C352762
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CdkPipelineQALintCodePipelineActionRoleE13B8C5D
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CdkPipelineQATestCodePipelineActionRole5BD2E275
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CdkPipelinePublishVersionBumpCodePipelineActionRole0B532C5F
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CdkPipelineRoleDefaultPolicy5CDBB5CF
+      Roles:
+        - Ref: CdkPipelineRoleE3F28D69
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Role/DefaultPolicy/Resource
+  CdkPipelineB1A1BEA2:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - CdkPipelineRoleE3F28D69
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: opauloxavier
+                Repo: library-ci-cd
+                Branch: main
+                OAuthToken: "{{resolve:secretsmanager:github-token:SecretString:::}}"
+                PollForSourceChanges: false
+              Name: opauloxavier_library-ci-cd
+              OutputArtifacts:
+                - Name: opauloxavier_library_ci_cd_Source
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CdkPipelineBuildSynthCdkBuildProject976C10F3
+                EnvironmentVariables: '[{"name":"_PROJECT_CONFIG_HASH","type":"PLAINTEXT","value":"266fa40e2028a38ada01db3a2e2f9f83c19b2d3a6272b61d521acf1655643580"}]'
+              InputArtifacts:
+                - Name: opauloxavier_library_ci_cd_Source
+              Name: Synth
+              OutputArtifacts:
+                - Name: Synth_Output
+              RoleArn:
+                Fn::GetAtt:
+                  - CdkPipelineBuildSynthCodePipelineActionRole82C33DE3
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CdkPipelineUpdatePipelineSelfMutation81360810
+                EnvironmentVariables: '[{"name":"_PROJECT_CONFIG_HASH","type":"PLAINTEXT","value":"d8c2d6e028484d4a301176440e331db3731bd575774988d6ce88a3747eeafb89"}]'
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: SelfMutate
+              RoleArn:
+                Fn::GetAtt:
+                  - CdkPipelineUpdatePipelineSelfMutateCodePipelineActionRole8C352762
+                  - Arn
+              RunOrder: 1
+          Name: UpdatePipeline
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CdkPipelineQALintBF62FFD0
+              InputArtifacts:
+                - Name: opauloxavier_library_ci_cd_Source
+              Name: Lint
+              RoleArn:
+                Fn::GetAtt:
+                  - CdkPipelineQALintCodePipelineActionRoleE13B8C5D
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CdkPipelineQATest9161A28E
+              InputArtifacts:
+                - Name: opauloxavier_library_ci_cd_Source
+              Name: Test
+              RoleArn:
+                Fn::GetAtt:
+                  - CdkPipelineQATestCodePipelineActionRole5BD2E275
+                  - Arn
+              RunOrder: 1
+          Name: QA
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CdkPipelinePublishVersionBump7F7A6112
+              InputArtifacts:
+                - Name: opauloxavier_library_ci_cd_Source
+              Name: VersionBump
+              RoleArn:
+                Fn::GetAtt:
+                  - CdkPipelinePublishVersionBumpCodePipelineActionRole0B532C5F
+                  - Arn
+              RunOrder: 1
+          Name: Publish
+      ArtifactStore:
+        Location:
+          Ref: CdkPipelineArtifactsBucket830AD299
+        Type: S3
+      Name: ComponentLibraryCdk
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - CdkPipelineRoleDefaultPolicy5CDBB5CF
+      - CdkPipelineRoleE3F28D69
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Resource
+  CdkPipelineSourceopauloxavierlibrarycicdWebhookResource5999F471:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: "{{resolve:secretsmanager:github-token:SecretString:::}}"
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetAction: opauloxavier_library-ci-cd
+      TargetPipeline:
+        Ref: CdkPipelineB1A1BEA2
+      TargetPipelineVersion: 1
+      RegisterWithThirdParty: true
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Source/opauloxavier_library-ci-cd/WebhookResource
+  CdkPipelineBuildSynthCdkBuildProjectRole6EF1C931:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Build/Synth/CdkBuildProject/Role/Resource
+  CdkPipelineBuildSynthCdkBuildProjectRoleDefaultPolicyA91CEA78:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: CdkPipelineBuildSynthCdkBuildProject976C10F3
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: CdkPipelineBuildSynthCdkBuildProject976C10F3
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:282485216722:report-group/
+                  - Ref: CdkPipelineBuildSynthCdkBuildProject976C10F3
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CdkPipelineArtifactsBucket830AD299
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CdkPipelineArtifactsBucket830AD299
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CdkPipelineBuildSynthCdkBuildProjectRoleDefaultPolicyA91CEA78
+      Roles:
+        - Ref: CdkPipelineBuildSynthCdkBuildProjectRole6EF1C931
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Build/Synth/CdkBuildProject/Role/DefaultPolicy/Resource
+  CdkPipelineBuildSynthCdkBuildProject976C10F3:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CdkPipelineBuildSynthCdkBuildProjectRole6EF1C931
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "build": {
+                "commands": [
+                  "npm install -g npm@6.14.15",
+                  "npm install --global yarn",
+                  "yarn install",
+                  "cd infrastructure",
+                  "npm ci",
+                  "npm run build",
+                  "npx cdk synth"
+                ]
+              }
+            },
+            "artifacts": {
+              "base-directory": "infrastructure/cdk.out",
+              "files": "**/*"
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step ComponentLibraryStack/Pipeline/Build/Synth
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Build/Synth/CdkBuildProject/Resource
+  CdkPipelineBuildSynthCodePipelineActionRole82C33DE3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::282485216722:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Build/Synth/CodePipelineActionRole/Resource
+  CdkPipelineBuildSynthCodePipelineActionRoleDefaultPolicy3A4A9998:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CdkPipelineBuildSynthCdkBuildProject976C10F3
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CdkPipelineBuildSynthCodePipelineActionRoleDefaultPolicy3A4A9998
+      Roles:
+        - Ref: CdkPipelineBuildSynthCodePipelineActionRole82C33DE3
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Build/Synth/CodePipelineActionRole/DefaultPolicy/Resource
+  CdkPipelineUpdatePipelineSelfMutateCodePipelineActionRole8C352762:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::282485216722:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/UpdatePipeline/SelfMutate/CodePipelineActionRole/Resource
+  CdkPipelineUpdatePipelineSelfMutateCodePipelineActionRoleDefaultPolicyC27D33C0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CdkPipelineUpdatePipelineSelfMutation81360810
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CdkPipelineUpdatePipelineSelfMutateCodePipelineActionRoleDefaultPolicyC27D33C0
+      Roles:
+        - Ref: CdkPipelineUpdatePipelineSelfMutateCodePipelineActionRole8C352762
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/UpdatePipeline/SelfMutate/CodePipelineActionRole/DefaultPolicy/Resource
+  CdkPipelineQALintRoleC7CAC3DF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/QA/Lint/Lint/Role/Resource
+  CdkPipelineQALintRoleDefaultPolicyCCBC3B2F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: CdkPipelineQALintBF62FFD0
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: CdkPipelineQALintBF62FFD0
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:282485216722:report-group/
+                  - Ref: CdkPipelineQALintBF62FFD0
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CdkPipelineArtifactsBucket830AD299
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CdkPipelineArtifactsBucket830AD299
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CdkPipelineQALintRoleDefaultPolicyCCBC3B2F
+      Roles:
+        - Ref: CdkPipelineQALintRoleC7CAC3DF
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/QA/Lint/Lint/Role/DefaultPolicy/Resource
+  CdkPipelineQALintBF62FFD0:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CdkPipelineQALintRoleC7CAC3DF
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "env": {
+              "shell": "bash"
+            },
+            "phases": {
+              "build": {
+                "commands": [
+                  "echo \"Lint works!\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step ComponentLibraryStack/Pipeline/QA/Lint
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/QA/Lint/Lint/Resource
+  CdkPipelineQALintCodePipelineActionRoleE13B8C5D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::282485216722:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/QA/Lint/CodePipelineActionRole/Resource
+  CdkPipelineQALintCodePipelineActionRoleDefaultPolicy86A76E31:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CdkPipelineQALintBF62FFD0
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CdkPipelineQALintCodePipelineActionRoleDefaultPolicy86A76E31
+      Roles:
+        - Ref: CdkPipelineQALintCodePipelineActionRoleE13B8C5D
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/QA/Lint/CodePipelineActionRole/DefaultPolicy/Resource
+  CdkPipelineQATestRoleB408ECE5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/QA/Test/Test/Role/Resource
+  CdkPipelineQATestRoleDefaultPolicy9560700B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: CdkPipelineQATest9161A28E
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: CdkPipelineQATest9161A28E
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:282485216722:report-group/
+                  - Ref: CdkPipelineQATest9161A28E
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CdkPipelineArtifactsBucket830AD299
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CdkPipelineArtifactsBucket830AD299
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CdkPipelineQATestRoleDefaultPolicy9560700B
+      Roles:
+        - Ref: CdkPipelineQATestRoleB408ECE5
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/QA/Test/Test/Role/DefaultPolicy/Resource
+  CdkPipelineQATest9161A28E:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CdkPipelineQATestRoleB408ECE5
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "yarn install"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "yarn test --ci"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step ComponentLibraryStack/Pipeline/QA/Test
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/QA/Test/Test/Resource
+  CdkPipelineQATestCodePipelineActionRole5BD2E275:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::282485216722:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/QA/Test/CodePipelineActionRole/Resource
+  CdkPipelineQATestCodePipelineActionRoleDefaultPolicy7A1063ED:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CdkPipelineQATest9161A28E
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CdkPipelineQATestCodePipelineActionRoleDefaultPolicy7A1063ED
+      Roles:
+        - Ref: CdkPipelineQATestCodePipelineActionRole5BD2E275
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/QA/Test/CodePipelineActionRole/DefaultPolicy/Resource
+  CdkPipelinePublishVersionBumpRole9696D3A9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Publish/VersionBump/VersionBump/Role/Resource
+  CdkPipelinePublishVersionBumpRoleDefaultPolicy69813BD7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: CdkPipelinePublishVersionBump7F7A6112
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: CdkPipelinePublishVersionBump7F7A6112
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:282485216722:report-group/
+                  - Ref: CdkPipelinePublishVersionBump7F7A6112
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CdkPipelineArtifactsBucket830AD299
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CdkPipelineArtifactsBucket830AD299
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CdkPipelinePublishVersionBumpRoleDefaultPolicy69813BD7
+      Roles:
+        - Ref: CdkPipelinePublishVersionBumpRole9696D3A9
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Publish/VersionBump/VersionBump/Role/DefaultPolicy/Resource
+  CdkPipelinePublishVersionBump7F7A6112:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CdkPipelinePublishVersionBumpRole9696D3A9
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {},
+              "post_build": {
+                "commands": [
+                  "echo 'PUBLIQUEI'"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step ComponentLibraryStack/Pipeline/Publish/VersionBump
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Publish/VersionBump/VersionBump/Resource
+  CdkPipelinePublishVersionBumpCodePipelineActionRole0B532C5F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::282485216722:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Publish/VersionBump/CodePipelineActionRole/Resource
+  CdkPipelinePublishVersionBumpCodePipelineActionRoleDefaultPolicy30EF7364:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CdkPipelinePublishVersionBump7F7A6112
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CdkPipelinePublishVersionBumpCodePipelineActionRoleDefaultPolicy30EF7364
+      Roles:
+        - Ref: CdkPipelinePublishVersionBumpCodePipelineActionRole0B532C5F
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/Pipeline/Publish/VersionBump/CodePipelineActionRole/DefaultPolicy/Resource
+  CdkPipelineUpdatePipelineSelfMutationRole9B65198C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/UpdatePipeline/SelfMutation/Role/Resource
+  CdkPipelineUpdatePipelineSelfMutationRoleDefaultPolicyAA8CCA2A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: CdkPipelineUpdatePipelineSelfMutation81360810
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:282485216722:log-group:/aws/codebuild/
+                    - Ref: CdkPipelineUpdatePipelineSelfMutation81360810
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:282485216722:report-group/
+                  - Ref: CdkPipelineUpdatePipelineSelfMutation81360810
+                  - -*
+          - Action: sts:AssumeRole
+            Condition:
+              ForAnyValue:StringEquals:
+                iam:ResourceTag/aws-cdk:bootstrap-role:
+                  - image-publishing
+                  - file-publishing
+                  - deploy
+            Effect: Allow
+            Resource: arn:*:iam::282485216722:role/*
+          - Action: cloudformation:DescribeStacks
+            Effect: Allow
+            Resource: "*"
+          - Action: s3:ListBucket
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CdkPipelineArtifactsBucket830AD299
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CdkPipelineArtifactsBucket830AD299
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CdkPipelineUpdatePipelineSelfMutationRoleDefaultPolicyAA8CCA2A
+      Roles:
+        - Ref: CdkPipelineUpdatePipelineSelfMutationRole9B65198C
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/UpdatePipeline/SelfMutation/Role/DefaultPolicy/Resource
+  CdkPipelineUpdatePipelineSelfMutation81360810:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CdkPipelineUpdatePipelineSelfMutationRole9B65198C
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g aws-cdk@2"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk -a . deploy ComponentLibraryStack --require-approval=never --verbose"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step ComponentLibraryStack/Pipeline/UpdatePipeline/SelfMutate
+      EncryptionKey: alias/aws/s3
+      Name: ComponentLibraryCdk-selfupdate
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CdkPipeline/UpdatePipeline/SelfMutation/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02NTQ6CMBBGz8K+jBYXupYLEFy4NFDGOLRQQkFjmt7dUkpk9b35e5MBP8MxqT4mFY1MFdVgb1MlJPOthxW6wXom1YAtRt2imFj+7DcsaEBFPcbaMao6sKVWuGyFLLQi8Q1HgRxblEM89NZIYWPHd6xfWkvHzAnsdRYSw+dIa/zd+9o5tukN5P7ZXlui0fMo0LHeT6A1hze/AM+AJ60hSse5n6hDKNf8ATPdB1QeAQAA
+    Metadata:
+      aws:cdk:path: ComponentLibraryStack/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

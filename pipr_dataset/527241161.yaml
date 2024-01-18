@@ -1,0 +1,222 @@
+Resources:
+  dataTableAA37E105:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: year_month
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: year_month
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: NpmPackageCountTracker/dataTable/Resource
+  dataTrackFnServiceRole59D5808D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: NpmPackageCountTracker/dataTrackFn/ServiceRole/Resource
+  dataTrackFnServiceRoleDefaultPolicy40B020DF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - dataTableAA37E105
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: dataTrackFnServiceRoleDefaultPolicy40B020DF
+      Roles:
+        - Ref: dataTrackFnServiceRole59D5808D
+    Metadata:
+      aws:cdk:path: NpmPackageCountTracker/dataTrackFn/ServiceRole/DefaultPolicy/Resource
+  dataTrackFn58DD024B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: a85f4279bef0d77272255834e920745ab7bcdb3140769e5c8b5e70ec5764d103.zip
+      Role:
+        Fn::GetAtt:
+          - dataTrackFnServiceRole59D5808D
+          - Arn
+      Environment:
+        Variables:
+          DYNAMO_TABLE:
+            Ref: dataTableAA37E105
+      Handler: index.handler
+      MemorySize: 512
+      Runtime: nodejs16.x
+      Timeout: 20
+    DependsOn:
+      - dataTrackFnServiceRoleDefaultPolicy40B020DF
+      - dataTrackFnServiceRole59D5808D
+    Metadata:
+      aws:cdk:path: NpmPackageCountTracker/dataTrackFn/Resource
+      aws:asset:path: asset.a85f4279bef0d77272255834e920745ab7bcdb3140769e5c8b5e70ec5764d103
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  FnScheduleB3379A70:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: cron(0 0 * * ? *)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - dataTrackFn58DD024B
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: NpmPackageCountTracker/FnSchedule/Resource
+  FnScheduleAllowEventRuleNpmPackageCountTrackerdataTrackFnEEFE38A98FE8255C:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - dataTrackFn58DD024B
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - FnScheduleB3379A70
+          - Arn
+    Metadata:
+      aws:cdk:path: NpmPackageCountTracker/FnSchedule/AllowEventRuleNpmPackageCountTrackerdataTrackFnEEFE38A9
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01PPWsDMQz9Ld19KkmWrk2gc7h0DzpbDcqdZTjZKcH4v1dxWuj0vvSEtIXdG2xe8FsHH+Zh4QnqKaOfnVnnGu6CMQUzP3FayB2+pJPmFoxTQKgfRXzmJI/oPz/SGlnVVHOMEeqYnv2Ox7Swv/e5zprT3RlVKSu8P8A07IufKe9RydGNxKI6lt8lhq25kTSV1ZPrHbv7wnLp+V9g/JAkcO6HSAoEV329bezprf19VeZhLZI5EoxP/AE6RfoeEwEAAA==
+    Metadata:
+      aws:cdk:path: NpmPackageCountTracker/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,272 @@
+Resources:
+  UpdateThingFunctionServiceRole58B1CF9D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/UpdateThingFunction/ServiceRole/Resource
+  UpdateThingFunctionServiceRoleDefaultPolicy0EA5A888:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - iot:*
+              - logs:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: UpdateThingFunctionServiceRoleDefaultPolicy0EA5A888
+      Roles:
+        - Ref: UpdateThingFunctionServiceRole58B1CF9D
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/UpdateThingFunction/ServiceRole/DefaultPolicy/Resource
+  UpdateThingFunction1F0470B8:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters330d2c3526ec36de78eeea0332796eba4609901b6b3e97b3c591e501897f5048S3BucketB705BBD9
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters330d2c3526ec36de78eeea0332796eba4609901b6b3e97b3c591e501897f5048S3VersionKey4B076285
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters330d2c3526ec36de78eeea0332796eba4609901b6b3e97b3c591e501897f5048S3VersionKey4B076285
+      Handler: update_thing.handler
+      Role:
+        Fn::GetAtt:
+          - UpdateThingFunctionServiceRole58B1CF9D
+          - Arn
+      Runtime: python3.7
+    DependsOn:
+      - UpdateThingFunctionServiceRoleDefaultPolicy0EA5A888
+      - UpdateThingFunctionServiceRole58B1CF9D
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/UpdateThingFunction/Resource
+      aws:asset:path: asset.330d2c3526ec36de78eeea0332796eba4609901b6b3e97b3c591e501897f5048
+      aws:asset:property: Code
+  UpdateThingFunctionInvokeServicePrincipaliotamazonawscomBF38E36E:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - UpdateThingFunction1F0470B8
+          - Arn
+      Principal: iot.amazonaws.com
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/UpdateThingFunction/InvokeServicePrincipal(iot.amazonaws.com)
+  DebugBucketD4A91F06:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/DebugBucket/Resource
+  ProdBucket0289CECC:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/ProdBucket/Resource
+  IoTS3RoleD780F438:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/IoTS3Role/Resource
+  IoTS3RoleDefaultPolicy72127F95:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - DebugBucketD4A91F06
+                      - Arn
+                  - /*
+          - Action:
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ProdBucket0289CECC
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: IoTS3RoleDefaultPolicy72127F95
+      Roles:
+        - Ref: IoTS3RoleD780F438
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/IoTS3Role/DefaultPolicy/Resource
+  UpdateThingRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        Actions:
+          - Lambda:
+              FunctionArn:
+                Fn::GetAtt:
+                  - UpdateThingFunction1F0470B8
+                  - Arn
+        AwsIotSqlVersion: "2016-03-23"
+        RuleDisabled: false
+        Sql: SELECT * FROM 'iot/update/thing/+'
+      RuleName: UpdateThing
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/UpdateThingRule
+  DebugLog:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        Actions:
+          - S3:
+              BucketName:
+                Ref: DebugBucketD4A91F06
+              Key: ${topic(3)}/${timestamp()}
+              RoleArn:
+                Fn::GetAtt:
+                  - IoTS3RoleD780F438
+                  - Arn
+        AwsIotSqlVersion: "2016-03-23"
+        RuleDisabled: false
+        Sql: SELECT * FROM 'iot/thing/+/heartbeat' WHERE debug = true
+      RuleName: DebugLog
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/DebugLog
+  ProdLog:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        Actions:
+          - S3:
+              BucketName:
+                Ref: ProdBucket0289CECC
+              Key: ${topic(3)}/${timestamp()}
+              RoleArn:
+                Fn::GetAtt:
+                  - IoTS3RoleD780F438
+                  - Arn
+        AwsIotSqlVersion: "2016-03-23"
+        RuleDisabled: false
+        Sql: SELECT * FROM 'iot/thing/+/heartbeat' WHERE debug = false
+      RuleName: ProdLog
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/ProdLog
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.70.0,@aws-cdk/aws-applicationautoscaling=1.70.0,@aws-cdk/aws-autoscaling-common=1.70.0,@aws-cdk/aws-cloudwatch=1.70.0,@aws-cdk/aws-codeguruprofiler=1.70.0,@aws-cdk/aws-ec2=1.70.0,@aws-cdk/aws-events=1.70.0,@aws-cdk/aws-iam=1.70.0,@aws-cdk/aws-iot=1.70.0,@aws-cdk/aws-kms=1.70.0,@aws-cdk/aws-lambda=1.70.0,@aws-cdk/aws-logs=1.70.0,@aws-cdk/aws-s3=1.70.0,@aws-cdk/aws-s3-assets=1.70.0,@aws-cdk/aws-sqs=1.70.0,@aws-cdk/aws-ssm=1.70.0,@aws-cdk/cloud-assembly-schema=1.70.0,@aws-cdk/core=1.70.0,@aws-cdk/cx-api=1.70.0,@aws-cdk/region-info=1.70.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: DemoIotRuleStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters330d2c3526ec36de78eeea0332796eba4609901b6b3e97b3c591e501897f5048S3BucketB705BBD9:
+    Type: String
+    Description: S3 bucket for asset "330d2c3526ec36de78eeea0332796eba4609901b6b3e97b3c591e501897f5048"
+  AssetParameters330d2c3526ec36de78eeea0332796eba4609901b6b3e97b3c591e501897f5048S3VersionKey4B076285:
+    Type: String
+    Description: S3 key for asset version "330d2c3526ec36de78eeea0332796eba4609901b6b3e97b3c591e501897f5048"
+  AssetParameters330d2c3526ec36de78eeea0332796eba4609901b6b3e97b3c591e501897f5048ArtifactHash037F4E92:
+    Type: String
+    Description: Artifact hash for asset "330d2c3526ec36de78eeea0332796eba4609901b6b3e97b3c591e501897f5048"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

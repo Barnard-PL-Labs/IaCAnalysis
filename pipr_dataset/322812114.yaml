@@ -1,0 +1,400 @@
+Parameters:
+  Toggl2slackSlackTokenParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /toggl2slack/slack_token
+  Toggl2slackSlackChannelParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /toggl2slack/slack_channel
+  Toggl2slackTogglTokenParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /toggl2slack/toggl_token
+  Toggl2slackTogglEmailParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /toggl2slack/toggl_email
+  Toggl2slackTogglWorkspaceParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /toggl2slack/toggl_workspace
+Resources:
+  Toggl2slackVpc7AEE4374:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.1.1.0/24
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: CdkStack/Toggl2slackVpc
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackVpc/Resource
+  Toggl2slackVpcToggl2slackPublicSnSubnet1SubnetAA117F36:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.1.1.0/26
+      VpcId:
+        Ref: Toggl2slackVpc7AEE4374
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Toggl2slackPublicSn
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: CdkStack/Toggl2slackVpc/Toggl2slackPublicSnSubnet1
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackVpc/Toggl2slackPublicSnSubnet1/Subnet
+  Toggl2slackVpcToggl2slackPublicSnSubnet1RouteTableA031857F:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: Toggl2slackVpc7AEE4374
+      Tags:
+        - Key: Name
+          Value: CdkStack/Toggl2slackVpc/Toggl2slackPublicSnSubnet1
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackVpc/Toggl2slackPublicSnSubnet1/RouteTable
+  Toggl2slackVpcToggl2slackPublicSnSubnet1RouteTableAssociation5A050EB7:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: Toggl2slackVpcToggl2slackPublicSnSubnet1RouteTableA031857F
+      SubnetId:
+        Ref: Toggl2slackVpcToggl2slackPublicSnSubnet1SubnetAA117F36
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackVpc/Toggl2slackPublicSnSubnet1/RouteTableAssociation
+  Toggl2slackVpcToggl2slackPublicSnSubnet1DefaultRouteFA409327:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: Toggl2slackVpcToggl2slackPublicSnSubnet1RouteTableA031857F
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: Toggl2slackVpcIGWF48F725B
+    DependsOn:
+      - Toggl2slackVpcVPCGW6DFDC450
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackVpc/Toggl2slackPublicSnSubnet1/DefaultRoute
+  Toggl2slackVpcIGWF48F725B:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: CdkStack/Toggl2slackVpc
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackVpc/IGW
+  Toggl2slackVpcVPCGW6DFDC450:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: Toggl2slackVpc7AEE4374
+      InternetGatewayId:
+        Ref: Toggl2slackVpcIGWF48F725B
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackVpc/VPCGW
+  Toggl2slackSecurityGroup542FDE81:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: CdkStack/Toggl2slackSecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: Toggl2slackVpc7AEE4374
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackSecurityGroup/Resource
+  Toggl2slackClusterE666F9CE:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: Toggl2slackCl
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackCluster/Resource
+  Toggl2slackTaskTaskRoleE918B8FB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackTask/TaskRole/Resource
+  Toggl2slackTaskAB7D742D:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Command:
+            - sh
+            - -c
+            - Fn::Join:
+                - ""
+                - - /app/toggl2slack --date_from=`date +%Y-%m-%d --date '9 days ago'` --date_to=`date +%Y-%m-%d --date '3 days ago'` --toggl_token=
+                  - Ref: Toggl2slackTogglTokenParameter
+                  - " --workspace="
+                  - Ref: Toggl2slackTogglWorkspaceParameter
+                  - " --toggl_email="
+                  - Ref: Toggl2slackTogglEmailParameter
+                  - " --slack_token="
+                  - Ref: Toggl2slackSlackTokenParameter
+                  - " --slack_channel="
+                  - Ref: Toggl2slackSlackChannelParameter
+          Essential: true
+          Image:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::AccountId
+                - .dkr.ecr.
+                - Ref: AWS::Region
+                - "."
+                - Ref: AWS::URLSuffix
+                - /toggl2slack:latest
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: Toggl2slackTaskToggl2slackContainerLogGroupE822A65F
+              awslogs-stream-prefix: Toggl2slack
+              awslogs-region:
+                Ref: AWS::Region
+          Name: Toggl2slackContainer
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - Toggl2slackTaskExecutionRole3A938B54
+          - Arn
+      Family: CdkStackToggl2slackTaskD82457FE
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - Toggl2slackTaskTaskRoleE918B8FB
+          - Arn
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackTask/Resource
+  Toggl2slackTaskToggl2slackContainerLogGroupE822A65F:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 30
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackTask/Toggl2slackContainer/LogGroup/Resource
+  Toggl2slackTaskExecutionRole3A938B54:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackTask/ExecutionRole/Resource
+  Toggl2slackTaskExecutionRoleDefaultPolicyC4B7C301:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ecr:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :repository/toggl2slack
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Toggl2slackTaskToggl2slackContainerLogGroupE822A65F
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: Toggl2slackTaskExecutionRoleDefaultPolicyC4B7C301
+      Roles:
+        - Ref: Toggl2slackTaskExecutionRole3A938B54
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackTask/ExecutionRole/DefaultPolicy/Resource
+  Toggl2slackTaskEventsRole64E849DD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackTask/EventsRole/Resource
+  Toggl2slackTaskEventsRoleDefaultPolicyB68A8F4D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ecs:RunTask
+            Condition:
+              ArnEquals:
+                ecs:cluster:
+                  Fn::GetAtt:
+                    - Toggl2slackClusterE666F9CE
+                    - Arn
+            Effect: Allow
+            Resource:
+              Ref: Toggl2slackTaskAB7D742D
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Toggl2slackTaskExecutionRole3A938B54
+                - Arn
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Toggl2slackTaskTaskRoleE918B8FB
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: Toggl2slackTaskEventsRoleDefaultPolicyB68A8F4D
+      Roles:
+        - Ref: Toggl2slackTaskEventsRole64E849DD
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackTask/EventsRole/DefaultPolicy/Resource
+  Toggl2slackTaskSecurityGroup8AD9B266:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: CdkStack/Toggl2slackTask/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: Toggl2slackVpc7AEE4374
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackTask/SecurityGroup/Resource
+  Toggl2slackRule7735A4B2:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: cron(0 * * * ? *)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - Toggl2slackClusterE666F9CE
+              - Arn
+          EcsParameters:
+            LaunchType: FARGATE
+            NetworkConfiguration:
+              AwsVpcConfiguration:
+                AssignPublicIp: ENABLED
+                SecurityGroups:
+                  - Fn::GetAtt:
+                      - Toggl2slackTaskSecurityGroup8AD9B266
+                      - GroupId
+                Subnets:
+                  - Ref: Toggl2slackVpcToggl2slackPublicSnSubnet1SubnetAA117F36
+            TaskCount: 1
+            TaskDefinitionArn:
+              Ref: Toggl2slackTaskAB7D742D
+          Id: Target0
+          Input: '{"containerOverrides":[{"name":"Toggl2slackContainer","environment":[{"name":"FOO","value":"bar"}]}]}'
+          RoleArn:
+            Fn::GetAtt:
+              - Toggl2slackTaskEventsRole64E849DD
+              - Arn
+    Metadata:
+      aws:cdk:path: CdkStack/Toggl2slackRule/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.76.0,@aws-cdk/aws-applicationautoscaling=1.76.0,@aws-cdk/aws-autoscaling=1.76.0,@aws-cdk/aws-autoscaling-common=1.76.0,@aws-cdk/aws-autoscaling-hooktargets=1.76.0,@aws-cdk/aws-cloudwatch=1.76.0,@aws-cdk/aws-codeguruprofiler=1.76.0,@aws-cdk/aws-ec2=1.76.0,@aws-cdk/aws-ecr=1.76.0,@aws-cdk/aws-ecr-assets=1.76.0,@aws-cdk/aws-ecs=1.76.0,@aws-cdk/aws-elasticloadbalancingv2=1.76.0,@aws-cdk/aws-events=1.76.0,@aws-cdk/aws-events-targets=1.76.0,@aws-cdk/aws-iam=1.76.0,@aws-cdk/aws-kms=1.76.0,@aws-cdk/aws-lambda=1.76.0,@aws-cdk/aws-logs=1.76.0,@aws-cdk/aws-s3=1.76.0,@aws-cdk/aws-s3-assets=1.76.0,@aws-cdk/aws-servicediscovery=1.76.0,@aws-cdk/aws-sns=1.76.0,@aws-cdk/aws-sns-subscriptions=1.76.0,@aws-cdk/aws-sqs=1.76.0,@aws-cdk/aws-ssm=1.76.0,@aws-cdk/cloud-assembly-schema=1.76.0,@aws-cdk/core=1.76.0,@aws-cdk/custom-resources=1.76.0,@aws-cdk/cx-api=1.76.0,@aws-cdk/region-info=1.76.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: CdkStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

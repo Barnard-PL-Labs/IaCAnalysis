@@ -1,0 +1,218 @@
+Resources:
+  MicroFrontendBucketE611B227:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: MicroFrontendInfrastructure/MicroFrontendBucket/Resource
+  MicroFrontendBucketPolicyFBFF61D1:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: MicroFrontendBucketE611B227
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - WebsiteOAI1BBB0116
+                  - S3CanonicalUserId
+            Resource:
+              - Fn::GetAtt:
+                  - MicroFrontendBucketE611B227
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - MicroFrontendBucketE611B227
+                        - Arn
+                    - /*
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - WebsiteOAI1BBB0116
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - MicroFrontendBucketE611B227
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MicroFrontendInfrastructure/MicroFrontendBucket/Policy/Resource
+  WebsiteOAI1BBB0116:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Allows CloudFront to reach the bucket
+    Metadata:
+      aws:cdk:path: MicroFrontendInfrastructure/WebsiteOAI/Resource
+  MicroFrontEndDistributionCFDistribution3BBE35B3:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /container/latest/index.html
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: /container/latest/index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::GetAtt:
+                - MicroFrontendBucketE611B227
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: WebsiteOAI1BBB0116
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+    Metadata:
+      aws:cdk:path: MicroFrontendInfrastructure/MicroFrontEndDistribution/CFDistribution
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/22OvQ7CMAyEn6V7amhZWKEIiamoDIyodVJkWhKUHxCK+u40KQIGprPP3+mcQw7zpH6YFHmX9tSAP9gaOzZaJ28W4NcOO2FZ0cr3NMle9YTPrz3tA8NeOd5qJS34UtOZ5ApRGLPjQlqyMVEEZhuY/8TnfBTNhozV1DhLSobs7z4MwSmdvbn4YCWMchpF7FCSU4SYVFzAxczu2RKyHLLkYohS7ca2q4Bq0hddsM7NCQEAAA==
+    Metadata:
+      aws:cdk:path: MicroFrontendInfrastructure/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  MicroFrontendBucketName:
+    Description: The name of the bucket where the frontend build files are uploaded
+    Value:
+      Ref: MicroFrontendBucketE611B227
+    Export:
+      Name: MicroFrontendBucketName
+  MicroFrontEndDistributionDomainName:
+    Description: The cloudfront distribution domain name
+    Value:
+      Fn::GetAtt:
+        - MicroFrontEndDistributionCFDistribution3BBE35B3
+        - DomainName
+    Export:
+      Name: MicroFrontEndDistributionDomainName
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

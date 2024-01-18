@@ -1,0 +1,1201 @@
+Resources:
+  Key961B73FD:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource: "*"
+            Sid: sns-allow
+          - Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - MyFunctionPublishFunctionServiceRoleC5F76D60
+                  - Arn
+            Resource: "*"
+            Sid: function-pubblish-allow
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Condition:
+              StringEquals:
+                kms:ViaService: secretsmanager.eu-central-1.amazonaws.com
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:CreateGrant
+              - kms:DescribeKey
+            Condition:
+              StringEquals:
+                kms:ViaService: secretsmanager.eu-central-1.amazonaws.com
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action: kms:Decrypt
+            Condition:
+              StringEquals:
+                kms:ViaService: secretsmanager.eu-central-1.amazonaws.com
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - MyFunctionAlarmFunctionServiceRoleD054D19E
+                  - Arn
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: roundtrip/Key/Resource
+  KeyAlias910D852D:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/roundtrip/alias
+      TargetKeyId:
+        Fn::GetAtt:
+          - Key961B73FD
+          - Arn
+    Metadata:
+      aws:cdk:path: roundtrip/Key/Alias/Resource
+  MyQueueE6CA6235:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsDataKeyReusePeriodSeconds: 300
+      KmsMasterKeyId:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":kms:eu-central-1:"
+            - Ref: AWS::AccountId
+            - :alias/roundtrip/alias
+      VisibilityTimeout: 300
+    DependsOn:
+      - KeyAlias910D852D
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: roundtrip/MyQueue/Resource
+  MyQueuePolicy6BBEDDAC:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Ref: MyTopic86869434
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - MyQueueE6CA6235
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: MyQueueE6CA6235
+    DependsOn:
+      - KeyAlias910D852D
+    Metadata:
+      aws:cdk:path: roundtrip/MyQueue/Policy/Resource
+  MyQueueroundtripMyTopicCF433959A61527F0:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      TopicArn:
+        Ref: MyTopic86869434
+      Endpoint:
+        Fn::GetAtt:
+          - MyQueueE6CA6235
+          - Arn
+      RawMessageDelivery: true
+    DependsOn:
+      - KeyAlias910D852D
+    Metadata:
+      aws:cdk:path: roundtrip/MyQueue/roundtripMyTopicCF433959/Resource
+  MyTopic86869434:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":kms:eu-central-1:"
+            - Ref: AWS::AccountId
+            - :alias/roundtrip/alias
+    DependsOn:
+      - KeyAlias910D852D
+    Metadata:
+      aws:cdk:path: roundtrip/MyTopic/Resource
+  MyFunctionPublishFunctionServiceRoleC5F76D60:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionPublish/Function/ServiceRole/Resource
+  MyFunctionPublishFunctionServiceRoleDefaultPolicy5EA30599:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: MyTopic86869434
+        Version: "2012-10-17"
+      PolicyName: MyFunctionPublishFunctionServiceRoleDefaultPolicy5EA30599
+      Roles:
+        - Ref: MyFunctionPublishFunctionServiceRoleC5F76D60
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionPublish/Function/ServiceRole/DefaultPolicy/Resource
+  MyFunctionPublishFunctionE4F2604B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters29fb31c481fbb5f1f911662a0e89abf092d24f032c9e03081d519283c993949bS3BucketDDFDC650
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters29fb31c481fbb5f1f911662a0e89abf092d24f032c9e03081d519283c993949bS3VersionKey1CBB06A1
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters29fb31c481fbb5f1f911662a0e89abf092d24f032c9e03081d519283c993949bS3VersionKey1CBB06A1
+      Role:
+        Fn::GetAtt:
+          - MyFunctionPublishFunctionServiceRoleC5F76D60
+          - Arn
+      Environment:
+        Variables:
+          TOPIC_ARN:
+            Ref: MyTopic86869434
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Layers:
+        - arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:14
+      Runtime: nodejs14.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - MyFunctionPublishFunctionServiceRoleDefaultPolicy5EA30599
+      - MyFunctionPublishFunctionServiceRoleC5F76D60
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionPublish/Function/Resource
+      aws:asset:path: asset.29fb31c481fbb5f1f911662a0e89abf092d24f032c9e03081d519283c993949b
+      aws:asset:property: Code
+  MyFunctionSubscribeFunctionServiceRole46B3B3D7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionSubscribe/Function/ServiceRole/Resource
+  MyFunctionSubscribeFunctionServiceRoleDefaultPolicy39379FE3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MyQueueE6CA6235
+                - Arn
+          - Action: kms:Decrypt
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Key961B73FD
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: MyFunctionSubscribeFunctionServiceRoleDefaultPolicy39379FE3
+      Roles:
+        - Ref: MyFunctionSubscribeFunctionServiceRole46B3B3D7
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionSubscribe/Function/ServiceRole/DefaultPolicy/Resource
+  MyFunctionSubscribeFunctionFEA3A61E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters6a1dc5cea19c1b0387558922d1f24a96cc6ec688394574a91612e053295aa4f6S3Bucket065E6BA9
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6a1dc5cea19c1b0387558922d1f24a96cc6ec688394574a91612e053295aa4f6S3VersionKey9F6619F9
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6a1dc5cea19c1b0387558922d1f24a96cc6ec688394574a91612e053295aa4f6S3VersionKey9F6619F9
+      Role:
+        Fn::GetAtt:
+          - MyFunctionSubscribeFunctionServiceRole46B3B3D7
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Layers:
+        - arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:14
+      Runtime: nodejs14.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - MyFunctionSubscribeFunctionServiceRoleDefaultPolicy39379FE3
+      - MyFunctionSubscribeFunctionServiceRole46B3B3D7
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionSubscribe/Function/Resource
+      aws:asset:path: asset.6a1dc5cea19c1b0387558922d1f24a96cc6ec688394574a91612e053295aa4f6
+      aws:asset:property: Code
+  MyFunctionSubscribeFunctionSqsEventSourceroundtripMyQueueAB748F14DD0B13EA:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: MyFunctionSubscribeFunctionFEA3A61E
+      BatchSize: 5
+      EventSourceArn:
+        Fn::GetAtt:
+          - MyQueueE6CA6235
+          - Arn
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionSubscribe/Function/SqsEventSource:roundtripMyQueueAB748F14/Resource
+  MyLogGroup5C0DAD85:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: MyFunctionSubscribeFunctionFEA3A61E
+      RetentionInDays: 731
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: roundtrip/MyLogGroup/Resource
+  MyMetricFilter6B4C0CF6:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterPattern: '[time, id, received = "INFO", body = "received:", count]'
+      LogGroupName:
+        Ref: MyLogGroup5C0DAD85
+      MetricTransformations:
+        - MetricName: SubscribeReceivedEvents
+          MetricNamespace: Custom
+          MetricValue: $count
+    Metadata:
+      aws:cdk:path: roundtrip/MyMetricFilter/Resource
+  MyAlarm696658B6:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      MetricName: SubscribeReceivedEvents
+      Namespace: Custom
+      Period: 60
+      Statistic: Maximum
+      Threshold: 2
+      TreatMissingData: notBreaching
+    Metadata:
+      aws:cdk:path: roundtrip/MyAlarm/Resource
+  MyTable794EDED1:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      SSESpecification:
+        KMSMasterKeyId:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":kms:eu-central-1:"
+              - Ref: AWS::AccountId
+              - :alias/roundtrip/alias
+        SSEEnabled: true
+        SSEType: KMS
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+    DependsOn:
+      - KeyAlias910D852D
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: roundtrip/MyTable/Resource
+  MySecret8FE80B51:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      GenerateSecretString: {}
+      KmsKeyId:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":kms:eu-central-1:"
+            - Ref: AWS::AccountId
+            - :alias/roundtrip/alias
+    DependsOn:
+      - KeyAlias910D852D
+    Metadata:
+      aws:cdk:path: roundtrip/MySecret/Resource
+  MySecretMyRotation3BA75864:
+    Type: AWS::SecretsManager::RotationSchedule
+    Properties:
+      SecretId:
+        Ref: MySecret8FE80B51
+      RotationLambdaARN:
+        Fn::GetAtt:
+          - MyFunctionRotateFunction4EEDBEEB
+          - Arn
+      RotationRules:
+        AutomaticallyAfterDays: 1
+    DependsOn:
+      - KeyAlias910D852D
+    Metadata:
+      aws:cdk:path: roundtrip/MySecret/MyRotation/Resource
+  MySecretPolicyDAD0E682:
+    Type: AWS::SecretsManager::ResourcePolicy
+    Properties:
+      ResourcePolicy:
+        Statement:
+          - Action: secretsmanager:DeleteSecret
+            Effect: Deny
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+        Version: "2012-10-17"
+      SecretId:
+        Ref: MySecret8FE80B51
+    DependsOn:
+      - KeyAlias910D852D
+    Metadata:
+      aws:cdk:path: roundtrip/MySecret/Policy/Resource
+  MyFunctionRotateFunctionServiceRole5BDD6F2D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionRotate/Function/ServiceRole/Resource
+  MyFunctionRotateFunctionServiceRoleDefaultPolicyD2239628:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Key961B73FD
+                - Arn
+          - Action:
+              - secretsmanager:DescribeSecret
+              - secretsmanager:PutSecretValue
+              - secretsmanager:UpdateSecretVersionStage
+            Effect: Allow
+            Resource:
+              Ref: MySecret8FE80B51
+        Version: "2012-10-17"
+      PolicyName: MyFunctionRotateFunctionServiceRoleDefaultPolicyD2239628
+      Roles:
+        - Ref: MyFunctionRotateFunctionServiceRole5BDD6F2D
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionRotate/Function/ServiceRole/DefaultPolicy/Resource
+  MyFunctionRotateFunction4EEDBEEB:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters09d06c4701c5bb07593e869d56f8fce051329019b41902e8c36529ae306f1ea0S3Bucket7E9490BD
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters09d06c4701c5bb07593e869d56f8fce051329019b41902e8c36529ae306f1ea0S3VersionKey54F10EE3
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters09d06c4701c5bb07593e869d56f8fce051329019b41902e8c36529ae306f1ea0S3VersionKey54F10EE3
+      Role:
+        Fn::GetAtt:
+          - MyFunctionRotateFunctionServiceRole5BDD6F2D
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Layers:
+        - arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:14
+      Runtime: nodejs14.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - MyFunctionRotateFunctionServiceRoleDefaultPolicyD2239628
+      - MyFunctionRotateFunctionServiceRole5BDD6F2D
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionRotate/Function/Resource
+      aws:asset:path: asset.09d06c4701c5bb07593e869d56f8fce051329019b41902e8c36529ae306f1ea0
+      aws:asset:property: Code
+  MyFunctionRotateFunctionMyPermissionFA8ABCDD:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - MyFunctionRotateFunction4EEDBEEB
+          - Arn
+      Principal: secretsmanager.amazonaws.com
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionRotate/Function/MyPermission
+  MyFunctionAlarmFunctionServiceRoleD054D19E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionAlarm/Function/ServiceRole/Resource
+  MyFunctionAlarmFunctionServiceRoleDefaultPolicyAB719A6E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action: kms:Decrypt
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Key961B73FD
+                - Arn
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - MyTable794EDED1
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Key961B73FD
+                - Arn
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Ref: MySecret8FE80B51
+        Version: "2012-10-17"
+      PolicyName: MyFunctionAlarmFunctionServiceRoleDefaultPolicyAB719A6E
+      Roles:
+        - Ref: MyFunctionAlarmFunctionServiceRoleD054D19E
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionAlarm/Function/ServiceRole/DefaultPolicy/Resource
+  MyFunctionAlarmFunctionA91C008F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersafca064b03efe4728e970c8b7a31ba71f0543f7195b713dcefde4b6e3e22e99eS3BucketBC608619
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersafca064b03efe4728e970c8b7a31ba71f0543f7195b713dcefde4b6e3e22e99eS3VersionKey106B72B2
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersafca064b03efe4728e970c8b7a31ba71f0543f7195b713dcefde4b6e3e22e99eS3VersionKey106B72B2
+      Role:
+        Fn::GetAtt:
+          - MyFunctionAlarmFunctionServiceRoleD054D19E
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: MyTable794EDED1
+          SECRET_ARN:
+            Ref: MySecret8FE80B51
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Layers:
+        - arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:14
+      Runtime: nodejs14.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - MyFunctionAlarmFunctionServiceRoleDefaultPolicyAB719A6E
+      - MyFunctionAlarmFunctionServiceRoleD054D19E
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionAlarm/Function/Resource
+      aws:asset:path: asset.afca064b03efe4728e970c8b7a31ba71f0543f7195b713dcefde4b6e3e22e99e
+      aws:asset:property: Code
+  MyRuleA44AB831:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        detail-type:
+          - CloudWatch Alarm State Change
+        source:
+          - aws.cloudwatch
+        detail:
+          alarmName:
+            - Ref: MyAlarm696658B6
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - MyFunctionAlarmFunctionA91C008F
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: roundtrip/MyRule/Resource
+  MyRuleAllowEventRuleroundtripMyFunctionAlarmFunctionB311412FF4E63959:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - MyFunctionAlarmFunctionA91C008F
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - MyRuleA44AB831
+          - Arn
+    Metadata:
+      aws:cdk:path: roundtrip/MyRule/AllowEventRuleroundtripMyFunctionAlarmFunctionB311412F
+  MyBucketF68F3FF0:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":kms:eu-central-1:"
+                    - Ref: AWS::AccountId
+                    - :alias/roundtrip/alias
+              SSEAlgorithm: aws:kms
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: roundtrip/MyBucket/Resource
+  MyBucketNotifications46AC0CD2:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: MyBucketF68F3FF0
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - MyFunctionFileFunction92113D7E
+                - Arn
+    DependsOn:
+      - MyBucketAllowBucketNotificationsToroundtripMyFunctionFileFunctionA6FA34C812FEB4B0
+    Metadata:
+      aws:cdk:path: roundtrip/MyBucket/Notifications/Resource
+  MyBucketAllowBucketNotificationsToroundtripMyFunctionFileFunctionA6FA34C812FEB4B0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - MyFunctionFileFunction92113D7E
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - MyBucketF68F3FF0
+          - Arn
+    Metadata:
+      aws:cdk:path: roundtrip/MyBucket/AllowBucketNotificationsToroundtripMyFunctionFileFunctionA6FA34C8
+  MyFunctionStreamFunctionServiceRole0785DDD5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionStream/Function/ServiceRole/Resource
+  MyFunctionStreamFunctionServiceRoleDefaultPolicyE0F0AA66:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action: dynamodb:ListStreams
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:DescribeStream
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MyTable794EDED1
+                - StreamArn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - MyBucketF68F3FF0
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - MyBucketF68F3FF0
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Key961B73FD
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: MyFunctionStreamFunctionServiceRoleDefaultPolicyE0F0AA66
+      Roles:
+        - Ref: MyFunctionStreamFunctionServiceRole0785DDD5
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionStream/Function/ServiceRole/DefaultPolicy/Resource
+  MyFunctionStreamFunctionEB2012BF:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersf476b81bec7594386daa9b743fb5c41e21ff325dfee702e0bdd9ef7625d49819S3Bucket6317DB4C
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf476b81bec7594386daa9b743fb5c41e21ff325dfee702e0bdd9ef7625d49819S3VersionKey0C039731
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf476b81bec7594386daa9b743fb5c41e21ff325dfee702e0bdd9ef7625d49819S3VersionKey0C039731
+      Role:
+        Fn::GetAtt:
+          - MyFunctionStreamFunctionServiceRole0785DDD5
+          - Arn
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: MyBucketF68F3FF0
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Layers:
+        - arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:14
+      Runtime: nodejs14.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - MyFunctionStreamFunctionServiceRoleDefaultPolicyE0F0AA66
+      - MyFunctionStreamFunctionServiceRole0785DDD5
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionStream/Function/Resource
+      aws:asset:path: asset.f476b81bec7594386daa9b743fb5c41e21ff325dfee702e0bdd9ef7625d49819
+      aws:asset:property: Code
+  MyFunctionStreamFunctionDynamoDBEventSourceroundtripMyTableE738CCD175297B3D:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: MyFunctionStreamFunctionEB2012BF
+      BatchSize: 1
+      EventSourceArn:
+        Fn::GetAtt:
+          - MyTable794EDED1
+          - StreamArn
+      StartingPosition: TRIM_HORIZON
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionStream/Function/DynamoDBEventSource:roundtripMyTableE738CCD1/Resource
+  MyFunctionFileFunctionServiceRole8EB09EBE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionFile/Function/ServiceRole/Resource
+  MyFunctionFileFunctionServiceRoleDefaultPolicy704F6253:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: MyFunctionFileFunctionServiceRoleDefaultPolicy704F6253
+      Roles:
+        - Ref: MyFunctionFileFunctionServiceRole8EB09EBE
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionFile/Function/ServiceRole/DefaultPolicy/Resource
+  MyFunctionFileFunction92113D7E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters5b87a367476c01b761d7feae6cf223f466f2862ad2a649def6c70d880a496c35S3Bucket6216362B
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters5b87a367476c01b761d7feae6cf223f466f2862ad2a649def6c70d880a496c35S3VersionKeyB5905B27
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters5b87a367476c01b761d7feae6cf223f466f2862ad2a649def6c70d880a496c35S3VersionKeyB5905B27
+      Role:
+        Fn::GetAtt:
+          - MyFunctionFileFunctionServiceRole8EB09EBE
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Layers:
+        - arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:14
+      Runtime: nodejs14.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - MyFunctionFileFunctionServiceRoleDefaultPolicy704F6253
+      - MyFunctionFileFunctionServiceRole8EB09EBE
+    Metadata:
+      aws:cdk:path: roundtrip/MyFunctionFile/Function/Resource
+      aws:asset:path: asset.5b87a367476c01b761d7feae6cf223f466f2862ad2a649def6c70d880a496c35
+      aws:asset:property: Code
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: roundtrip/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: roundtrip/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |-
+          exports.handler = (event, context) => {
+              // eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-extraneous-dependencies
+              const s3 = new (require('aws-sdk').S3)();
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const https = require('https');
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const url = require('url');
+              log(JSON.stringify(event, undefined, 2));
+              const props = event.ResourceProperties;
+              if (event.RequestType === 'Delete') {
+                  props.NotificationConfiguration = {}; // this is how you clean out notifications
+              }
+              const req = {
+                  Bucket: props.BucketName,
+                  NotificationConfiguration: props.NotificationConfiguration,
+              };
+              return s3.putBucketNotificationConfiguration(req, (err, data) => {
+                  log({ err, data });
+                  if (err) {
+                      return submitResponse('FAILED', err.message + `\nMore information in CloudWatch Log Stream: ${context.logStreamName}`);
+                  }
+                  else {
+                      return submitResponse('SUCCESS');
+                  }
+              });
+              function log(obj) {
+                  console.error(event.RequestId, event.StackId, event.LogicalResourceId, obj);
+              }
+              // eslint-disable-next-line max-len
+              // adapted from https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-function-code.html#cfn-lambda-function-code-cfnresponsemodule
+              // to allow sending an error message as a reason.
+              function submitResponse(responseStatus, reason) {
+                  const responseBody = JSON.stringify({
+                      Status: responseStatus,
+                      Reason: reason || 'See the details in CloudWatch Log Stream: ' + context.logStreamName,
+                      PhysicalResourceId: event.PhysicalResourceId || event.LogicalResourceId,
+                      StackId: event.StackId,
+                      RequestId: event.RequestId,
+                      LogicalResourceId: event.LogicalResourceId,
+                      NoEcho: false,
+                  });
+                  log({ responseBody });
+                  const parsedUrl = url.parse(event.ResponseURL);
+                  const options = {
+                      hostname: parsedUrl.hostname,
+                      port: 443,
+                      path: parsedUrl.path,
+                      method: 'PUT',
+                      headers: {
+                          'content-type': '',
+                          'content-length': responseBody.length,
+                      },
+                  };
+                  const request = https.request(options, (r) => {
+                      log({ statusCode: r.statusCode, statusMessage: r.statusMessage });
+                      context.done();
+                  });
+                  request.on('error', (error) => {
+                      log({ sendError: error });
+                      context.done();
+                  });
+                  request.write(responseBody);
+                  request.end();
+              }
+          };
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: nodejs12.x
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: roundtrip/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE21Ry1ICMRD8Fu8hiBzUm0iJB0Vxlx8YsuMS2CRrHlBUKv9ukoUFLC+Z7pnJTLozoo/39PbmCfZmwKrt0DOlkfrSAtuSqZLGascsmRiDNiZrLmtSoFFOMyTTb7kADQIt6kQuC5/Ots4Gkgb7rTDUv+EhFVKYNBxMIhkEYn5i/cuhy1c7kM+Fajg79MmOxn4Z+0u3Mkzz1nIlU8cVX6qWs5TNIJAGxKqCgVQVbgz9yGHmJMvNHAT1hWry9hzPe/uV4wEkEwzNXhwHUh9b+jkvO5S2zBbMoW2TV7H8f3aBWnBj4rX4OFVHPe+qftXKtana4zlazdmMN0eLL3kgrFGu2oNla+onDWjReRpBINVBglDVivolrDppGUQpyHQUIkBCjToamXm2sEOFspAElWyNlTvZ8id3+uyzVdeZQDAJj8KK0wiXt4+pf3Zs223sUAiBpK+hGzPcjR7o6I6ObjaG84F20nKBtOjiL/UJzA2vAgAA
+    Metadata:
+      aws:cdk:path: roundtrip/CDKMetadata/Default
+Parameters:
+  AssetParameters29fb31c481fbb5f1f911662a0e89abf092d24f032c9e03081d519283c993949bS3BucketDDFDC650:
+    Type: String
+    Description: S3 bucket for asset "29fb31c481fbb5f1f911662a0e89abf092d24f032c9e03081d519283c993949b"
+  AssetParameters29fb31c481fbb5f1f911662a0e89abf092d24f032c9e03081d519283c993949bS3VersionKey1CBB06A1:
+    Type: String
+    Description: S3 key for asset version "29fb31c481fbb5f1f911662a0e89abf092d24f032c9e03081d519283c993949b"
+  AssetParameters29fb31c481fbb5f1f911662a0e89abf092d24f032c9e03081d519283c993949bArtifactHashA2EAC549:
+    Type: String
+    Description: Artifact hash for asset "29fb31c481fbb5f1f911662a0e89abf092d24f032c9e03081d519283c993949b"
+  AssetParameters6a1dc5cea19c1b0387558922d1f24a96cc6ec688394574a91612e053295aa4f6S3Bucket065E6BA9:
+    Type: String
+    Description: S3 bucket for asset "6a1dc5cea19c1b0387558922d1f24a96cc6ec688394574a91612e053295aa4f6"
+  AssetParameters6a1dc5cea19c1b0387558922d1f24a96cc6ec688394574a91612e053295aa4f6S3VersionKey9F6619F9:
+    Type: String
+    Description: S3 key for asset version "6a1dc5cea19c1b0387558922d1f24a96cc6ec688394574a91612e053295aa4f6"
+  AssetParameters6a1dc5cea19c1b0387558922d1f24a96cc6ec688394574a91612e053295aa4f6ArtifactHashAD301738:
+    Type: String
+    Description: Artifact hash for asset "6a1dc5cea19c1b0387558922d1f24a96cc6ec688394574a91612e053295aa4f6"
+  AssetParameters09d06c4701c5bb07593e869d56f8fce051329019b41902e8c36529ae306f1ea0S3Bucket7E9490BD:
+    Type: String
+    Description: S3 bucket for asset "09d06c4701c5bb07593e869d56f8fce051329019b41902e8c36529ae306f1ea0"
+  AssetParameters09d06c4701c5bb07593e869d56f8fce051329019b41902e8c36529ae306f1ea0S3VersionKey54F10EE3:
+    Type: String
+    Description: S3 key for asset version "09d06c4701c5bb07593e869d56f8fce051329019b41902e8c36529ae306f1ea0"
+  AssetParameters09d06c4701c5bb07593e869d56f8fce051329019b41902e8c36529ae306f1ea0ArtifactHash833E5492:
+    Type: String
+    Description: Artifact hash for asset "09d06c4701c5bb07593e869d56f8fce051329019b41902e8c36529ae306f1ea0"
+  AssetParametersafca064b03efe4728e970c8b7a31ba71f0543f7195b713dcefde4b6e3e22e99eS3BucketBC608619:
+    Type: String
+    Description: S3 bucket for asset "afca064b03efe4728e970c8b7a31ba71f0543f7195b713dcefde4b6e3e22e99e"
+  AssetParametersafca064b03efe4728e970c8b7a31ba71f0543f7195b713dcefde4b6e3e22e99eS3VersionKey106B72B2:
+    Type: String
+    Description: S3 key for asset version "afca064b03efe4728e970c8b7a31ba71f0543f7195b713dcefde4b6e3e22e99e"
+  AssetParametersafca064b03efe4728e970c8b7a31ba71f0543f7195b713dcefde4b6e3e22e99eArtifactHash7EB786A9:
+    Type: String
+    Description: Artifact hash for asset "afca064b03efe4728e970c8b7a31ba71f0543f7195b713dcefde4b6e3e22e99e"
+  AssetParametersf476b81bec7594386daa9b743fb5c41e21ff325dfee702e0bdd9ef7625d49819S3Bucket6317DB4C:
+    Type: String
+    Description: S3 bucket for asset "f476b81bec7594386daa9b743fb5c41e21ff325dfee702e0bdd9ef7625d49819"
+  AssetParametersf476b81bec7594386daa9b743fb5c41e21ff325dfee702e0bdd9ef7625d49819S3VersionKey0C039731:
+    Type: String
+    Description: S3 key for asset version "f476b81bec7594386daa9b743fb5c41e21ff325dfee702e0bdd9ef7625d49819"
+  AssetParametersf476b81bec7594386daa9b743fb5c41e21ff325dfee702e0bdd9ef7625d49819ArtifactHash981D96BA:
+    Type: String
+    Description: Artifact hash for asset "f476b81bec7594386daa9b743fb5c41e21ff325dfee702e0bdd9ef7625d49819"
+  AssetParameters5b87a367476c01b761d7feae6cf223f466f2862ad2a649def6c70d880a496c35S3Bucket6216362B:
+    Type: String
+    Description: S3 bucket for asset "5b87a367476c01b761d7feae6cf223f466f2862ad2a649def6c70d880a496c35"
+  AssetParameters5b87a367476c01b761d7feae6cf223f466f2862ad2a649def6c70d880a496c35S3VersionKeyB5905B27:
+    Type: String
+    Description: S3 key for asset version "5b87a367476c01b761d7feae6cf223f466f2862ad2a649def6c70d880a496c35"
+  AssetParameters5b87a367476c01b761d7feae6cf223f466f2862ad2a649def6c70d880a496c35ArtifactHash9DD4C4E0:
+    Type: String
+    Description: Artifact hash for asset "5b87a367476c01b761d7feae6cf223f466f2862ad2a649def6c70d880a496c35"
+Outputs:
+  QueueURL:
+    Value:
+      Ref: MyQueueE6CA6235
+

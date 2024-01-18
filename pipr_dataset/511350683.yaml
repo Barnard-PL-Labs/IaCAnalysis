@@ -1,0 +1,1324 @@
+Resources:
+  TerraformStateBucket7379689D:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: terraform-state-cd055e95-3e15-4d0b-85ec-efbecd6f2b8d
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformStateBucket/Resource
+  TerraformStateBucketPolicy8366A41F:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: TerraformStateBucket7379689D
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - TerraformStateBucket7379689D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - TerraformStateBucket7379689D
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformStateBucket/Policy/Resource
+  TerraformStateBucketAutoDeleteObjectsCustomResource249A0940:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: TerraformStateBucket7379689D
+    DependsOn:
+      - TerraformStateBucketPolicy8366A41F
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformStateBucket/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: ac9d3642b3e0626d3a6d8c4f5f56507a478c329febdf1dcfbbf7c7db9812cd30.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs14.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: TerraformStateBucket7379689D
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.ac9d3642b3e0626d3a6d8c4f5f56507a478c329febdf1dcfbbf7c7db9812cd30
+      aws:asset:property: Code
+  TerraformCostTopicCE289F5E:
+    Type: AWS::SNS::Topic
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformCostTopic/Resource
+  S3CodeBuildManagedPolicyC3BDBE1F:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:DeleteObject
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - TerraformStateBucket7379689D
+                      - Arn
+                  - /*
+          - Action: s3:ListBucket
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      Description: ""
+      Path: /
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/S3CodeBuildManagedPolicy/Resource
+  SNSCodeBuildManagedPolicy3FEC5A7A:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: TerraformCostTopicCE289F5E
+        Version: "2012-10-17"
+      Description: ""
+      Path: /
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/SNSCodeBuildManagedPolicy/Resource
+  TerraformPlanCodeBuildRoleB5B75AD8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+      Description: IAM role for CodeBuild to interact with S3
+      ManagedPolicyArns:
+        - Ref: S3CodeBuildManagedPolicyC3BDBE1F
+        - Ref: SNSCodeBuildManagedPolicy3FEC5A7A
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AWSCodeCommitReadOnly
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/ReadOnlyAccess
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPlanCodeBuildRole/Resource
+  TerraformPlanCodeBuildRoleDefaultPolicyEC6AE306:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codecommit:GitPull
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TerraformRepository650538ED
+                - Arn
+          - Action: ssm:GetParameters
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/terraform/infracost/api_key
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: TerraformPlanCodeBuildProjectEDC23E90
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: TerraformPlanCodeBuildProjectEDC23E90
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: TerraformPullRequestCodeBuildProjectA466538B
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: TerraformPullRequestCodeBuildProjectA466538B
+          - Action:
+              - codebuild:BatchPutCodeCoverages
+              - codebuild:BatchPutTestCases
+              - codebuild:CreateReport
+              - codebuild:CreateReportGroup
+              - codebuild:UpdateReport
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":codebuild:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :report-group/
+                    - Ref: TerraformPlanCodeBuildProjectEDC23E90
+                    - -*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":codebuild:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :report-group/
+                    - Ref: TerraformPullRequestCodeBuildProjectA466538B
+                    - -*
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CodePipelineArtifactBucket57377C3D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CodePipelineArtifactBucket57377C3D
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: TerraformPlanCodeBuildRoleDefaultPolicyEC6AE306
+      Roles:
+        - Ref: TerraformPlanCodeBuildRoleB5B75AD8
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPlanCodeBuildRole/DefaultPolicy/Resource
+  TerraformRepository650538ED:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: TerraformRepository
+      Code:
+        BranchName: main
+        S3:
+          Bucket:
+            Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+          Key: 9f4d89bae0b6be461a7bc9b9b49bb04c51a83cd128ffd1a0c53e3af9d4f93b52.zip
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformRepository/Resource
+  TerraformRepositoryTerraformRepositoryOnPullRequestStateChange52FB39DB:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        detail:
+          pullRequestStatus:
+            - Open
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::GetAtt:
+              - TerraformRepository650538ED
+              - Arn
+        detail-type:
+          - CodeCommit Pull Request State Change
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - TerraformPullRequestCodeBuildProjectA466538B
+              - Arn
+          Id: Target0
+          InputTransformer:
+            InputPathsMap:
+              detail-sourceReference: $.detail.sourceReference
+            InputTemplate: '{"sourceVersion":<detail-sourceReference>}'
+          RoleArn:
+            Fn::GetAtt:
+              - TerraformPullRequestCodeBuildProjectEventsRole080A88E5
+              - Arn
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformRepository/TerraformRepositoryOnPullRequestStateChange/Resource
+  TerraformRepositoryInfracostCdkPipelineStackTerraformPipelineA1897B04mainEventRule58125B95:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::GetAtt:
+              - TerraformRepository650538ED
+              - Arn
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - main
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":"
+                - Ref: TerraformPipeline4C6D153D
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - TerraformPipelineEventsRole5148E781
+              - Arn
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformRepository/InfracostCdkPipelineStackTerraformPipelineA1897B04-main-EventRule/Resource
+  TerraformPullRequestCodeBuildProjectA466538B:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: INFRACOST_API_KEY
+            Type: PARAMETER_STORE
+            Value: /terraform/infracost/api_key
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - TerraformPlanCodeBuildRoleB5B75AD8
+          - Arn
+      Source:
+        BuildSpec:
+          Fn::Join:
+            - ""
+            - - |-
+                {
+                  "version": "0.2",
+                  "phases": {
+                    "install": {
+                      "commands": [
+                        "git checkout $CODEBUILD_SOURCE_VERSION",
+                        "sudo yum -y install unzip python3-pip jq",
+                        "sudo pip3 install git-remote-codecommit",
+                        "wget https://releases.hashicorp.com/terraform/1.2.4/terraform_1.2.4_linux_amd64.zip",
+                        "unzip terraform_1.2.4_linux_amd64.zip",
+                        "sudo mv terraform /usr/local/bin/",
+                        "curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh",
+                        "git clone codecommit::
+              - Ref: AWS::Region
+              - ://
+              - Fn::GetAtt:
+                  - TerraformRepository650538ED
+                  - Name
+              - |-2
+                 --branch=main --single-branch /tmp/main",
+                        "infracost breakdown --path /tmp/main --usage-file infracost-usage.yml --format json --out-file infracost-main.json"
+                      ]
+                    },
+                    "build": {
+                      "commands": [
+                        "terraform init -backend-config=\"bucket=
+              - Ref: TerraformStateBucket7379689D
+              - |-
+                \"",
+                        "terraform plan",
+                        "infracost diff --path . --compare-to infracost-main.json --usage-file infracost-usage.yml --format json --out-file infracost-pull-request.json",
+                        "DIFF_TOTAL_MONTHLY_COST=$(jq '.diffTotalMonthlyCost | tonumber | floor' infracost-pull-request.json)",
+                        "if [[ $DIFF_TOTAL_MONTHLY_COST -gt 0 ]]; then aws sns publish --topic-arn 
+              - Ref: TerraformCostTopicCE289F5E
+              - |-2
+                 --message file://infracost-pull-request.json; fi"
+                      ]
+                    }
+                  }
+                }
+        Location:
+          Fn::GetAtt:
+            - TerraformRepository650538ED
+            - CloneUrlHttp
+        Type: CODECOMMIT
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPullRequestCodeBuildProject/Resource
+  TerraformPullRequestCodeBuildProjectEventsRole080A88E5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPullRequestCodeBuildProject/EventsRole/Resource
+  TerraformPullRequestCodeBuildProjectEventsRoleDefaultPolicyA04E66C7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codebuild:StartBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TerraformPullRequestCodeBuildProjectA466538B
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TerraformPullRequestCodeBuildProjectEventsRoleDefaultPolicyA04E66C7
+      Roles:
+        - Ref: TerraformPullRequestCodeBuildProjectEventsRole080A88E5
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPullRequestCodeBuildProject/EventsRole/DefaultPolicy/Resource
+  TerraformCodeBuildDeployRoleE8B4F193:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+      Description: IAM role for Terraform deployments in CodeBuild
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AdministratorAccess
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformCodeBuildDeployRole/Resource
+  TerraformCodeBuildDeployRoleDefaultPolicyA1FD2B96:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ssm:GetParameters
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/terraform/infracost/api_key
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: TerraformApplyCodeBuildProjectD77F5573
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: TerraformApplyCodeBuildProjectD77F5573
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: TerraformDestroyCodeBuildProjectA6425373
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: TerraformDestroyCodeBuildProjectA6425373
+          - Action:
+              - codebuild:BatchPutCodeCoverages
+              - codebuild:BatchPutTestCases
+              - codebuild:CreateReport
+              - codebuild:CreateReportGroup
+              - codebuild:UpdateReport
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":codebuild:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :report-group/
+                    - Ref: TerraformApplyCodeBuildProjectD77F5573
+                    - -*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":codebuild:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :report-group/
+                    - Ref: TerraformDestroyCodeBuildProjectA6425373
+                    - -*
+          - Action:
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CodePipelineArtifactBucket57377C3D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CodePipelineArtifactBucket57377C3D
+                        - Arn
+                    - /*
+          - Action: codecommit:GitPull
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TerraformRepository650538ED
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TerraformCodeBuildDeployRoleDefaultPolicyA1FD2B96
+      Roles:
+        - Ref: TerraformCodeBuildDeployRoleE8B4F193
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformCodeBuildDeployRole/DefaultPolicy/Resource
+  CodePipelineArtifactBucket57377C3D:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: codepipeline-artifact-7870b60a-614a-47db-8da9-df694860b793
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/CodePipelineArtifactBucket/Resource
+  CodePipelineArtifactBucketPolicyA9996043:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: CodePipelineArtifactBucket57377C3D
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - CodePipelineArtifactBucket57377C3D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CodePipelineArtifactBucket57377C3D
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/CodePipelineArtifactBucket/Policy/Resource
+  CodePipelineArtifactBucketAutoDeleteObjectsCustomResource3642E261:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: CodePipelineArtifactBucket57377C3D
+    DependsOn:
+      - CodePipelineArtifactBucketPolicyA9996043
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/CodePipelineArtifactBucket/AutoDeleteObjectsCustomResource/Default
+  TerraformPlanCodeBuildProjectEDC23E90:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: INFRACOST_API_KEY
+            Type: PARAMETER_STORE
+            Value: /terraform/infracost/api_key
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - TerraformPlanCodeBuildRoleB5B75AD8
+          - Arn
+      Source:
+        BuildSpec:
+          Fn::Join:
+            - ""
+            - - |-
+                {
+                  "version": "0.2",
+                  "artifacts": {
+                    "files": [
+                      "*.tf",
+                      "lambda/*",
+                      "tfplan.out"
+                    ]
+                  },
+                  "phases": {
+                    "install": {
+                      "commands": [
+                        "wget https://releases.hashicorp.com/terraform/1.2.4/terraform_1.2.4_linux_amd64.zip",
+                        "sudo yum -y install unzip",
+                        "unzip terraform_1.2.4_linux_amd64.zip",
+                        "sudo mv terraform /usr/local/bin/",
+                        "curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh"
+                      ]
+                    },
+                    "build": {
+                      "commands": [
+                        "terraform init -backend-config=\"bucket=
+              - Ref: TerraformStateBucket7379689D
+              - |-
+                \"",
+                        "terraform plan -out tfplan.out",
+                        "infracost breakdown --path . --usage-file infracost-usage.yml --format table"
+                      ]
+                    }
+                  }
+                }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPlanCodeBuildProject/Resource
+  TerraformApplyCodeBuildProjectD77F5573:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: INFRACOST_API_KEY
+            Type: PARAMETER_STORE
+            Value: /terraform/infracost/api_key
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - TerraformCodeBuildDeployRoleE8B4F193
+          - Arn
+      Source:
+        BuildSpec:
+          Fn::Join:
+            - ""
+            - - |-
+                {
+                  "version": "0.2",
+                  "phases": {
+                    "install": {
+                      "commands": [
+                        "wget https://releases.hashicorp.com/terraform/1.2.4/terraform_1.2.4_linux_amd64.zip",
+                        "sudo yum -y install unzip",
+                        "unzip terraform_1.2.4_linux_amd64.zip",
+                        "sudo mv terraform /usr/local/bin/",
+                        "curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh"
+                      ]
+                    },
+                    "build": {
+                      "commands": [
+                        "terraform init -backend-config=\"bucket=
+              - Ref: TerraformStateBucket7379689D
+              - |-
+                \"",
+                        "terraform apply tfplan.out"
+                      ]
+                    }
+                  }
+                }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformApplyCodeBuildProject/Resource
+  TerraformPipelineRole3D375849:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/Role/Resource
+  TerraformPipelineRoleDefaultPolicyB84BEAE4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CodePipelineArtifactBucket57377C3D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CodePipelineArtifactBucket57377C3D
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TerraformPipelineApproveBuildCodePipelineActionRoleD5EDC76A
+                  - Arn
+              - Fn::GetAtt:
+                  - TerraformPipelineApproveDeployCodePipelineActionRoleA4B11AA9
+                  - Arn
+              - Fn::GetAtt:
+                  - TerraformPipelineBuildBuildTerraformCodePipelineActionRoleE400092E
+                  - Arn
+              - Fn::GetAtt:
+                  - TerraformPipelineDeployDeployTerraformCodePipelineActionRoleB026EABE
+                  - Arn
+              - Fn::GetAtt:
+                  - TerraformPipelineSourceCodePipelineActionRole61F16AE8
+                  - Arn
+        Version: "2012-10-17"
+      PolicyName: TerraformPipelineRoleDefaultPolicyB84BEAE4
+      Roles:
+        - Ref: TerraformPipelineRole3D375849
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/Role/DefaultPolicy/Resource
+  TerraformPipeline4C6D153D:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - TerraformPipelineRole3D375849
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::GetAtt:
+                    - TerraformRepository650538ED
+                    - Name
+                BranchName: main
+                PollForSourceChanges: false
+              Name: Source
+              OutputArtifacts:
+                - Name: Artifact_Source_Source
+              RoleArn:
+                Fn::GetAtt:
+                  - TerraformPipelineSourceCodePipelineActionRole61F16AE8
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: "1"
+              Name: ApproveBuild
+              RoleArn:
+                Fn::GetAtt:
+                  - TerraformPipelineApproveBuildCodePipelineActionRoleD5EDC76A
+                  - Arn
+              RunOrder: 1
+          Name: ApproveBuild
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: TerraformPlanCodeBuildProjectEDC23E90
+              InputArtifacts:
+                - Name: Artifact_Source_Source
+              Name: BuildTerraform
+              OutputArtifacts:
+                - Name: Artifact_Build_BuildTerraform
+              RoleArn:
+                Fn::GetAtt:
+                  - TerraformPipelineBuildBuildTerraformCodePipelineActionRoleE400092E
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: "1"
+              Name: ApproveDeploy
+              RoleArn:
+                Fn::GetAtt:
+                  - TerraformPipelineApproveDeployCodePipelineActionRoleA4B11AA9
+                  - Arn
+              RunOrder: 1
+          Name: ApproveDeploy
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: TerraformApplyCodeBuildProjectD77F5573
+              InputArtifacts:
+                - Name: Artifact_Build_BuildTerraform
+              Name: DeployTerraform
+              RoleArn:
+                Fn::GetAtt:
+                  - TerraformPipelineDeployDeployTerraformCodePipelineActionRoleB026EABE
+                  - Arn
+              RunOrder: 1
+          Name: Deploy
+      ArtifactStore:
+        Location:
+          Ref: CodePipelineArtifactBucket57377C3D
+        Type: S3
+      Name: TerraformPipeline
+    DependsOn:
+      - TerraformPipelineRoleDefaultPolicyB84BEAE4
+      - TerraformPipelineRole3D375849
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/Resource
+  TerraformPipelineSourceCodePipelineActionRole61F16AE8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/Source/Source/CodePipelineActionRole/Resource
+  TerraformPipelineSourceCodePipelineActionRoleDefaultPolicy08231745:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CodePipelineArtifactBucket57377C3D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CodePipelineArtifactBucket57377C3D
+                        - Arn
+                    - /*
+          - Action:
+              - codecommit:CancelUploadArchive
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:UploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TerraformRepository650538ED
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TerraformPipelineSourceCodePipelineActionRoleDefaultPolicy08231745
+      Roles:
+        - Ref: TerraformPipelineSourceCodePipelineActionRole61F16AE8
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/Source/Source/CodePipelineActionRole/DefaultPolicy/Resource
+  TerraformPipelineEventsRole5148E781:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/EventsRole/Resource
+  TerraformPipelineEventsRoleDefaultPolicyF2E82E4A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codepipeline:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: TerraformPipeline4C6D153D
+        Version: "2012-10-17"
+      PolicyName: TerraformPipelineEventsRoleDefaultPolicyF2E82E4A
+      Roles:
+        - Ref: TerraformPipelineEventsRole5148E781
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/EventsRole/DefaultPolicy/Resource
+  TerraformPipelineApproveBuildCodePipelineActionRoleD5EDC76A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/ApproveBuild/ApproveBuild/CodePipelineActionRole/Resource
+  TerraformPipelineBuildBuildTerraformCodePipelineActionRoleE400092E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/Build/BuildTerraform/CodePipelineActionRole/Resource
+  TerraformPipelineBuildBuildTerraformCodePipelineActionRoleDefaultPolicy78B7ED60:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TerraformPlanCodeBuildProjectEDC23E90
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TerraformPipelineBuildBuildTerraformCodePipelineActionRoleDefaultPolicy78B7ED60
+      Roles:
+        - Ref: TerraformPipelineBuildBuildTerraformCodePipelineActionRoleE400092E
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/Build/BuildTerraform/CodePipelineActionRole/DefaultPolicy/Resource
+  TerraformPipelineApproveDeployCodePipelineActionRoleA4B11AA9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/ApproveDeploy/ApproveDeploy/CodePipelineActionRole/Resource
+  TerraformPipelineDeployDeployTerraformCodePipelineActionRoleB026EABE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/Deploy/DeployTerraform/CodePipelineActionRole/Resource
+  TerraformPipelineDeployDeployTerraformCodePipelineActionRoleDefaultPolicy6FB44F07:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TerraformApplyCodeBuildProjectD77F5573
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TerraformPipelineDeployDeployTerraformCodePipelineActionRoleDefaultPolicy6FB44F07
+      Roles:
+        - Ref: TerraformPipelineDeployDeployTerraformCodePipelineActionRoleB026EABE
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformPipeline/Deploy/DeployTerraform/CodePipelineActionRole/DefaultPolicy/Resource
+  TerraformDestroyCodeBuildProjectA6425373:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - TerraformCodeBuildDeployRoleE8B4F193
+          - Arn
+      Source:
+        BuildSpec:
+          Fn::Join:
+            - ""
+            - - |-
+                {
+                  "version": "0.2",
+                  "phases": {
+                    "install": {
+                      "commands": [
+                        "sudo yum -y install unzip",
+                        "wget https://releases.hashicorp.com/terraform/1.2.4/terraform_1.2.4_linux_amd64.zip",
+                        "unzip terraform_1.2.4_linux_amd64.zip",
+                        "sudo mv terraform /usr/local/bin/"
+                      ]
+                    },
+                    "build": {
+                      "commands": [
+                        "terraform init -backend-config=\"bucket=
+              - Ref: TerraformStateBucket7379689D
+              - |-
+                \"",
+                        "terraform destroy -auto-approve"
+                      ]
+                    }
+                  }
+                }
+        Location:
+          Fn::GetAtt:
+            - TerraformRepository650538ED
+            - CloneUrlHttp
+        Type: CODECOMMIT
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/TerraformDestroyCodeBuildProject/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VQy27DIBD8ltzJto4vvTY+V7Kc3iMCW2v9AMuLXVXI/14MtFZO82B2FrhAWcDrSX7zWen+PNAD/M1J1Ytg3T2X4K+L6tGJ6stklqC2A6mfw846iatk3AQbBv9pJ1J7LJJNkBzBf0gjW9RHx7PR2AF3N+IRSmwTympUdhzJgW9wskzOzjFxqLC9vEtmdAzvOwhc0QThmyWXB0xdj4UGDb6ebYcqvvSP1jThQAazTvEpm2EisziS+baJamFnxwbZLrNKu/7501GoXUnjLOINw7+3ZNo9X1mjyZE1mzBhI3T8shZvUFygOHVMdJ4X42hEaBL+AlzdMe3HAQAA
+    Metadata:
+      aws:cdk:path: InfracostCdkPipelineStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

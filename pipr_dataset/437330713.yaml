@@ -1,0 +1,163 @@
+Resources:
+  S3BatchOperationsRole79F42304:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: batchoperations.s3.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: S3BatchOperations/S3BatchOperationsRole/Resource
+  S3BatchOperationsRoleDefaultPolicy55D2AE09:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - InventoryAndLogsBucketB5DF1E2C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - InventoryAndLogsBucketB5DF1E2C
+                        - Arn
+                    - /*
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - S3BatchProcessor6C619AEA
+                - Arn
+          - Action:
+              - lambda:*
+              - s3:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: S3BatchOperationsRoleDefaultPolicy55D2AE09
+      Roles:
+        - Ref: S3BatchOperationsRole79F42304
+    Metadata:
+      aws:cdk:path: S3BatchOperations/S3BatchOperationsRole/DefaultPolicy/Resource
+  LambdaExecutionRoleD5C26073:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: S3BatchOperations/LambdaExecutionRole/Resource
+  LambdaExecutionRoleDefaultPolicy6D69732F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ExisitingContentBucketDBD4ECFA
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ExisitingContentBucketDBD4ECFA
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: LambdaExecutionRoleDefaultPolicy6D69732F
+      Roles:
+        - Ref: LambdaExecutionRoleD5C26073
+    Metadata:
+      aws:cdk:path: S3BatchOperations/LambdaExecutionRole/DefaultPolicy/Resource
+  ExisitingContentBucketDBD4ECFA:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: S3BatchOperations/ExisitingContentBucket/Resource
+  InventoryAndLogsBucketB5DF1E2C:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: S3BatchOperations/InventoryAndLogsBucket/Resource
+  S3BatchProcessor6C619AEA:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1d7c7d1a981fab393b3033d2d945a0c8e089ef2829a423b612c9d1004bb538afS3BucketCBD7C46E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1d7c7d1a981fab393b3033d2d945a0c8e089ef2829a423b612c9d1004bb538afS3VersionKeyF20F3272
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1d7c7d1a981fab393b3033d2d945a0c8e089ef2829a423b612c9d1004bb538afS3VersionKeyF20F3272
+      Role:
+        Fn::GetAtt:
+          - LambdaExecutionRoleD5C26073
+          - Arn
+      Environment:
+        Variables:
+          OUTPUT_BUCKET:
+            Ref: ExisitingContentBucketDBD4ECFA
+      Handler: lambda_function.lambda_handler
+      ReservedConcurrentExecutions: 1
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - LambdaExecutionRoleDefaultPolicy6D69732F
+      - LambdaExecutionRoleD5C26073
+    Metadata:
+      aws:cdk:path: S3BatchOperations/S3BatchProcessor/Resource
+      aws:asset:path: asset.1d7c7d1a981fab393b3033d2d945a0c8e089ef2829a423b612c9d1004bb538af
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/rest/437330713/src/lambda/s3batchprocessor
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/zVOyw6CMBD8Fu5lseLBo0LimeAXrGUl5dEm3VZjGv5dCnqa2ZmdyUiQ5QkO2QXfnKtuLKKyjiDePapR1Nawd0F5cWUmv4q9Nr2on6ZBhzN5culoiW1wihaRWqLGGWJrJ9q8hI2dtPpsuY0tgkuIVVAj+aT+2A4V8to04fzoEOItGOW1Nentz1M8x7SIYRu2LMLYjmDg4iXPII8gs4G1zl0wXs8E7Y5ff1KJGO4AAAA=
+    Metadata:
+      aws:cdk:path: S3BatchOperations/CDKMetadata/Default
+Parameters:
+  AssetParameters1d7c7d1a981fab393b3033d2d945a0c8e089ef2829a423b612c9d1004bb538afS3BucketCBD7C46E:
+    Type: String
+    Description: S3 bucket for asset "1d7c7d1a981fab393b3033d2d945a0c8e089ef2829a423b612c9d1004bb538af"
+  AssetParameters1d7c7d1a981fab393b3033d2d945a0c8e089ef2829a423b612c9d1004bb538afS3VersionKeyF20F3272:
+    Type: String
+    Description: S3 key for asset version "1d7c7d1a981fab393b3033d2d945a0c8e089ef2829a423b612c9d1004bb538af"
+  AssetParameters1d7c7d1a981fab393b3033d2d945a0c8e089ef2829a423b612c9d1004bb538afArtifactHashD021E089:
+    Type: String
+    Description: Artifact hash for asset "1d7c7d1a981fab393b3033d2d945a0c8e089ef2829a423b612c9d1004bb538af"
+

@@ -1,0 +1,1011 @@
+Resources:
+  thingsPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - iot:Connect
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :client/${iot:Connection.Thing.ThingName}
+          - Effect: Allow
+            Action:
+              - iot:Subscribe
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topicfilter/${iot:Connection.Thing.ThingName}/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topicfilter/openworld
+          - Effect: Allow
+            Action:
+              - iot:Publish
+              - iot:Receive
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topic/${iot:Connection.Thing.ThingName}/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topic/openworld
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/thingsPolicy
+  ProvisioningRoleArn512F0052:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSIoTThingsRegistration
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/ProvisioningRoleArn/Resource
+  ProvisioningTemplate:
+    Type: AWS::IoT::ProvisioningTemplate
+    Properties:
+      ProvisioningRoleArn:
+        Fn::GetAtt:
+          - ProvisioningRoleArn512F0052
+          - Arn
+      TemplateBody:
+        Fn::Join:
+          - ""
+          - - |-
+              {
+                      "Parameters": {
+                        "SerialNumber": {
+                          "Type": "String"
+                        },
+                        "AWS::IoT::Certificate::Id": {
+                          "Type": "String"
+                        }
+                      },
+                      "Resources": {
+                        "certificate": {
+                          "Properties": {
+                            "CertificateId": {
+                              "Ref": "AWS::IoT::Certificate::Id"
+                            },
+                            "Status": "Active"
+                          },
+                          "Type": "AWS::IoT::Certificate"
+                        },
+                        "policy": {
+                          "Properties": {
+                            "PolicyName": "
+            - Ref: thingsPolicy
+            - |-
+              "
+                          },
+                          "Type": "AWS::IoT::Policy"
+                        },
+                        "thing": {
+                          "OverrideSettings": {
+                            "AttributePayload": "MERGE",
+                            "ThingGroups": "DO_NOTHING",
+                            "ThingTypeName": "REPLACE"
+                          },
+                          "Properties": {
+                            "ThingGroups": [],
+                            "ThingName": {
+                              "Ref": "SerialNumber"
+                            }
+                          },
+                          "Type": "AWS::IoT::Thing"
+                        }
+                      },
+                      "DeviceConfiguration": {
+                      }
+                    }
+      Enabled: true
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/ProvisioningTemplate
+  FleetProvisioningPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - iot:Connect
+            Resource:
+              - "*"
+          - Effect: Allow
+            Action:
+              - iot:Publish
+              - iot:Receive
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topic/$aws/certificates/create/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topic/$aws/provisioning-templates/
+                    - Ref: ProvisioningTemplate
+                    - /provision/*
+          - Effect: Allow
+            Action:
+              - iot:Subscribe
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topicfilter/$aws/certificates/create/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topicfilter/$aws/provisioning-templates/
+                    - Ref: ProvisioningTemplate
+                    - /provision/*
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/FleetProvisioningPolicy
+  rpiImageBuilderSourceBucket3B1B047A:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/rpiImageBuilderSourceBucket/Resource
+  RpiImageOutputBucketC16CAC8A:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/RpiImageOutputBucket/Resource
+  ConfigureRpiImageBuilderFunctionServiceRole153D3C6D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/ConfigureRpiImageBuilderFunction/ServiceRole/Resource
+  ConfigureRpiImageBuilderFunctionServiceRoleDefaultPolicyDB1E741D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - iot:CreateKeysAndCertificate
+              - iot:AttachPolicy
+              - iot:DescribeEndpoint
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - rpiImageBuilderSourceBucket3B1B047A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - rpiImageBuilderSourceBucket3B1B047A
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21aS3BucketDCF36762
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21aS3BucketDCF36762
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: ConfigureRpiImageBuilderFunctionServiceRoleDefaultPolicyDB1E741D
+      Roles:
+        - Ref: ConfigureRpiImageBuilderFunctionServiceRole153D3C6D
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/ConfigureRpiImageBuilderFunction/ServiceRole/DefaultPolicy/Resource
+  ConfigureRpiImageBuilderFunction30F5701A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersd56adbf607c471821b18169103911ef11f70b6d0bb1f82f57e4f106695d8fe4dS3Bucket9B9A3E03
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd56adbf607c471821b18169103911ef11f70b6d0bb1f82f57e4f106695d8fe4dS3VersionKey2A9F5EB6
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd56adbf607c471821b18169103911ef11f70b6d0bb1f82f57e4f106695d8fe4dS3VersionKey2A9F5EB6
+      Role:
+        Fn::GetAtt:
+          - ConfigureRpiImageBuilderFunctionServiceRole153D3C6D
+          - Arn
+      Handler: app.on_event
+      Runtime: python3.7
+      Timeout: 60
+    DependsOn:
+      - ConfigureRpiImageBuilderFunctionServiceRoleDefaultPolicyDB1E741D
+      - ConfigureRpiImageBuilderFunctionServiceRole153D3C6D
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/ConfigureRpiImageBuilderFunction/Resource
+      aws:asset:path: asset.d56adbf607c471821b18169103911ef11f70b6d0bb1f82f57e4f106695d8fe4d
+      aws:asset:property: Code
+  ConfigureRpiImageBuilderProviderframeworkonEventServiceRole586AA64D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/ConfigureRpiImageBuilderProvider/framework-onEvent/ServiceRole/Resource
+  ConfigureRpiImageBuilderProviderframeworkonEventServiceRoleDefaultPolicy06477CC6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ConfigureRpiImageBuilderFunction30F5701A
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ConfigureRpiImageBuilderProviderframeworkonEventServiceRoleDefaultPolicy06477CC6
+      Roles:
+        - Ref: ConfigureRpiImageBuilderProviderframeworkonEventServiceRole586AA64D
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/ConfigureRpiImageBuilderProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  ConfigureRpiImageBuilderProviderframeworkonEventAC61CC8C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7
+      Role:
+        Fn::GetAtt:
+          - ConfigureRpiImageBuilderProviderframeworkonEventServiceRole586AA64D
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (AwsIotRpiFleetProvisioningStack/ConfigureRpiImageBuilderProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - ConfigureRpiImageBuilderFunction30F5701A
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - ConfigureRpiImageBuilderProviderframeworkonEventServiceRoleDefaultPolicy06477CC6
+      - ConfigureRpiImageBuilderProviderframeworkonEventServiceRole586AA64D
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/ConfigureRpiImageBuilderProvider/framework-onEvent/Resource
+      aws:asset:path: asset.c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c
+      aws:asset:property: Code
+  ConfigureRpiImageBuilderCR:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - ConfigureRpiImageBuilderProviderframeworkonEventAC61CC8C
+          - Arn
+      FLEET_PROVISIONING_POLICY_NAME:
+        Ref: FleetProvisioningPolicy
+      PROVISIONING_TEMPLATE_NAME:
+        Ref: ProvisioningTemplate
+      RPI_IMAGE_BUILDER_BUCKET_NAME:
+        Ref: AssetParameters5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21aS3BucketDCF36762
+      RPI_IMAGE_BUILDER_OBJECT_KEY:
+        Fn::Join:
+          - ""
+          - - Fn::Select:
+                - 0
+                - Fn::Split:
+                    - "||"
+                    - Ref: AssetParameters5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21aS3VersionKeyF10AEEA7
+            - Fn::Select:
+                - 1
+                - Fn::Split:
+                    - "||"
+                    - Ref: AssetParameters5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21aS3VersionKeyF10AEEA7
+      CONFIGURED_RPI_IMAGE_BUILDER_BUCKET_NAME:
+        Ref: rpiImageBuilderSourceBucket3B1B047A
+      CONFIGURED_RPI_IMAGE_BUILDER_OBJECT_KEY: rpi-image-builder.zip
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/ConfigureRpiImageBuilderCR/Default
+  BuildRpiImageProjectRole25C801ED:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImageProject/Role/Resource
+  BuildRpiImageProjectRoleDefaultPolicy00916D55:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: BuildRpiImageProject8E27C755
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: BuildRpiImageProject8E27C755
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: BuildRpiImageProject8E27C755
+                  - -*
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":secretsmanager:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :secret:RPI_WIFI_PASSWORD-??????
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - BuildRpiImagePipelineArtifactsBucketC0B23EB0
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - BuildRpiImagePipelineArtifactsBucketC0B23EB0
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: BuildRpiImageProjectRoleDefaultPolicy00916D55
+      Roles:
+        - Ref: BuildRpiImageProjectRole25C801ED
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImageProject/Role/DefaultPolicy/Resource
+  BuildRpiImageProject8E27C755:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:4.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - BuildRpiImageProjectRole25C801ED
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "env": {
+              "variables": {
+                "SSH_PUBLIC_KEY": "...",
+                "WIFI_SSID": "...",
+                "WIFI_COUNTRY": "...",
+                "ARTIFACT_IMAGE_NAME": "aws-raspbian.img"
+              },
+              "secrets-manager": {
+                "WIFI_PASSWORD": "RPI_WIFI_PASSWORD"
+              }
+            },
+            "phases": {
+              "install": {
+                "commands": [
+                  "apt-get update",
+                  "apt-get -y install p7zip-full wget libxml2-utils kpartx"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "./build-rpi-image.bash"
+                ]
+              }
+            },
+            "artifacts": {
+              "files": [
+                "$ARTIFACT_IMAGE_NAME"
+              ]
+            }
+          }
+        Type: CODEPIPELINE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImageProject/Resource
+  BuildRpiImagePipelineArtifactsBucketC0B23EB0:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImagePipeline/ArtifactsBucket/Resource
+  BuildRpiImagePipelineRole6C10218D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImagePipeline/Role/Resource
+  BuildRpiImagePipelineRoleDefaultPolicyEC568D69:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - BuildRpiImagePipelineArtifactsBucketC0B23EB0
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - BuildRpiImagePipelineArtifactsBucketC0B23EB0
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - BuildRpiImagePipelineSourceCodePipelineActionRoleDD9FB482
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - BuildRpiImagePipelineBuildRpiImageCodePipelineActionRole1796EDA5
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - BuildRpiImagePipelineStoreRpiImageCodePipelineActionRole153F34F1
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: BuildRpiImagePipelineRoleDefaultPolicyEC568D69
+      Roles:
+        - Ref: BuildRpiImagePipelineRole6C10218D
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImagePipeline/Role/DefaultPolicy/Resource
+  BuildRpiImagePipelineAC9DAF7F:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - BuildRpiImagePipelineRole6C10218D
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              Configuration:
+                S3Bucket:
+                  Ref: rpiImageBuilderSourceBucket3B1B047A
+                S3ObjectKey: rpi-image-builder.zip
+              Name: Source
+              OutputArtifacts:
+                - Name: Artifact_Source_Source
+              RoleArn:
+                Fn::GetAtt:
+                  - BuildRpiImagePipelineSourceCodePipelineActionRoleDD9FB482
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: BuildRpiImageProject8E27C755
+              InputArtifacts:
+                - Name: Artifact_Source_Source
+              Name: BuildRpiImage
+              OutputArtifacts:
+                - Name: Artifact_BuildRpiImage_BuildRpiImage
+              RoleArn:
+                Fn::GetAtt:
+                  - BuildRpiImagePipelineBuildRpiImageCodePipelineActionRole1796EDA5
+                  - Arn
+              RunOrder: 1
+          Name: BuildRpiImage
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              Configuration:
+                BucketName:
+                  Ref: RpiImageOutputBucketC16CAC8A
+                Extract: "false"
+                ObjectKey: aws-raspbian.zip
+              InputArtifacts:
+                - Name: Artifact_BuildRpiImage_BuildRpiImage
+              Name: StoreRpiImage
+              RoleArn:
+                Fn::GetAtt:
+                  - BuildRpiImagePipelineStoreRpiImageCodePipelineActionRole153F34F1
+                  - Arn
+              RunOrder: 1
+          Name: StoreRpiImage
+      ArtifactStore:
+        Location:
+          Ref: BuildRpiImagePipelineArtifactsBucketC0B23EB0
+        Type: S3
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - BuildRpiImagePipelineRoleDefaultPolicyEC568D69
+      - BuildRpiImagePipelineRole6C10218D
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImagePipeline/Resource
+  BuildRpiImagePipelineSourceCodePipelineActionRoleDD9FB482:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImagePipeline/Source/Source/CodePipelineActionRole/Resource
+  BuildRpiImagePipelineSourceCodePipelineActionRoleDefaultPolicyE263AC18:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - rpiImageBuilderSourceBucket3B1B047A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - rpiImageBuilderSourceBucket3B1B047A
+                        - Arn
+                    - /*
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - BuildRpiImagePipelineArtifactsBucketC0B23EB0
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - BuildRpiImagePipelineArtifactsBucketC0B23EB0
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: BuildRpiImagePipelineSourceCodePipelineActionRoleDefaultPolicyE263AC18
+      Roles:
+        - Ref: BuildRpiImagePipelineSourceCodePipelineActionRoleDD9FB482
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImagePipeline/Source/Source/CodePipelineActionRole/DefaultPolicy/Resource
+  BuildRpiImagePipelineBuildRpiImageCodePipelineActionRole1796EDA5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImagePipeline/BuildRpiImage/BuildRpiImage/CodePipelineActionRole/Resource
+  BuildRpiImagePipelineBuildRpiImageCodePipelineActionRoleDefaultPolicy3651F2DE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - BuildRpiImageProject8E27C755
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: BuildRpiImagePipelineBuildRpiImageCodePipelineActionRoleDefaultPolicy3651F2DE
+      Roles:
+        - Ref: BuildRpiImagePipelineBuildRpiImageCodePipelineActionRole1796EDA5
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImagePipeline/BuildRpiImage/BuildRpiImage/CodePipelineActionRole/DefaultPolicy/Resource
+  BuildRpiImagePipelineStoreRpiImageCodePipelineActionRole153F34F1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImagePipeline/StoreRpiImage/StoreRpiImage/CodePipelineActionRole/Resource
+  BuildRpiImagePipelineStoreRpiImageCodePipelineActionRoleDefaultPolicyD2A609DB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RpiImageOutputBucketC16CAC8A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - RpiImageOutputBucketC16CAC8A
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - BuildRpiImagePipelineArtifactsBucketC0B23EB0
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - BuildRpiImagePipelineArtifactsBucketC0B23EB0
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: BuildRpiImagePipelineStoreRpiImageCodePipelineActionRoleDefaultPolicyD2A609DB
+      Roles:
+        - Ref: BuildRpiImagePipelineStoreRpiImageCodePipelineActionRole153F34F1
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/BuildRpiImagePipeline/StoreRpiImage/StoreRpiImage/CodePipelineActionRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE02QQU7EMAxFzzL71ENBQrADKs2WUeECmdSM3KZJlTiDUJS7k6RFdJWn+Pt/2y08P8Ld4UV++0YN0zEq6xDiB0s1ic4azy4oFq/eI+fPK5mr6NHb4BSK7sucpZMzMjrRBc923tf2/B54CVwomw7EZE0SJTSSZYjFyWpSP9XT2Rv5rMhhnzgvWjImQXKG2Fu9Wpd311EpCf8A8S2oCWvSSkloOV8GCfEUjCrBpfbHpaeRZTsPdUmh7ICXQHqAeKYFNRnMA42oeJutYKqyZav/K6tk45RF9SaN2w7hoa42oEvC5H4Y/fHWPkF7D+1h9ESNC4ZpRujX9xcwTngYngEAAA==
+    Metadata:
+      aws:cdk:path: AwsIotRpiFleetProvisioningStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParametersd56adbf607c471821b18169103911ef11f70b6d0bb1f82f57e4f106695d8fe4dS3Bucket9B9A3E03:
+    Type: String
+    Description: S3 bucket for asset "d56adbf607c471821b18169103911ef11f70b6d0bb1f82f57e4f106695d8fe4d"
+  AssetParametersd56adbf607c471821b18169103911ef11f70b6d0bb1f82f57e4f106695d8fe4dS3VersionKey2A9F5EB6:
+    Type: String
+    Description: S3 key for asset version "d56adbf607c471821b18169103911ef11f70b6d0bb1f82f57e4f106695d8fe4d"
+  AssetParametersd56adbf607c471821b18169103911ef11f70b6d0bb1f82f57e4f106695d8fe4dArtifactHash1EBA69D0:
+    Type: String
+    Description: Artifact hash for asset "d56adbf607c471821b18169103911ef11f70b6d0bb1f82f57e4f106695d8fe4d"
+  AssetParameters5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21aS3BucketDCF36762:
+    Type: String
+    Description: S3 bucket for asset "5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21a"
+  AssetParameters5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21aS3VersionKeyF10AEEA7:
+    Type: String
+    Description: S3 key for asset version "5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21a"
+  AssetParameters5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21aArtifactHash54BCDA69:
+    Type: String
+    Description: Artifact hash for asset "5c9451e690d04d31a4fc009fac90985faa5687fff6d6f6d636e3391ce18fc21a"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43:
+    Type: String
+    Description: S3 bucket for asset "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7:
+    Type: String
+    Description: S3 key for asset version "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cArtifactHash627DAAA7:
+    Type: String
+    Description: Artifact hash for asset "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+Outputs:
+  RpiImageBucketName:
+    Description: Download the raspbian image from this S3 bucket
+    Value:
+      Ref: RpiImageOutputBucketC16CAC8A
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

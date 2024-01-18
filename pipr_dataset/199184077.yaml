@@ -1,0 +1,1074 @@
+Resources:
+  QuizShowAppSyncRoleDB3C3504:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      MaxSessionDuration: 43200
+    Metadata:
+      aws:cdk:path: QuizShow/QuizShowAppSyncRole/Resource
+  QuizShowAppSyncRoleDefaultPolicyD3ED7B99:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: QuizShowAppSyncRoleDefaultPolicyD3ED7B99
+      Roles:
+        - Ref: QuizShowAppSyncRoleDB3C3504
+    Metadata:
+      aws:cdk:path: QuizShow/QuizShowAppSyncRole/DefaultPolicy/Resource
+  QuizShowPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 6
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      Schema:
+        - Mutable: true
+          Name: nickname
+          Required: true
+          StringAttributeConstraints:
+            MaxLength: "20"
+            MinLength: "4"
+        - AttributeDataType: String
+          Mutable: true
+          Name: organization
+          Required: false
+          StringAttributeConstraints:
+            MaxLength: "40"
+            MinLength: "0"
+    Metadata:
+      aws:cdk:path: QuizShow/QuizShowPool
+  QuizShowUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: QuizShowPool
+      ExplicitAuthFlows:
+        - USER_PASSWORD_AUTH
+    Metadata:
+      aws:cdk:path: QuizShow/QuizShowUserPoolClient
+  QuizShow:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: AMAZON_COGNITO_USER_POOLS
+      Name: QuizShow
+      AdditionalAuthenticationProviders:
+        - AuthenticationType: API_KEY
+      UserPoolConfig:
+        AwsRegion: us-east-1
+        DefaultAction: ALLOW
+        UserPoolId:
+          Ref: QuizShowPool
+    Metadata:
+      aws:cdk:path: QuizShow/QuizShow
+  QuizShowSchema:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      Definition: |
+        type Game {
+          categories: [Category!]
+          contestants: [Contestant!]
+          emcee: String!
+          gameId: Int!
+          title: String!
+        }
+
+        type Category {
+          categoryName: String!
+          catgId: Int!
+          gameId: Int!
+          questions: [Question!]
+        }
+
+        type Question {
+          answer: String!
+          catgId: Int!
+          points: Int!
+          quesId: Int!
+          categoryName: String!
+          question: String!
+          state: StateEnum!
+        }
+
+        type Contestant @aws_api_key @aws_cognito_user_pools {
+          gameId: Int!
+          login: String!
+          name: String!
+          organization: String
+          score: Int!
+        }
+
+        type Nominee @aws_api_key @aws_cognito_user_pools {
+          login: String!
+          name: String!
+          organization: String
+          quesId: Int!
+          timebuzzed: Int!
+        }
+
+        enum StateEnum {
+          closed
+          display
+          open
+          ready
+        }
+
+        type Query {
+          getGameById(gameId: Int!): Game
+          getQuestionByQuesId(quesId: Int!): Question
+          listContestants: [Contestant!]!
+            @aws_api_key
+            @aws_cognito_user_pools
+          listGames: [Game!]
+          listGamesByEmcee(emcee: String!): [Game!]
+        }
+
+        type Mutation {
+          addContestantScore(gameId: Int!, increment: Int!, login: String!): Contestant!
+            @aws_cognito_user_pools(cognito_groups: ["emcee"])
+
+          joinGame(gameId: Int!): Contestant!
+
+          adminJoinGame(gameId: Int!, login: String!, name: String!, organization: String!): Contestant!
+          @aws_api_key
+
+          leaveGame(gameId: Int!, login: String!): Contestant!  @aws_api_key
+          nominateSelf(quesId: Int!): Nominee!
+          nominateContestant(
+            login: String!
+            name: String!
+            organization: String!
+            quesId: Int!
+          ): Nominee!
+            @aws_api_key
+
+          removeNominee(login: String!, quesId: Int!): Nominee!
+            @aws_cognito_user_pools(cognito_groups: ["emcee"])
+
+          setQuestionState(catgId: Int!, quesId: Int!, state: StateEnum!): Question!
+            @aws_cognito_user_pools(cognito_groups: ["emcee"])
+        }
+
+        type Subscription {
+          contestantHasJoinedTheGame: Contestant
+        		@aws_subscribe(mutations: [ "joinGame", "adminJoinGame" ])
+          contestantHasLeftTheGame: Contestant
+        		@aws_subscribe(mutations: ["leaveGame"])
+          addContestantScore: Contestant
+            @aws_subscribe(mutations: ["addContestantScore"])
+          nominateContestant: Nominee
+            @aws_subscribe(mutations: [ "nominateSelf", "nominateContestant" ])
+          questionStateChange: Question
+            @aws_subscribe(mutations: ["setQuestionState"])
+          removeNominee: Nominee
+            @aws_subscribe(mutations: ["removeNominee"])
+        }
+
+        schema {
+          query: Query
+          mutation: Mutation
+          subscription: Subscription
+        }
+    Metadata:
+      aws:cdk:path: QuizShow/QuizShowSchema
+  QuizGamesE710062A:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: gameId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: gameId
+          AttributeType: "N"
+        - AttributeName: emcee
+          AttributeType: S
+      GlobalSecondaryIndexes:
+        - IndexName: EmceeByGameId
+          KeySchema:
+            - AttributeName: emcee
+              KeyType: HASH
+            - AttributeName: gameId
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+      TableName: QuizGames
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: QuizShow/QuizGames/Resource
+  gamestable:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      Name: games
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion: us-east-1
+        TableName:
+          Ref: QuizGamesE710062A
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - QuizShowAppSyncRoleDB3C3504
+          - Arn
+    Metadata:
+      aws:cdk:path: QuizShow/games_table
+  QuizCategories1D2776F5:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: gameId
+          KeyType: HASH
+        - AttributeName: catgId
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: gameId
+          AttributeType: "N"
+        - AttributeName: catgId
+          AttributeType: "N"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+      TableName: QuizCategories
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: QuizShow/QuizCategories/Resource
+  catgstable:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      Name: categories
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion: us-east-1
+        TableName:
+          Ref: QuizCategories1D2776F5
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - QuizShowAppSyncRoleDB3C3504
+          - Arn
+    Metadata:
+      aws:cdk:path: QuizShow/catgs_table
+  QuizQuestions2F0FDBC1:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: catgId
+          KeyType: HASH
+        - AttributeName: quesId
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: catgId
+          AttributeType: "N"
+        - AttributeName: quesId
+          AttributeType: "N"
+      GlobalSecondaryIndexes:
+        - IndexName: QuesId
+          KeySchema:
+            - AttributeName: quesId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 5
+            WriteCapacityUnits: 5
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+      TableName: QuizQuestions
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: QuizShow/QuizQuestions/Resource
+  questable:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      Name: questions
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion: us-east-1
+        TableName:
+          Ref: QuizQuestions2F0FDBC1
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - QuizShowAppSyncRoleDB3C3504
+          - Arn
+    Metadata:
+      aws:cdk:path: QuizShow/ques_table
+  QuizContestantsD6F61CEF:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: gameId
+          KeyType: HASH
+        - AttributeName: login
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: gameId
+          AttributeType: "N"
+        - AttributeName: login
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 20
+        WriteCapacityUnits: 20
+      TableName: QuizContestants
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: QuizShow/QuizContestants/Resource
+  cntsttable:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      Name: contestants
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion: us-east-1
+        TableName:
+          Ref: QuizContestantsD6F61CEF
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - QuizShowAppSyncRoleDB3C3504
+          - Arn
+    Metadata:
+      aws:cdk:path: QuizShow/cntst_table
+  nomineetable:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      Name: EmptyNominees
+      Type: NONE
+    Metadata:
+      aws:cdk:path: QuizShow/nominee_table
+  Gamecategories:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: categories
+      TypeName: Game
+      DataSourceName: categories
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "Query",
+          "query" : {
+            "expression": "gameId = :gameId",
+            "expressionValues" : {
+              ":gameId" : {
+                "N" : "${ctx.source.gameId}"
+              }
+            }
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Game_categories
+  Gamecontestants:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: contestants
+      TypeName: Game
+      DataSourceName: contestants
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "Query",
+          "query" : {
+            "expression": "gameId = :gameId",
+            "expressionValues" : {
+              ":gameId" : {
+                "N" : "${ctx.source.gameId}"
+              }
+            }
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Game_contestants
+  Categoryquestions:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: questions
+      TypeName: Category
+      DataSourceName: questions
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "Query",
+          "query" : {
+            "expression": "catgId = :catgId",
+            "expressionValues" : {
+              ":catgId" : {
+                "N" : "${ctx.source.catgId}"
+              }
+            }
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Category_questions
+  QuerylistContestants:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: listContestants
+      TypeName: Query
+      DataSourceName: contestants
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "Scan"
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Query_listContestants
+  QuerygetGameById:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: getGameById
+      TypeName: Query
+      DataSourceName: games
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "operation": "GetItem",
+          "key": {
+              "gameId": $util.dynamodb.toDynamoDBJson($ctx.args.gameId)
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Query_getGameById
+  QuerygetQuestionByQuesId:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: getQuestionByQuesId
+      TypeName: Query
+      DataSourceName: questions
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+            "version" : "2017-02-28",
+            "operation" : "Query",
+            "index" : "QuesId",
+            "query" : {
+                "expression": "#quesId = :quesId",
+                "expressionNames" : {
+                "#quesId" : "quesId"
+            },
+                "expressionValues" : {
+                    ":quesId" : {
+                        "N" : "$ctx.args.quesId"
+                    }
+                }
+            }
+        }
+      ResponseMappingTemplate: |
+        #if($ctx.result.items.size() > 0)
+          $util.toJson($ctx.result.items[0])
+        #else
+          null
+        #end
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Query_getQuestionByQuesId
+  QuerylistGames:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: listGames
+      TypeName: Query
+      DataSourceName: games
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "Scan"
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Query_listGames
+  QuerylistGamesByEmcee:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: listGamesByEmcee
+      TypeName: Query
+      DataSourceName: games
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "Query",
+          "index" : "EmceeByGameId",
+          "query" : {
+            "expression": "emcee = :emcee",
+            "expressionValues" : {
+              ":emcee" : {
+                "S" : "${ctx.args.emcee}"
+              }
+            }
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Query_listGamesByEmcee
+  MutationsetQuestionState:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: setQuestionState
+      TypeName: Mutation
+      DataSourceName: questions
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "UpdateItem",
+          "key" : {
+            "catgId": $util.dynamodb.toDynamoDBJson($ctx.args.catgId),
+            "quesId": $util.dynamodb.toDynamoDBJson($ctx.args.quesId)
+          },
+          "update" : {
+            "expression" : "SET #state = :state",
+            "expressionNames" : {
+              "#state" : "state"
+            },
+            "expressionValues" : {
+              ":state" : $util.dynamodb.toDynamoDBJson($ctx.args.state)
+            }
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Mutation_setQuestionState
+  MutationjoinGame:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: joinGame
+      TypeName: Mutation
+      DataSourceName: contestants
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "PutItem",
+          "key" : {
+            "gameId": $util.dynamodb.toDynamoDBJson($ctx.args.gameId),
+            "login": $util.dynamodb.toDynamoDBJson($ctx.identity.username)
+          },
+          "attributeValues" : {
+            "name":  $util.dynamodb.toDynamoDBJson($ctx.identity.claims.nickname),
+            "organization":  $util.dynamodb.toDynamoDBJson($ctx.identity.claims.get("custom:organization")),
+            "score": { "N": "0" }
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Mutation_joinGame
+  MutationadminJoinGame:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: adminJoinGame
+      TypeName: Mutation
+      DataSourceName: contestants
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "PutItem",
+          "key" : {
+            "gameId": $util.dynamodb.toDynamoDBJson($ctx.args.gameId),
+            "login": $util.dynamodb.toDynamoDBJson($ctx.args.login)
+          },
+          "attributeValues" : {
+            "name":  $util.dynamodb.toDynamoDBJson($ctx.args.name),
+            "organization":  $util.dynamodb.toDynamoDBJson($ctx.args.organization),
+            "score": { "N": "0" }
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Mutation_adminJoinGame
+  MutationleaveGame:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: leaveGame
+      TypeName: Mutation
+      DataSourceName: contestants
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "DeleteItem",
+          "key" : {
+            "gameId": $util.dynamodb.toDynamoDBJson($ctx.args.gameId),
+            "login": $util.dynamodb.toDynamoDBJson($ctx.args.login)
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Mutation_leaveGame
+  MutationnominateSelf:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: nominateSelf
+      TypeName: Mutation
+      DataSourceName: EmptyNominees
+      Kind: UNIT
+      RequestMappingTemplate: |
+        #set($ts = $util.time.nowEpochMilliSeconds() - 1569453900341)
+        {
+          "version": "2017-02-28",
+          "payload": {
+            "quesId": $ctx.args.quesId,
+            "login": "${ctx.identity.username}",
+            "name": "${ctx.identity.claims.nickname}",
+            "organization": "${ctx.identity.claims.get("custom:organization")}",
+            "timebuzzed": $ts
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Mutation_nominateSelf
+  MutationnominateContestant:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: nominateContestant
+      TypeName: Mutation
+      DataSourceName: EmptyNominees
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version": "2017-02-28",
+          "payload": {
+            "quesId": $ctx.args.quesId,
+            "login": "${ctx.args.login}",
+            "name": "${ctx.args.name}",
+            "organization": "${ctx.args.organization}",
+            "timebuzzed": $ts
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Mutation_nominateContestant
+  MutationremoveNominee:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: removeNominee
+      TypeName: Mutation
+      DataSourceName: EmptyNominees
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "payload" : {
+            "quesId": $ctx.args.quesId,
+            "login": "${ctx.args.login}"
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Mutation_removeNominee
+  MutationaddContestantScore:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - QuizShow
+          - ApiId
+      FieldName: addContestantScore
+      TypeName: Mutation
+      DataSourceName: contestants
+      Kind: UNIT
+      RequestMappingTemplate: |
+        {
+          "version" : "2017-02-28",
+          "operation" : "UpdateItem",
+          "key" : {
+            "gameId": $util.dynamodb.toDynamoDBJson($ctx.args.gameId),
+            "login": $util.dynamodb.toDynamoDBJson($ctx.args.login)
+          },
+          "update" : {
+            "expression" : "ADD #score :score",
+            "expressionNames" : {
+              "#score" : "score"
+            },
+            "expressionValues" : {
+              ":score" : $util.dynamodb.toDynamoDBJson($ctx.args.increment)
+            }
+          }
+        }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - catgstable
+      - cntsttable
+      - gamestable
+      - nomineetable
+      - questable
+    Metadata:
+      aws:cdk:path: QuizShow/Mutation_addContestantScore
+  quizshowlqiaocloudfrontorigin6AB7F6A1:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: quizshow-lqiao-cloudfront-origin
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: QuizShow/quizshow-lqiao-cloudfront-origin/Resource
+  quizshowlqiaocloudfrontoriginPolicyB314E3DF:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: quizshowlqiaocloudfrontorigin6AB7F6A1
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:ListBucket
+              - s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - OAI
+                  - S3CanonicalUserId
+            Resource:
+              - Fn::GetAtt:
+                  - quizshowlqiaocloudfrontorigin6AB7F6A1
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - quizshowlqiaocloudfrontorigin6AB7F6A1
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: QuizShow/quizshow-lqiao-cloudfront-origin/Policy/Resource
+  OAI:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: OAI for QuizShow website
+    Metadata:
+      aws:cdk:path: QuizShow/OAI
+  QuizShowDistCFDistribution2D8042ED:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - quizshowlqiaocloudfrontorigin6AB7F6A1
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: OAI
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+    Metadata:
+      aws:cdk:path: QuizShow/QuizShowDist/CFDistribution
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/aws-applicationautoscaling=1.11.0,@aws-cdk/aws-appsync=1.11.0,@aws-cdk/aws-autoscaling-common=1.11.0,@aws-cdk/aws-cloudfront=1.11.0,@aws-cdk/aws-cloudwatch=1.11.0,@aws-cdk/aws-cognito=1.11.0,@aws-cdk/aws-dynamodb=1.11.0,@aws-cdk/aws-events=1.11.0,@aws-cdk/aws-iam=1.11.0,@aws-cdk/aws-kms=1.11.0,@aws-cdk/aws-s3=1.11.0,@aws-cdk/core=1.11.0,@aws-cdk/cx-api=1.11.0,@aws-cdk/region-info=1.11.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

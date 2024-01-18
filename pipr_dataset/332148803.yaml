@@ -1,0 +1,537 @@
+Resources:
+  ApiForLolly0AC42B97:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: Lolly_EventBridge_Api
+      XrayEnabled: true
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/Resource
+  ApiForLollySchema940C707D:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiForLolly0AC42B97
+          - ApiId
+      Definition: |-
+        type Event {
+          result: String!
+        }
+
+        type Lolly {
+            id: ID!
+            colorTop: String!
+            colorMiddle: String!
+            colorBottom: String!
+            recipient: String!
+            message: String!
+            sender: String!
+            lollyPath: String!
+        }
+
+        input LollyInput {
+            colorTop: String!
+            colorMiddle: String!
+            colorBottom: String!
+            recipient: String!
+            message: String!
+            sender: String!
+            lollyPath: String!
+        }
+
+        type Query {
+          getLollies: [Lolly!]
+        }
+
+        type Mutation {
+          createLolly(lolly: LollyInput!): Event
+          deleteLolly(lollyId: ID!): Event
+        }
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/Schema
+  ApiForLollyDefaultApiKeyAEBAC517:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiForLolly0AC42B97
+          - ApiId
+    DependsOn:
+      - ApiForLollySchema940C707D
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/DefaultApiKey
+  ApiForLollyLollyAppDataSourceServiceRoleF025AE24:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/LollyAppDataSource/ServiceRole/Resource
+  ApiForLollyLollyAppDataSourceServiceRoleDefaultPolicy20E27B35:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LollyAppTable4DC44E60
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: ApiForLollyLollyAppDataSourceServiceRoleDefaultPolicy20E27B35
+      Roles:
+        - Ref: ApiForLollyLollyAppDataSourceServiceRoleF025AE24
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/LollyAppDataSource/ServiceRole/DefaultPolicy/Resource
+  ApiForLollyLollyAppDataSource4DE4F49D:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiForLolly0AC42B97
+          - ApiId
+      Name: LollyAppDataSource
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion:
+          Ref: AWS::Region
+        TableName:
+          Ref: LollyAppTable4DC44E60
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ApiForLollyLollyAppDataSourceServiceRoleF025AE24
+          - Arn
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/LollyAppDataSource/Resource
+  ApiForLollyQuerygetLolliesResolverF0A11B41:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiForLolly0AC42B97
+          - ApiId
+      FieldName: getLollies
+      TypeName: Query
+      DataSourceName: LollyAppDataSource
+      Kind: UNIT
+      RequestMappingTemplate: '{"version" : "2017-02-28", "operation" : "Scan"}'
+      ResponseMappingTemplate: $util.toJson($ctx.result.items)
+    DependsOn:
+      - ApiForLollyLollyAppDataSource4DE4F49D
+      - ApiForLollySchema940C707D
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/QuerygetLolliesResolver/Resource
+  ApiForLollyeventTriggerDSServiceRole6E12667A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/eventTriggerDS/ServiceRole/Resource
+  ApiForLollyeventTriggerDSServiceRoleDefaultPolicyCE586F66:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: ApiForLollyeventTriggerDSServiceRoleDefaultPolicyCE586F66
+      Roles:
+        - Ref: ApiForLollyeventTriggerDSServiceRole6E12667A
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/eventTriggerDS/ServiceRole/DefaultPolicy/Resource
+  ApiForLollyeventTriggerDSECF0C617:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiForLolly0AC42B97
+          - ApiId
+      Name: httpDsWithEventBridge
+      Type: HTTP
+      Description: From Appsync to Eventbridge
+      HttpConfig:
+        AuthorizationConfig:
+          AuthorizationType: AWS_IAM
+          AwsIamConfig:
+            SigningRegion:
+              Ref: AWS::Region
+            SigningServiceName: events
+        Endpoint:
+          Fn::Join:
+            - ""
+            - - https://events.
+              - Ref: AWS::Region
+              - .amazonaws.com/
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ApiForLollyeventTriggerDSServiceRole6E12667A
+          - Arn
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/eventTriggerDS/Resource
+  ApiForLollyMutationcreateLollyResolverBC9F28DD:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiForLolly0AC42B97
+          - ApiId
+      FieldName: createLolly
+      TypeName: Mutation
+      DataSourceName: httpDsWithEventBridge
+      Kind: UNIT
+      RequestMappingTemplate: |-
+        {
+                "version": "2018-05-29",
+                "method": "POST",
+                "resourcePath": "/",
+                "params": {
+                  "headers": {
+                    "content-type": "application/x-amz-json-1.1",
+                    "x-amz-target":"AWSEvents.PutEvents"
+                  },
+                  "body": {
+                    "Entries":[
+                      {
+                        "DetailType":"createLolly",
+                        "Source":"lolly-app-events",
+                        "EventBusName": "default",
+                        "Detail": "{\"colorTop\":\"$ctx.args.lolly.colorTop\" ,\"colorMiddle\":\"$ctx.args.lolly.colorMiddle\" , \"colorBottom\":\"$ctx.args.lolly.colorBottom\" , \"recipient\":\"$ctx.args.lolly.recipient\" , \"message\":\"$ctx.args.lolly.message\" , \"sender\":\"$ctx.args.lolly.sender\" , \"lollyPath\":\"$ctx.args.lolly.lollyPath\"}"
+                      }
+                    ]
+                  }
+                }
+              }
+      ResponseMappingTemplate: "
+
+        \        #if($ctx.error)
+
+        \        $util.error($ctx.error.message, $ctx.error.type)
+
+        \        #end
+
+        \        #if($ctx.result.statusCode == 200)
+
+        \        {
+
+        \            \"result\": \"$util.parseJson($ctx.result.body)\"
+
+        \        }
+
+        \        #else
+
+        \        $utils.appendError($ctx.result.body, $ctx.result.statusCode)
+
+        \        #end
+
+        \    "
+    DependsOn:
+      - ApiForLollyeventTriggerDSECF0C617
+      - ApiForLollySchema940C707D
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/MutationcreateLollyResolver/Resource
+  ApiForLollyMutationdeleteLollyResolver8394A58D:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiForLolly0AC42B97
+          - ApiId
+      FieldName: deleteLolly
+      TypeName: Mutation
+      DataSourceName: httpDsWithEventBridge
+      Kind: UNIT
+      RequestMappingTemplate: |-
+        {
+                "version": "2018-05-29",
+                "method": "POST",
+                "resourcePath": "/",
+                "params": {
+                  "headers": {
+                    "content-type": "application/x-amz-json-1.1",
+                    "x-amz-target":"AWSEvents.PutEvents"
+                  },
+                  "body": {
+                    "Entries":[
+                      {
+                        "DetailType":"deleteLolly",
+                        "Source":"lolly-app-events",
+                        "EventBusName": "default",
+                        "Detail": "{\"lollyId\":\"$ctx.args.lollyId\"}"
+                      }
+                    ]
+                  }
+                }
+              }
+      ResponseMappingTemplate: "
+
+        \        #if($ctx.error)
+
+        \        $util.error($ctx.error.message, $ctx.error.type)
+
+        \        #end
+
+        \        #if($ctx.result.statusCode == 200)
+
+        \        {
+
+        \            \"result\": \"$util.parseJson($ctx.result.body)\"
+
+        \        }
+
+        \        #else
+
+        \        $utils.appendError($ctx.result.body, $ctx.result.statusCode)
+
+        \        #end
+
+        \    "
+    DependsOn:
+      - ApiForLollyeventTriggerDSECF0C617
+      - ApiForLollySchema940C707D
+    Metadata:
+      aws:cdk:path: LollybackendStack/ApiForLolly/MutationdeleteLollyResolver/Resource
+  LollyAppTable4DC44E60:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: LollyTable
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: LollybackendStack/LollyAppTable/Resource
+  DynamoHandlerServiceRoleA5D84A0C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: LollybackendStack/Dynamo_Handler/ServiceRole/Resource
+  DynamoHandlerServiceRoleDefaultPolicy2F296FCA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - LollyAppTable4DC44E60
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: DynamoHandlerServiceRoleDefaultPolicy2F296FCA
+      Roles:
+        - Ref: DynamoHandlerServiceRoleA5D84A0C
+    Metadata:
+      aws:cdk:path: LollybackendStack/Dynamo_Handler/ServiceRole/DefaultPolicy/Resource
+  DynamoHandler93AC9750:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersb25b545a7d2da05fb3a5ef93a6b64f97df1b707d808892e1b7a109715f2ef72cS3BucketD6B55AD6
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb25b545a7d2da05fb3a5ef93a6b64f97df1b707d808892e1b7a109715f2ef72cS3VersionKeyCF5D732F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb25b545a7d2da05fb3a5ef93a6b64f97df1b707d808892e1b7a109715f2ef72cS3VersionKeyCF5D732F
+      Role:
+        Fn::GetAtt:
+          - DynamoHandlerServiceRoleA5D84A0C
+          - Arn
+      Environment:
+        Variables:
+          DYNAMO_TABLE_NAME:
+            Ref: LollyAppTable4DC44E60
+      Handler: dynamoHandler.handler
+      Runtime: nodejs12.x
+    DependsOn:
+      - DynamoHandlerServiceRoleDefaultPolicy2F296FCA
+      - DynamoHandlerServiceRoleA5D84A0C
+    Metadata:
+      aws:cdk:path: LollybackendStack/Dynamo_Handler/Resource
+      aws:asset:path: asset.b25b545a7d2da05fb3a5ef93a6b64f97df1b707d808892e1b7a109715f2ef72c
+      aws:asset:property: Code
+  DynamoHandlerAllowEventRuleLollybackendStackeventConsumerRuleA8E8395F909A90AA:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DynamoHandler93AC9750
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - eventConsumerRule6D0F447C
+          - Arn
+    Metadata:
+      aws:cdk:path: LollybackendStack/Dynamo_Handler/AllowEventRuleLollybackendStackeventConsumerRuleA8E8395F
+  eventConsumerRule6D0F447C:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - lolly-app-events
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - DynamoHandler93AC9750
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: LollybackendStack/eventConsumerRule/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.86.0,@aws-cdk/aws-applicationautoscaling=1.86.0,@aws-cdk/aws-appsync=1.86.0,@aws-cdk/aws-autoscaling=1.86.0,@aws-cdk/aws-autoscaling-common=1.86.0,@aws-cdk/aws-autoscaling-hooktargets=1.86.0,@aws-cdk/aws-cloudwatch=1.86.0,@aws-cdk/aws-codeguruprofiler=1.86.0,@aws-cdk/aws-dynamodb=1.86.0,@aws-cdk/aws-ec2=1.86.0,@aws-cdk/aws-ecr=1.86.0,@aws-cdk/aws-ecr-assets=1.86.0,@aws-cdk/aws-ecs=1.86.0,@aws-cdk/aws-elasticloadbalancingv2=1.86.0,@aws-cdk/aws-events=1.86.0,@aws-cdk/aws-events-targets=1.86.0,@aws-cdk/aws-iam=1.86.0,@aws-cdk/aws-kms=1.86.0,@aws-cdk/aws-lambda=1.86.0,@aws-cdk/aws-logs=1.86.0,@aws-cdk/aws-s3=1.86.0,@aws-cdk/aws-s3-assets=1.86.0,@aws-cdk/aws-servicediscovery=1.86.0,@aws-cdk/aws-sns=1.86.0,@aws-cdk/aws-sns-subscriptions=1.86.0,@aws-cdk/aws-sqs=1.86.0,@aws-cdk/aws-ssm=1.86.0,@aws-cdk/cloud-assembly-schema=1.86.0,@aws-cdk/core=1.86.0,@aws-cdk/custom-resources=1.86.0,@aws-cdk/cx-api=1.86.0,@aws-cdk/region-info=1.86.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: LollybackendStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  LollyAPIURL:
+    Value:
+      Fn::GetAtt:
+        - ApiForLolly0AC42B97
+        - GraphQLUrl
+  LollyApiKey:
+    Value:
+      Fn::GetAtt:
+        - ApiForLollyDefaultApiKeyAEBAC517
+        - ApiKey
+  LollyAPIID:
+    Value:
+      Fn::GetAtt:
+        - ApiForLolly0AC42B97
+        - ApiId
+Parameters:
+  AssetParametersb25b545a7d2da05fb3a5ef93a6b64f97df1b707d808892e1b7a109715f2ef72cS3BucketD6B55AD6:
+    Type: String
+    Description: S3 bucket for asset "b25b545a7d2da05fb3a5ef93a6b64f97df1b707d808892e1b7a109715f2ef72c"
+  AssetParametersb25b545a7d2da05fb3a5ef93a6b64f97df1b707d808892e1b7a109715f2ef72cS3VersionKeyCF5D732F:
+    Type: String
+    Description: S3 key for asset version "b25b545a7d2da05fb3a5ef93a6b64f97df1b707d808892e1b7a109715f2ef72c"
+  AssetParametersb25b545a7d2da05fb3a5ef93a6b64f97df1b707d808892e1b7a109715f2ef72cArtifactHash04507148:
+    Type: String
+    Description: Artifact hash for asset "b25b545a7d2da05fb3a5ef93a6b64f97df1b707d808892e1b7a109715f2ef72c"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

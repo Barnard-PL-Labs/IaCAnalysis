@@ -1,0 +1,2304 @@
+Downloading symbols meta
+Configuring Lambda dataset
+Configuring Lambda forecast
+Resources:
+  amosforecastbucket66509916:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/bucket/Resource
+  amosforecastbucketPolicyB9E4EC72:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: amosforecastbucket66509916
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - amosforecastbucket66509916
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - amosforecastbucket66509916
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/bucket/Policy/Resource
+  amosforecastbucketAutoDeleteObjectsCustomResource975CE799:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: amosforecastbucket66509916
+    DependsOn:
+      - amosforecastbucketPolicyB9E4EC72
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/bucket/AutoDeleteObjectsCustomResource/Default
+  amosforecastrole0A55714D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: forecast.amazonaws.com
+        Version: "2012-10-17"
+      Description: amos-forecast-role
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonForecastFullAccess
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonS3FullAccess
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/role/Resource
+  amosforecastcustomresourceeventhandlerServiceRoleAA35146A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/custom-resource-event-handler/ServiceRole/Resource
+  amosforecastcustomresourceeventhandlerServiceRoleDefaultPolicy9C06F66A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: amosforecastcustomresourceeventhandlerServiceRoleDefaultPolicy9C06F66A
+      Roles:
+        - Ref: amosforecastcustomresourceeventhandlerServiceRoleAA35146A
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/custom-resource-event-handler/ServiceRole/DefaultPolicy/Resource
+  amosforecastcustomresourceeventhandler3A12B0FA:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc4cd2146ddb4bd48bf05a159fa8c5c2f55688ee33e39fb7425db13ce8c612579S3Bucket499D1110
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc4cd2146ddb4bd48bf05a159fa8c5c2f55688ee33e39fb7425db13ce8c612579S3VersionKey2462D2C3
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc4cd2146ddb4bd48bf05a159fa8c5c2f55688ee33e39fb7425db13ce8c612579S3VersionKey2462D2C3
+      Role:
+        Fn::GetAtt:
+          - amosforecastcustomresourceeventhandlerServiceRoleAA35146A
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.customResourceEventHandler
+      Runtime: nodejs14.x
+    DependsOn:
+      - amosforecastcustomresourceeventhandlerServiceRoleDefaultPolicy9C06F66A
+      - amosforecastcustomresourceeventhandlerServiceRoleAA35146A
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/custom-resource-event-handler/Resource
+      aws:asset:path: asset.c4cd2146ddb4bd48bf05a159fa8c5c2f55688ee33e39fb7425db13ce8c612579
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  amosforecastcustomresourceproviderframeworkonEventServiceRole7611B50B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/custom-resource-provider/framework-onEvent/ServiceRole/Resource
+  amosforecastcustomresourceproviderframeworkonEventServiceRoleDefaultPolicy9C4D26F0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - amosforecastcustomresourceeventhandler3A12B0FA
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: amosforecastcustomresourceproviderframeworkonEventServiceRoleDefaultPolicy9C4D26F0
+      Roles:
+        - Ref: amosforecastcustomresourceproviderframeworkonEventServiceRole7611B50B
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/custom-resource-provider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  amosforecastcustomresourceproviderframeworkonEventB7498099:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7
+      Role:
+        Fn::GetAtt:
+          - amosforecastcustomresourceproviderframeworkonEventServiceRole7611B50B
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (amos/amos-forecast/custom-resource-provider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresourceeventhandler3A12B0FA
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - amosforecastcustomresourceproviderframeworkonEventServiceRoleDefaultPolicy9C4D26F0
+      - amosforecastcustomresourceproviderframeworkonEventServiceRole7611B50B
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/custom-resource-provider/framework-onEvent/Resource
+      aws:asset:path: asset.c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043/node_modules/@aws-cdk/custom-resources/lib/provider-framework/runtime
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  amosforecastcustomresourceproviderframeworkonEventLogRetention8E421874:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: amosforecastcustomresourceproviderframeworkonEventB7498099
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/custom-resource-provider/framework-onEvent/LogRetention/Resource
+  amosforecastcustomresource72FBFB22:
+    Type: Custom::Forecast
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - amosforecastcustomresourceproviderframeworkonEventB7498099
+          - Arn
+      id: amos-forecast
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: amos/amos-forecast/custom-resource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: amosforecastbucket66509916
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: amos/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1
+      aws:asset:property: Code
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: amos/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket:
+          Ref: AssetParametersb120b13d9d868c7622e7db1b68bae4c0f82ffd0227b8c15f2cef38e186ff3827S3Bucket2070BA0A
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb120b13d9d868c7622e7db1b68bae4c0f82ffd0227b8c15f2cef38e186ff3827S3VersionKeyB95D17C3
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb120b13d9d868c7622e7db1b68bae4c0f82ffd0227b8c15f2cef38e186ff3827S3VersionKeyB95D17C3
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: amos/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+      aws:asset:path: asset.b120b13d9d868c7622e7db1b68bae4c0f82ffd0227b8c15f2cef38e186ff3827
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043/node_modules/@aws-cdk/aws-logs/lib/log-retention-provider
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ConfigFilesAwsCliLayer612F6C41:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: amos/Config Files/AwsCliLayer/Resource
+      aws:asset:path: asset.e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68.zip
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043/node_modules/@aws-cdk/lambda-layer-awscli/lib/layer.zip
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  ConfigFilesCustomResource7C365814:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameters2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ceS3Bucket03AF39AA
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ceS3VersionKey840D66D6
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ceS3VersionKey840D66D6
+      DestinationBucketName:
+        Ref: amosforecastbucket66509916
+      DestinationBucketKeyPrefix: config/
+      Prune: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: amos/Config Files/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ceS3Bucket03AF39AA
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ceS3Bucket03AF39AA
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - amosforecastbucket66509916
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - amosforecastbucket66509916
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: amos/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3BucketD1AD544E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: ConfigFilesAwsCliLayer612F6C41
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: amos/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043/node_modules/@aws-cdk/aws-s3-deployment/lib/lambda
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  apiC8550315:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: api
+    Metadata:
+      aws:cdk:path: amos/api/Resource
+  apiCloudWatchRoleAC81D93E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: amos/api/CloudWatchRole/Resource
+  apiAccount57E28B43:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - apiCloudWatchRoleAC81D93E
+          - Arn
+    DependsOn:
+      - apiC8550315
+    Metadata:
+      aws:cdk:path: amos/api/Account
+  apiDeployment149F12947cb2bf5a26bca2f2697b5ce8cb00c8f5:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: apiC8550315
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - apiaccuracyGETCC9D7F8C
+      - apiaccuracyA8BD61B8
+      - apilookupGET47D72FB7
+      - apilookup5801CA95
+      - apisymbolsGET1D5BBF28
+      - apisymbols83AABAFF
+    Metadata:
+      aws:cdk:path: amos/api/Deployment/Resource
+  apiDeploymentStageprod896C8101:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: apiC8550315
+      DeploymentId:
+        Ref: apiDeployment149F12947cb2bf5a26bca2f2697b5ce8cb00c8f5
+      StageName: prod
+    Metadata:
+      aws:cdk:path: amos/api/DeploymentStage.prod/Resource
+  apiaccuracyA8BD61B8:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - apiC8550315
+          - RootResourceId
+      PathPart: accuracy
+      RestApiId:
+        Ref: apiC8550315
+    Metadata:
+      aws:cdk:path: amos/api/Default/accuracy/Resource
+  apiaccuracyGETApiPermissionamosapi2B408462GETaccuracy56E51CD0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - accuracy0052863B
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /
+            - Ref: apiDeploymentStageprod896C8101
+            - /GET/accuracy
+    Metadata:
+      aws:cdk:path: amos/api/Default/accuracy/GET/ApiPermission.amosapi2B408462.GET..accuracy
+  apiaccuracyGETApiPermissionTestamosapi2B408462GETaccuracy7B0D58A4:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - accuracy0052863B
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /test-invoke-stage/GET/accuracy
+    Metadata:
+      aws:cdk:path: amos/api/Default/accuracy/GET/ApiPermission.Test.amosapi2B408462.GET..accuracy
+  apiaccuracyGETCC9D7F8C:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: apiaccuracyA8BD61B8
+      RestApiId:
+        Ref: apiC8550315
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - accuracy0052863B
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: amos/api/Default/accuracy/GET/Resource
+  apilookup5801CA95:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - apiC8550315
+          - RootResourceId
+      PathPart: lookup
+      RestApiId:
+        Ref: apiC8550315
+    Metadata:
+      aws:cdk:path: amos/api/Default/lookup/Resource
+  apilookupGETApiPermissionamosapi2B408462GETlookup350B3899:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - lookup3DCCD57C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /
+            - Ref: apiDeploymentStageprod896C8101
+            - /GET/lookup
+    Metadata:
+      aws:cdk:path: amos/api/Default/lookup/GET/ApiPermission.amosapi2B408462.GET..lookup
+  apilookupGETApiPermissionTestamosapi2B408462GETlookup12686018:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - lookup3DCCD57C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /test-invoke-stage/GET/lookup
+    Metadata:
+      aws:cdk:path: amos/api/Default/lookup/GET/ApiPermission.Test.amosapi2B408462.GET..lookup
+  apilookupGET47D72FB7:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: apilookup5801CA95
+      RestApiId:
+        Ref: apiC8550315
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - lookup3DCCD57C
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: amos/api/Default/lookup/GET/Resource
+  apisymbols83AABAFF:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - apiC8550315
+          - RootResourceId
+      PathPart: symbols
+      RestApiId:
+        Ref: apiC8550315
+    Metadata:
+      aws:cdk:path: amos/api/Default/symbols/Resource
+  apisymbolsGETApiPermissionamosapi2B408462GETsymbols425C180A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - symbols95F2FFDA
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /
+            - Ref: apiDeploymentStageprod896C8101
+            - /GET/symbols
+    Metadata:
+      aws:cdk:path: amos/api/Default/symbols/GET/ApiPermission.amosapi2B408462.GET..symbols
+  apisymbolsGETApiPermissionTestamosapi2B408462GETsymbolsC8FA25D7:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - symbols95F2FFDA
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /test-invoke-stage/GET/symbols
+    Metadata:
+      aws:cdk:path: amos/api/Default/symbols/GET/ApiPermission.Test.amosapi2B408462.GET..symbols
+  apisymbolsGET1D5BBF28:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: apisymbols83AABAFF
+      RestApiId:
+        Ref: apiC8550315
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - symbols95F2FFDA
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: amos/api/Default/symbols/GET/Resource
+  ImportLambdaServiceRoleD5BBB382:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/ImportLambda/ServiceRole/Resource
+  ImportLambdaServiceRoleDefaultPolicy94856395:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - s3:listBucket
+              - s3:getObject
+              - s3:putObject
+              - sqs:getQueueAttributes
+              - sqs:sendMessage*
+              - sqs:receiveMessage
+              - sqs:deleteMessage*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: ImportLambdaServiceRoleDefaultPolicy94856395
+      Roles:
+        - Ref: ImportLambdaServiceRoleD5BBB382
+    Metadata:
+      aws:cdk:path: amos/ImportLambda/ServiceRole/DefaultPolicy/Resource
+  ImportLambdaD97E0F1E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters32718669c285193333b76dda8f3ad9ca56bb88f54235a7497a8547bea5496256S3Bucket36284F99
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters32718669c285193333b76dda8f3ad9ca56bb88f54235a7497a8547bea5496256S3VersionKeyF6E683BB
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters32718669c285193333b76dda8f3ad9ca56bb88f54235a7497a8547bea5496256S3VersionKeyF6E683BB
+      Role:
+        Fn::GetAtt:
+          - ImportLambdaServiceRoleD5BBB382
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE_ARN:
+            Fn::GetAtt:
+              - amosforecastrole0A55714D
+              - Arn
+          FORECAST_BUCKET_NAME:
+            Ref: amosforecastbucket66509916
+          FORECAST_DATASET_PREFIX: amos_forecast
+          FORECAST_DATASET_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetArn
+          FORECAST_DATASET_GROUP_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetGroupArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - ImportLambdaServiceRoleDefaultPolicy94856395
+      - ImportLambdaServiceRoleD5BBB382
+    Metadata:
+      aws:cdk:path: amos/ImportLambda/Resource
+      aws:asset:path: asset.32718669c285193333b76dda8f3ad9ca56bb88f54235a7497a8547bea5496256
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  PredictorLambdaServiceRoleE294E2EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/PredictorLambda/ServiceRole/Resource
+  PredictorLambdaServiceRoleDefaultPolicy02D0D3F2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - s3:listBucket
+              - s3:getObject
+              - s3:putObject
+              - sqs:getQueueAttributes
+              - sqs:sendMessage*
+              - sqs:receiveMessage
+              - sqs:deleteMessage*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: PredictorLambdaServiceRoleDefaultPolicy02D0D3F2
+      Roles:
+        - Ref: PredictorLambdaServiceRoleE294E2EC
+    Metadata:
+      aws:cdk:path: amos/PredictorLambda/ServiceRole/DefaultPolicy/Resource
+  PredictorLambda4A390E66:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersbbf3ea575ab53ef6886388fe38da22ecf38cc1d713a4f61ef55fbb051ba7435eS3BucketE343F788
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbbf3ea575ab53ef6886388fe38da22ecf38cc1d713a4f61ef55fbb051ba7435eS3VersionKey2B876699
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbbf3ea575ab53ef6886388fe38da22ecf38cc1d713a4f61ef55fbb051ba7435eS3VersionKey2B876699
+      Role:
+        Fn::GetAtt:
+          - PredictorLambdaServiceRoleE294E2EC
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE_ARN:
+            Fn::GetAtt:
+              - amosforecastrole0A55714D
+              - Arn
+          FORECAST_BUCKET_NAME:
+            Ref: amosforecastbucket66509916
+          FORECAST_DATASET_PREFIX: amos_forecast
+          FORECAST_DATASET_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetArn
+          FORECAST_DATASET_GROUP_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetGroupArn
+          FORECAST_PREDICTOR_ALGORITHM_ARN: ""
+          FORECAST_PREDICTOR_PERFORM_HPO: "false"
+          FORECAST_PREDICTOR_HORIZON_DAYS: "31"
+          FORECAST_PREDICTOR_MAX_LIFE_DAYS: "7"
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - PredictorLambdaServiceRoleDefaultPolicy02D0D3F2
+      - PredictorLambdaServiceRoleE294E2EC
+    Metadata:
+      aws:cdk:path: amos/PredictorLambda/Resource
+      aws:asset:path: asset.bbf3ea575ab53ef6886388fe38da22ecf38cc1d713a4f61ef55fbb051ba7435e
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  ForecastLambdaServiceRole2557647D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/ForecastLambda/ServiceRole/Resource
+  ForecastLambdaServiceRoleDefaultPolicy5341D131:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - s3:listBucket
+              - s3:getObject
+              - s3:putObject
+              - sqs:getQueueAttributes
+              - sqs:sendMessage*
+              - sqs:receiveMessage
+              - sqs:deleteMessage*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: ForecastLambdaServiceRoleDefaultPolicy5341D131
+      Roles:
+        - Ref: ForecastLambdaServiceRole2557647D
+    Metadata:
+      aws:cdk:path: amos/ForecastLambda/ServiceRole/DefaultPolicy/Resource
+  ForecastLambda644954AC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters6e14ff45a576dc63ce9e8d65b73059bae3e65a13c58c870fbe36abeb407f2fccS3Bucket558ABCE1
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6e14ff45a576dc63ce9e8d65b73059bae3e65a13c58c870fbe36abeb407f2fccS3VersionKeyD60A58AE
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6e14ff45a576dc63ce9e8d65b73059bae3e65a13c58c870fbe36abeb407f2fccS3VersionKeyD60A58AE
+      Role:
+        Fn::GetAtt:
+          - ForecastLambdaServiceRole2557647D
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE_ARN:
+            Fn::GetAtt:
+              - amosforecastrole0A55714D
+              - Arn
+          FORECAST_BUCKET_NAME:
+            Ref: amosforecastbucket66509916
+          FORECAST_DATASET_PREFIX: amos_forecast
+          FORECAST_DATASET_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetArn
+          FORECAST_DATASET_GROUP_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetGroupArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - ForecastLambdaServiceRoleDefaultPolicy5341D131
+      - ForecastLambdaServiceRole2557647D
+    Metadata:
+      aws:cdk:path: amos/ForecastLambda/Resource
+      aws:asset:path: asset.6e14ff45a576dc63ce9e8d65b73059bae3e65a13c58c870fbe36abeb407f2fcc
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  ExportLambdaServiceRoleB1A666BB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/ExportLambda/ServiceRole/Resource
+  ExportLambdaServiceRoleDefaultPolicy9F73939E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - s3:listBucket
+              - s3:getObject
+              - s3:putObject
+              - sqs:getQueueAttributes
+              - sqs:sendMessage*
+              - sqs:receiveMessage
+              - sqs:deleteMessage*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: ExportLambdaServiceRoleDefaultPolicy9F73939E
+      Roles:
+        - Ref: ExportLambdaServiceRoleB1A666BB
+    Metadata:
+      aws:cdk:path: amos/ExportLambda/ServiceRole/DefaultPolicy/Resource
+  ExportLambdaDBBFE402:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters813ab1e3ffd48cc2e26ef766cfee1e0e9a0a8313d7ff7e1dc41c5c81c8148cc9S3Bucket5F317522
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters813ab1e3ffd48cc2e26ef766cfee1e0e9a0a8313d7ff7e1dc41c5c81c8148cc9S3VersionKeyC4DA4FA9
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters813ab1e3ffd48cc2e26ef766cfee1e0e9a0a8313d7ff7e1dc41c5c81c8148cc9S3VersionKeyC4DA4FA9
+      Role:
+        Fn::GetAtt:
+          - ExportLambdaServiceRoleB1A666BB
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE_ARN:
+            Fn::GetAtt:
+              - amosforecastrole0A55714D
+              - Arn
+          FORECAST_BUCKET_NAME:
+            Ref: amosforecastbucket66509916
+          FORECAST_DATASET_PREFIX: amos_forecast
+          FORECAST_DATASET_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetArn
+          FORECAST_DATASET_GROUP_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetGroupArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - ExportLambdaServiceRoleDefaultPolicy9F73939E
+      - ExportLambdaServiceRoleB1A666BB
+    Metadata:
+      aws:cdk:path: amos/ExportLambda/Resource
+      aws:asset:path: asset.813ab1e3ffd48cc2e26ef766cfee1e0e9a0a8313d7ff7e1dc41c5c81c8148cc9
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  AnalyzeLambdaServiceRole9099CE4F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/AnalyzeLambda/ServiceRole/Resource
+  AnalyzeLambdaServiceRoleDefaultPolicyBDAF3F7A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - s3:listBucket
+              - s3:getObject
+              - s3:putObject
+              - sqs:getQueueAttributes
+              - sqs:sendMessage*
+              - sqs:receiveMessage
+              - sqs:deleteMessage*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: AnalyzeLambdaServiceRoleDefaultPolicyBDAF3F7A
+      Roles:
+        - Ref: AnalyzeLambdaServiceRole9099CE4F
+    Metadata:
+      aws:cdk:path: amos/AnalyzeLambda/ServiceRole/DefaultPolicy/Resource
+  AnalyzeLambda57C19DB1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters99e0b7f0dbea057a51f975fa5b4299893a1a36bf2cb9e418eabeeda9565d0218S3Bucket50FB7A95
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters99e0b7f0dbea057a51f975fa5b4299893a1a36bf2cb9e418eabeeda9565d0218S3VersionKeyD00F135C
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters99e0b7f0dbea057a51f975fa5b4299893a1a36bf2cb9e418eabeeda9565d0218S3VersionKeyD00F135C
+      Role:
+        Fn::GetAtt:
+          - AnalyzeLambdaServiceRole9099CE4F
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE_ARN:
+            Fn::GetAtt:
+              - amosforecastrole0A55714D
+              - Arn
+          FORECAST_BUCKET_NAME:
+            Ref: amosforecastbucket66509916
+          FORECAST_DATASET_PREFIX: amos_forecast
+          FORECAST_DATASET_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetArn
+          FORECAST_DATASET_GROUP_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetGroupArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 120
+    DependsOn:
+      - AnalyzeLambdaServiceRoleDefaultPolicyBDAF3F7A
+      - AnalyzeLambdaServiceRole9099CE4F
+    Metadata:
+      aws:cdk:path: amos/AnalyzeLambda/Resource
+      aws:asset:path: asset.99e0b7f0dbea057a51f975fa5b4299893a1a36bf2cb9e418eabeeda9565d0218
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  ForecastStateMachineRole87488C01:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: amos/Forecast State Machine/Role/Resource
+  ForecastStateMachineRoleDefaultPolicy27F0F055:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ImportLambdaD97E0F1E
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PredictorLambda4A390E66
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ForecastLambda644954AC
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ExportLambdaDBBFE402
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AnalyzeLambda57C19DB1
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ForecastStateMachineRoleDefaultPolicy27F0F055
+      Roles:
+        - Ref: ForecastStateMachineRole87488C01
+    Metadata:
+      aws:cdk:path: amos/Forecast State Machine/Role/DefaultPolicy/Resource
+  ForecastStateMachine0B92BB28:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - ForecastStateMachineRole87488C01
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Import","States":{"Import":{"Next":"Import Status","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.import.results","Resource":"'
+            - Fn::GetAtt:
+                - ImportLambdaD97E0F1E
+                - Arn
+            - '","Parameters":{"requestType":"CREATE","enabled.$":"$.import.enabled"}},"Import Status":{"Next":"Import Job Ready?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.import.results","Resource":"'
+            - Fn::GetAtt:
+                - ImportLambdaD97E0F1E
+                - Arn
+            - '","Parameters":{"requestType":"STATUS","enabled.$":"$.import.enabled","importJobArn.$":"$.import.results.importJobArn"}},"Wait Import":{"Type":"Wait","Seconds":120,"Next":"Import Status"},"Import Job Ready?":{"Type":"Choice","Choices":[{"Variable":"$.import.results.importJobStatus","StringEquals":"ACTIVE","Next":"Predictor"},{"Variable":"$.import.results.importJobStatus","StringMatches":"*_FAILED","Next":"Import Failure"}],"Default":"Wait Import"},"Predictor":{"Next":"Predictor Status","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.predictor.results","Resource":"'
+            - Fn::GetAtt:
+                - PredictorLambda4A390E66
+                - Arn
+            - '","Parameters":{"requestType":"CREATE","enabled.$":"$.predictor.enabled"}},"Predictor Status":{"Next":"Predictor Ready?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.predictor.results","Resource":"'
+            - Fn::GetAtt:
+                - PredictorLambda4A390E66
+                - Arn
+            - '","Parameters":{"requestType":"STATUS","predictorArn.$":"$.predictor.results.predictorArn"}},"Wait Predictor":{"Type":"Wait","Seconds":600,"Next":"Predictor Status"},"Predictor Ready?":{"Type":"Choice","Choices":[{"Variable":"$.predictor.results.predictorStatus","StringEquals":"ACTIVE","Next":"Forecast"},{"Variable":"$.predictor.results.predictorStatus","StringMatches":"*_FAILED","Next":"Predictor Failure"}],"Default":"Wait Predictor"},"Forecast":{"Next":"Forecast Status","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.forecast.results","Resource":"'
+            - Fn::GetAtt:
+                - ForecastLambda644954AC
+                - Arn
+            - '","Parameters":{"requestType":"CREATE","enabled.$":"$.forecast.enabled","predictorName.$":"$.predictor.results.predictorName","predictorArn.$":"$.predictor.results.predictorArn"}},"Forecast Status":{"Next":"Forecast Ready?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.forecast.results","Resource":"'
+            - Fn::GetAtt:
+                - ForecastLambda644954AC
+                - Arn
+            - '","Parameters":{"requestType":"STATUS","forecastName.$":"$.forecast.results.forecastName","forecastArn.$":"$.forecast.results.forecastArn"}},"Wait Forecast":{"Type":"Wait","Seconds":300,"Next":"Forecast Status"},"Forecast Ready?":{"Type":"Choice","Choices":[{"Variable":"$.forecast.results.forecastStatus","StringEquals":"ACTIVE","Next":"Export"},{"Variable":"$.forecast.results.forecastStatus","StringMatches":"*_FAILED","Next":"Forecast Failure"}],"Default":"Wait Forecast"},"Export":{"Next":"Export Status","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.export.results","Resource":"'
+            - Fn::GetAtt:
+                - ExportLambdaDBBFE402
+                - Arn
+            - '","Parameters":{"requestType":"CREATE","enabled.$":"$.export.enabled","forecastName.$":"$.forecast.results.forecastName","forecastArn.$":"$.forecast.results.forecastArn"}},"Export Status":{"Next":"Export Ready?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.export.results","Resource":"'
+            - Fn::GetAtt:
+                - ExportLambdaDBBFE402
+                - Arn
+            - '","Parameters":{"requestType":"STATUS","enabled.$":"$.export.enabled","exportArn.$":"$.export.results.exportArn"}},"Wait Export":{"Type":"Wait","Seconds":300,"Next":"Export Status"},"Export Ready?":{"Type":"Choice","Choices":[{"Variable":"$.export.results.exportStatus","StringEquals":"ACTIVE","Next":"Analyze"},{"Variable":"$.export.results.exportStatus","StringMatches":"*_FAILED","Next":"Export Failure"}],"Default":"Wait Export"},"Analyze":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.analyze.results","Resource":"'
+            - Fn::GetAtt:
+                - AnalyzeLambda57C19DB1
+                - Arn
+            - '","Parameters":{"enabled.$":"$.analyze.enabled","rebuild.$":"$.analyze.rebuild","forecastName.$":"$.forecast.results.forecastName"}},"Export Failure":{"Type":"Fail","Cause":"Export Creation Failed"},"Forecast Failure":{"Type":"Fail","Cause":"Forecast Creation Failed"},"Predictor Failure":{"Type":"Fail","Cause":"Predictor Creation Failed"},"Import Failure":{"Type":"Fail","Cause":"Import Job Creation Failed"}},"TimeoutSeconds":21600}'
+    DependsOn:
+      - ForecastStateMachineRoleDefaultPolicy27F0F055
+      - ForecastStateMachineRole87488C01
+    Metadata:
+      aws:cdk:path: amos/Forecast State Machine/Resource
+  Queue4A7E3555:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: amos-queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: amos/Queue/Resource
+  QueuerLambdaServiceRoleCBB9BF15:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/QueuerLambda/ServiceRole/Resource
+  QueuerLambdaServiceRoleDefaultPolicy821F3867:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - s3:listBucket
+              - s3:getObject
+              - s3:putObject
+              - sqs:getQueueAttributes
+              - sqs:sendMessage*
+              - sqs:receiveMessage
+              - sqs:deleteMessage*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: QueuerLambdaServiceRoleDefaultPolicy821F3867
+      Roles:
+        - Ref: QueuerLambdaServiceRoleCBB9BF15
+    Metadata:
+      aws:cdk:path: amos/QueuerLambda/ServiceRole/DefaultPolicy/Resource
+  QueuerLambda9C15C1DB:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersd78fa3b710b7ca4a4f670952d83f4048df3950f360ccb7a0085d26ffb3d29e7cS3BucketF041E10E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd78fa3b710b7ca4a4f670952d83f4048df3950f360ccb7a0085d26ffb3d29e7cS3VersionKey055B93D9
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd78fa3b710b7ca4a4f670952d83f4048df3950f360ccb7a0085d26ffb3d29e7cS3VersionKey055B93D9
+      Role:
+        Fn::GetAtt:
+          - QueuerLambdaServiceRoleCBB9BF15
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE_ARN:
+            Fn::GetAtt:
+              - amosforecastrole0A55714D
+              - Arn
+          FORECAST_BUCKET_NAME:
+            Ref: amosforecastbucket66509916
+          FORECAST_DATASET_PREFIX: amos_forecast
+          FORECAST_DATASET_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetArn
+          FORECAST_DATASET_GROUP_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetGroupArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - QueuerLambdaServiceRoleDefaultPolicy821F3867
+      - QueuerLambdaServiceRoleCBB9BF15
+    Metadata:
+      aws:cdk:path: amos/QueuerLambda/Resource
+      aws:asset:path: asset.d78fa3b710b7ca4a4f670952d83f4048df3950f360ccb7a0085d26ffb3d29e7c
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  WorkerLambdaServiceRole33A0380F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/WorkerLambda/ServiceRole/Resource
+  WorkerLambdaServiceRoleDefaultPolicyFC3707DA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - s3:listBucket
+              - s3:getObject
+              - s3:putObject
+              - sqs:getQueueAttributes
+              - sqs:sendMessage*
+              - sqs:receiveMessage
+              - sqs:deleteMessage*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: WorkerLambdaServiceRoleDefaultPolicyFC3707DA
+      Roles:
+        - Ref: WorkerLambdaServiceRole33A0380F
+    Metadata:
+      aws:cdk:path: amos/WorkerLambda/ServiceRole/DefaultPolicy/Resource
+  WorkerLambdaBD11C0E2:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters8a4111a23655fce75b168f18a5a46afeed19cb45bac05fefec3b47fcb3425d29S3Bucket95011400
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8a4111a23655fce75b168f18a5a46afeed19cb45bac05fefec3b47fcb3425d29S3VersionKeyCCC2F5A8
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8a4111a23655fce75b168f18a5a46afeed19cb45bac05fefec3b47fcb3425d29S3VersionKeyCCC2F5A8
+      Role:
+        Fn::GetAtt:
+          - WorkerLambdaServiceRole33A0380F
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE_ARN:
+            Fn::GetAtt:
+              - amosforecastrole0A55714D
+              - Arn
+          FORECAST_BUCKET_NAME:
+            Ref: amosforecastbucket66509916
+          FORECAST_DATASET_PREFIX: amos_forecast
+          FORECAST_DATASET_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetArn
+          FORECAST_DATASET_GROUP_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetGroupArn
+          RAPIDAPI_KEY: ""
+          TIINGO_API_KEY: ""
+          DATASET_API_DOWNLOAD_START_DATE: -15year
+          DATASET_API_DOWNLOAD_END_DATE: 0day
+          DATASET_API_MAX_CALLS_PER_MINUTE: "1"
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs14.x
+      Timeout: 60
+    DependsOn:
+      - WorkerLambdaServiceRoleDefaultPolicyFC3707DA
+      - WorkerLambdaServiceRole33A0380F
+    Metadata:
+      aws:cdk:path: amos/WorkerLambda/Resource
+      aws:asset:path: asset.8a4111a23655fce75b168f18a5a46afeed19cb45bac05fefec3b47fcb3425d29
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  DatasetStateMachineRole5BA9F601:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: amos/Dataset State Machine/Role/Resource
+  DatasetStateMachineRoleDefaultPolicy1DA12C00:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - QueuerLambda9C15C1DB
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - WorkerLambdaBD11C0E2
+                - Arn
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: ForecastStateMachine0B92BB28
+        Version: "2012-10-17"
+      PolicyName: DatasetStateMachineRoleDefaultPolicy1DA12C00
+      Roles:
+        - Ref: DatasetStateMachineRole5BA9F601
+    Metadata:
+      aws:cdk:path: amos/Dataset State Machine/Role/DefaultPolicy/Resource
+  DatasetStateMachineFC1912D9:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - DatasetStateMachineRole5BA9F601
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Queuer","States":{"Queuer":{"Next":"Worker","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"'
+            - Fn::GetAtt:
+                - QueuerLambda9C15C1DB
+                - Arn
+            - '","Parameters":{"queueUrl":"'
+            - Ref: Queue4A7E3555
+            - '","options.$":"$"}},"Worker":{"Next":"Processed All Items?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"'
+            - Fn::GetAtt:
+                - WorkerLambdaBD11C0E2
+                - Arn
+            - '"},"Wait":{"Type":"Wait","SecondsPath":"$.waitSeconds","Next":"Worker"},"Processed All Items?":{"Type":"Choice","Choices":[{"And":[{"Variable":"$.workedMessages","NumericEquals":0},{"And":[{"Variable":"$.skipForecast","IsPresent":true},{"Variable":"$.skipForecast","BooleanEquals":true}]}],"Next":"Success"},{"And":[{"Variable":"$.workedMessages","NumericEquals":0},{"Or":[{"Not":{"Variable":"$.skipForecast","IsPresent":true}},{"Variable":"$.skipForecast","BooleanEquals":false}]}],"Next":"Execute Forecast"}],"Default":"Wait"},"Success":{"Type":"Succeed","Comment":"Dataset Process Succeeded"},"Execute Forecast":{"Next":"Success","Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::states:startExecution","Parameters":{"Input":{"import":{"enabled":true},"predictor":{"enabled":true},"forecast":{"enabled":true},"export":{"enabled":true},"analyze":{"enabled":true,"rebuild":false}},"StateMachineArn":"
+            - Ref: ForecastStateMachine0B92BB28
+            - '"}}},"TimeoutSeconds":7200}'
+    DependsOn:
+      - DatasetStateMachineRoleDefaultPolicy1DA12C00
+      - DatasetStateMachineRole5BA9F601
+    Metadata:
+      aws:cdk:path: amos/Dataset State Machine/Resource
+  DatasetStateMachineEventsRole230A6EEF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: amos/Dataset State Machine/EventsRole/Resource
+  DatasetStateMachineEventsRoleDefaultPolicyFB1644E5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: DatasetStateMachineFC1912D9
+        Version: "2012-10-17"
+      PolicyName: DatasetStateMachineEventsRoleDefaultPolicyFB1644E5
+      Roles:
+        - Ref: DatasetStateMachineEventsRole230A6EEF
+    Metadata:
+      aws:cdk:path: amos/Dataset State Machine/EventsRole/DefaultPolicy/Resource
+  DatasetDailyRun63FF9602:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: Dataset_Daily_Run
+      ScheduleExpression: cron(0 22 * * ? *)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Ref: DatasetStateMachineFC1912D9
+          Id: Target0
+          Input: '{"skipQueueing":false,"downloadEndDate":"0d"}'
+          RoleArn:
+            Fn::GetAtt:
+              - DatasetStateMachineEventsRole230A6EEF
+              - Arn
+    Metadata:
+      aws:cdk:path: amos/Dataset Daily Run/Resource
+  accuracyServiceRole457B2C6F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/accuracy/ServiceRole/Resource
+  accuracyServiceRoleDefaultPolicy72B7492A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - s3:listBucket
+              - s3:getObject
+              - s3:putObject
+              - sqs:getQueueAttributes
+              - sqs:sendMessage*
+              - sqs:receiveMessage
+              - sqs:deleteMessage*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: accuracyServiceRoleDefaultPolicy72B7492A
+      Roles:
+        - Ref: accuracyServiceRole457B2C6F
+    Metadata:
+      aws:cdk:path: amos/accuracy/ServiceRole/DefaultPolicy/Resource
+  accuracy0052863B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters217f3a3dac773fbea5abd4adcadb44241e7cf52b782864605a24550733a2e374S3Bucket8923919D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters217f3a3dac773fbea5abd4adcadb44241e7cf52b782864605a24550733a2e374S3VersionKey939E7636
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters217f3a3dac773fbea5abd4adcadb44241e7cf52b782864605a24550733a2e374S3VersionKey939E7636
+      Role:
+        Fn::GetAtt:
+          - accuracyServiceRole457B2C6F
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE_ARN:
+            Fn::GetAtt:
+              - amosforecastrole0A55714D
+              - Arn
+          FORECAST_BUCKET_NAME:
+            Ref: amosforecastbucket66509916
+          FORECAST_DATASET_PREFIX: amos_forecast
+          FORECAST_DATASET_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetArn
+          FORECAST_DATASET_GROUP_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetGroupArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 45
+    DependsOn:
+      - accuracyServiceRoleDefaultPolicy72B7492A
+      - accuracyServiceRole457B2C6F
+    Metadata:
+      aws:cdk:path: amos/accuracy/Resource
+      aws:asset:path: asset.217f3a3dac773fbea5abd4adcadb44241e7cf52b782864605a24550733a2e374
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  lookupServiceRoleA294FD7F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/lookup/ServiceRole/Resource
+  lookupServiceRoleDefaultPolicyD0C4BA52:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - s3:listBucket
+              - s3:getObject
+              - s3:putObject
+              - sqs:getQueueAttributes
+              - sqs:sendMessage*
+              - sqs:receiveMessage
+              - sqs:deleteMessage*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: lookupServiceRoleDefaultPolicyD0C4BA52
+      Roles:
+        - Ref: lookupServiceRoleA294FD7F
+    Metadata:
+      aws:cdk:path: amos/lookup/ServiceRole/DefaultPolicy/Resource
+  lookup3DCCD57C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersf2807ffa9852821e7e61de5d5f47a56ba08e2d69766188737d2f5237970f40d5S3Bucket366746DB
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf2807ffa9852821e7e61de5d5f47a56ba08e2d69766188737d2f5237970f40d5S3VersionKey38E50425
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf2807ffa9852821e7e61de5d5f47a56ba08e2d69766188737d2f5237970f40d5S3VersionKey38E50425
+      Role:
+        Fn::GetAtt:
+          - lookupServiceRoleA294FD7F
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE_ARN:
+            Fn::GetAtt:
+              - amosforecastrole0A55714D
+              - Arn
+          FORECAST_BUCKET_NAME:
+            Ref: amosforecastbucket66509916
+          FORECAST_DATASET_PREFIX: amos_forecast
+          FORECAST_DATASET_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetArn
+          FORECAST_DATASET_GROUP_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetGroupArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 45
+    DependsOn:
+      - lookupServiceRoleDefaultPolicyD0C4BA52
+      - lookupServiceRoleA294FD7F
+    Metadata:
+      aws:cdk:path: amos/lookup/Resource
+      aws:asset:path: asset.f2807ffa9852821e7e61de5d5f47a56ba08e2d69766188737d2f5237970f40d5
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  symbolsServiceRoleB520797E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: amos/symbols/ServiceRole/Resource
+  symbolsServiceRoleDefaultPolicy3DF8E882:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - forecast:*
+              - s3:listBucket
+              - s3:getObject
+              - s3:putObject
+              - sqs:getQueueAttributes
+              - sqs:sendMessage*
+              - sqs:receiveMessage
+              - sqs:deleteMessage*
+              - iam:PassRole
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: symbolsServiceRoleDefaultPolicy3DF8E882
+      Roles:
+        - Ref: symbolsServiceRoleB520797E
+    Metadata:
+      aws:cdk:path: amos/symbols/ServiceRole/DefaultPolicy/Resource
+  symbols95F2FFDA:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameterscb788660f018cdc39123efde78c806bd5da79d45fa4fa09bc83463bb83b37af6S3Bucket8E8368E7
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterscb788660f018cdc39123efde78c806bd5da79d45fa4fa09bc83463bb83b37af6S3VersionKey945A5CDD
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterscb788660f018cdc39123efde78c806bd5da79d45fa4fa09bc83463bb83b37af6S3VersionKey945A5CDD
+      Role:
+        Fn::GetAtt:
+          - symbolsServiceRoleB520797E
+          - Arn
+      Environment:
+        Variables:
+          FORECAST_ROLE_ARN:
+            Fn::GetAtt:
+              - amosforecastrole0A55714D
+              - Arn
+          FORECAST_BUCKET_NAME:
+            Ref: amosforecastbucket66509916
+          FORECAST_DATASET_PREFIX: amos_forecast
+          FORECAST_DATASET_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetArn
+          FORECAST_DATASET_GROUP_ARN:
+            Fn::GetAtt:
+              - amosforecastcustomresource72FBFB22
+              - datasetGroupArn
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      MemorySize: 256
+      Runtime: nodejs14.x
+      Timeout: 45
+    DependsOn:
+      - symbolsServiceRoleDefaultPolicy3DF8E882
+      - symbolsServiceRoleB520797E
+    Metadata:
+      aws:cdk:path: amos/symbols/Resource
+      aws:asset:path: asset.cb788660f018cdc39123efde78c806bd5da79d45fa4fa09bc83463bb83b37af6
+      aws:asset:original-path: /Users/lqiao/dev/misc/dataset/335104043
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21STW/bMAz9Lb3L6rz0sOPSbAUKpFvmANtZk1lHsSx5IpUsMPzfpw9/tMBOfKRI8ZGPJS83D/zD3WdxxULW7f0grQM+HEnIlu2sQXJeEtt5JNtVgNY7CWz3aha8RQQK+Y0yDVsz3hUcnL2oGlwsPAgnOqDsfPfUe4oo9KoVKWtGFrkMuOHDo5ctpNcJZXOwWsnbGp787DwKhJEp0fGhsjpTjXYtymhkWnS/a1EYW8MZ+bdknryRkQTDTTGIOBnyNCCrodf21oEhnht9WQLzV3wIvy8/LCAE9+IG7ic4jP4xLEoDWfM24wCuU4hpfm0b5HvbVGFLJiWIXjWC4CpuYSpA2vZq0mCGWymtN8RWVjH6xosKpW1kMCsT18X+q+sL0MnWMZTRyJCgf504Y0ECW+TDPo3+bC62hdAE+nkqDI0cff0L0mdZ35WHXZ2sCm2ehNLsl1CJIcGLkCdlZqKrf/RSAkQSf0LtDw8+5SQwMriEEUO88pPiwY4jk+kICzeNhHy5w0l7HXUpwr1Jrfj2ijutklQji1fBz3h/KT/x8iMv786oVOHCilUHvMr2HzpnHQw+AwAA
+    Metadata:
+      aws:cdk:path: amos/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D:
+    Type: String
+    Description: S3 bucket for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A:
+    Type: String
+    Description: S3 key for asset version "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1ArtifactHash0128B949:
+    Type: String
+    Description: Artifact hash for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParametersc4cd2146ddb4bd48bf05a159fa8c5c2f55688ee33e39fb7425db13ce8c612579S3Bucket499D1110:
+    Type: String
+    Description: S3 bucket for asset "c4cd2146ddb4bd48bf05a159fa8c5c2f55688ee33e39fb7425db13ce8c612579"
+  AssetParametersc4cd2146ddb4bd48bf05a159fa8c5c2f55688ee33e39fb7425db13ce8c612579S3VersionKey2462D2C3:
+    Type: String
+    Description: S3 key for asset version "c4cd2146ddb4bd48bf05a159fa8c5c2f55688ee33e39fb7425db13ce8c612579"
+  AssetParametersc4cd2146ddb4bd48bf05a159fa8c5c2f55688ee33e39fb7425db13ce8c612579ArtifactHashE9FFC9E3:
+    Type: String
+    Description: Artifact hash for asset "c4cd2146ddb4bd48bf05a159fa8c5c2f55688ee33e39fb7425db13ce8c612579"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43:
+    Type: String
+    Description: S3 bucket for asset "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7:
+    Type: String
+    Description: S3 key for asset version "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cArtifactHash627DAAA7:
+    Type: String
+    Description: Artifact hash for asset "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersb120b13d9d868c7622e7db1b68bae4c0f82ffd0227b8c15f2cef38e186ff3827S3Bucket2070BA0A:
+    Type: String
+    Description: S3 bucket for asset "b120b13d9d868c7622e7db1b68bae4c0f82ffd0227b8c15f2cef38e186ff3827"
+  AssetParametersb120b13d9d868c7622e7db1b68bae4c0f82ffd0227b8c15f2cef38e186ff3827S3VersionKeyB95D17C3:
+    Type: String
+    Description: S3 key for asset version "b120b13d9d868c7622e7db1b68bae4c0f82ffd0227b8c15f2cef38e186ff3827"
+  AssetParametersb120b13d9d868c7622e7db1b68bae4c0f82ffd0227b8c15f2cef38e186ff3827ArtifactHash1355580A:
+    Type: String
+    Description: Artifact hash for asset "b120b13d9d868c7622e7db1b68bae4c0f82ffd0227b8c15f2cef38e186ff3827"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7:
+    Type: String
+    Description: S3 bucket for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F:
+    Type: String
+    Description: S3 key for asset version "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68ArtifactHashD9A515C3:
+    Type: String
+    Description: Artifact hash for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3BucketD1AD544E:
+    Type: String
+    Description: S3 bucket for asset "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70:
+    Type: String
+    Description: S3 key for asset version "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8ArtifactHash238275D6:
+    Type: String
+    Description: Artifact hash for asset "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParameters2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ceS3Bucket03AF39AA:
+    Type: String
+    Description: S3 bucket for asset "2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ce"
+  AssetParameters2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ceS3VersionKey840D66D6:
+    Type: String
+    Description: S3 key for asset version "2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ce"
+  AssetParameters2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ceArtifactHashB98DCBFE:
+    Type: String
+    Description: Artifact hash for asset "2ba5b3956df22c9293a12e76d511fe2114403240ab401c3b6892d5e8168f14ce"
+  AssetParameters32718669c285193333b76dda8f3ad9ca56bb88f54235a7497a8547bea5496256S3Bucket36284F99:
+    Type: String
+    Description: S3 bucket for asset "32718669c285193333b76dda8f3ad9ca56bb88f54235a7497a8547bea5496256"
+  AssetParameters32718669c285193333b76dda8f3ad9ca56bb88f54235a7497a8547bea5496256S3VersionKeyF6E683BB:
+    Type: String
+    Description: S3 key for asset version "32718669c285193333b76dda8f3ad9ca56bb88f54235a7497a8547bea5496256"
+  AssetParameters32718669c285193333b76dda8f3ad9ca56bb88f54235a7497a8547bea5496256ArtifactHashBCE53858:
+    Type: String
+    Description: Artifact hash for asset "32718669c285193333b76dda8f3ad9ca56bb88f54235a7497a8547bea5496256"
+  AssetParametersbbf3ea575ab53ef6886388fe38da22ecf38cc1d713a4f61ef55fbb051ba7435eS3BucketE343F788:
+    Type: String
+    Description: S3 bucket for asset "bbf3ea575ab53ef6886388fe38da22ecf38cc1d713a4f61ef55fbb051ba7435e"
+  AssetParametersbbf3ea575ab53ef6886388fe38da22ecf38cc1d713a4f61ef55fbb051ba7435eS3VersionKey2B876699:
+    Type: String
+    Description: S3 key for asset version "bbf3ea575ab53ef6886388fe38da22ecf38cc1d713a4f61ef55fbb051ba7435e"
+  AssetParametersbbf3ea575ab53ef6886388fe38da22ecf38cc1d713a4f61ef55fbb051ba7435eArtifactHash0DDB454B:
+    Type: String
+    Description: Artifact hash for asset "bbf3ea575ab53ef6886388fe38da22ecf38cc1d713a4f61ef55fbb051ba7435e"
+  AssetParameters6e14ff45a576dc63ce9e8d65b73059bae3e65a13c58c870fbe36abeb407f2fccS3Bucket558ABCE1:
+    Type: String
+    Description: S3 bucket for asset "6e14ff45a576dc63ce9e8d65b73059bae3e65a13c58c870fbe36abeb407f2fcc"
+  AssetParameters6e14ff45a576dc63ce9e8d65b73059bae3e65a13c58c870fbe36abeb407f2fccS3VersionKeyD60A58AE:
+    Type: String
+    Description: S3 key for asset version "6e14ff45a576dc63ce9e8d65b73059bae3e65a13c58c870fbe36abeb407f2fcc"
+  AssetParameters6e14ff45a576dc63ce9e8d65b73059bae3e65a13c58c870fbe36abeb407f2fccArtifactHash656A7416:
+    Type: String
+    Description: Artifact hash for asset "6e14ff45a576dc63ce9e8d65b73059bae3e65a13c58c870fbe36abeb407f2fcc"
+  AssetParameters813ab1e3ffd48cc2e26ef766cfee1e0e9a0a8313d7ff7e1dc41c5c81c8148cc9S3Bucket5F317522:
+    Type: String
+    Description: S3 bucket for asset "813ab1e3ffd48cc2e26ef766cfee1e0e9a0a8313d7ff7e1dc41c5c81c8148cc9"
+  AssetParameters813ab1e3ffd48cc2e26ef766cfee1e0e9a0a8313d7ff7e1dc41c5c81c8148cc9S3VersionKeyC4DA4FA9:
+    Type: String
+    Description: S3 key for asset version "813ab1e3ffd48cc2e26ef766cfee1e0e9a0a8313d7ff7e1dc41c5c81c8148cc9"
+  AssetParameters813ab1e3ffd48cc2e26ef766cfee1e0e9a0a8313d7ff7e1dc41c5c81c8148cc9ArtifactHashEC2839E0:
+    Type: String
+    Description: Artifact hash for asset "813ab1e3ffd48cc2e26ef766cfee1e0e9a0a8313d7ff7e1dc41c5c81c8148cc9"
+  AssetParameters99e0b7f0dbea057a51f975fa5b4299893a1a36bf2cb9e418eabeeda9565d0218S3Bucket50FB7A95:
+    Type: String
+    Description: S3 bucket for asset "99e0b7f0dbea057a51f975fa5b4299893a1a36bf2cb9e418eabeeda9565d0218"
+  AssetParameters99e0b7f0dbea057a51f975fa5b4299893a1a36bf2cb9e418eabeeda9565d0218S3VersionKeyD00F135C:
+    Type: String
+    Description: S3 key for asset version "99e0b7f0dbea057a51f975fa5b4299893a1a36bf2cb9e418eabeeda9565d0218"
+  AssetParameters99e0b7f0dbea057a51f975fa5b4299893a1a36bf2cb9e418eabeeda9565d0218ArtifactHash5A50822D:
+    Type: String
+    Description: Artifact hash for asset "99e0b7f0dbea057a51f975fa5b4299893a1a36bf2cb9e418eabeeda9565d0218"
+  AssetParametersd78fa3b710b7ca4a4f670952d83f4048df3950f360ccb7a0085d26ffb3d29e7cS3BucketF041E10E:
+    Type: String
+    Description: S3 bucket for asset "d78fa3b710b7ca4a4f670952d83f4048df3950f360ccb7a0085d26ffb3d29e7c"
+  AssetParametersd78fa3b710b7ca4a4f670952d83f4048df3950f360ccb7a0085d26ffb3d29e7cS3VersionKey055B93D9:
+    Type: String
+    Description: S3 key for asset version "d78fa3b710b7ca4a4f670952d83f4048df3950f360ccb7a0085d26ffb3d29e7c"
+  AssetParametersd78fa3b710b7ca4a4f670952d83f4048df3950f360ccb7a0085d26ffb3d29e7cArtifactHash3E4668CB:
+    Type: String
+    Description: Artifact hash for asset "d78fa3b710b7ca4a4f670952d83f4048df3950f360ccb7a0085d26ffb3d29e7c"
+  AssetParameters8a4111a23655fce75b168f18a5a46afeed19cb45bac05fefec3b47fcb3425d29S3Bucket95011400:
+    Type: String
+    Description: S3 bucket for asset "8a4111a23655fce75b168f18a5a46afeed19cb45bac05fefec3b47fcb3425d29"
+  AssetParameters8a4111a23655fce75b168f18a5a46afeed19cb45bac05fefec3b47fcb3425d29S3VersionKeyCCC2F5A8:
+    Type: String
+    Description: S3 key for asset version "8a4111a23655fce75b168f18a5a46afeed19cb45bac05fefec3b47fcb3425d29"
+  AssetParameters8a4111a23655fce75b168f18a5a46afeed19cb45bac05fefec3b47fcb3425d29ArtifactHashB3EEC147:
+    Type: String
+    Description: Artifact hash for asset "8a4111a23655fce75b168f18a5a46afeed19cb45bac05fefec3b47fcb3425d29"
+  AssetParameters217f3a3dac773fbea5abd4adcadb44241e7cf52b782864605a24550733a2e374S3Bucket8923919D:
+    Type: String
+    Description: S3 bucket for asset "217f3a3dac773fbea5abd4adcadb44241e7cf52b782864605a24550733a2e374"
+  AssetParameters217f3a3dac773fbea5abd4adcadb44241e7cf52b782864605a24550733a2e374S3VersionKey939E7636:
+    Type: String
+    Description: S3 key for asset version "217f3a3dac773fbea5abd4adcadb44241e7cf52b782864605a24550733a2e374"
+  AssetParameters217f3a3dac773fbea5abd4adcadb44241e7cf52b782864605a24550733a2e374ArtifactHash0E20852C:
+    Type: String
+    Description: Artifact hash for asset "217f3a3dac773fbea5abd4adcadb44241e7cf52b782864605a24550733a2e374"
+  AssetParametersf2807ffa9852821e7e61de5d5f47a56ba08e2d69766188737d2f5237970f40d5S3Bucket366746DB:
+    Type: String
+    Description: S3 bucket for asset "f2807ffa9852821e7e61de5d5f47a56ba08e2d69766188737d2f5237970f40d5"
+  AssetParametersf2807ffa9852821e7e61de5d5f47a56ba08e2d69766188737d2f5237970f40d5S3VersionKey38E50425:
+    Type: String
+    Description: S3 key for asset version "f2807ffa9852821e7e61de5d5f47a56ba08e2d69766188737d2f5237970f40d5"
+  AssetParametersf2807ffa9852821e7e61de5d5f47a56ba08e2d69766188737d2f5237970f40d5ArtifactHashE1C81E36:
+    Type: String
+    Description: Artifact hash for asset "f2807ffa9852821e7e61de5d5f47a56ba08e2d69766188737d2f5237970f40d5"
+  AssetParameterscb788660f018cdc39123efde78c806bd5da79d45fa4fa09bc83463bb83b37af6S3Bucket8E8368E7:
+    Type: String
+    Description: S3 bucket for asset "cb788660f018cdc39123efde78c806bd5da79d45fa4fa09bc83463bb83b37af6"
+  AssetParameterscb788660f018cdc39123efde78c806bd5da79d45fa4fa09bc83463bb83b37af6S3VersionKey945A5CDD:
+    Type: String
+    Description: S3 key for asset version "cb788660f018cdc39123efde78c806bd5da79d45fa4fa09bc83463bb83b37af6"
+  AssetParameterscb788660f018cdc39123efde78c806bd5da79d45fa4fa09bc83463bb83b37af6ArtifactHash9E7E7AAF:
+    Type: String
+    Description: Artifact hash for asset "cb788660f018cdc39123efde78c806bd5da79d45fa4fa09bc83463bb83b37af6"
+Outputs:
+  apiEndpoint9349E63C:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: apiC8550315
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: apiDeploymentStageprod896C8101
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

@@ -1,0 +1,889 @@
+Resources:
+  notestable702635DB:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: text
+          AttributeType: S
+      LocalSecondaryIndexes:
+        - IndexName: byText
+          KeySchema:
+            - AttributeName: pk
+              KeyType: HASH
+            - AttributeName: text
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: openapi-api/notes-table/Resource
+  sentimentHandlerServiceRole2DC86B0C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: openapi-api/sentimentHandler/ServiceRole/Resource
+  sentimentHandlerServiceRoleDefaultPolicyE150D0D7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - comprehend:DetectSentiment
+              - comprehend:DetectSyntax
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: sentimentHandlerServiceRoleDefaultPolicyE150D0D7
+      Roles:
+        - Ref: sentimentHandlerServiceRole2DC86B0C
+    Metadata:
+      aws:cdk:path: openapi-api/sentimentHandler/ServiceRole/DefaultPolicy/Resource
+  sentimentHandler98CCD9C8:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersbf1b34ae2a78684fd7e20452a4693287631a42ce7377b752e07b1d8a19dbfca2S3Bucket9CAF7EEC
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbf1b34ae2a78684fd7e20452a4693287631a42ce7377b752e07b1d8a19dbfca2S3VersionKey138400FB
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersbf1b34ae2a78684fd7e20452a4693287631a42ce7377b752e07b1d8a19dbfca2S3VersionKey138400FB
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - sentimentHandlerServiceRole2DC86B0C
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+    DependsOn:
+      - sentimentHandlerServiceRoleDefaultPolicyE150D0D7
+      - sentimentHandlerServiceRole2DC86B0C
+    Metadata:
+      aws:cdk:path: openapi-api/sentimentHandler/Resource
+      aws:asset:path: asset.bf1b34ae2a78684fd7e20452a4693287631a42ce7377b752e07b1d8a19dbfca2
+      aws:asset:property: Code
+  saveHandlerServiceRole2E767A51:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: openapi-api/saveHandler/ServiceRole/Resource
+  saveHandlerServiceRoleDefaultPolicyF7D3CE88:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - notestable702635DB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - notestable702635DB
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: saveHandlerServiceRoleDefaultPolicyF7D3CE88
+      Roles:
+        - Ref: saveHandlerServiceRole2E767A51
+    Metadata:
+      aws:cdk:path: openapi-api/saveHandler/ServiceRole/DefaultPolicy/Resource
+  saveHandler943E60B4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters63820e719d3fb304021cb8de0254ed49b079288f67b35d8222a68e8ad6ed9335S3BucketF0C6C269
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters63820e719d3fb304021cb8de0254ed49b079288f67b35d8222a68e8ad6ed9335S3VersionKey8377B452
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters63820e719d3fb304021cb8de0254ed49b079288f67b35d8222a68e8ad6ed9335S3VersionKey8377B452
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - saveHandlerServiceRole2E767A51
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: notestable702635DB
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+    DependsOn:
+      - saveHandlerServiceRoleDefaultPolicyF7D3CE88
+      - saveHandlerServiceRole2E767A51
+    Metadata:
+      aws:cdk:path: openapi-api/saveHandler/Resource
+      aws:asset:path: asset.63820e719d3fb304021cb8de0254ed49b079288f67b35d8222a68e8ad6ed9335
+      aws:asset:property: Code
+  apiMachineRole23CC9F14:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: states.us-east-1.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: openapi-api/apiMachine/Role/Resource
+  apiMachineRoleDefaultPolicyE22DABAF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - sentimentHandler98CCD9C8
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - saveHandler943E60B4
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: apiMachineRoleDefaultPolicyE22DABAF
+      Roles:
+        - Ref: apiMachineRole23CC9F14
+    Metadata:
+      aws:cdk:path: openapi-api/apiMachine/Role/DefaultPolicy/Resource
+  apiMachine03DEE5FF:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - apiMachineRole23CC9F14
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"performAnalysis","States":{"performAnalysis":{"Next":"saveTheData","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - sentimentHandler98CCD9C8
+                - Arn
+            - '","Payload.$":"$"}},"saveTheData":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - saveHandler943E60B4
+                - Arn
+            - '","Payload.$":"$"}}}}'
+      StateMachineType: EXPRESS
+    DependsOn:
+      - apiMachineRoleDefaultPolicyE22DABAF
+      - apiMachineRole23CC9F14
+    Metadata:
+      aws:cdk:path: openapi-api/apiMachine/Resource
+  searchHandlerServiceRole7C64BA15:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: openapi-api/searchHandler/ServiceRole/Resource
+  searchHandlerServiceRoleDefaultPolicy19C554C2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - notestable702635DB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - notestable702635DB
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: searchHandlerServiceRoleDefaultPolicy19C554C2
+      Roles:
+        - Ref: searchHandlerServiceRole7C64BA15
+    Metadata:
+      aws:cdk:path: openapi-api/searchHandler/ServiceRole/DefaultPolicy/Resource
+  searchHandler783145ED:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc5f895a5ab34b9320b4b2ac687bf659c36bbca0ca9c0b447ec7152cbf555e73dS3Bucket0D96B524
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc5f895a5ab34b9320b4b2ac687bf659c36bbca0ca9c0b447ec7152cbf555e73dS3VersionKey538974BB
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc5f895a5ab34b9320b4b2ac687bf659c36bbca0ca9c0b447ec7152cbf555e73dS3VersionKey538974BB
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - searchHandlerServiceRole7C64BA15
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: notestable702635DB
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+    DependsOn:
+      - searchHandlerServiceRoleDefaultPolicy19C554C2
+      - searchHandlerServiceRole7C64BA15
+    Metadata:
+      aws:cdk:path: openapi-api/searchHandler/Resource
+      aws:asset:path: asset.c5f895a5ab34b9320b4b2ac687bf659c36bbca0ca9c0b447ec7152cbf555e73d
+      aws:asset:property: Code
+  searchHandlersearchInvokePermission86977152:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - searchHandler783145ED
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: testApiD6ECAB50
+            - /*/*/search
+    Metadata:
+      aws:cdk:path: openapi-api/searchHandler/searchInvokePermission
+  listHandlerServiceRole96AB23A3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: openapi-api/listHandler/ServiceRole/Resource
+  listHandlerServiceRoleDefaultPolicyCDF10044:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - notestable702635DB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - notestable702635DB
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: listHandlerServiceRoleDefaultPolicyCDF10044
+      Roles:
+        - Ref: listHandlerServiceRole96AB23A3
+    Metadata:
+      aws:cdk:path: openapi-api/listHandler/ServiceRole/DefaultPolicy/Resource
+  listHandler721F23B2:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersaf61d6bf582d3d393ec5efe73db34e2a2b1677fa22e3e7b757db92fea3b46e77S3BucketAA1CFAF5
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersaf61d6bf582d3d393ec5efe73db34e2a2b1677fa22e3e7b757db92fea3b46e77S3VersionKey392385AF
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersaf61d6bf582d3d393ec5efe73db34e2a2b1677fa22e3e7b757db92fea3b46e77S3VersionKey392385AF
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - listHandlerServiceRole96AB23A3
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: notestable702635DB
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+    DependsOn:
+      - listHandlerServiceRoleDefaultPolicyCDF10044
+      - listHandlerServiceRole96AB23A3
+    Metadata:
+      aws:cdk:path: openapi-api/listHandler/Resource
+      aws:asset:path: asset.af61d6bf582d3d393ec5efe73db34e2a2b1677fa22e3e7b757db92fea3b46e77
+      aws:asset:property: Code
+  listHandlerlistInvokePermission984265AB:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - listHandler721F23B2
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: testApiD6ECAB50
+            - /*/*/list
+    Metadata:
+      aws:cdk:path: openapi-api/listHandler/listInvokePermission
+  getHandlerServiceRole8AF3F3E3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: openapi-api/getHandler/ServiceRole/Resource
+  getHandlerServiceRoleDefaultPolicy2D2EB1D6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - notestable702635DB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - notestable702635DB
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: getHandlerServiceRoleDefaultPolicy2D2EB1D6
+      Roles:
+        - Ref: getHandlerServiceRole8AF3F3E3
+    Metadata:
+      aws:cdk:path: openapi-api/getHandler/ServiceRole/DefaultPolicy/Resource
+  getHandler9DA53FA6:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersd5bb6bface619849d4acc3ed8557d5c5e72583ce39b3ea38857a7332171f7d0cS3Bucket282F67BB
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd5bb6bface619849d4acc3ed8557d5c5e72583ce39b3ea38857a7332171f7d0cS3VersionKey4E946EF3
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd5bb6bface619849d4acc3ed8557d5c5e72583ce39b3ea38857a7332171f7d0cS3VersionKey4E946EF3
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - getHandlerServiceRole8AF3F3E3
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: notestable702635DB
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+    DependsOn:
+      - getHandlerServiceRoleDefaultPolicy2D2EB1D6
+      - getHandlerServiceRole8AF3F3E3
+    Metadata:
+      aws:cdk:path: openapi-api/getHandler/Resource
+      aws:asset:path: asset.d5bb6bface619849d4acc3ed8557d5c5e72583ce39b3ea38857a7332171f7d0c
+      aws:asset:property: Code
+  getHandlergetInvokePermissionEEE4B5A3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - getHandler9DA53FA6
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:aws:execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: testApiD6ECAB50
+            - /*/*/get/*
+    Metadata:
+      aws:cdk:path: openapi-api/getHandler/getInvokePermission
+  testApiD6ECAB50:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Body:
+        openapi: 3.0.1
+        info:
+          title: notes-api
+          description: Notes
+          version: 1.0.0
+          contact:
+            email: wojtek@wojtek.pl
+            name: wojtek
+        paths:
+          /save:
+            post:
+              operationId: SaveNote
+              summary: Save a note
+              x-amazon-apigateway-integration:
+                integrationSubtype: StepFunctions-StartSyncExecution
+                credentials:
+                  Fn::GetAtt:
+                    - startMachineRole8E047A2E
+                    - Arn
+                requestParameters:
+                  Input: $request.body
+                  StateMachineArn:
+                    Ref: apiMachine03DEE5FF
+                type: aws_proxy
+                payloadFormatVersion: "1.0"
+                connectionType: INTERNET
+              requestBody:
+                content:
+                  application/json:
+                    schema:
+                      $ref: "#/components/schemas/SaveNotePayload"
+              responses:
+                "200":
+                  description: Success
+                  content:
+                    application/json:
+                      schema:
+                        $ref: "#/components/schemas/SaveNoteResult"
+          /search:
+            get:
+              operationId: SearchNote
+              summary: Search for a note
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: get
+                uri:
+                  Fn::GetAtt:
+                    - searchHandler783145ED
+                    - Arn
+                payloadFormatVersion: "2.0"
+              responses:
+                "200":
+                  description: Success
+                  content:
+                    application/json:
+                      schema:
+                        $ref: "#/components/schemas/SearchNotesResult"
+            parameters:
+              - name: query
+                in: query
+                schema:
+                  type: string
+                description: Query to search text on
+              - name: cursor
+                in: query
+                schema:
+                  type: string
+                description: Pagination cursor
+              - name: limit
+                in: query
+                schema:
+                  type: string
+                description: Limit the results
+          /list:
+            get:
+              operationId: ListNotes
+              summary: Search for a note
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: get
+                uri:
+                  Fn::GetAtt:
+                    - listHandler721F23B2
+                    - Arn
+                payloadFormatVersion: "2.0"
+              responses:
+                "200":
+                  description: Success
+                  content:
+                    application/json:
+                      schema:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ListNotesResult"
+            parameters:
+              - name: cursor
+                in: query
+                schema:
+                  type: string
+                description: Pagination cursor
+              - name: limit
+                in: query
+                schema:
+                  type: string
+                description: Limit the results
+          "/get/{id}":
+            get:
+              operationId: GetNote
+              summary: Search for a note
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: get
+                uri:
+                  Fn::GetAtt:
+                    - getHandler9DA53FA6
+                    - Arn
+                payloadFormatVersion: "2.0"
+              responses:
+                "200":
+                  description: Success
+                  content:
+                    application/json:
+                      schema:
+                        $ref: "#/components/schemas/GetNoteResult"
+            parameters:
+              - name: id
+                in: path
+                description: id of the note to retrieve.
+                required: true
+                schema:
+                  type: string
+        x-amazon-apigateway-cors:
+          allowMethods:
+            - "*"
+          maxAge: 0
+          allowCredentials: false
+          allowOrigins:
+            - "*"
+          allowHeaders:
+            - POST
+            - PUT
+            - OPTIONS
+            - GET
+            - PATCH
+        x-amazon-apigateway-importexport-version: "1.0"
+        components:
+          schemas:
+            SaveNotePayload:
+              type: object
+              required:
+                - text
+              properties:
+                text:
+                  type: string
+            SaveNoteResult:
+              type: object
+              required:
+                - text
+                - id
+                - sentiment
+                - createdAt
+              properties:
+                text:
+                  type: string
+                id:
+                  type: string
+                sentiment:
+                  type: string
+                createdAt:
+                  type: string
+            Note:
+              type: object
+              required:
+                - text
+                - id
+                - sentiment
+                - createdAt
+              properties:
+                text:
+                  type: string
+                id:
+                  type: string
+                sentiment:
+                  type: string
+                createdAt:
+                  type: string
+            SearchNotesResult:
+              type: object
+              required:
+                - notes
+              properties:
+                notes:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Note"
+                cursor:
+                  type: string
+            ListNotesResult:
+              type: object
+              required:
+                - notes
+              properties:
+                notes:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Note"
+                cursor:
+                  type: string
+            GetNoteResult:
+              type: object
+              required:
+                - text
+                - id
+                - sentiment
+                - createdAt
+              properties:
+                text:
+                  type: string
+                id:
+                  type: string
+                sentiment:
+                  type: string
+                createdAt:
+                  type: string
+    Metadata:
+      aws:cdk:path: openapi-api/testApi/Resource
+  testApiDefaultStage047D5696:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: testApiD6ECAB50
+      StageName: $default
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: openapi-api/testApi/DefaultStage/Resource
+  startMachineRole8E047A2E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: states:StartSyncExecution
+                Effect: Allow
+                Resource:
+                  Ref: apiMachine03DEE5FF
+            Version: "2012-10-17"
+          PolicyName: invokeMachineSync
+    Metadata:
+      aws:cdk:path: openapi-api/startMachineRole/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.80.0,@aws-cdk/aws-apigatewayv2=1.80.0,@aws-cdk/aws-applicationautoscaling=1.80.0,@aws-cdk/aws-autoscaling=1.80.0,@aws-cdk/aws-autoscaling-common=1.80.0,@aws-cdk/aws-autoscaling-hooktargets=1.80.0,@aws-cdk/aws-cloudwatch=1.80.0,@aws-cdk/aws-codebuild=1.80.0,@aws-cdk/aws-codeguruprofiler=1.80.0,@aws-cdk/aws-dynamodb=1.80.0,@aws-cdk/aws-ec2=1.80.0,@aws-cdk/aws-ecr=1.80.0,@aws-cdk/aws-ecr-assets=1.80.0,@aws-cdk/aws-ecs=1.80.0,@aws-cdk/aws-elasticloadbalancingv2=1.80.0,@aws-cdk/aws-events=1.80.0,@aws-cdk/aws-iam=1.80.0,@aws-cdk/aws-kms=1.80.0,@aws-cdk/aws-lambda=1.80.0,@aws-cdk/aws-lambda-nodejs=1.80.0,@aws-cdk/aws-logs=1.80.0,@aws-cdk/aws-s3=1.80.0,@aws-cdk/aws-s3-assets=1.80.0,@aws-cdk/aws-servicediscovery=1.80.0,@aws-cdk/aws-sns=1.80.0,@aws-cdk/aws-sns-subscriptions=1.80.0,@aws-cdk/aws-sqs=1.80.0,@aws-cdk/aws-ssm=1.80.0,@aws-cdk/aws-stepfunctions=1.80.0,@aws-cdk/aws-stepfunctions-tasks=1.80.0,@aws-cdk/cloud-assembly-schema=1.80.0,@aws-cdk/core=1.80.0,@aws-cdk/custom-resources=1.80.0,@aws-cdk/cx-api=1.80.0,@aws-cdk/region-info=1.80.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: openapi-api/CDKMetadata/Default
+Parameters:
+  AssetParametersbf1b34ae2a78684fd7e20452a4693287631a42ce7377b752e07b1d8a19dbfca2S3Bucket9CAF7EEC:
+    Type: String
+    Description: S3 bucket for asset "bf1b34ae2a78684fd7e20452a4693287631a42ce7377b752e07b1d8a19dbfca2"
+  AssetParametersbf1b34ae2a78684fd7e20452a4693287631a42ce7377b752e07b1d8a19dbfca2S3VersionKey138400FB:
+    Type: String
+    Description: S3 key for asset version "bf1b34ae2a78684fd7e20452a4693287631a42ce7377b752e07b1d8a19dbfca2"
+  AssetParametersbf1b34ae2a78684fd7e20452a4693287631a42ce7377b752e07b1d8a19dbfca2ArtifactHash02326C3E:
+    Type: String
+    Description: Artifact hash for asset "bf1b34ae2a78684fd7e20452a4693287631a42ce7377b752e07b1d8a19dbfca2"
+  AssetParameters63820e719d3fb304021cb8de0254ed49b079288f67b35d8222a68e8ad6ed9335S3BucketF0C6C269:
+    Type: String
+    Description: S3 bucket for asset "63820e719d3fb304021cb8de0254ed49b079288f67b35d8222a68e8ad6ed9335"
+  AssetParameters63820e719d3fb304021cb8de0254ed49b079288f67b35d8222a68e8ad6ed9335S3VersionKey8377B452:
+    Type: String
+    Description: S3 key for asset version "63820e719d3fb304021cb8de0254ed49b079288f67b35d8222a68e8ad6ed9335"
+  AssetParameters63820e719d3fb304021cb8de0254ed49b079288f67b35d8222a68e8ad6ed9335ArtifactHashA240AE7F:
+    Type: String
+    Description: Artifact hash for asset "63820e719d3fb304021cb8de0254ed49b079288f67b35d8222a68e8ad6ed9335"
+  AssetParametersc5f895a5ab34b9320b4b2ac687bf659c36bbca0ca9c0b447ec7152cbf555e73dS3Bucket0D96B524:
+    Type: String
+    Description: S3 bucket for asset "c5f895a5ab34b9320b4b2ac687bf659c36bbca0ca9c0b447ec7152cbf555e73d"
+  AssetParametersc5f895a5ab34b9320b4b2ac687bf659c36bbca0ca9c0b447ec7152cbf555e73dS3VersionKey538974BB:
+    Type: String
+    Description: S3 key for asset version "c5f895a5ab34b9320b4b2ac687bf659c36bbca0ca9c0b447ec7152cbf555e73d"
+  AssetParametersc5f895a5ab34b9320b4b2ac687bf659c36bbca0ca9c0b447ec7152cbf555e73dArtifactHashE61B645E:
+    Type: String
+    Description: Artifact hash for asset "c5f895a5ab34b9320b4b2ac687bf659c36bbca0ca9c0b447ec7152cbf555e73d"
+  AssetParametersaf61d6bf582d3d393ec5efe73db34e2a2b1677fa22e3e7b757db92fea3b46e77S3BucketAA1CFAF5:
+    Type: String
+    Description: S3 bucket for asset "af61d6bf582d3d393ec5efe73db34e2a2b1677fa22e3e7b757db92fea3b46e77"
+  AssetParametersaf61d6bf582d3d393ec5efe73db34e2a2b1677fa22e3e7b757db92fea3b46e77S3VersionKey392385AF:
+    Type: String
+    Description: S3 key for asset version "af61d6bf582d3d393ec5efe73db34e2a2b1677fa22e3e7b757db92fea3b46e77"
+  AssetParametersaf61d6bf582d3d393ec5efe73db34e2a2b1677fa22e3e7b757db92fea3b46e77ArtifactHash57B4D0C2:
+    Type: String
+    Description: Artifact hash for asset "af61d6bf582d3d393ec5efe73db34e2a2b1677fa22e3e7b757db92fea3b46e77"
+  AssetParametersd5bb6bface619849d4acc3ed8557d5c5e72583ce39b3ea38857a7332171f7d0cS3Bucket282F67BB:
+    Type: String
+    Description: S3 bucket for asset "d5bb6bface619849d4acc3ed8557d5c5e72583ce39b3ea38857a7332171f7d0c"
+  AssetParametersd5bb6bface619849d4acc3ed8557d5c5e72583ce39b3ea38857a7332171f7d0cS3VersionKey4E946EF3:
+    Type: String
+    Description: S3 key for asset version "d5bb6bface619849d4acc3ed8557d5c5e72583ce39b3ea38857a7332171f7d0c"
+  AssetParametersd5bb6bface619849d4acc3ed8557d5c5e72583ce39b3ea38857a7332171f7d0cArtifactHash0252A7F4:
+    Type: String
+    Description: Artifact hash for asset "d5bb6bface619849d4acc3ed8557d5c5e72583ce39b3ea38857a7332171f7d0c"
+Outputs:
+  ApiUrl:
+    Value:
+      Fn::GetAtt:
+        - testApiD6ECAB50
+        - ApiEndpoint
+  machineArn:
+    Value:
+      Ref: apiMachine03DEE5FF
+  startMachineRoleArn:
+    Value:
+      Fn::GetAtt:
+        - startMachineRole8E047A2E
+        - Arn
+

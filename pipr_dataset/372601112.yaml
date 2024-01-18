@@ -1,0 +1,132 @@
+Resources:
+  SFNAthenaDemoStateMachineRole54D5FF4A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: states.us-east-1.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SFNAthenaDemoStack/SFNAthenaDemo/StateMachine/Role/Resource
+  SFNAthenaDemoStateMachineRoleDefaultPolicy79D70076:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - athena:getDataCatalog
+              - athena:startQueryExecution
+              - athena:getQueryExecution
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :athena:us-east-1:036406153779:datacatalog/AwsDataCatalog
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :athena:us-east-1:036406153779:workgroup/primary
+          - Action:
+              - s3:CreateBucket
+              - s3:ListBucket
+              - s3:GetBucketLocation
+              - s3:GetObject
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:AbortMultipartUpload
+              - s3:ListBucketMultipartUploads
+              - s3:ListMultipartUploadParts
+              - s3:PutObject
+            Effect: Allow
+            Resource: "*"
+          - Action: lakeformation:GetDataAccess
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - glue:BatchCreatePartition
+              - glue:BatchDeletePartition
+              - glue:BatchDeleteTable
+              - glue:BatchGetPartition
+              - glue:CreateDatabase
+              - glue:CreatePartition
+              - glue:CreateTable
+              - glue:DeleteDatabase
+              - glue:DeletePartition
+              - glue:DeleteTable
+              - glue:GetDatabase
+              - glue:GetDatabases
+              - glue:GetPartition
+              - glue:GetPartitions
+              - glue:GetTable
+              - glue:GetTables
+              - glue:UpdateDatabase
+              - glue:UpdatePartition
+              - glue:UpdateTable
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :glue:us-east-1:036406153779:catalog
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :glue:us-east-1:036406153779:database/default
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :glue:us-east-1:036406153779:table/default/*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :glue:us-east-1:036406153779:userDefinedFunction/default/*
+          - Action: athena:getQueryResults
+            Effect: Allow
+            Resource: "*"
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: SFNAthenaDemoStateMachineRoleDefaultPolicy79D70076
+      Roles:
+        - Ref: SFNAthenaDemoStateMachineRole54D5FF4A
+    Metadata:
+      aws:cdk:path: SFNAthenaDemoStack/SFNAthenaDemo/StateMachine/Role/DefaultPolicy/Resource
+  SFNAthenaDemoStateMachine3AC9A2EB:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - SFNAthenaDemoStateMachineRole54D5FF4A
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"StartAthenaQuery","States":{"StartAthenaQuery":{"Next":"SetNextTokenNull","Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - ':states:::athena:startQueryExecution.sync","Parameters":{"QueryString":"SELECT x FROM UNNEST(SEQUENCE(1, 99)) t(x)","QueryExecutionContext":{"Database":"default"},"ResultConfiguration":{}}},"SetNextTokenNull":{"Type":"Pass","Result":{"NextToken":null},"ResultPath":"$.QueryResults","Next":"GetAthenaQueryResults"},"GetAthenaQueryResults":{"Next":"ProcessChunk","Type":"Task","ResultPath":"$.QueryResults","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::athena:getQueryResults","Parameters":{"QueryExecutionId.$":"$.QueryExecution.QueryExecutionId","NextToken.$":"$.QueryResults.NextToken","MaxResults":10}},"SetNotFirst":{"Type":"Pass","Result":true,"ResultPath":"$.NotFirst","Next":"GetAthenaQueryResults"},"IsQueryResultsEmpty":{"Type":"Choice","Choices":[{"Variable":"$.QueryResults.NextToken","IsPresent":false,"Next":"End"},{"Variable":"$.QueryResults.NextToken","IsNull":false,"Next":"SetNotFirst"}],"Default":"End"},"ProcessChunk":{"Type":"Pass","Next":"IsQueryResultsEmpty"},"End":{"Type":"Pass","End":true}}}
+    DependsOn:
+      - SFNAthenaDemoStateMachineRoleDefaultPolicy79D70076
+      - SFNAthenaDemoStateMachineRole54D5FF4A
+    Metadata:
+      aws:cdk:path: SFNAthenaDemoStack/SFNAthenaDemo/StateMachine/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE1WNvQ7CMAyEn4XdNRQW2EAVYkKC8gSRMWpoSVDs8KMo705LF5jO5zt/LnG1wNlkbZ5S0LmdJvKBMZ3UUAuVd6IhkkJ1cTWLj4E4w9BNony/REdq+1KhRlrBtNGGnemPgx4jh/f2xRSHBozJjsd9z4qdSoY/CqaDEYGq8ZYYeory3lBjHQ//f30Ga26Yat99o68efGfpPdhxyjmD82fGq0wf5RLLOZaTq1hbhOjU3hjrUT977oFyAwEAAA==
+    Metadata:
+      aws:cdk:path: SFNAthenaDemoStack/CDKMetadata/Default
+

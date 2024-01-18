@@ -1,0 +1,251 @@
+Resources:
+  SlackIncomingWebhookCCCBA0B9:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: SlackIncomingWebhook
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/SlackIncomingWebhook/Resource
+  SlackIncomingWebhookCloudWatchRoleB600448B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/SlackIncomingWebhook/CloudWatchRole/Resource
+  SlackIncomingWebhookAccount6D40CB3D:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - SlackIncomingWebhookCloudWatchRoleB600448B
+          - Arn
+    DependsOn:
+      - SlackIncomingWebhookCCCBA0B9
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/SlackIncomingWebhook/Account
+  SlackIncomingWebhookDeployment170313529062c984ef3a8e8e2fc5b643af829bba:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: SlackIncomingWebhookCCCBA0B9
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - SlackIncomingWebhookmessagesPOST6E95490F
+      - SlackIncomingWebhookmessages2899F475
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/SlackIncomingWebhook/Deployment/Resource
+  SlackIncomingWebhookDeploymentStageprodB9D9870D:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: SlackIncomingWebhookCCCBA0B9
+      DeploymentId:
+        Ref: SlackIncomingWebhookDeployment170313529062c984ef3a8e8e2fc5b643af829bba
+      StageName: prod
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/SlackIncomingWebhook/DeploymentStage.prod/Resource
+  SlackIncomingWebhookmessages2899F475:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - SlackIncomingWebhookCCCBA0B9
+          - RootResourceId
+      PathPart: messages
+      RestApiId:
+        Ref: SlackIncomingWebhookCCCBA0B9
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/SlackIncomingWebhook/Default/messages/Resource
+  SlackIncomingWebhookmessagesPOST6E95490F:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: SlackIncomingWebhookmessages2899F475
+      RestApiId:
+        Ref: SlackIncomingWebhookCCCBA0B9
+      AuthorizationType: AWS_IAM
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: HTTP_PROXY
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/SlackIncomingWebhook/Default/messages/POST/Resource
+  StateMachineRoleB840431D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/StateMachine/Role/Resource
+  StateMachineRoleDefaultPolicyDF1E6607:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: execute-api:Invoke
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":execute-api:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: SlackIncomingWebhookCCCBA0B9
+                  - /
+                  - Ref: SlackIncomingWebhookDeploymentStageprodB9D9870D
+                  - /POST/messages
+        Version: "2012-10-17"
+      PolicyName: StateMachineRoleDefaultPolicyDF1E6607
+      Roles:
+        - Ref: StateMachineRoleB840431D
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/StateMachine/Role/DefaultPolicy/Resource
+  StateMachine2E01A3A5:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - StateMachineRoleB840431D
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Initialize","States":{"Initialize":{"Type":"Pass","Result":{"text":"Hello, World!"},"ResultPath":"$.message","Next":"PostMessage"},"PostMessage":{"End":true,"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::apigateway:invoke","Parameters":{"ApiEndpoint":"
+            - Ref: SlackIncomingWebhookCCCBA0B9
+            - .execute-api.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - '","Method":"POST","Stage":"'
+            - Ref: SlackIncomingWebhookDeploymentStageprodB9D9870D
+            - '","Path":"/messages","RequestBody.$":"$.message","AuthType":"IAM_ROLE"}}}}'
+      StateMachineName: SlackStateMachine
+    DependsOn:
+      - StateMachineRoleDefaultPolicyDF1E6607
+      - StateMachineRoleB840431D
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/StateMachine/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE11QXW/CMAz8LbyngU6axONYh/aEhtgvsNIApm0c1Q6oqvrflxC6ryffOfadL6UuV896tXiBGxembpajod7q8VPANKo6uo8gPoiqyLH0wUjqHSxT6I1NOD7UKEhuUkliBI8nEHuDQY9xTjYeHysz3BhDwYl6s76lobPurvmLRe/TXTuD2e0V+If8OWNn5Ux1amU0KYQu2lOb51LdU4tmSDSjSbFYfwzOpONZj3tgTtZid2DO6OYLvvm/jUKAG9YVtG0M9p4zP2JuXe0JnUyTclRbfeHltVzr8kmXiwsjFn38AOysPuT6BeAXO9SGAQAA
+    Metadata:
+      aws:cdk:path: StepfunctionsSlackStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  SlackIncomingWebhookEndpoint350DA1EF:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: SlackIncomingWebhookCCCBA0B9
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: SlackIncomingWebhookDeploymentStageprodB9D9870D
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

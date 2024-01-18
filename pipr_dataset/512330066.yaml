@@ -1,0 +1,543 @@
+Parameters:
+  EETeamId:
+    Type: String
+    Default: 123456abcdefghijklmnopqrstuvwxyz
+    Description: Unique ID of this Team
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Resources:
+  dataeduKMS6B3AB969:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:aws:iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+            Sid: Enable IAM User Permissions
+        Version: "2012-10-17"
+      Description: KMS key to encrypt objects in the dataEDU S3 buckets.
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduKMS/Resource
+  dataeduKMSAlias357469DC:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/dataedu-key
+      TargetKeyId:
+        Fn::GetAtt:
+          - dataeduKMS6B3AB969
+          - Arn
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduKMS/Alias/Resource
+  dataeduRawBucket945ADDC3:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - dataeduKMS6B3AB969
+                  - Arn
+              SSEAlgorithm: aws:kms
+      BucketName:
+        Fn::Join:
+          - ""
+          - - dataedu-raw-
+            - Ref: EETeamId
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduRawBucket/Resource
+  dataeduRawBucketPolicyEDC69BFC:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: dataeduRawBucket945ADDC3
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                s3:x-amz-server-side-encryption: AES256
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduRawBucket945ADDC3
+                      - Arn
+                  - /*
+          - Action: s3:PutObject
+            Condition:
+              StringNotLikeIfExists:
+                s3:x-amz-server-side-encryption-aws-kms-key-id:
+                  Fn::GetAtt:
+                    - dataeduKMS6B3AB969
+                    - Arn
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduRawBucket945ADDC3
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduRawBucket/Policy/Resource
+  dataeduCuratedBucket2AB663B1:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - dataeduKMS6B3AB969
+                  - Arn
+              SSEAlgorithm: aws:kms
+      BucketName:
+        Fn::Join:
+          - ""
+          - - dataedu-curated-
+            - Ref: EETeamId
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduCuratedBucket/Resource
+  dataeduCuratedBucketPolicy25B1E0AF:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: dataeduCuratedBucket2AB663B1
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                s3:x-amz-server-side-encryption: AES256
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduCuratedBucket2AB663B1
+                      - Arn
+                  - /*
+          - Action: s3:PutObject
+            Condition:
+              StringNotLikeIfExists:
+                s3:x-amz-server-side-encryption-aws-kms-key-id:
+                  Fn::GetAtt:
+                    - dataeduKMS6B3AB969
+                    - Arn
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduCuratedBucket2AB663B1
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduCuratedBucket/Policy/Resource
+  dataeduResultsBucketBC9A3373:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - dataeduKMS6B3AB969
+                  - Arn
+              SSEAlgorithm: aws:kms
+      BucketName:
+        Fn::Join:
+          - ""
+          - - dataedu-results-
+            - Ref: EETeamId
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduResultsBucket/Resource
+  dataeduResultsBucketPolicy7149F8C9:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: dataeduResultsBucketBC9A3373
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                s3:x-amz-server-side-encryption: AES256
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduResultsBucketBC9A3373
+                      - Arn
+                  - /*
+          - Action: s3:PutObject
+            Condition:
+              StringNotLikeIfExists:
+                s3:x-amz-server-side-encryption-aws-kms-key-id:
+                  Fn::GetAtt:
+                    - dataeduKMS6B3AB969
+                    - Arn
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduResultsBucketBC9A3373
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduResultsBucket/Policy/Resource
+  dataeduFetchDemoDataLambdaRole65930599:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduFetchDemoDataLambdaRole/Resource
+  dataeduFetchDemoDataLambdaRoleDefaultPolicy7B049166:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - dataeduRawBucket945ADDC3
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :s3:::ee-assets-prod-
+                    - Ref: AWS::Region
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :s3:::ee-assets-prod-
+                    - Ref: AWS::Region
+                    - /*
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - dataeduRawBucket945ADDC3
+                        - Arn
+                    - /*
+          - Action:
+              - s3:DeleteObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduRawBucket945ADDC3
+                      - Arn
+                  - /*
+          - Action: logs:CreateLogGroup
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/dataedu-fetch-demo-data:*
+        Version: "2012-10-17"
+      PolicyName: dataeduFetchDemoDataLambdaRoleDefaultPolicy7B049166
+      Roles:
+        - Ref: dataeduFetchDemoDataLambdaRole65930599
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduFetchDemoDataLambdaRole/DefaultPolicy/Resource
+  dataeduFetchDemoDataLambda8709B8B4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Join:
+            - ""
+            - - ee-assets-prod-
+              - Ref: AWS::Region
+        S3Key: modules/f7ff818991a14cfb80e2617aad4431d1/v1/lambda/dataedu-fetch-demo-data.zip
+      Role:
+        Fn::GetAtt:
+          - dataeduFetchDemoDataLambdaRole65930599
+          - Arn
+      Description: Lambda function that fetches demo data from source data bucket and           copies the data objects to raw data bucket.
+      Environment:
+        Variables:
+          SOURCE_DATA_BUCKET_NAME_PREFIX: ee-assets-prod-
+          SIS_DEMO_MOCK_DATA_PREFIX: modules/f7ff818991a14cfb80e2617aad4431d1/v1/mockdata/sis_demo_parquet/
+          LMS_DEMO_MOCK_DATA_PREFIX: modules/cfdd4f678e99415a9c1f11342a3a9887/v1/mockdata/lms_demo/v1/
+          RAW_DATA_BUCKET_NAME:
+            Ref: dataeduRawBucket945ADDC3
+          SIS_DEMO_RAW_DATA_PREFIX: sisdb/sisdemo/
+          LMS_DEMO_RAW_DATA_PREFIX: lmsapi/
+      FunctionName: dataedu-fetch-demo-data
+      Handler: dataedu_fetch_demo_data.lambda_handler
+      MemorySize: 256
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - dataeduFetchDemoDataLambdaRoleDefaultPolicy7B049166
+      - dataeduFetchDemoDataLambdaRole65930599
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduFetchDemoDataLambda/Resource
+  dataeduGlueCrawlerRoleAA355627:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSGlueServiceRole
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduGlueCrawlerRole/Resource
+  dataeduGlueCrawlerRoleDefaultPolicy7C2DEEAB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:List*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - dataeduRawBucket945ADDC3
+                - Arn
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - dataeduRawBucket945ADDC3
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: dataeduGlueCrawlerRoleDefaultPolicy7C2DEEAB
+      Roles:
+        - Ref: dataeduGlueCrawlerRoleAA355627
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduGlueCrawlerRole/DefaultPolicy/Resource
+  dataeduSisdemoCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role:
+        Fn::GetAtt:
+          - dataeduGlueCrawlerRoleAA355627
+          - Arn
+      Targets:
+        S3Targets:
+          - Path:
+              Fn::Join:
+                - ""
+                - - s3://
+                  - Ref: dataeduRawBucket945ADDC3
+                  - /sisdb/sisdemo/
+      DatabaseName: db_raw_sisdemo
+      Description: SIS demo data crawler.
+      Name: dataedu-sisdemo-crawler
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataeduSisdemoCrawler
+  dataedLmsdemoCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role:
+        Fn::GetAtt:
+          - dataeduGlueCrawlerRoleAA355627
+          - Arn
+      Targets:
+        S3Targets:
+          - Path:
+              Fn::Join:
+                - ""
+                - - s3://
+                  - Ref: dataeduRawBucket945ADDC3
+                  - /lmsapi/
+      DatabaseName: db_raw_lmsdemo
+      Description: LMS demo data crawler.
+      Name: dataedu-lmsdemo-crawler
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/dataedLmsdemoCrawler
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/0VQOw7CMAw9C3tqVFhYoRILC4IDIDc1yDQfKR8QinJ3mqaI6X39Bm9g20K7wrdv5DA2intI14ByFN3dnNGhpkBOTPktjdpDOtGnRAX2itEXMZMs/BbSIcqRQjEXVuFsFcvP3150FQf0lAWjhnSxikprxv9RZVko1P2AkI7RyMDWlOzHs3ioSDA5ncO3IpfnIfI2OjmPdtYMXKvGDgRPv361O2g30wOenrlx0QTWBJeKX97+GekcAQAA
+    Metadata:
+      aws:cdk:path: DataEduDataAnalystEeStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,113 @@
+Resources:
+  StaticSiteSiteBucket1A888BC8:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: www.mystaticsite.com
+      WebsiteConfiguration:
+        ErrorDocument: error.html
+        IndexDocument: index.html
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: MyStaticSite/StaticSite/SiteBucket/Resource
+  StaticSiteSiteBucketPolicyD7934718:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: StaticSiteSiteBucket1A888BC8
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - StaticSiteSiteBucket1A888BC8
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyStaticSite/StaticSite/SiteBucket/Policy/Resource
+  StaticSiteArnParameterED3722EA:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: mystaticsite.com
+      DomainValidationOptions:
+        - DomainName: mystaticsite.com
+          ValidationDomain: mystaticsite.com
+    Metadata:
+      aws:cdk:path: MyStaticSite/StaticSite/ArnParameter/Resource
+  StaticSiteSiteDistributionCFDistribution500D676B:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - www.mystaticsite.com
+        CacheBehaviors: []
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - StaticSiteSiteBucket1A888BC8
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig: {}
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: StaticSiteArnParameterED3722EA
+          MinimumProtocolVersion: TLSv1.1_2016
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: MyStaticSite/StaticSite/SiteDistribution/CFDistribution
+  StaticSiteMyHostedZone2FF4976C:
+    Type: AWS::Route53::HostedZone
+    Properties:
+      Name: mystaticsite.com.
+    Metadata:
+      aws:cdk:path: MyStaticSite/StaticSite/MyHostedZone/Resource
+  StaticSiteSiteAliasRecord5B525E22:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: www.mystaticsite.com.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - StaticSiteSiteDistributionCFDistribution500D676B
+            - DomainName
+        HostedZoneId: Z2FDTNDATAQYW2
+      HostedZoneId:
+        Ref: StaticSiteMyHostedZone2FF4976C
+    Metadata:
+      aws:cdk:path: MyStaticSite/StaticSite/SiteAliasRecord/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.2.0,@aws-cdk/aws-certificatemanager=1.2.0,@aws-cdk/aws-cloudformation=1.2.0,@aws-cdk/aws-cloudfront=1.2.0,@aws-cdk/aws-cloudwatch=1.2.0,@aws-cdk/aws-ec2=1.2.0,@aws-cdk/aws-events=1.2.0,@aws-cdk/aws-iam=1.2.0,@aws-cdk/aws-kms=1.2.0,@aws-cdk/aws-lambda=1.2.0,@aws-cdk/aws-route53=1.2.0,@aws-cdk/aws-route53-targets=1.2.0,@aws-cdk/aws-s3=1.2.0,@aws-cdk/aws-s3-assets=1.2.0,@aws-cdk/aws-sqs=1.2.0,@aws-cdk/aws-ssm=1.2.0,@aws-cdk/core=1.2.0,@aws-cdk/cx-api=1.2.0,@aws-cdk/region-info=1.2.0,jsii-runtime=node.js/v18.12.1
+Outputs:
+  StaticSiteBucket34E5D9AF:
+    Value:
+      Ref: StaticSiteSiteBucket1A888BC8
+  StaticSiteDistributionId8C64EF2A:
+    Value:
+      Ref: StaticSiteSiteDistributionCFDistribution500D676B
+

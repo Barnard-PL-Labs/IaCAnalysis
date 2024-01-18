@@ -1,0 +1,1099 @@
+Try to get prebuilt lambda
+Resources:
+  imagerepositoryvaultwardenimagerepository74290F29:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: vaultwarden/server
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/image-repository/vaultwarden-image-repository/Resource
+  imagerepositoryvaultwardenimageCustomResourceCD371F38:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiB28EAD8E4
+          - Arn
+      SrcImage: docker://vaultwarden/server:latest
+      DestImage:
+        Fn::Join:
+          - ""
+          - - docker://
+            - Ref: AWS::AccountId
+            - .dkr.ecr.
+            - Ref: AWS::Region
+            - .amazonaws.com/vaultwarden/server:latest
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/image-repository/vaultwardenimage/CustomResource/Default
+  CustomCDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiBServiceRole8C8B0491:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/Custom::CDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiB/ServiceRole/Resource
+  CustomCDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiBServiceRoleDefaultPolicy280095F8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecr:GetAuthorizationToken
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:GetRepositoryPolicy
+              - ecr:DescribeRepositories
+              - ecr:ListImages
+              - ecr:DescribeImages
+              - ecr:BatchGetImage
+              - ecr:ListTagsForResource
+              - ecr:DescribeImageScanFindings
+              - ecr:InitiateLayerUpload
+              - ecr:UploadLayerPart
+              - ecr:CompleteLayerUpload
+              - ecr:PutImage
+            Effect: Allow
+            Resource: "*"
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CustomCDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiBServiceRoleDefaultPolicy280095F8
+      Roles:
+        - Ref: CustomCDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiBServiceRole8C8B0491
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/Custom::CDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiB/ServiceRole/DefaultPolicy/Resource
+  CustomCDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiB28EAD8E4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: b042490df4057b73774145f5d6863feffbe2c14ff0d976d61ac41b2d23b75629.zip
+      Role:
+        Fn::GetAtt:
+          - CustomCDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiBServiceRole8C8B0491
+          - Arn
+      Handler: main
+      MemorySize: 512
+      Runtime: go1.x
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      Timeout: 900
+    DependsOn:
+      - CustomCDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiBServiceRoleDefaultPolicy280095F8
+      - CustomCDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiBServiceRole8C8B0491
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/Custom::CDKECRDeploymentbd07c930edb94112a20f03f096f53666512MiB/Resource
+      aws:asset:path: asset.b042490df4057b73774145f5d6863feffbe2c14ff0d976d61ac41b2d23b75629
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  networknetworkvpc4176407B:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 20.0.0.0/24
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: vaultwarden-network
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/Resource
+  networknetworkvpcisolatedSubnet1Subnet7019565C:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      CidrBlock: 20.0.0.0/26
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: isolated
+        - Key: aws-cdk:subnet-type
+          Value: Isolated
+        - Key: Name
+          Value: vaultwarden-stack/network/network-vpc/isolatedSubnet1
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/isolatedSubnet1/Subnet
+  networknetworkvpcisolatedSubnet1RouteTable5957BA04:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      Tags:
+        - Key: Name
+          Value: vaultwarden-stack/network/network-vpc/isolatedSubnet1
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/isolatedSubnet1/RouteTable
+  networknetworkvpcisolatedSubnet1RouteTableAssociation1BFBEBF6:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: networknetworkvpcisolatedSubnet1RouteTable5957BA04
+      SubnetId:
+        Ref: networknetworkvpcisolatedSubnet1Subnet7019565C
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/isolatedSubnet1/RouteTableAssociation
+  networknetworkvpcisolatedSubnet2SubnetA1490702:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      CidrBlock: 20.0.0.64/26
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: isolated
+        - Key: aws-cdk:subnet-type
+          Value: Isolated
+        - Key: Name
+          Value: vaultwarden-stack/network/network-vpc/isolatedSubnet2
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/isolatedSubnet2/Subnet
+  networknetworkvpcisolatedSubnet2RouteTable434E3490:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      Tags:
+        - Key: Name
+          Value: vaultwarden-stack/network/network-vpc/isolatedSubnet2
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/isolatedSubnet2/RouteTable
+  networknetworkvpcisolatedSubnet2RouteTableAssociationCE90A1F3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: networknetworkvpcisolatedSubnet2RouteTable434E3490
+      SubnetId:
+        Ref: networknetworkvpcisolatedSubnet2SubnetA1490702
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/isolatedSubnet2/RouteTableAssociation
+  networknetworkvpcingressSubnet1Subnet0533AE04:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      CidrBlock: 20.0.0.128/26
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: ingress
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: vaultwarden-stack/network/network-vpc/ingressSubnet1
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ingressSubnet1/Subnet
+  networknetworkvpcingressSubnet1RouteTable308B09AA:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      Tags:
+        - Key: Name
+          Value: vaultwarden-stack/network/network-vpc/ingressSubnet1
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ingressSubnet1/RouteTable
+  networknetworkvpcingressSubnet1RouteTableAssociationDA043D8D:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: networknetworkvpcingressSubnet1RouteTable308B09AA
+      SubnetId:
+        Ref: networknetworkvpcingressSubnet1Subnet0533AE04
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ingressSubnet1/RouteTableAssociation
+  networknetworkvpcingressSubnet1DefaultRouteDF20D402:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: networknetworkvpcingressSubnet1RouteTable308B09AA
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: networknetworkvpcIGW752903D1
+    DependsOn:
+      - networknetworkvpcVPCGWBB77D109
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ingressSubnet1/DefaultRoute
+  networknetworkvpcingressSubnet2SubnetF2F5B8EC:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      CidrBlock: 20.0.0.192/26
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: ingress
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: vaultwarden-stack/network/network-vpc/ingressSubnet2
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ingressSubnet2/Subnet
+  networknetworkvpcingressSubnet2RouteTable6A39CA97:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      Tags:
+        - Key: Name
+          Value: vaultwarden-stack/network/network-vpc/ingressSubnet2
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ingressSubnet2/RouteTable
+  networknetworkvpcingressSubnet2RouteTableAssociationB087DF71:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: networknetworkvpcingressSubnet2RouteTable6A39CA97
+      SubnetId:
+        Ref: networknetworkvpcingressSubnet2SubnetF2F5B8EC
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ingressSubnet2/RouteTableAssociation
+  networknetworkvpcingressSubnet2DefaultRouteA10657EE:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: networknetworkvpcingressSubnet2RouteTable6A39CA97
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: networknetworkvpcIGW752903D1
+    DependsOn:
+      - networknetworkvpcVPCGWBB77D109
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ingressSubnet2/DefaultRoute
+  networknetworkvpcIGW752903D1:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: vaultwarden-network
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/IGW
+  networknetworkvpcVPCGWBB77D109:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      InternetGatewayId:
+        Ref: networknetworkvpcIGW752903D1
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/VPCGW
+  networknetworkvpcecrendpointSecurityGroupF2733F9D:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vaultwarden-stack/network/network-vpc/ecr-endpoint/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - networknetworkvpc4176407B
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - networknetworkvpc4176407B
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      Tags:
+        - Key: Name
+          Value: vaultwarden-network
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      VpcId:
+        Ref: networknetworkvpc4176407B
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ecr-endpoint/SecurityGroup/Resource
+  networknetworkvpcecrendpoint54B9A099:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .ecr.api
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - networknetworkvpcecrendpointSecurityGroupF2733F9D
+            - GroupId
+      SubnetIds:
+        - Ref: networknetworkvpcisolatedSubnet1Subnet7019565C
+        - Ref: networknetworkvpcisolatedSubnet2SubnetA1490702
+      VpcEndpointType: Interface
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ecr-endpoint/Resource
+  networknetworkvpcecrrepoendpointSecurityGroup99C06053:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vaultwarden-stack/network/network-vpc/ecr-repo-endpoint/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - networknetworkvpc4176407B
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - networknetworkvpc4176407B
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      Tags:
+        - Key: Name
+          Value: vaultwarden-network
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      VpcId:
+        Ref: networknetworkvpc4176407B
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ecr-repo-endpoint/SecurityGroup/Resource
+  networknetworkvpcecrrepoendpoint0E12A945:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .ecr.dkr
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - networknetworkvpcecrrepoendpointSecurityGroup99C06053
+            - GroupId
+      SubnetIds:
+        - Ref: networknetworkvpcisolatedSubnet1Subnet7019565C
+        - Ref: networknetworkvpcisolatedSubnet2SubnetA1490702
+      VpcEndpointType: Interface
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/ecr-repo-endpoint/Resource
+  networknetworkvpcs3endpoint27517F42:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .s3
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      RouteTableIds:
+        - Ref: networknetworkvpcisolatedSubnet1RouteTable5957BA04
+        - Ref: networknetworkvpcisolatedSubnet2RouteTable434E3490
+      VpcEndpointType: Gateway
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/s3-endpoint/Resource
+  networknetworkvpccloudwatchendpointSecurityGroupCDDCDB3A:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vaultwarden-stack/network/network-vpc/cloudwatch-endpoint/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - networknetworkvpc4176407B
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - networknetworkvpc4176407B
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      Tags:
+        - Key: Name
+          Value: vaultwarden-network
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      VpcId:
+        Ref: networknetworkvpc4176407B
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/cloudwatch-endpoint/SecurityGroup/Resource
+  networknetworkvpccloudwatchendpoint5A4F308B:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .logs
+      VpcId:
+        Ref: networknetworkvpc4176407B
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - networknetworkvpccloudwatchendpointSecurityGroupCDDCDB3A
+            - GroupId
+      SubnetIds:
+        - Ref: networknetworkvpcisolatedSubnet1Subnet7019565C
+        - Ref: networknetworkvpcisolatedSubnet2SubnetA1490702
+      VpcEndpointType: Interface
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/network/network-vpc/cloudwatch-endpoint/Resource
+  vaultwardencluster0B70C611:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: vaultwarden-cluster
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-cluster/Resource
+  vaultwardenfs3B18E04D:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      BackupPolicy:
+        Status: ENABLED
+      Encrypted: true
+      FileSystemTags:
+        - Key: Name
+          Value: vaultwarden-fs
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      LifecyclePolicies:
+        - TransitionToIA: AFTER_14_DAYS
+        - TransitionToPrimaryStorageClass: AFTER_1_ACCESS
+      PerformanceMode: generalPurpose
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-fs/Resource
+  vaultwardenfsEfsSecurityGroup4C740414:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vaultwarden-stack/vaultwarden-fs/EfsSecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      Tags:
+        - Key: Name
+          Value: vaultwarden-fs
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      VpcId:
+        Ref: networknetworkvpc4176407B
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-fs/EfsSecurityGroup/Resource
+  vaultwardenfsEfsSecurityGroupfromvaultwardenstackvaultwardenserviceServiceSecurityGroupA0620BE72049FFC4C4A8:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: from vaultwardenstackvaultwardenserviceServiceSecurityGroupA0620BE7:2049
+      FromPort: 2049
+      GroupId:
+        Fn::GetAtt:
+          - vaultwardenfsEfsSecurityGroup4C740414
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - vaultwardenserviceServiceSecurityGroup28DF30AA
+          - GroupId
+      ToPort: 2049
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-fs/EfsSecurityGroup/from vaultwardenstackvaultwardenserviceServiceSecurityGroupA0620BE7:2049
+  vaultwardenfsEfsMountTarget179C0A3DD:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId:
+        Ref: vaultwardenfs3B18E04D
+      SecurityGroups:
+        - Fn::GetAtt:
+            - vaultwardenfsEfsSecurityGroup4C740414
+            - GroupId
+      SubnetId:
+        Ref: networknetworkvpcisolatedSubnet1Subnet7019565C
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-fs/EfsMountTarget1
+  vaultwardenfsEfsMountTarget2A999A7DA:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId:
+        Ref: vaultwardenfs3B18E04D
+      SecurityGroups:
+        - Fn::GetAtt:
+            - vaultwardenfsEfsSecurityGroup4C740414
+            - GroupId
+      SubnetId:
+        Ref: networknetworkvpcisolatedSubnet2SubnetA1490702
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-fs/EfsMountTarget2
+  vaultwardenservicetaskexecrole0C99C46D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/task-exec-role/Resource
+  vaultwardenservicetaskexecroleDefaultPolicyBB273DC4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - imagerepositoryvaultwardenimagerepository74290F29
+                - Arn
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - vaultwardenserviceTaskDefwebLogGroup69612D71
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: vaultwardenservicetaskexecroleDefaultPolicyBB273DC4
+      Roles:
+        - Ref: vaultwardenservicetaskexecrole0C99C46D
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/task-exec-role/DefaultPolicy/Resource
+  vaultwardenserviceLBBC65E221:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      LoadBalancerAttributes:
+        - Key: deletion_protection.enabled
+          Value: "false"
+      Scheme: internet-facing
+      SecurityGroups:
+        - Fn::GetAtt:
+            - vaultwardenserviceLBSecurityGroupC405EAC9
+            - GroupId
+      Subnets:
+        - Ref: networknetworkvpcingressSubnet1Subnet0533AE04
+        - Ref: networknetworkvpcingressSubnet2SubnetF2F5B8EC
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      Type: application
+    DependsOn:
+      - networknetworkvpcingressSubnet1DefaultRouteDF20D402
+      - networknetworkvpcingressSubnet2DefaultRouteA10657EE
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/LB/Resource
+  vaultwardenserviceLBSecurityGroupC405EAC9:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Automatically created Security Group for ELB vaultwardenstackvaultwardenserviceLBE44A5F06
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow from anyone on port 80
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      VpcId:
+        Ref: networknetworkvpc4176407B
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/LB/SecurityGroup/Resource
+  vaultwardenserviceLBSecurityGrouptovaultwardenstackvaultwardenserviceServiceSecurityGroupA0620BE7805C1C41C2:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId:
+        Fn::GetAtt:
+          - vaultwardenserviceLBSecurityGroupC405EAC9
+          - GroupId
+      IpProtocol: tcp
+      Description: Load balancer to target
+      DestinationSecurityGroupId:
+        Fn::GetAtt:
+          - vaultwardenserviceServiceSecurityGroup28DF30AA
+          - GroupId
+      FromPort: 80
+      ToPort: 80
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/LB/SecurityGroup/to vaultwardenstackvaultwardenserviceServiceSecurityGroupA0620BE7:80
+  vaultwardenserviceLBPublicListenerFC50E16E:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn:
+            Ref: vaultwardenserviceLBPublicListenerECSGroupCB1E4A78
+          Type: forward
+      LoadBalancerArn:
+        Ref: vaultwardenserviceLBBC65E221
+      Port: 80
+      Protocol: HTTP
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/LB/PublicListener/Resource
+  vaultwardenserviceLBPublicListenerECSGroupCB1E4A78:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      TargetGroupAttributes:
+        - Key: stickiness.enabled
+          Value: "false"
+      TargetType: ip
+      VpcId:
+        Ref: networknetworkvpc4176407B
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/LB/PublicListener/ECSGroup/Resource
+  vaultwardenserviceTaskDefTaskRoleEC118468:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/TaskDef/TaskRole/Resource
+  vaultwardenserviceTaskDefCDF9C67C:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Essential: true
+          Image:
+            Fn::Join:
+              - ""
+              - - Fn::Select:
+                    - 4
+                    - Fn::Split:
+                        - ":"
+                        - Fn::GetAtt:
+                            - imagerepositoryvaultwardenimagerepository74290F29
+                            - Arn
+                - .dkr.ecr.
+                - Fn::Select:
+                    - 3
+                    - Fn::Split:
+                        - ":"
+                        - Fn::GetAtt:
+                            - imagerepositoryvaultwardenimagerepository74290F29
+                            - Arn
+                - "."
+                - Ref: AWS::URLSuffix
+                - /
+                - Ref: imagerepositoryvaultwardenimagerepository74290F29
+                - :latest
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: vaultwardenserviceTaskDefwebLogGroup69612D71
+              awslogs-stream-prefix: vaultwarden-service
+              awslogs-region:
+                Ref: AWS::Region
+          MountPoints:
+            - ContainerPath: /data
+              ReadOnly: false
+              SourceVolume: efs
+          Name: web
+          PortMappings:
+            - ContainerPort: 80
+              Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - vaultwardenservicetaskexecrole0C99C46D
+          - Arn
+      Family: vaultwardenstackvaultwardenserviceTaskDef3B414C2E
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      TaskRoleArn:
+        Fn::GetAtt:
+          - vaultwardenserviceTaskDefTaskRoleEC118468
+          - Arn
+      Volumes:
+        - EFSVolumeConfiguration:
+            FilesystemId:
+              Ref: vaultwardenfs3B18E04D
+            TransitEncryption: ENABLED
+          Name: efs
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/TaskDef/Resource
+  vaultwardenserviceTaskDefwebLogGroup69612D71:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/TaskDef/web/LogGroup/Resource
+  vaultwardenserviceService9990FAD5:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Ref: vaultwardencluster0B70C611
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 1
+      EnableECSManagedTags: false
+      HealthCheckGracePeriodSeconds: 60
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: web
+          ContainerPort: 80
+          TargetGroupArn:
+            Ref: vaultwardenserviceLBPublicListenerECSGroupCB1E4A78
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::GetAtt:
+                - vaultwardenserviceServiceSecurityGroup28DF30AA
+                - GroupId
+          Subnets:
+            - Ref: networknetworkvpcisolatedSubnet1Subnet7019565C
+            - Ref: networknetworkvpcisolatedSubnet2SubnetA1490702
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      TaskDefinition:
+        Ref: vaultwardenserviceTaskDefCDF9C67C
+    DependsOn:
+      - vaultwardenserviceLBPublicListenerECSGroupCB1E4A78
+      - vaultwardenserviceLBPublicListenerFC50E16E
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/Service/Service
+  vaultwardenserviceServiceSecurityGroup28DF30AA:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: vaultwarden-stack/vaultwarden-service/vaultwarden-service/Service/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      Tags:
+        - Key: x:application
+          Value: vaultwarden
+        - Key: x:stack
+          Value: vaultwarden
+      VpcId:
+        Ref: networknetworkvpc4176407B
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/Service/SecurityGroup/Resource
+  vaultwardenserviceServiceSecurityGroupfromvaultwardenstackvaultwardenserviceLBSecurityGroup105376BE8025D277BC:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: Load balancer to target
+      FromPort: 80
+      GroupId:
+        Fn::GetAtt:
+          - vaultwardenserviceServiceSecurityGroup28DF30AA
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - vaultwardenserviceLBSecurityGroupC405EAC9
+          - GroupId
+      ToPort: 80
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/Service/SecurityGroup/from vaultwardenstackvaultwardenserviceLBSecurityGroup105376BE:80
+  vaultwardenserviceServiceSecurityGroupfromvaultwardenstackvaultwardenfsEfsSecurityGroup3FB89A6B2049682B4C61:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: from vaultwardenstackvaultwardenfsEfsSecurityGroup3FB89A6B:2049
+      FromPort: 2049
+      GroupId:
+        Fn::GetAtt:
+          - vaultwardenserviceServiceSecurityGroup28DF30AA
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - vaultwardenfsEfsSecurityGroup4C740414
+          - GroupId
+      ToPort: 2049
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/vaultwarden-service/vaultwarden-service/Service/SecurityGroup/from vaultwardenstackvaultwardenfsEfsSecurityGroup3FB89A6B:2049
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21Ty27bMBD8ltxptlYvucZuHARIEcMKcjVW1FrdWCIFPhwYgv69K+phRemJs6PZB2epRCaJ/HkHn26l8vOqpEw2qQd1FkwdG1RWNgesjSNv7FVsT/oWtaKEKsuBM0gXJXqjd0ErT0aLCXDGiFtBUHE5U2Is1J17U5KKdXvUCvfrCM6hd/KhOziWm6DO6DfgUKBKZPNeqy7jfb8Ve0sX8JiGTLOWyRs6mODxDbK+W8/fOC5uFEGccR8y7r3I7MCz9miZfOIWn3Admg7Rg2ef/laovYi6EyjkyR51XhtiMkUVLPnrkzWhjiMsCa41qYei8wLLlGddWHTuG/8Y6Za9cbLZlsHxMJ1ohDuwBXTXduffeCJN42KWjNEeSKOdcUNuivZCqjeyh9zuxO12VGJ65TZV3PSX6I8J2r9xAfRxuGMNvvOTN1vXbHg0/8VAvoEStMJ80QxLcJ5UyYosKviVXXj9/8+OV/4Sz3XEQ+lBM+LZ937KaTGzkB+5KfiiL6aYPo+4bcWWLTbVAZ0JtvdnwvH58r9U8NhirngNvg5xvex4Tv2voU2O8sP9uKzv5TqR67sPR7Sy7CBVKA/9+Q8PLD51rgMAAA==
+    Metadata:
+      aws:cdk:path: vaultwarden-stack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  vaultwardenserviceLoadBalancerDNS37D49D0D:
+    Value:
+      Fn::GetAtt:
+        - vaultwardenserviceLBBC65E221
+        - DNSName
+  vaultwardenserviceServiceURLDB2F58BA:
+    Value:
+      Fn::Join:
+        - ""
+        - - http://
+          - Fn::GetAtt:
+              - vaultwardenserviceLBBC65E221
+              - DNSName
+  vaultwardenserviceloadbalancerdnsnameE514D7A5:
+    Description: The DNS name of the load balancer deployed for the Vaultwarden service.
+    Value:
+      Fn::GetAtt:
+        - vaultwardenserviceLBBC65E221
+        - DNSName
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

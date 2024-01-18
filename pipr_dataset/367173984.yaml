@@ -1,0 +1,323 @@
+Resources:
+  APIDataTableD1E8D052:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: hk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: hk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: false
+      TableName: APIDataTable
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: InfraStack/APIDataTable/Resource
+  APIAccessRoleB69CDA23:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: dynamodb:*
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - APIDataTableD1E8D052
+                    - Arn
+                Sid: APIAccessDynamoDB
+            Version: "2012-10-17"
+          PolicyName: DDBAccess
+    Metadata:
+      aws:cdk:path: InfraStack/APIAccessRole/Resource
+  APIAccessRoleDefaultPolicy55859C45:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - APIDataTableD1E8D052
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: APIAccessRoleDefaultPolicy55859C45
+      Roles:
+        - Ref: APIAccessRoleB69CDA23
+    Metadata:
+      aws:cdk:path: InfraStack/APIAccessRole/DefaultPolicy/Resource
+  AppSyncAPID0E760D2:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: CryptoTickerAPI
+    Metadata:
+      aws:cdk:path: InfraStack/AppSyncAPI/Resource
+  AppSyncAPISchemaB1D44998:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - AppSyncAPID0E760D2
+          - ApiId
+      Definition: |-
+        type Query {
+            # Our ticker resolver fetches data from coingecko's API and then inserts a historical price data object
+            # into our DynamoDB table using an AppSync pipeline resolver.
+            ticker(ticker: String!): TickerInfo
+        }
+
+        # Contains information about the ticker present in the URL.
+        type TickerInfo {
+            # The ticker & latestPrice are returned as part of the object returned by the Query.ticker resolver
+            ticker: String!
+            latestPrice: PriceData
+
+            # The priceHistory field has an attached unit resolver that reads the price history directly out of DynamoDB.
+            # You may pass the limit and nextToken arguments to paginate through the price data.
+            priceHistory(limit: Int, nextToken: String): HistoricalPriceConnection
+        }
+
+        # The purpose of the `XConnection` pattern is to provide pagination to resources with potentially
+        # large numbers of items such as this price history. The limit & nextToken arguments on `TickerInfo.priceHistory`
+        # are used to control the results in this connection.
+        type HistoricalPriceConnection {
+            nextToken: String
+            items: [HistoricalPriceData]
+        }
+        type HistoricalPriceData {
+            ticker: String
+            priceUSD: Float
+            timestamp: String
+        }
+        type PriceData {
+            usd: Float
+        }
+    Metadata:
+      aws:cdk:path: InfraStack/AppSyncAPI/Schema
+  AppSyncAPIDefaultApiKey016AAF21:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - AppSyncAPID0E760D2
+          - ApiId
+    DependsOn:
+      - AppSyncAPISchemaB1D44998
+    Metadata:
+      aws:cdk:path: InfraStack/AppSyncAPI/DefaultApiKey
+  DDBTableDataSource43262F9B:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - AppSyncAPID0E760D2
+          - ApiId
+      Name: APIDDBTable
+      Type: AMAZON_DYNAMODB
+      DynamoDBConfig:
+        AwsRegion: us-east-1
+        TableName:
+          Ref: APIDataTableD1E8D052
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - APIAccessRoleB69CDA23
+          - Arn
+    Metadata:
+      aws:cdk:path: InfraStack/DDBTableDataSource/Resource
+  PriceDataSourceServiceRole6EDC2C43:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfraStack/PriceDataSource/ServiceRole/Resource
+  PriceDataSource1918AE11:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - AppSyncAPID0E760D2
+          - ApiId
+      Name: PricesAPI
+      Type: HTTP
+      Description: Use coingecko's API to get price data for free.
+      HttpConfig:
+        Endpoint: https://api.coingecko.com
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - PriceDataSourceServiceRole6EDC2C43
+          - Arn
+    Metadata:
+      aws:cdk:path: InfraStack/PriceDataSource/Resource
+  GetPriceFunctionD6891917:
+    Type: AWS::AppSync::FunctionConfiguration
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - AppSyncAPID0E760D2
+          - ApiId
+      DataSourceName: PricesAPI
+      FunctionVersion: "2018-05-29"
+      Name: GetPriceForTicker
+      RequestMappingTemplate: |-2
+              {
+                  "version": "2018-05-29",
+                  "method": "GET",
+                  "resourcePath": "/api/v3/simple/price?ids=${ctx.stash.get("ticker")}&vs_currencies=usd"
+              }
+      ResponseMappingTemplate: "
+
+        \        #set($bodyContent = $util.parseJson($ctx.result.body))
+
+        \        $util.toJson($bodyContent.get(\"$ctx.args.ticker\"))
+
+        \      "
+    DependsOn:
+      - AppSyncAPISchemaB1D44998
+      - PriceDataSource1918AE11
+    Metadata:
+      aws:cdk:path: InfraStack/GetPriceFunction/Resource
+  PutPriceFunctionBCEE0C38:
+    Type: AWS::AppSync::FunctionConfiguration
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - AppSyncAPID0E760D2
+          - ApiId
+      DataSourceName: APIDDBTable
+      FunctionVersion: "2018-05-29"
+      Name: PutPriceHistoryForTicker
+      RequestMappingTemplate: |-2
+              #set($now = $util.time.nowISO8601())
+              {
+                "version" : "2018-05-29",
+                "operation" : "PutItem",
+                "key": {
+                    "hk": $util.dynamodb.toDynamoDBJson($ctx.stash.get("ticker")),
+                    "sk": $util.dynamodb.toDynamoDBJson("price_$now")
+                },
+                "attributeValues" : {
+                  "ticker": $util.dynamodb.toDynamoDBJson($ctx.stash.get("ticker")),
+                  "timestamp": $util.dynamodb.toDynamoDBJson($now),
+                  "priceUSD": $util.dynamodb.toDynamoDBJson($ctx.prev.result.usd)
+                }
+              }
+      ResponseMappingTemplate: "
+
+        \        $util.toJson($ctx.prev.result)
+
+        \      "
+    DependsOn:
+      - AppSyncAPISchemaB1D44998
+      - DDBTableDataSource43262F9B
+    Metadata:
+      aws:cdk:path: InfraStack/PutPriceFunction/Resource
+  QueryTickerResolver3944763D:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - AppSyncAPID0E760D2
+          - ApiId
+      FieldName: ticker
+      TypeName: Query
+      Kind: PIPELINE
+      PipelineConfig:
+        Functions:
+          - Fn::GetAtt:
+              - GetPriceFunctionD6891917
+              - FunctionId
+          - Fn::GetAtt:
+              - PutPriceFunctionBCEE0C38
+              - FunctionId
+      RequestMappingTemplate: "      $util.qr($ctx.stash.put(\"ticker\", \"$ctx.args.ticker\"))
+
+        \      {}
+
+        \      "
+      ResponseMappingTemplate: |-
+        {
+                "ticker": "$ctx.args.ticker",
+                "latestPrice": $util.toJson($ctx.prev.result)
+              }
+    DependsOn:
+      - AppSyncAPISchemaB1D44998
+    Metadata:
+      aws:cdk:path: InfraStack/QueryTickerResolver/Resource
+  HistoricalPriceResolver48E369CF:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - AppSyncAPID0E760D2
+          - ApiId
+      FieldName: priceHistory
+      TypeName: TickerInfo
+      DataSourceName: APIDDBTable
+      Kind: UNIT
+      RequestMappingTemplate: |-
+        {
+                "version" : "2018-05-29",
+                "operation" : "Query",
+                "query" : {
+                    "expression" : "#hk=:hk",
+                    "expressionNames" : {
+                        "#hk" : "hk"
+                    },
+                    "expressionValues" : {
+                        ":hk": { "S": "$ctx.source.ticker" }
+                    }
+                },
+                "scanIndexForward" : false,
+                "limit": $util.defaultIfNull($ctx.args.limit, 25),
+                
+                #if (!$util.isNullOrEmpty($ctx.args.nextToken))
+                  "nextToken": $util.defaultIfNullOrEmpty($ctx.args.nextToken, "")
+                #end
+              }
+      ResponseMappingTemplate: $util.toJson($ctx.result)
+    DependsOn:
+      - AppSyncAPISchemaB1D44998
+      - DDBTableDataSource43262F9B
+    Metadata:
+      aws:cdk:path: InfraStack/HistoricalPriceResolver/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE1WQTW7CMBCFz9K9MUqlSnQHImorlUWbcIGJMymGZOz6BxRZvjux00h0Ne97M/b4ueCvL7x42sLNrkR7WQehDPJQOxAXVqFV3ghke0XWGS8c23e0uJGlQ6EdCQbVNjwcoekxTWQRmYSBh0rNXq5fqpdiTDir6Qqt7UiCh3cD+vTb77RM7Uzfh/9UixMOkIzJ/8SRlXl12ZTgoP57aUcP9OGcfsDdvOzNk3BSURpe9JSwkz/eQG6kiP0VzRI36RgjI9UiP9v1tdjw4nn6t7OVcmU8OTkgr+Z6B4JHcJZTAQAA
+    Metadata:
+      aws:cdk:path: InfraStack/CDKMetadata/Default
+

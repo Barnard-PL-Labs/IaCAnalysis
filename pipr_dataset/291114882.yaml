@@ -1,0 +1,639 @@
+Description: Application CI-CD
+Parameters:
+  EksRoleArn:
+    Type: String
+    Description: Role ARN used by CloudFormation to deploy
+  ClusterName:
+    Type: String
+    Description: Name of EKS cluster to deploy app in
+Resources:
+  CloudFormationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - codecommit:*
+                  - codebuild:*
+                  - codepipeline:*
+                  - ecr:DescribeRepositories
+                  - events:*
+                  - iam:*
+                  - lambda:*
+                  - s3:*
+                  - sns:*
+                Resource: "*"
+          PolicyName: root
+    Metadata:
+      aws:cdk:path: cicd/CloudFormationRole
+  Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      LifecycleConfiguration:
+        Rules:
+          - AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 30
+            NoncurrentVersionExpirationInDays: 90
+            NoncurrentVersionTransitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+            Status: Enabled
+            Transitions:
+              - StorageClass: STANDARD_IA
+                TransitionInDays: 30
+      VersioningConfiguration:
+        Status: Enabled
+    Metadata:
+      aws:cdk:path: cicd/Bucket
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:PassRole
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - s3:DeleteObject
+                  - s3:DeleteObjectVersion
+                  - s3:ListBucketVersions
+                  - s3:PutObject
+                Resource: "*"
+          PolicyName: root
+    DependsOn:
+      - CloudFormationRole
+    Metadata:
+      aws:cdk:path: cicd/LambdaRole
+  Function:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3, json, shutil, urllib3, zipfile
+
+          http = urllib3.PoolManager()
+
+          GITHUB_ACCOUNT_NAME = 'shi'
+          GITHUB_REPOSITORY_NAME = 'crpm-eks-app'
+
+          def lambda_handler(event, context):
+              print('Event:', event['RequestType'])
+              
+              artifact_bucket_name = event['ResourceProperties']['ArtifactBucketName']
+              print('Artifact Bucket Name:', artifact_bucket_name)
+              
+              empty_bucket_on_delete = event['ResourceProperties']['EmptyBucketOnDelete']
+              print('Empty Bucket On Delete:', empty_bucket_on_delete)
+              
+              if (event['RequestType'] == 'Create'):
+                  try:
+                      with http.request('GET', 'https://codeload.github.com/{}/{}/zip/master'.format(GITHUB_ACCOUNT_NAME, GITHUB_REPOSITORY_NAME), preload_content=False) as res, open('/tmp/source.zip', 'wb') as out_file:
+                          shutil.copyfileobj(res, out_file)
+                      
+                      with zipfile.ZipFile('/tmp/source.zip', 'r') as zf:
+                          zf.extractall('/tmp')
+                      
+                      shutil.make_archive('/tmp/source2', 'zip', '/tmp/{}-master'.format(GITHUB_REPOSITORY_NAME))
+                      
+                      s3 = boto3.client('s3')
+                      with open('/tmp/source2.zip', 'rb') as f:
+                          s3.upload_fileobj(f, artifact_bucket_name, 'crpm-eks-app/Source/{}.zip'.format(GITHUB_REPOSITORY_NAME))
+                      
+                      print('Copied crpm-eks-app source from GitHub to S3')
+                      return send(event, context, 'SUCCESS')
+                  except:
+                      return send(event, context, 'FAILED', 'Could not copy crpm-eks-app source from GitHub to S3')
+              elif (event['RequestType'] == 'Delete' and empty_bucket_on_delete):
+                  try:
+                      client = boto3.client('s3')
+                      paginator = client.get_paginator('list_object_versions')
+                      response_iterator = paginator.paginate(Bucket=artifact_bucket_name)
+                      for response in response_iterator:
+                          versions = response.get('Versions', [])
+                          versions.extend(response.get('DeleteMarkers', []))
+                          for key, version_id in [[v['Key'], v['VersionId']] for v in versions]:
+                              client.delete_object(Bucket=artifact_bucket_name, Key=key, VersionId=version_id)
+                  except:
+                      return send(event, context, 'FAILED', 'Could not empty bucket')
+              
+              send(event, context, 'SUCCESS')
+
+          def send(event, context, status, data=''):
+              body = {
+                  'Status': status,
+                  'Reason': 'See the details in CloudWatch Log Stream: ' + context.log_stream_name,
+                  'PhysicalResourceId': context.log_stream_name,
+                  'StackId': event['StackId'],
+                  'RequestId': event['RequestId'],
+                  'LogicalResourceId': event['LogicalResourceId'],
+                  'NoEcho': False,
+                  'Data': {'Data': data}
+              }
+              
+              json_body = json.dumps(body)
+              
+              headers = {
+                  'content-type': '',
+                  'content-length': str(len(json_body))
+              }
+              
+              http.request('PUT', event['ResponseURL'], body=json_body, headers=headers)
+      Handler: index.lambda_handler
+      Role:
+        Fn::GetAtt:
+          - LambdaRole
+          - Arn
+      Runtime: python3.6
+      Description: Clones the application source code and saves it in an S3 artifact bucket on creation, and empties the bucket on deletion
+      Timeout: 300
+    Metadata:
+      aws:cdk:path: cicd/Function
+  CustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - Function
+          - Arn
+      ArtifactBucketName:
+        Ref: Bucket
+      EmptyBucketOnDelete: true
+    Metadata:
+      aws:cdk:path: cicd/CustomResource
+  Repository:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName:
+        Ref: AWS::StackName
+      Code:
+        S3:
+          Bucket:
+            Ref: Bucket
+          Key: crpm-eks-app/Source/crpm-eks-app.zip
+      RepositoryDescription: Application repository
+    DependsOn:
+      - CustomResource
+    Metadata:
+      aws:cdk:path: cicd/Repository
+  ECRRepositoryF3A3832E:
+    Type: AWS::ECR::Repository
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: cicd/ECRRepository/Resource
+  CodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Action:
+                  - cloudformation:ValidateTemplate
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:CompleteLayerUpload
+                  - ecr:GetAuthorizationToken
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
+                  - eks:DescribeCluster
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: "*"
+                Effect: Allow
+          PolicyName: root
+    Metadata:
+      aws:cdk:path: cicd/CodeBuildRole
+  BuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: ECR_REPO_URI
+            Value:
+              Fn::Join:
+                - ""
+                - - Fn::Select:
+                      - 4
+                      - Fn::Split:
+                          - ":"
+                          - Fn::GetAtt:
+                              - ECRRepositoryF3A3832E
+                              - Arn
+                  - .dkr.ecr.
+                  - Fn::Select:
+                      - 3
+                      - Fn::Split:
+                          - ":"
+                          - Fn::GetAtt:
+                              - ECRRepositoryF3A3832E
+                              - Arn
+                  - "."
+                  - Ref: AWS::URLSuffix
+                  - /
+                  - Ref: ECRRepositoryF3A3832E
+          - Name: EKS_ROLE_ARN
+            Value:
+              Ref: EksRoleArn
+          - Name: CLUSTER_NAME
+            Value:
+              Ref: ClusterName
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CodeBuildRole
+          - Arn
+      Source:
+        BuildSpec: infra/res/developer-tools/codebuild/project-build/buildspec.yml
+        Type: CODEPIPELINE
+      Description: Build and push CloudFormation template and Docker image
+    Metadata:
+      aws:cdk:path: cicd/BuildProject
+  DeployProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: EKS_ROLE_ARN
+            Value:
+              Ref: EksRoleArn
+          - Name: CLUSTER_NAME
+            Value:
+              Ref: ClusterName
+          - Name: ECR_REPO_URI
+            Value:
+              Fn::Join:
+                - ""
+                - - Fn::Select:
+                      - 4
+                      - Fn::Split:
+                          - ":"
+                          - Fn::GetAtt:
+                              - ECRRepositoryF3A3832E
+                              - Arn
+                  - .dkr.ecr.
+                  - Fn::Select:
+                      - 3
+                      - Fn::Split:
+                          - ":"
+                          - Fn::GetAtt:
+                              - ECRRepositoryF3A3832E
+                              - Arn
+                  - "."
+                  - Ref: AWS::URLSuffix
+                  - /
+                  - Ref: ECRRepositoryF3A3832E
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CodeBuildRole
+          - Arn
+      Source:
+        BuildSpec: infra/res/developer-tools/codebuild/project-deploy/buildspec.yml
+        Type: CODEPIPELINE
+      Description: Deploy application
+    Metadata:
+      aws:cdk:path: cicd/DeployProject
+  CodePipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeStacks
+                  - cloudformation:UpdateStack
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:SetStackPolicy
+                  - cloudformation:ValidateTemplate
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StartBuild
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:UploadArchive
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:CancelUploadArchive
+                  - iam:PassRole
+                  - s3:GetObject
+                  - s3:PutObject
+                  - sns:Publish
+                Resource: "*"
+          PolicyName: root
+    Metadata:
+      aws:cdk:path: cicd/CodePipelineRole
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - CodePipelineRole
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                BranchName: master
+                PollForSourceChanges: "false"
+                RepositoryName:
+                  Fn::GetAtt:
+                    - Repository
+                    - Name
+              Name: Fetch
+              OutputArtifacts:
+                - Name: Source
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: BuildProject
+              InputArtifacts:
+                - Name: Source
+              Name: BuildAndTest
+              OutputArtifacts:
+                - Name: Package
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: CHANGE_SET_REPLACE
+                Capabilities: CAPABILITY_IAM,CAPABILITY_NAMED_IAM
+                ChangeSetName: pipeline
+                OutputFileName: create-change-set/pipeline.json
+                TemplatePath: Package::infra/cdk.out/cicd.template.json
+                ParameterOverrides:
+                  Fn::Join:
+                    - ""
+                    - - '{"EksRoleArn": "'
+                      - Ref: EksRoleArn
+                      - '","ClusterName": "'
+                      - Ref: ClusterName
+                      - '"}'
+                RoleArn:
+                  Fn::GetAtt:
+                    - CloudFormationRole
+                    - Arn
+                StackName:
+                  Ref: AWS::StackName
+              InputArtifacts:
+                - Name: Package
+              Name: ReplaceChangeSet
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                ActionMode: CHANGE_SET_EXECUTE
+                Capabilities: CAPABILITY_IAM,CAPABILITY_NAMED_IAM
+                ChangeSetName: pipeline
+                OutputFileName: execute-change-set/pipeline.json
+                TemplatePath: Package::infra/cdk.out/cicd.template.json
+                ParameterOverrides:
+                  Fn::Join:
+                    - ""
+                    - - '{"EksRoleArn": "'
+                      - Ref: EksRoleArn
+                      - '","ClusterName": "'
+                      - Ref: ClusterName
+                      - '"}'
+                RoleArn:
+                  Fn::GetAtt:
+                    - CloudFormationRole
+                    - Arn
+                StackName:
+                  Ref: AWS::StackName
+              InputArtifacts:
+                - Name: Package
+              Name: ExecuteChangeSet
+              RunOrder: 2
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: DeployProject
+              InputArtifacts:
+                - Name: Source
+              Name: KubectlApply
+              RunOrder: 3
+          Name: Deploy
+      ArtifactStore:
+        Location:
+          Ref: Bucket
+        Type: S3
+    Metadata:
+      aws:cdk:path: cicd/Pipeline
+  EventsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: codepipeline:StartPipelineExecution
+                Resource: "*"
+          PolicyName: root
+    Metadata:
+      aws:cdk:path: cicd/EventsRole
+  Rule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Triggers a pipeline to update the current application to match the current master branch.
+      EventPattern:
+        source:
+          - aws.codecommit
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          referenceType:
+            - branch
+          referenceName:
+            - master
+        resources:
+          - Fn::GetAtt:
+              - Repository
+              - Arn
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:aws:codepipeline:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":"
+                - Ref: Pipeline
+          Id: codepipeline
+          RoleArn:
+            Fn::GetAtt:
+              - EventsRole
+              - Arn
+    Metadata:
+      aws:cdk:path: cicd/Rule
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.70.0,@aws-cdk/aws-applicationautoscaling=1.70.0,@aws-cdk/aws-autoscaling-common=1.70.0,@aws-cdk/aws-cloudformation=1.70.0,@aws-cdk/aws-cloudwatch=1.70.0,@aws-cdk/aws-codebuild=1.70.0,@aws-cdk/aws-codecommit=1.70.0,@aws-cdk/aws-codeguruprofiler=1.70.0,@aws-cdk/aws-codepipeline=1.70.0,@aws-cdk/aws-ec2=1.70.0,@aws-cdk/aws-ecr=1.70.0,@aws-cdk/aws-ecr-assets=1.70.0,@aws-cdk/aws-events=1.70.0,@aws-cdk/aws-iam=1.70.0,@aws-cdk/aws-kms=1.70.0,@aws-cdk/aws-lambda=1.70.0,@aws-cdk/aws-logs=1.70.0,@aws-cdk/aws-s3=1.70.0,@aws-cdk/aws-s3-assets=1.70.0,@aws-cdk/aws-sqs=1.70.0,@aws-cdk/aws-ssm=1.70.0,@aws-cdk/cloud-assembly-schema=1.70.0,@aws-cdk/core=1.70.0,@aws-cdk/custom-resources=1.70.0,@aws-cdk/cx-api=1.70.0,@aws-cdk/region-info=1.70.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: cicd/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  CodeCommitURL:
+    Value:
+      Fn::GetAtt:
+        - Repository
+        - CloneUrlHttp
+  CodeBuildRoleArn:
+    Value:
+      Fn::GetAtt:
+        - CodeBuildRole
+        - Arn
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

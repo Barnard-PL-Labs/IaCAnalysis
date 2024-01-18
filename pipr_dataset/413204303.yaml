@@ -1,0 +1,450 @@
+Resources:
+  AuroraCloneLambdaServiceRoleE47411D5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCloneLambda/ServiceRole/Resource
+  AuroraCloneLambdaServiceRoleDefaultPolicyE9A29940:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - rds:RestoreDBClusterToPointInTime
+              - rds:CreateDBInstance
+              - rds:AddTagsToResource
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: AuroraCloneLambdaServiceRoleDefaultPolicyE9A29940
+      Roles:
+        - Ref: AuroraCloneLambdaServiceRoleE47411D5
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCloneLambda/ServiceRole/DefaultPolicy/Resource
+  AuroraCloneLambdaEEF30CA9:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |+
+          import json
+          import boto3
+          import time
+
+          client = boto3.client('rds')
+
+          def lambda_handler(event, context):
+              source_db_cluster_identifier=event['SourceDBClusterIdentifier']
+              
+              target_db_cluster_identifier=event['TargetDBClusterIdentifier']
+              target_db_instance_identifier=event['TargetDBInstanceIdentifier']
+              target_db_subnet_group_name=event['TargetDBSubnetGroupName']
+              target_db_instance_class=event['TargetDBInstanceClass']
+              target_db_engine=event['TargetDBEngine']
+              target_vpc_security_group_ids=event['TargetVpcSecurityGroupIds']
+              target_db_cluster_parameter_group_name=event['TargetDBClusterParameterGroupName']
+              target_db_tags=event['TargetTags']
+              port=event['Port']
+              
+              client.restore_db_cluster_to_point_in_time(
+                  DBClusterIdentifier=target_db_cluster_identifier,
+                  RestoreType='copy-on-write',
+                  SourceDBClusterIdentifier=source_db_cluster_identifier,
+                  UseLatestRestorableTime=True,
+                  Port=port,
+                  DBSubnetGroupName=target_db_subnet_group_name,
+                  VpcSecurityGroupIds=target_vpc_security_group_ids,
+                  Tags=target_db_tags,
+                  EnableIAMDatabaseAuthentication=False,
+                  DBClusterParameterGroupName=target_db_cluster_parameter_group_name,
+                  DeletionProtection=False,
+                  CopyTagsToSnapshot=True,
+              )
+              
+              client.create_db_instance(
+                  DBInstanceIdentifier=target_db_instance_identifier,
+                  Engine=target_db_engine,
+                  DBInstanceClass=target_db_instance_class,
+                  DBClusterIdentifier=target_db_cluster_identifier,
+              )
+              
+              return {
+                  'message': 'Clone will be available in a few minutes...'
+              }
+
+      Role:
+        Fn::GetAtt:
+          - AuroraCloneLambdaServiceRoleE47411D5
+          - Arn
+      FunctionName: aurora_clone
+      Handler: index.lambda_handler
+      Runtime: python3.8
+      Timeout: 30
+    DependsOn:
+      - AuroraCloneLambdaServiceRoleDefaultPolicyE9A29940
+      - AuroraCloneLambdaServiceRoleE47411D5
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCloneLambda/Resource
+  AuroraCheckStatusLambdaServiceRole084E2E3A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCheckStatusLambda/ServiceRole/Resource
+  AuroraCheckStatusLambdaServiceRoleDefaultPolicy2131C107:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: rds:DescribeDBClusters
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: AuroraCheckStatusLambdaServiceRoleDefaultPolicy2131C107
+      Roles:
+        - Ref: AuroraCheckStatusLambdaServiceRole084E2E3A
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCheckStatusLambda/ServiceRole/DefaultPolicy/Resource
+  AuroraCheckStatusLambda1DA6DED1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+
+          client = boto3.client('rds')
+
+          def lambda_handler(event, context):
+              
+              target_db_cluster_identifier=event['TargetDBClusterIdentifier']
+              
+              payload = event.copy()
+              
+              try:
+                  response = client.describe_db_clusters(DBClusterIdentifier=target_db_cluster_identifier)
+                  
+                  payload['status'] = response['DBClusters'][0]['Status']
+              
+                  return payload
+                  
+              except client.exceptions.DBClusterNotFoundFault as e:
+                  print(e)
+                  
+                  payload['status'] = 'not-found'
+                  payload['message'] = 'There is no cluster to remove...'
+                  
+                  return payload
+      Role:
+        Fn::GetAtt:
+          - AuroraCheckStatusLambdaServiceRole084E2E3A
+          - Arn
+      FunctionName: aurora_check_status
+      Handler: index.lambda_handler
+      Runtime: python3.8
+    DependsOn:
+      - AuroraCheckStatusLambdaServiceRoleDefaultPolicy2131C107
+      - AuroraCheckStatusLambdaServiceRole084E2E3A
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCheckStatusLambda/Resource
+  AuroraClearTargetLambdaServiceRole150CC49B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraClearTargetLambda/ServiceRole/Resource
+  AuroraClearTargetLambdaServiceRoleDefaultPolicyF571917C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - rds:DeleteDBCluster
+              - rds:DeleteDBInstance
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: AuroraClearTargetLambdaServiceRoleDefaultPolicyF571917C
+      Roles:
+        - Ref: AuroraClearTargetLambdaServiceRole150CC49B
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraClearTargetLambda/ServiceRole/DefaultPolicy/Resource
+  AuroraClearTargetLambda67915691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |
+          import boto3
+
+          client = boto3.client('rds')
+
+          def lambda_handler(event, context):
+              
+              target_db_cluster_identifier=event['TargetDBClusterIdentifier']
+              target_db_instance_identifier=event['TargetDBInstanceIdentifier']
+              
+              client.delete_db_instance(
+                  DBInstanceIdentifier=target_db_instance_identifier,
+                  SkipFinalSnapshot=True,
+                  DeleteAutomatedBackups=True
+              )
+              
+              client.delete_db_cluster(
+                  DBClusterIdentifier=target_db_cluster_identifier,
+                  SkipFinalSnapshot=True,
+              )
+              
+              return {
+                  'message': 'Deleting DB Cluster and Instance...'
+              }
+      Role:
+        Fn::GetAtt:
+          - AuroraClearTargetLambdaServiceRole150CC49B
+          - Arn
+      FunctionName: aurora_clear_target
+      Handler: index.lambda_handler
+      Runtime: python3.8
+    DependsOn:
+      - AuroraClearTargetLambdaServiceRoleDefaultPolicyF571917C
+      - AuroraClearTargetLambdaServiceRole150CC49B
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraClearTargetLambda/Resource
+  AuroraCloneStateMachineRole03A2C33F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCloneStateMachine/Role/Resource
+  AuroraCloneStateMachineRoleDefaultPolicy1571A198:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AuroraCheckStatusLambda1DA6DED1
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AuroraClearTargetLambda67915691
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AuroraCloneLambdaEEF30CA9
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: AuroraCloneStateMachineRoleDefaultPolicy1571A198
+      Roles:
+        - Ref: AuroraCloneStateMachineRole03A2C33F
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCloneStateMachine/Role/DefaultPolicy/Resource
+  AuroraCloneStateMachine5822C044:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - AuroraCloneStateMachineRole03A2C33F
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Get cluster status","States":{"Get cluster status":{"Next":"Cluster exists?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - AuroraCheckStatusLambda1DA6DED1
+                - Arn
+            - '","Payload.$":"$"}},"Wait 30 seconds":{"Type":"Wait","Seconds":30,"Next":"Get cluster status"},"Delete cluster":{"Next":"Wait 30 seconds","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":null,"Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - AuroraClearTargetLambda67915691
+                - Arn
+            - '","Payload.$":"$"}},"Cluster exists?":{"Type":"Choice","Choices":[{"Variable":"$.status","StringEquals":"available","Next":"Delete cluster"},{"Variable":"$.status","StringEquals":"deleting","Next":"Wait 30 seconds"},{"Variable":"$.status","StringEquals":"not-found","Next":"Aurora Clone"}]},"Aurora Clone":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - AuroraCloneLambdaEEF30CA9
+                - Arn
+            - '","Payload.$":"$"}}},"TimeoutSeconds":300}'
+      StateMachineName: AuroraCloneSourceCluster
+    DependsOn:
+      - AuroraCloneStateMachineRoleDefaultPolicy1571A198
+      - AuroraCloneStateMachineRole03A2C33F
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCloneStateMachine/Resource
+  AuroraCloneStateMachineEventsRole3E62852D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCloneStateMachine/EventsRole/Resource
+  AuroraCloneStateMachineEventsRoleDefaultPolicy6FB6DC3C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: AuroraCloneStateMachine5822C044
+        Version: "2012-10-17"
+      PolicyName: AuroraCloneStateMachineEventsRoleDefaultPolicy6FB6DC3C
+      Roles:
+        - Ref: AuroraCloneStateMachineEventsRole3E62852D
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/AuroraCloneStateMachine/EventsRole/DefaultPolicy/Resource
+  Rule4C995B7F:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: cron(0 0 * * ? *)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Ref: AuroraCloneStateMachine5822C044
+          Id: Target0
+          Input: '{"SourceDBClusterIdentifier":"app-prod","TargetDBClusterIdentifier":"app-staging","TargetDBInstanceIdentifier":"app-staging-instance-1","TargetDBSubnetGroupName":"sample","TargetDBInstanceClass":"db.t4g.medium","TargetDBEngine":"aurora-postgresql","TargetVpcSecurityGroupIds":["sg-0a1b2c3d"],"TargetDBClusterParameterGroupName":"default.aurora-postgresql11","Port":5432,"TargetTags":[{"Key":"Environment","Value":"staging"}]}'
+          RoleArn:
+            Fn::GetAtt:
+              - AuroraCloneStateMachineEventsRole3E62852D
+              - Arn
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/Rule/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VQwWrDMAz9lt4ddd6px0FgMNigpIeeXUelahJrRHJKMf732WkH2+k9Se9JD1mwrxZeNm/uJo3vh23yPCOkgzo/mJaD6By9mvYcOhSOs8fKy6AnJQ7ZVGMa3XTqHaT3GHxtV80vz4bcBKnjcbWuuOeR/L2WD5aNKH6fnw5p1Mkg8Llu/QgLD/hfAKm9MJUsR0dqSljFL+cvFNYTf+tscMGgxdHFZ4CCOWcTuEe4ynaxu/IEsJurEDVzDEoTQvfAH0ku3AEgAQAA
+    Metadata:
+      aws:cdk:path: AwsStepfunctionsAuroraCloneStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

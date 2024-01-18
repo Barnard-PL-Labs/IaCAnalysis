@@ -1,0 +1,1633 @@
+Description: Process images and videos at scale using Amazon Rekognition (uksb-1sd4nlm88)
+Resources:
+  JobCompletionF65D4017:
+    Type: AWS::SNS::Topic
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/JobCompletion/Resource
+  RekognitionServiceRole12071FF8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: rekognition.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/RekognitionServiceRole/Resource
+  RekognitionServiceRoleDefaultPolicyF74DD640:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: JobCompletionF65D4017
+        Version: "2012-10-17"
+      PolicyName: RekognitionServiceRoleDefaultPolicyF74DD640
+      Roles:
+        - Ref: RekognitionServiceRole12071FF8
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/RekognitionServiceRole/DefaultPolicy/Resource
+  S3BatchOperationsRole79F42304:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: batchoperations.s3.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/S3BatchOperationsRole/Resource
+  S3BatchOperationsRoleDefaultPolicy55D2AE09:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ExistingContentBucketD3998B22
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ExistingContentBucketD3998B22
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - InventoryAndLogsBucketB5DF1E2C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - InventoryAndLogsBucketB5DF1E2C
+                        - Arn
+                    - /*
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - S3BatchProcessor6C619AEA
+                - Arn
+          - Action: lambda:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: S3BatchOperationsRoleDefaultPolicy55D2AE09
+      Roles:
+        - Ref: S3BatchOperationsRole79F42304
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/S3BatchOperationsRole/DefaultPolicy/Resource
+  ContentBucketNotificationsC568D82E:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: ContentBucket52D4B12C
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: suffix
+                    Value: .mov
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - S3ProcessorF0626C49
+                - Arn
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: suffix
+                    Value: .mp4
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - S3ProcessorF0626C49
+                - Arn
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: suffix
+                    Value: .png
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - S3ProcessorF0626C49
+                - Arn
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: suffix
+                    Value: .jpg
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - S3ProcessorF0626C49
+                - Arn
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: suffix
+                    Value: .jpeg
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - S3ProcessorF0626C49
+                - Arn
+      Managed: true
+    DependsOn:
+      - ContentBucketAllowBucketNotificationsToRekognitionPipelineStackS3Processor67CF4A52C5F59B6F
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/ContentBucket/Notifications/Resource
+  ContentBucket52D4B12C:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/ContentBucket/Resource
+  ContentBucketAllowBucketNotificationsToRekognitionPipelineStackS3Processor67CF4A52C5F59B6F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - S3ProcessorF0626C49
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - ContentBucket52D4B12C
+          - Arn
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/ContentBucket/AllowBucketNotificationsToRekognitionPipelineStackS3Processor67CF4A52
+  ExistingContentBucketD3998B22:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/ExistingContentBucket/Resource
+  InventoryAndLogsBucketB5DF1E2C:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/InventoryAndLogsBucket/Resource
+  OutputBucket7114EB27:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/OutputBucket/Resource
+  ItemsTable5AAC2C46:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: itemId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: itemId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/ItemsTable/Resource
+  DLQ581697C4:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      VisibilityTimeout: 30
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/DLQ/Resource
+  SyncJobs0FE0C444:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - DLQ581697C4
+            - Arn
+        maxReceiveCount: 50
+      VisibilityTimeout: 30
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/SyncJobs/Resource
+  AsyncJobsE9347181:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - DLQ581697C4
+            - Arn
+        maxReceiveCount: 50
+      VisibilityTimeout: 30
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/AsyncJobs/Resource
+  JobResults39F5168E:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - DLQ581697C4
+            - Arn
+        maxReceiveCount: 50
+      VisibilityTimeout: 900
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/JobResults/Resource
+  JobResultsPolicy26D354DC:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Ref: JobCompletionF65D4017
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - JobResults39F5168E
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: JobResults39F5168E
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/JobResults/Policy/Resource
+  JobResultsRekognitionPipelineStackJobCompletion70BAB37C249229CD:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      TopicArn:
+        Ref: JobCompletionF65D4017
+      Endpoint:
+        Fn::GetAtt:
+          - JobResults39F5168E
+          - Arn
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/JobResults/RekognitionPipelineStackJobCompletion70BAB37C/Resource
+  HelperLayer49ADCD6B:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameters16586ee1a11bfcb07082ca5f84c8d193adfd08f31acba45c3d81e230bbbc664bS3Bucket9C791D7B
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters16586ee1a11bfcb07082ca5f84c8d193adfd08f31acba45c3d81e230bbbc664bS3VersionKeyB2F23080
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters16586ee1a11bfcb07082ca5f84c8d193adfd08f31acba45c3d81e230bbbc664bS3VersionKeyB2F23080
+      CompatibleRuntimes:
+        - python3.7
+      Description: Helper layer.
+      LicenseInfo: Apache-2.0
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/HelperLayer/Resource
+      aws:asset:path: asset.16586ee1a11bfcb07082ca5f84c8d193adfd08f31acba45c3d81e230bbbc664b
+      aws:asset:property: Content
+  S3ProcessorServiceRoleB05FBD69:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/S3Processor/ServiceRole/Resource
+  S3ProcessorServiceRoleDefaultPolicyDB165203:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ItemsTable5AAC2C46
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SyncJobs0FE0C444
+                - Arn
+          - Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AsyncJobsE9347181
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: S3ProcessorServiceRoleDefaultPolicyDB165203
+      Roles:
+        - Ref: S3ProcessorServiceRoleB05FBD69
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/S3Processor/ServiceRole/DefaultPolicy/Resource
+  S3ProcessorF0626C49:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters54fe2b0863c4d767b5c79b15da48fe939d967d22a6685bdd3a9e40aad5e64080S3BucketC9C5BD0B
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters54fe2b0863c4d767b5c79b15da48fe939d967d22a6685bdd3a9e40aad5e64080S3VersionKey4F3FEAAC
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters54fe2b0863c4d767b5c79b15da48fe939d967d22a6685bdd3a9e40aad5e64080S3VersionKey4F3FEAAC
+      Role:
+        Fn::GetAtt:
+          - S3ProcessorServiceRoleB05FBD69
+          - Arn
+      Environment:
+        Variables:
+          SYNC_QUEUE_URL:
+            Ref: SyncJobs0FE0C444
+          ASYNC_QUEUE_URL:
+            Ref: AsyncJobsE9347181
+          ITEMS_TABLE:
+            Ref: ItemsTable5AAC2C46
+          OUTPUT_BUCKET:
+            Ref: OutputBucket7114EB27
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - Ref: HelperLayer49ADCD6B
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - S3ProcessorServiceRoleDefaultPolicyDB165203
+      - S3ProcessorServiceRoleB05FBD69
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/S3Processor/Resource
+      aws:asset:path: asset.54fe2b0863c4d767b5c79b15da48fe939d967d22a6685bdd3a9e40aad5e64080
+      aws:asset:property: Code
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |
+          import boto3  # type: ignore
+          import json
+          import logging
+          import urllib.request
+
+          s3 = boto3.client("s3")
+
+          CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+          def handler(event: dict, context):
+              response_status = "SUCCESS"
+              error_message = ""
+              try:
+                  props = event["ResourceProperties"]
+                  bucket = props["BucketName"]
+                  notification_configuration = props["NotificationConfiguration"]
+                  request_type = event["RequestType"]
+                  managed = props.get('Managed', 'true').lower() == 'true'
+                  stack_id = event['StackId']
+
+                  if managed:
+                    config = handle_managed(request_type, notification_configuration)
+                  else:
+                    config = handle_unmanaged(bucket, stack_id, request_type, notification_configuration)
+
+                  put_bucket_notification_configuration(bucket, config)
+              except Exception as e:
+                  logging.exception("Failed to put bucket notification configuration")
+                  response_status = "FAILED"
+                  error_message = f"Error: {str(e)}. "
+              finally:
+                  submit_response(event, context, response_status, error_message)
+
+
+          def handle_managed(request_type, notification_configuration):
+            if request_type == 'Delete':
+              return {}
+            return notification_configuration
+
+
+          def handle_unmanaged(bucket, stack_id, request_type, notification_configuration):
+
+            # find external notifications
+            external_notifications = find_external_notifications(bucket, stack_id)
+
+            # if delete, that's all we need
+            if request_type == 'Delete':
+              return external_notifications
+
+            def with_id(notification):
+              notification['Id'] = f"{stack_id}-{hash(json.dumps(notification, sort_keys=True))}"
+              return notification
+
+            # otherwise, merge external with incoming config and augment with id
+            notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external = external_notifications.get(t, [])
+              incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+              notifications[t] = external + incoming
+            return notifications
+
+
+          def find_external_notifications(bucket, stack_id):
+            existing_notifications = get_bucket_notification_configuration(bucket)
+            external_notifications = {}
+            for t in CONFIGURATION_TYPES:
+              # if the notification was created by us, we know what id to expect
+              # so we can filter by it.
+              external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+
+            return external_notifications
+
+
+          def get_bucket_notification_configuration(bucket):
+            return s3.get_bucket_notification_configuration(Bucket=bucket)
+
+
+          def put_bucket_notification_configuration(bucket, notification_configuration):
+            s3.put_bucket_notification_configuration(Bucket=bucket, NotificationConfiguration=notification_configuration)
+
+
+          def submit_response(event: dict, context, response_status: str, error_message: str):
+              response_body = json.dumps(
+                  {
+                      "Status": response_status,
+                      "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                      "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                      "StackId": event["StackId"],
+                      "RequestId": event["RequestId"],
+                      "LogicalResourceId": event["LogicalResourceId"],
+                      "NoEcho": False,
+                  }
+              ).encode("utf-8")
+              headers = {"content-type": "", "content-length": str(len(response_body))}
+              try:
+                  req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+                  with urllib.request.urlopen(req) as response:
+                      print(response.read().decode("utf-8"))
+                  print("Status code: " + response.reason)
+              except Exception as e:
+                  print("send(..) failed executing request.urlopen(..): " + str(e))
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: python3.7
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  S3BatchProcessorServiceRoleD6C72F8A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/S3BatchProcessor/ServiceRole/Resource
+  S3BatchProcessorServiceRoleDefaultPolicyB97F9E74:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ItemsTable5AAC2C46
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: S3BatchProcessorServiceRoleDefaultPolicyB97F9E74
+      Roles:
+        - Ref: S3BatchProcessorServiceRoleD6C72F8A
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/S3BatchProcessor/ServiceRole/DefaultPolicy/Resource
+  S3BatchProcessor6C619AEA:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters6859741442cdcf12b6ad74899e5a1582c6add91e8157e144978a85a4cba1aa1aS3BucketA4C6D1B6
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6859741442cdcf12b6ad74899e5a1582c6add91e8157e144978a85a4cba1aa1aS3VersionKeyE7D6BDD4
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6859741442cdcf12b6ad74899e5a1582c6add91e8157e144978a85a4cba1aa1aS3VersionKeyE7D6BDD4
+      Role:
+        Fn::GetAtt:
+          - S3BatchProcessorServiceRoleD6C72F8A
+          - Arn
+      Environment:
+        Variables:
+          ITEMS_TABLE:
+            Ref: ItemsTable5AAC2C46
+          OUTPUT_BUCKET:
+            Ref: OutputBucket7114EB27
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - Ref: HelperLayer49ADCD6B
+      ReservedConcurrentExecutions: 1
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - S3BatchProcessorServiceRoleDefaultPolicyB97F9E74
+      - S3BatchProcessorServiceRoleD6C72F8A
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/S3BatchProcessor/Resource
+      aws:asset:path: asset.6859741442cdcf12b6ad74899e5a1582c6add91e8157e144978a85a4cba1aa1a
+      aws:asset:property: Code
+  TaskProcessorServiceRoleB5CA2A12:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/TaskProcessor/ServiceRole/Resource
+  TaskProcessorServiceRoleDefaultPolicy877E187E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:ListStreams
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:DescribeStream
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ItemsTable5AAC2C46
+                - StreamArn
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ItemsTable5AAC2C46
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SyncJobs0FE0C444
+                - Arn
+          - Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AsyncJobsE9347181
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: TaskProcessorServiceRoleDefaultPolicy877E187E
+      Roles:
+        - Ref: TaskProcessorServiceRoleB5CA2A12
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/TaskProcessor/ServiceRole/DefaultPolicy/Resource
+  TaskProcessor26BEA722:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters8e3b617958d07c820ece83682be2bb3effadc017f8f3b583278859c1e6094be8S3Bucket62AAD9F6
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8e3b617958d07c820ece83682be2bb3effadc017f8f3b583278859c1e6094be8S3VersionKey536E4CF2
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8e3b617958d07c820ece83682be2bb3effadc017f8f3b583278859c1e6094be8S3VersionKey536E4CF2
+      Role:
+        Fn::GetAtt:
+          - TaskProcessorServiceRoleB5CA2A12
+          - Arn
+      Environment:
+        Variables:
+          SYNC_QUEUE_URL:
+            Ref: SyncJobs0FE0C444
+          ASYNC_QUEUE_URL:
+            Ref: AsyncJobsE9347181
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - Ref: HelperLayer49ADCD6B
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - TaskProcessorServiceRoleDefaultPolicy877E187E
+      - TaskProcessorServiceRoleB5CA2A12
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/TaskProcessor/Resource
+      aws:asset:path: asset.8e3b617958d07c820ece83682be2bb3effadc017f8f3b583278859c1e6094be8
+      aws:asset:property: Code
+  TaskProcessorDynamoDBEventSourceRekognitionPipelineStackItemsTableA4BCC5105735B42F:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: TaskProcessor26BEA722
+      BatchSize: 100
+      EventSourceArn:
+        Fn::GetAtt:
+          - ItemsTable5AAC2C46
+          - StreamArn
+      StartingPosition: TRIM_HORIZON
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/TaskProcessor/DynamoDBEventSource:RekognitionPipelineStackItemsTableA4BCC510/Resource
+  SyncProcessorServiceRoleA3A4164E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/SyncProcessor/ServiceRole/Resource
+  SyncProcessorServiceRoleDefaultPolicy47FE5EFC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SyncJobs0FE0C444
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ContentBucket52D4B12C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ContentBucket52D4B12C
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ExistingContentBucketD3998B22
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ExistingContentBucketD3998B22
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - OutputBucket7114EB27
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - OutputBucket7114EB27
+                        - Arn
+                    - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ItemsTable5AAC2C46
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: rekognition:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: SyncProcessorServiceRoleDefaultPolicy47FE5EFC
+      Roles:
+        - Ref: SyncProcessorServiceRoleA3A4164E
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/SyncProcessor/ServiceRole/DefaultPolicy/Resource
+  SyncProcessorA0819FA5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters786b6f83a801dd5570992b48a5b846945d94442ced47e38c6c5c79c9ac1aa0dfS3BucketE77B33BC
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters786b6f83a801dd5570992b48a5b846945d94442ced47e38c6c5c79c9ac1aa0dfS3VersionKey6AD2A7EE
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters786b6f83a801dd5570992b48a5b846945d94442ced47e38c6c5c79c9ac1aa0dfS3VersionKey6AD2A7EE
+      Role:
+        Fn::GetAtt:
+          - SyncProcessorServiceRoleA3A4164E
+          - Arn
+      Environment:
+        Variables:
+          OUTPUT_BUCKET:
+            Ref: OutputBucket7114EB27
+          ITEMS_TABLE:
+            Ref: ItemsTable5AAC2C46
+          AWS_DATA_PATH: models
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - Ref: HelperLayer49ADCD6B
+      ReservedConcurrentExecutions: 1
+      Runtime: python3.7
+      Timeout: 25
+    DependsOn:
+      - SyncProcessorServiceRoleDefaultPolicy47FE5EFC
+      - SyncProcessorServiceRoleA3A4164E
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/SyncProcessor/Resource
+      aws:asset:path: asset.786b6f83a801dd5570992b48a5b846945d94442ced47e38c6c5c79c9ac1aa0df
+      aws:asset:property: Code
+  SyncProcessorSqsEventSourceRekognitionPipelineStackSyncJobs390477E28079941C:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: SyncProcessorA0819FA5
+      BatchSize: 1
+      EventSourceArn:
+        Fn::GetAtt:
+          - SyncJobs0FE0C444
+          - Arn
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/SyncProcessor/SqsEventSource:RekognitionPipelineStackSyncJobs390477E2/Resource
+  ASyncProcessorServiceRoleB60BB53C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/ASyncProcessor/ServiceRole/Resource
+  ASyncProcessorServiceRoleDefaultPolicyC603F804:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ContentBucket52D4B12C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ContentBucket52D4B12C
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ExistingContentBucketD3998B22
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ExistingContentBucketD3998B22
+                        - Arn
+                    - /*
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AsyncJobsE9347181
+                - Arn
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - RekognitionServiceRole12071FF8
+                - Arn
+          - Action: rekognition:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: ASyncProcessorServiceRoleDefaultPolicyC603F804
+      Roles:
+        - Ref: ASyncProcessorServiceRoleB60BB53C
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/ASyncProcessor/ServiceRole/DefaultPolicy/Resource
+  ASyncProcessorD1027704:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters54cf01061fd3275d4d9a16bc721091ee6881faf0f237d3fb324b7dc4a36c0af8S3Bucket325F4CC0
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters54cf01061fd3275d4d9a16bc721091ee6881faf0f237d3fb324b7dc4a36c0af8S3VersionKey6F7C63A2
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters54cf01061fd3275d4d9a16bc721091ee6881faf0f237d3fb324b7dc4a36c0af8S3VersionKey6F7C63A2
+      Role:
+        Fn::GetAtt:
+          - ASyncProcessorServiceRoleB60BB53C
+          - Arn
+      Environment:
+        Variables:
+          ASYNC_QUEUE_URL:
+            Ref: AsyncJobsE9347181
+          SNS_TOPIC_ARN:
+            Ref: JobCompletionF65D4017
+          SNS_ROLE_ARN:
+            Fn::GetAtt:
+              - RekognitionServiceRole12071FF8
+              - Arn
+          AWS_DATA_PATH: models
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - Ref: HelperLayer49ADCD6B
+      ReservedConcurrentExecutions: 1
+      Runtime: python3.7
+      Timeout: 60
+    DependsOn:
+      - ASyncProcessorServiceRoleDefaultPolicyC603F804
+      - ASyncProcessorServiceRoleB60BB53C
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/ASyncProcessor/Resource
+      aws:asset:path: asset.54cf01061fd3275d4d9a16bc721091ee6881faf0f237d3fb324b7dc4a36c0af8
+      aws:asset:property: Code
+  ASyncProcessorAllowInvokeRekognitionPipelineStackJobCompletion70BAB37CB14AB21D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ASyncProcessorD1027704
+          - Arn
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: JobCompletionF65D4017
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/ASyncProcessor/AllowInvoke:RekognitionPipelineStackJobCompletion70BAB37C
+  ASyncProcessorJobCompletionB5FCBFE3:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn:
+        Ref: JobCompletionF65D4017
+      Endpoint:
+        Fn::GetAtt:
+          - ASyncProcessorD1027704
+          - Arn
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/ASyncProcessor/JobCompletion/Resource
+  Rule4C995B7F:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(2 minutes)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - ASyncProcessorD1027704
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/Rule/Resource
+  RuleAllowEventRuleRekognitionPipelineStackASyncProcessor30D904AB1409E9DE:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ASyncProcessorD1027704
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - Rule4C995B7F
+          - Arn
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/Rule/AllowEventRuleRekognitionPipelineStackASyncProcessor30D904AB
+  JobResultProcessorServiceRole836B07ED:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/JobResultProcessor/ServiceRole/Resource
+  JobResultProcessorServiceRoleDefaultPolicyD51ACD91:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - JobResults39F5168E
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - OutputBucket7114EB27
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - OutputBucket7114EB27
+                        - Arn
+                    - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ItemsTable5AAC2C46
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ContentBucket52D4B12C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ContentBucket52D4B12C
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ExistingContentBucketD3998B22
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ExistingContentBucketD3998B22
+                        - Arn
+                    - /*
+          - Action: rekognition:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: JobResultProcessorServiceRoleDefaultPolicyD51ACD91
+      Roles:
+        - Ref: JobResultProcessorServiceRole836B07ED
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/JobResultProcessor/ServiceRole/DefaultPolicy/Resource
+  JobResultProcessorAD5D1803:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters376d7dbbdbceb382df217d4bf40c55cee47ec0ed6a04feeff2409e35b5e5c574S3BucketA2F87341
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters376d7dbbdbceb382df217d4bf40c55cee47ec0ed6a04feeff2409e35b5e5c574S3VersionKeyD1355EE6
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters376d7dbbdbceb382df217d4bf40c55cee47ec0ed6a04feeff2409e35b5e5c574S3VersionKeyD1355EE6
+      Role:
+        Fn::GetAtt:
+          - JobResultProcessorServiceRole836B07ED
+          - Arn
+      Environment:
+        Variables:
+          OUTPUT_BUCKET:
+            Ref: OutputBucket7114EB27
+          ITEMS_TABLE:
+            Ref: ItemsTable5AAC2C46
+          AWS_DATA_PATH: models
+      Handler: lambda_function.lambda_handler
+      Layers:
+        - Ref: HelperLayer49ADCD6B
+      MemorySize: 2000
+      ReservedConcurrentExecutions: 50
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - JobResultProcessorServiceRoleDefaultPolicyD51ACD91
+      - JobResultProcessorServiceRole836B07ED
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/JobResultProcessor/Resource
+      aws:asset:path: asset.376d7dbbdbceb382df217d4bf40c55cee47ec0ed6a04feeff2409e35b5e5c574
+      aws:asset:property: Code
+  JobResultProcessorSqsEventSourceRekognitionPipelineStackJobResults5D086B908BEFDE3B:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: JobResultProcessorAD5D1803
+      BatchSize: 1
+      EventSourceArn:
+        Fn::GetAtt:
+          - JobResults39F5168E
+          - Arn
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/JobResultProcessor/SqsEventSource:RekognitionPipelineStackJobResults5D086B90/Resource
+  SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebcServiceRoleFE9ABB04:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebc/ServiceRole/Resource
+  SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebcServiceRoleDefaultPolicyEED0B067:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ContentBucket52D4B12C
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ContentBucket52D4B12C
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ExistingContentBucketD3998B22
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ExistingContentBucketD3998B22
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebcServiceRoleDefaultPolicyEED0B067
+      Roles:
+        - Ref: SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebcServiceRoleFE9ABB04
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebc/ServiceRole/DefaultPolicy/Resource
+  SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebc492C6E5C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |-
+          import boto3
+          import os
+          import cfnresponse
+
+          def lambda_handler(event, context):
+              try:
+                  responseData = {}
+                  physicalResourceId = {}
+
+                  s3 = boto3.resource('s3')
+                  contentBucket = s3.Bucket(os.environ['CONTENT_BUCKET'])
+                  existingContentBucket = s3.Bucket(os.environ['EXISTING_CONTENT_BUCKET'])
+
+                  # Check if this is a Delete
+                  if event['RequestType'] == 'Delete':
+                    contentBucket.objects.all().delete()
+                    existingContentBucket.objects.all().delete()
+                    cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, physicalResourceId )
+                    return
+
+                  #creating folders in content bucket
+                  s3.Object(os.environ['CONTENT_BUCKET'], "labels/").put()
+                  s3.Object(os.environ['CONTENT_BUCKET'], "faces/").put()
+                  s3.Object(os.environ['CONTENT_BUCKET'], "moderation/").put()
+                  s3.Object(os.environ['CONTENT_BUCKET'], "text/").put()
+                  s3.Object(os.environ['CONTENT_BUCKET'], "celebrities/").put()
+
+                  #creating folders in existing content bucket
+                  s3.Object(os.environ['EXISTING_CONTENT_BUCKET'], "labels/").put()
+                  s3.Object(os.environ['EXISTING_CONTENT_BUCKET'], "faces/").put()
+                  s3.Object(os.environ['EXISTING_CONTENT_BUCKET'], "moderation/").put()
+                  s3.Object(os.environ['EXISTING_CONTENT_BUCKET'], "text/").put()
+                  s3.Object(os.environ['EXISTING_CONTENT_BUCKET'], "celebrities/").put()
+
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, physicalResourceId)
+
+              except Exception as e:
+                  # cfnresponse's error message is always "see CloudWatch"
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, physicalResourceId)
+      Role:
+        Fn::GetAtt:
+          - SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebcServiceRoleFE9ABB04
+          - Arn
+      Description: Creates folders in S3 bucket for different Rekognition APIs
+      Environment:
+        Variables:
+          CONTENT_BUCKET:
+            Ref: ContentBucket52D4B12C
+          EXISTING_CONTENT_BUCKET:
+            Ref: ExistingContentBucketD3998B22
+      Handler: index.lambda_handler
+      Runtime: python3.7
+      Timeout: 60
+    DependsOn:
+      - SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebcServiceRoleDefaultPolicyEED0B067
+      - SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebcServiceRoleFE9ABB04
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebc/Resource
+  Resource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - SingletonLambdaf7d4f7304ee111e89c2dfa7ae01bbebc492C6E5C
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/Resource/Default
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21RwW7CMAz9Fu4hrHDZcQON0yaxdto9TQwKNEkXJ0woyr+vTgtj0i72s2P7+TkVr1ZL/jB7Et84l+q0SNJ54KkJQp7YxlkMPsrANntbA7roJbAbeEaEMFQetD1QxU54YSCAp2DoVTpoZzOj2Qkt8vThei3pdQRNbFF63VMZZe/jzLQwPNWug8JOfuc6LS+FqqDMcMXTOsoTlBUnNLq1QMisE6ZVgifqAW80InG9igv4T/A4Ef+Jt9HK60Y3/HIGG5qi+030/aT4n2wzmA6Cu7Vmpi5WGKfaQb9oRzkFDOt/DUd5jxBLcgTF/iq9C0nuXNDRkZfbMyD+YUQdpytFmio7F9XeeSOIn28iBmeuv5Yzs04BP+LiXD3yasmr2RG1nvtogzbA69H/ANfRmO4aAgAA
+    Metadata:
+      aws:cdk:path: RekognitionPipelineStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters16586ee1a11bfcb07082ca5f84c8d193adfd08f31acba45c3d81e230bbbc664bS3Bucket9C791D7B:
+    Type: String
+    Description: S3 bucket for asset "16586ee1a11bfcb07082ca5f84c8d193adfd08f31acba45c3d81e230bbbc664b"
+  AssetParameters16586ee1a11bfcb07082ca5f84c8d193adfd08f31acba45c3d81e230bbbc664bS3VersionKeyB2F23080:
+    Type: String
+    Description: S3 key for asset version "16586ee1a11bfcb07082ca5f84c8d193adfd08f31acba45c3d81e230bbbc664b"
+  AssetParameters16586ee1a11bfcb07082ca5f84c8d193adfd08f31acba45c3d81e230bbbc664bArtifactHash4D59D26C:
+    Type: String
+    Description: Artifact hash for asset "16586ee1a11bfcb07082ca5f84c8d193adfd08f31acba45c3d81e230bbbc664b"
+  AssetParameters54fe2b0863c4d767b5c79b15da48fe939d967d22a6685bdd3a9e40aad5e64080S3BucketC9C5BD0B:
+    Type: String
+    Description: S3 bucket for asset "54fe2b0863c4d767b5c79b15da48fe939d967d22a6685bdd3a9e40aad5e64080"
+  AssetParameters54fe2b0863c4d767b5c79b15da48fe939d967d22a6685bdd3a9e40aad5e64080S3VersionKey4F3FEAAC:
+    Type: String
+    Description: S3 key for asset version "54fe2b0863c4d767b5c79b15da48fe939d967d22a6685bdd3a9e40aad5e64080"
+  AssetParameters54fe2b0863c4d767b5c79b15da48fe939d967d22a6685bdd3a9e40aad5e64080ArtifactHash04D0D9BD:
+    Type: String
+    Description: Artifact hash for asset "54fe2b0863c4d767b5c79b15da48fe939d967d22a6685bdd3a9e40aad5e64080"
+  AssetParameters6859741442cdcf12b6ad74899e5a1582c6add91e8157e144978a85a4cba1aa1aS3BucketA4C6D1B6:
+    Type: String
+    Description: S3 bucket for asset "6859741442cdcf12b6ad74899e5a1582c6add91e8157e144978a85a4cba1aa1a"
+  AssetParameters6859741442cdcf12b6ad74899e5a1582c6add91e8157e144978a85a4cba1aa1aS3VersionKeyE7D6BDD4:
+    Type: String
+    Description: S3 key for asset version "6859741442cdcf12b6ad74899e5a1582c6add91e8157e144978a85a4cba1aa1a"
+  AssetParameters6859741442cdcf12b6ad74899e5a1582c6add91e8157e144978a85a4cba1aa1aArtifactHash8A4A37A3:
+    Type: String
+    Description: Artifact hash for asset "6859741442cdcf12b6ad74899e5a1582c6add91e8157e144978a85a4cba1aa1a"
+  AssetParameters8e3b617958d07c820ece83682be2bb3effadc017f8f3b583278859c1e6094be8S3Bucket62AAD9F6:
+    Type: String
+    Description: S3 bucket for asset "8e3b617958d07c820ece83682be2bb3effadc017f8f3b583278859c1e6094be8"
+  AssetParameters8e3b617958d07c820ece83682be2bb3effadc017f8f3b583278859c1e6094be8S3VersionKey536E4CF2:
+    Type: String
+    Description: S3 key for asset version "8e3b617958d07c820ece83682be2bb3effadc017f8f3b583278859c1e6094be8"
+  AssetParameters8e3b617958d07c820ece83682be2bb3effadc017f8f3b583278859c1e6094be8ArtifactHashD9176FF3:
+    Type: String
+    Description: Artifact hash for asset "8e3b617958d07c820ece83682be2bb3effadc017f8f3b583278859c1e6094be8"
+  AssetParameters786b6f83a801dd5570992b48a5b846945d94442ced47e38c6c5c79c9ac1aa0dfS3BucketE77B33BC:
+    Type: String
+    Description: S3 bucket for asset "786b6f83a801dd5570992b48a5b846945d94442ced47e38c6c5c79c9ac1aa0df"
+  AssetParameters786b6f83a801dd5570992b48a5b846945d94442ced47e38c6c5c79c9ac1aa0dfS3VersionKey6AD2A7EE:
+    Type: String
+    Description: S3 key for asset version "786b6f83a801dd5570992b48a5b846945d94442ced47e38c6c5c79c9ac1aa0df"
+  AssetParameters786b6f83a801dd5570992b48a5b846945d94442ced47e38c6c5c79c9ac1aa0dfArtifactHash1435F1CB:
+    Type: String
+    Description: Artifact hash for asset "786b6f83a801dd5570992b48a5b846945d94442ced47e38c6c5c79c9ac1aa0df"
+  AssetParameters54cf01061fd3275d4d9a16bc721091ee6881faf0f237d3fb324b7dc4a36c0af8S3Bucket325F4CC0:
+    Type: String
+    Description: S3 bucket for asset "54cf01061fd3275d4d9a16bc721091ee6881faf0f237d3fb324b7dc4a36c0af8"
+  AssetParameters54cf01061fd3275d4d9a16bc721091ee6881faf0f237d3fb324b7dc4a36c0af8S3VersionKey6F7C63A2:
+    Type: String
+    Description: S3 key for asset version "54cf01061fd3275d4d9a16bc721091ee6881faf0f237d3fb324b7dc4a36c0af8"
+  AssetParameters54cf01061fd3275d4d9a16bc721091ee6881faf0f237d3fb324b7dc4a36c0af8ArtifactHashAE9DC623:
+    Type: String
+    Description: Artifact hash for asset "54cf01061fd3275d4d9a16bc721091ee6881faf0f237d3fb324b7dc4a36c0af8"
+  AssetParameters376d7dbbdbceb382df217d4bf40c55cee47ec0ed6a04feeff2409e35b5e5c574S3BucketA2F87341:
+    Type: String
+    Description: S3 bucket for asset "376d7dbbdbceb382df217d4bf40c55cee47ec0ed6a04feeff2409e35b5e5c574"
+  AssetParameters376d7dbbdbceb382df217d4bf40c55cee47ec0ed6a04feeff2409e35b5e5c574S3VersionKeyD1355EE6:
+    Type: String
+    Description: S3 key for asset version "376d7dbbdbceb382df217d4bf40c55cee47ec0ed6a04feeff2409e35b5e5c574"
+  AssetParameters376d7dbbdbceb382df217d4bf40c55cee47ec0ed6a04feeff2409e35b5e5c574ArtifactHash5145B7AF:
+    Type: String
+    Description: Artifact hash for asset "376d7dbbdbceb382df217d4bf40c55cee47ec0ed6a04feeff2409e35b5e5c574"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

@@ -1,0 +1,190 @@
+Resources:
+  demouserpool2951C555:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Schema:
+        - Mutable: true
+          Name: email
+          Required: true
+        - Mutable: true
+          Name: phone_number
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    Metadata:
+      aws:cdk:path: cdk-appsync-react-demo/demo-user-pool/Resource
+  demouserpoolclient8E2EA965:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: demouserpool2951C555
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      GenerateSecret: false
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: cdk-appsync-react-demo/demo-user-pool-client/Resource
+  cdkappsyncreactdemo:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: demouserpoolclient8E2EA965
+          ProviderName:
+            Fn::Join:
+              - ""
+              - - cognito-idp.us-east-1.amazonaws.com/
+                - Ref: demouserpool2951C555
+      IdentityPoolName: demo-identity-pool
+    Metadata:
+      aws:cdk:path: cdk-appsync-react-demo/cdk-appsync-react-demo
+  demoidentityunauthroleE4A116FC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: cdkappsyncreactdemo
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: cdk-appsync-react-demo/demo-identity-unauth-role/Resource
+  demoidentityunauthroleDefaultPolicy737B3265:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: appsync:GraphQL
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - arn:aws:appsync:us-east-1:036406153779:apis/
+                    - Fn::GetAtt:
+                        - demoappsyncexampleappsyncnestedstackNestedStackappsyncnestedstackNestedStackResourceA148D2E0
+                        - Outputs.cdkappsyncreactdemodemoappsyncexampleappsyncnestedstackdemoappsyncexampleapi81E0E0BDApiId
+                    - /types/Query/fields/listPosts
+              - Fn::Join:
+                  - ""
+                  - - arn:aws:appsync:us-east-1:036406153779:apis/
+                    - Fn::GetAtt:
+                        - demoappsyncexampleappsyncnestedstackNestedStackappsyncnestedstackNestedStackResourceA148D2E0
+                        - Outputs.cdkappsyncreactdemodemoappsyncexampleappsyncnestedstackdemoappsyncexampleapi81E0E0BDApiId
+                    - /types/Query/fields/getPost
+        Version: "2012-10-17"
+      PolicyName: demoidentityunauthroleDefaultPolicy737B3265
+      Roles:
+        - Ref: demoidentityunauthroleE4A116FC
+    Metadata:
+      aws:cdk:path: cdk-appsync-react-demo/demo-identity-unauth-role/DefaultPolicy/Resource
+  cdkappsyncreactdemorolemap:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: cdkappsyncreactdemo
+      Roles:
+        unauthenticated:
+          Fn::GetAtt:
+            - demoidentityunauthroleE4A116FC
+            - Arn
+    Metadata:
+      aws:cdk:path: cdk-appsync-react-demo/cdk-appsync-react-demo-role-map
+  demoappsyncexampleappsyncnestedstackNestedStackappsyncnestedstackNestedStackResourceA148D2E0:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        Fn::Join:
+          - ""
+          - - https://s3.us-east-1.
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: AssetParametersd138c63e78a6b7e5ba934bf93b692244988a7f5ca2c08f0aa13dbd049ca32253S3Bucket8BB3F977
+            - /
+            - Fn::Select:
+                - 0
+                - Fn::Split:
+                    - "||"
+                    - Ref: AssetParametersd138c63e78a6b7e5ba934bf93b692244988a7f5ca2c08f0aa13dbd049ca32253S3VersionKey05ACAC68
+            - Fn::Select:
+                - 1
+                - Fn::Split:
+                    - "||"
+                    - Ref: AssetParametersd138c63e78a6b7e5ba934bf93b692244988a7f5ca2c08f0aa13dbd049ca32253S3VersionKey05ACAC68
+      Parameters:
+        referencetocdkappsyncreactdemodemouserpoolEA6841EERef:
+          Ref: demouserpool2951C555
+    Metadata:
+      aws:cdk:path: cdk-appsync-react-demo/demo-appsync-example/appsync-nested-stack.NestedStack/appsync-nested-stack.NestedStackResource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.78.0,@aws-cdk/aws-applicationautoscaling=1.78.0,@aws-cdk/aws-appsync=1.79.0,@aws-cdk/aws-autoscaling-common=1.78.0,@aws-cdk/aws-cloudwatch=1.78.0,@aws-cdk/aws-codeguruprofiler=1.78.0,@aws-cdk/aws-cognito=1.79.0,@aws-cdk/aws-dynamodb=1.78.0,@aws-cdk/aws-ec2=1.78.0,@aws-cdk/aws-ecr=1.78.0,@aws-cdk/aws-ecr-assets=1.78.0,@aws-cdk/aws-events=1.78.0,@aws-cdk/aws-iam=1.78.0,@aws-cdk/aws-kms=1.78.0,@aws-cdk/aws-lambda=1.78.0,@aws-cdk/aws-logs=1.78.0,@aws-cdk/aws-s3=1.78.0,@aws-cdk/aws-s3-assets=1.78.0,@aws-cdk/aws-sqs=1.78.0,@aws-cdk/aws-ssm=1.78.0,@aws-cdk/cloud-assembly-schema=1.78.0,@aws-cdk/core=1.78.0,@aws-cdk/custom-resources=1.78.0,@aws-cdk/cx-api=1.78.0,@aws-cdk/region-info=1.78.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: cdk-appsync-react-demo/CDKMetadata/Default
+Outputs:
+  appsyncGraphQLEndpointOutput:
+    Description: Output for aws_appsync_graphqlEndpoint
+    Value:
+      Fn::GetAtt:
+        - demoappsyncexampleappsyncnestedstackNestedStackappsyncnestedstackNestedStackResourceA148D2E0
+        - Outputs.cdkappsyncreactdemodemoappsyncexampleappsyncnestedstackdemoappsyncexampleapi81E0E0BDGraphQLUrl
+  awsUserPoolId:
+    Description: userPoolID value for amplify exports
+    Value:
+      Ref: demouserpool2951C555
+  awsUserPoolWebClientId:
+    Description: userPoolClientID value for amplify exports
+    Value:
+      Ref: demouserpoolclient8E2EA965
+  awsIdentityPoolId:
+    Description: identityPoolID value for amplify exports
+    Value:
+      Ref: cdkappsyncreactdemo
+  awsAppsyncAuthenticationType:
+    Value: AWS_IAM
+Parameters:
+  AssetParametersd138c63e78a6b7e5ba934bf93b692244988a7f5ca2c08f0aa13dbd049ca32253S3Bucket8BB3F977:
+    Type: String
+    Description: S3 bucket for asset "d138c63e78a6b7e5ba934bf93b692244988a7f5ca2c08f0aa13dbd049ca32253"
+  AssetParametersd138c63e78a6b7e5ba934bf93b692244988a7f5ca2c08f0aa13dbd049ca32253S3VersionKey05ACAC68:
+    Type: String
+    Description: S3 key for asset version "d138c63e78a6b7e5ba934bf93b692244988a7f5ca2c08f0aa13dbd049ca32253"
+  AssetParametersd138c63e78a6b7e5ba934bf93b692244988a7f5ca2c08f0aa13dbd049ca32253ArtifactHashC252C9B4:
+    Type: String
+    Description: Artifact hash for asset "d138c63e78a6b7e5ba934bf93b692244988a7f5ca2c08f0aa13dbd049ca32253"
+

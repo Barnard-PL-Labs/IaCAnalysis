@@ -1,0 +1,2069 @@
+Resources:
+  ImagesBucket1E86AFB2:
+    Type: AWS::S3::Bucket
+    Properties:
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - PUT
+            AllowedOrigins:
+              - "*"
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays: 1
+            Status: Enabled
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ImagesBucket/Resource
+  ImagesBucketPolicy5ED12B6C:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: ImagesBucket1E86AFB2
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - ImagesBucket1E86AFB2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ImagesBucket1E86AFB2
+                        - Arn
+                    - /*
+          - Action:
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - ImagesBucket1E86AFB2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ImagesBucket1E86AFB2
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ImagesBucket/Policy/Resource
+  ImagesBucketAutoDeleteObjectsCustomResource1A749259:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: ImagesBucket1E86AFB2
+    DependsOn:
+      - ImagesBucketPolicy5ED12B6C
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ImagesBucket/AutoDeleteObjectsCustomResource/Default
+  ImagesBucketNotificationsF71CE2F4:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: ImagesBucket1E86AFB2
+      NotificationConfiguration:
+        TopicConfigurations:
+          - Events:
+              - s3:ObjectCreated:Put
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: prefix
+                    Value: OriginalImages
+            TopicArn:
+              Ref: ConverterTopic35AB1DBF
+      Managed: true
+    DependsOn:
+      - ConverterTopicPolicy0A694A90
+      - ConverterTopic35AB1DBF
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ImagesBucket/Notifications/Resource
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: e57c1acaa363d7d2b81736776007a7091bc73dff4aeb8135627c4511a51e7dca.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs14.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: ImagesBucket1E86AFB2
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: ImageConverterStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.e57c1acaa363d7d2b81736776007a7091bc73dff4aeb8135627c4511a51e7dca
+      aws:asset:property: Code
+  RequestsTable419243C7:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: requestId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: requestId
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      SSESpecification:
+        SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsTable/Resource
+  RequestsLambdaServiceRoleA0A70874:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsLambda/ServiceRole/Resource
+  RequestsLambdaServiceRoleDefaultPolicy0616BFB8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RequestsTable419243C7
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ImagesBucket1E86AFB2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ImagesBucket1E86AFB2
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: RequestsLambdaServiceRoleDefaultPolicy0616BFB8
+      Roles:
+        - Ref: RequestsLambdaServiceRoleA0A70874
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsLambda/ServiceRole/DefaultPolicy/Resource
+  RequestsLambda30155EB4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: 849546fbc2b2a63806dc86d7d3ca389e3fb0bb1e10da7205e54f5cecc4fc6013.zip
+      Role:
+        Fn::GetAtt:
+          - RequestsLambdaServiceRoleA0A70874
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: RequestsTable419243C7
+          BUCKET_NAME:
+            Ref: ImagesBucket1E86AFB2
+          REGION: eu-west-1
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs16.x
+      Timeout: 10
+    DependsOn:
+      - RequestsLambdaServiceRoleDefaultPolicy0616BFB8
+      - RequestsLambdaServiceRoleA0A70874
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsLambda/Resource
+      aws:asset:path: asset.849546fbc2b2a63806dc86d7d3ca389e3fb0bb1e10da7205e54f5cecc4fc6013
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  RequestsLambdaLogRetentionCF93AEEF:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: RequestsLambda30155EB4
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsLambda/LogRetention/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:DeleteRetentionPolicy
+              - logs:PutRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: ImageConverterStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: ae967c277459e8936ac565a71d34ea5dcff7b98e556466c36a4d6da023a2d9aa.zip
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: ImageConverterStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+      aws:asset:path: asset.ae967c277459e8936ac565a71d34ea5dcff7b98e556466c36a4d6da023a2d9aa
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  PreSignLambdaServiceRoleD56B72BB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignLambda/ServiceRole/Resource
+  PreSignLambdaServiceRoleDefaultPolicy96944D8C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RequestsTable419243C7
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ImagesBucket1E86AFB2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ImagesBucket1E86AFB2
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PreSignLambdaServiceRoleDefaultPolicy96944D8C
+      Roles:
+        - Ref: PreSignLambdaServiceRoleD56B72BB
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignLambda/ServiceRole/DefaultPolicy/Resource
+  PreSignLambda281BAB7C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: f57eecd37b502ad72f481298aaaef5046db759041a6e6fb80405b30014737876.zip
+      Role:
+        Fn::GetAtt:
+          - PreSignLambdaServiceRoleD56B72BB
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: ImagesBucket1E86AFB2
+          REGION: eu-west-1
+          TABLE_NAME:
+            Ref: RequestsTable419243C7
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs16.x
+      Timeout: 3
+    DependsOn:
+      - PreSignLambdaServiceRoleDefaultPolicy96944D8C
+      - PreSignLambdaServiceRoleD56B72BB
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignLambda/Resource
+      aws:asset:path: asset.f57eecd37b502ad72f481298aaaef5046db759041a6e6fb80405b30014737876
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  PreSignLambdaLogRetentionC5F4915C:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: PreSignLambda281BAB7C
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignLambda/LogRetention/Resource
+  StatusLambdaServiceRoleA14AB7E9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusLambda/ServiceRole/Resource
+  StatusLambdaServiceRoleDefaultPolicy170C486C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:Scan
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RequestsTable419243C7
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: StatusLambdaServiceRoleDefaultPolicy170C486C
+      Roles:
+        - Ref: StatusLambdaServiceRoleA14AB7E9
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusLambda/ServiceRole/DefaultPolicy/Resource
+  StatusLambdaC33D2097:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: 79f1dd2b6af30da967920888d4d2c1ca3b56eb3a2347ad81e7fc20ae306718c5.zip
+      Role:
+        Fn::GetAtt:
+          - StatusLambdaServiceRoleA14AB7E9
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          REGION: eu-west-1
+          TABLE_NAME:
+            Ref: RequestsTable419243C7
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs16.x
+      Timeout: 3
+    DependsOn:
+      - StatusLambdaServiceRoleDefaultPolicy170C486C
+      - StatusLambdaServiceRoleA14AB7E9
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusLambda/Resource
+      aws:asset:path: asset.79f1dd2b6af30da967920888d4d2c1ca3b56eb3a2347ad81e7fc20ae306718c5
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  StatusLambdaLogRetention4EFA45AC:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: StatusLambdaC33D2097
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusLambda/LogRetention/Resource
+  ArchiveQueueC6BAB66C:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ArchiveQueue/Resource
+  ConverterTopic35AB1DBF:
+    Type: AWS::SNS::Topic
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ConverterTopic/Resource
+  ConverterTopicPolicy0A694A90:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Condition:
+              ArnLike:
+                aws:SourceArn:
+                  Fn::GetAtt:
+                    - ImagesBucket1E86AFB2
+                    - Arn
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Resource:
+              Ref: ConverterTopic35AB1DBF
+            Sid: "0"
+        Version: "2012-10-17"
+      Topics:
+        - Ref: ConverterTopic35AB1DBF
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ConverterTopic/Policy/Resource
+  ConvertLambdaServiceRoleF45D89F3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ConvertLambda/ServiceRole/Resource
+  ConvertLambdaServiceRoleDefaultPolicy912BC291:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+              - sqs:SendMessage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ArchiveQueueC6BAB66C
+                - Arn
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RequestsTable419243C7
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ImagesBucket1E86AFB2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ImagesBucket1E86AFB2
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: ConvertLambdaServiceRoleDefaultPolicy912BC291
+      Roles:
+        - Ref: ConvertLambdaServiceRoleF45D89F3
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ConvertLambda/ServiceRole/DefaultPolicy/Resource
+  ConvertLambda507ACFE1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: 4e06fadd5bc8861300efbda26429d33e5ff0133ed8a89527a731b78460f7d4c7.zip
+      Role:
+        Fn::GetAtt:
+          - ConvertLambdaServiceRoleF45D89F3
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          REGION: eu-west-1
+          TABLE_NAME:
+            Ref: RequestsTable419243C7
+          QUEUE_URL:
+            Ref: ArchiveQueueC6BAB66C
+      Handler: index.handler
+      MemorySize: 1024
+      Runtime: nodejs16.x
+      Timeout: 30
+    DependsOn:
+      - ConvertLambdaServiceRoleDefaultPolicy912BC291
+      - ConvertLambdaServiceRoleF45D89F3
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ConvertLambda/Resource
+      aws:asset:path: asset.4e06fadd5bc8861300efbda26429d33e5ff0133ed8a89527a731b78460f7d4c7
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ConvertLambdaLogRetention88FAE91B:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: ConvertLambda507ACFE1
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ConvertLambda/LogRetention/Resource
+  ConvertLambdaAllowInvokeImageConverterStackConverterTopicA2AEEB1F434BF20C:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ConvertLambda507ACFE1
+          - Arn
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: ConverterTopic35AB1DBF
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ConvertLambda/AllowInvoke:ImageConverterStackConverterTopicA2AEEB1F
+  ConvertLambdaConverterTopic69A6941C:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn:
+        Ref: ConverterTopic35AB1DBF
+      Endpoint:
+        Fn::GetAtt:
+          - ConvertLambda507ACFE1
+          - Arn
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - ConverterDLQ9FD11F7E
+            - Arn
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ConvertLambda/ConverterTopic/Resource
+  GoConverterLambdaServiceRole88ABCD9C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/GoConverterLambda/ServiceRole/Resource
+  GoConverterLambdaServiceRoleDefaultPolicyD489B510:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+              - sqs:SendMessage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ArchiveQueueC6BAB66C
+                - Arn
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RequestsTable419243C7
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ImagesBucket1E86AFB2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ImagesBucket1E86AFB2
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: GoConverterLambdaServiceRoleDefaultPolicyD489B510
+      Roles:
+        - Ref: GoConverterLambdaServiceRole88ABCD9C
+    Metadata:
+      aws:cdk:path: ImageConverterStack/GoConverterLambda/ServiceRole/DefaultPolicy/Resource
+  GoConverterLambdaD8B955A4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: 520fafcc591da532ccd3033ffa3aea374737f1673cae81afb91edf008232f545.zip
+      Role:
+        Fn::GetAtt:
+          - GoConverterLambdaServiceRole88ABCD9C
+          - Arn
+      Environment:
+        Variables:
+          REGION: eu-west-1
+          TABLE_NAME:
+            Ref: RequestsTable419243C7
+          QUEUE_URL:
+            Ref: ArchiveQueueC6BAB66C
+      Handler: main
+      MemorySize: 128
+      Runtime: go1.x
+      Timeout: 20
+    DependsOn:
+      - GoConverterLambdaServiceRoleDefaultPolicyD489B510
+      - GoConverterLambdaServiceRole88ABCD9C
+    Metadata:
+      aws:cdk:path: ImageConverterStack/GoConverterLambda/Resource
+      aws:asset:path: asset.520fafcc591da532ccd3033ffa3aea374737f1673cae81afb91edf008232f545
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  GoConverterLambdaLogRetention89239BEC:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: GoConverterLambdaD8B955A4
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: ImageConverterStack/GoConverterLambda/LogRetention/Resource
+  GoConverterLambdaAllowInvokeImageConverterStackConverterTopicA2AEEB1F6B5F9747:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - GoConverterLambdaD8B955A4
+          - Arn
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: ConverterTopic35AB1DBF
+    Metadata:
+      aws:cdk:path: ImageConverterStack/GoConverterLambda/AllowInvoke:ImageConverterStackConverterTopicA2AEEB1F
+  GoConverterLambdaConverterTopicFF823017:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn:
+        Ref: ConverterTopic35AB1DBF
+      Endpoint:
+        Fn::GetAtt:
+          - GoConverterLambdaD8B955A4
+          - Arn
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - ConverterDLQ9FD11F7E
+            - Arn
+    Metadata:
+      aws:cdk:path: ImageConverterStack/GoConverterLambda/ConverterTopic/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: ImageConverterStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |
+          import boto3  # type: ignore
+          import json
+          import logging
+          import urllib.request
+
+          s3 = boto3.client("s3")
+
+          EVENTBRIDGE_CONFIGURATION = 'EventBridgeConfiguration'
+
+          CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+          def handler(event: dict, context):
+            response_status = "SUCCESS"
+            error_message = ""
+            try:
+              props = event["ResourceProperties"]
+              bucket = props["BucketName"]
+              notification_configuration = props["NotificationConfiguration"]
+              request_type = event["RequestType"]
+              managed = props.get('Managed', 'true').lower() == 'true'
+              stack_id = event['StackId']
+
+              if managed:
+                config = handle_managed(request_type, notification_configuration)
+              else:
+                config = handle_unmanaged(bucket, stack_id, request_type, notification_configuration)
+
+              put_bucket_notification_configuration(bucket, config)
+            except Exception as e:
+              logging.exception("Failed to put bucket notification configuration")
+              response_status = "FAILED"
+              error_message = f"Error: {str(e)}. "
+            finally:
+              submit_response(event, context, response_status, error_message)
+
+          def handle_managed(request_type, notification_configuration):
+            if request_type == 'Delete':
+              return {}
+            return notification_configuration
+
+          def handle_unmanaged(bucket, stack_id, request_type, notification_configuration):
+            external_notifications = find_external_notifications(bucket, stack_id)
+
+            if request_type == 'Delete':
+              return external_notifications
+
+            def with_id(notification):
+              notification['Id'] = f"{stack_id}-{hash(json.dumps(notification, sort_keys=True))}"
+              return notification
+
+            notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external = external_notifications.get(t, [])
+              incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+              notifications[t] = external + incoming
+
+            if EVENTBRIDGE_CONFIGURATION in notification_configuration:
+              notifications[EVENTBRIDGE_CONFIGURATION] = notification_configuration[EVENTBRIDGE_CONFIGURATION]
+            elif EVENTBRIDGE_CONFIGURATION in external_notifications:
+              notifications[EVENTBRIDGE_CONFIGURATION] = external_notifications[EVENTBRIDGE_CONFIGURATION]
+
+            return notifications
+
+          def find_external_notifications(bucket, stack_id):
+            existing_notifications = get_bucket_notification_configuration(bucket)
+            external_notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+
+            if EVENTBRIDGE_CONFIGURATION in existing_notifications:
+              external_notifications[EVENTBRIDGE_CONFIGURATION] = existing_notifications[EVENTBRIDGE_CONFIGURATION]
+
+            return external_notifications
+
+          def get_bucket_notification_configuration(bucket):
+            return s3.get_bucket_notification_configuration(Bucket=bucket)
+
+          def put_bucket_notification_configuration(bucket, notification_configuration):
+            s3.put_bucket_notification_configuration(Bucket=bucket, NotificationConfiguration=notification_configuration)
+
+          def submit_response(event: dict, context, response_status: str, error_message: str):
+            response_body = json.dumps(
+              {
+                "Status": response_status,
+                "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                "StackId": event["StackId"],
+                "RequestId": event["RequestId"],
+                "LogicalResourceId": event["LogicalResourceId"],
+                "NoEcho": False,
+              }
+            ).encode("utf-8")
+            headers = {"content-type": "", "content-length": str(len(response_body))}
+            try:
+              req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+              with urllib.request.urlopen(req) as response:
+                print(response.read().decode("utf-8"))
+              print("Status code: " + response.reason)
+            except Exception as e:
+                print("send(..) failed executing request.urlopen(..): " + str(e))
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: python3.7
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: ImageConverterStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  ConverterDLQ9FD11F7E:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ConverterDLQ/Resource
+  ConverterDLQPolicy4C8C049C:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Ref: ConverterTopic35AB1DBF
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - ConverterDLQ9FD11F7E
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: ConverterDLQ9FD11F7E
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ConverterDLQ/Policy/Resource
+  ZipperLambdaServiceRole221A2F2F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ZipperLambda/ServiceRole/Resource
+  ZipperLambdaServiceRoleDefaultPolicy3B4F0126:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ChangeMessageVisibility
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+              - sqs:ReceiveMessage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ArchiveQueueC6BAB66C
+                - Arn
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RequestsTable419243C7
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ImagesBucket1E86AFB2
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ImagesBucket1E86AFB2
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: ZipperLambdaServiceRoleDefaultPolicy3B4F0126
+      Roles:
+        - Ref: ZipperLambdaServiceRole221A2F2F
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ZipperLambda/ServiceRole/DefaultPolicy/Resource
+  ZipperLambda0E3808E1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: 8b4ce8665c874140274116af399c1401649059b16c58fad2bc9b0292ed4efbdb.zip
+      Role:
+        Fn::GetAtt:
+          - ZipperLambdaServiceRole221A2F2F
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          REGION: eu-west-1
+          TABLE_NAME:
+            Ref: RequestsTable419243C7
+      Handler: index.handler
+      MemorySize: 2048
+      Runtime: nodejs16.x
+      Timeout: 30
+    DependsOn:
+      - ZipperLambdaServiceRoleDefaultPolicy3B4F0126
+      - ZipperLambdaServiceRole221A2F2F
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ZipperLambda/Resource
+      aws:asset:path: asset.8b4ce8665c874140274116af399c1401649059b16c58fad2bc9b0292ed4efbdb
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ZipperLambdaLogRetention26FDBD5F:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: ZipperLambda0E3808E1
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ZipperLambda/LogRetention/Resource
+  ZipperLambdaSqsEventSourceImageConverterStackArchiveQueueCA53BB8B025AD587:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: ZipperLambda0E3808E1
+      EventSourceArn:
+        Fn::GetAtt:
+          - ArchiveQueueC6BAB66C
+          - Arn
+    Metadata:
+      aws:cdk:path: ImageConverterStack/ZipperLambda/SqsEventSource:ImageConverterStackArchiveQueueCA53BB8B/Resource
+  PreSignAPI7FAE16CE:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: PreSignAPI
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignAPI/Resource
+  PreSignAPICloudWatchRoleAB06599D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignAPI/CloudWatchRole/Resource
+  PreSignAPIAccount1833A07C:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - PreSignAPICloudWatchRoleAB06599D
+          - Arn
+    DependsOn:
+      - PreSignAPI7FAE16CE
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignAPI/Account
+  PreSignAPIDeploymentFA86AFE03b123d95f54894fdb4a5aea20bf29e58:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: PreSignAPI7FAE16CE
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - pressignquerystringvalidator683536A7
+      - PreSignAPIGETCF97DDCF
+      - PreSignAPIOPTIONS07020455
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignAPI/Deployment/Resource
+  PreSignAPIDeploymentStageprod66D2B26C:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: PreSignAPI7FAE16CE
+      DeploymentId:
+        Ref: PreSignAPIDeploymentFA86AFE03b123d95f54894fdb4a5aea20bf29e58
+      StageName: prod
+    DependsOn:
+      - PreSignAPIAccount1833A07C
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignAPI/DeploymentStage.prod/Resource
+  PreSignAPIOPTIONS07020455:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - PreSignAPI7FAE16CE
+          - RootResourceId
+      RestApiId:
+        Ref: PreSignAPI7FAE16CE
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignAPI/Default/OPTIONS/Resource
+  PreSignAPIGETApiPermissionImageConverterStackPreSignAPI1E8E0642GET24A05079:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PreSignLambda281BAB7C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:eu-west-1:036406153779:"
+            - Ref: PreSignAPI7FAE16CE
+            - /
+            - Ref: PreSignAPIDeploymentStageprod66D2B26C
+            - /GET/
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignAPI/Default/GET/ApiPermission.ImageConverterStackPreSignAPI1E8E0642.GET..
+  PreSignAPIGETApiPermissionTestImageConverterStackPreSignAPI1E8E0642GETC3FAAC24:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PreSignLambda281BAB7C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:eu-west-1:036406153779:"
+            - Ref: PreSignAPI7FAE16CE
+            - /test-invoke-stage/GET/
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignAPI/Default/GET/ApiPermission.Test.ImageConverterStackPreSignAPI1E8E0642.GET..
+  PreSignAPIGETCF97DDCF:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Fn::GetAtt:
+          - PreSignAPI7FAE16CE
+          - RootResourceId
+      RestApiId:
+        Ref: PreSignAPI7FAE16CE
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:eu-west-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - PreSignLambda281BAB7C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+      RequestParameters:
+        method.request.querystring.fileName: true
+        method.request.querystring.requestId: true
+        method.request.querystring.targetMime: true
+      RequestValidatorId:
+        Ref: pressignquerystringvalidator683536A7
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PreSignAPI/Default/GET/Resource
+  RequestsAPIC0678278:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: RequestsAPI
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsAPI/Resource
+  RequestsAPICloudWatchRole1A30D21E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsAPI/CloudWatchRole/Resource
+  RequestsAPIAccount873C6C86:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - RequestsAPICloudWatchRole1A30D21E
+          - Arn
+    DependsOn:
+      - RequestsAPIC0678278
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsAPI/Account
+  RequestsAPIDeployment2B4E3C0C9c282b0c31f235381d7d57dd9637fd64:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: RequestsAPIC0678278
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - requestsquerystringvalidator990F6EED
+      - RequestsAPIGETF702DC87
+      - RequestsAPIOPTIONSC2484278
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsAPI/Deployment/Resource
+  RequestsAPIDeploymentStageprod7884A412:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: RequestsAPIC0678278
+      DeploymentId:
+        Ref: RequestsAPIDeployment2B4E3C0C9c282b0c31f235381d7d57dd9637fd64
+      StageName: prod
+    DependsOn:
+      - RequestsAPIAccount873C6C86
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsAPI/DeploymentStage.prod/Resource
+  RequestsAPIOPTIONSC2484278:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - RequestsAPIC0678278
+          - RootResourceId
+      RestApiId:
+        Ref: RequestsAPIC0678278
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsAPI/Default/OPTIONS/Resource
+  RequestsAPIGETApiPermissionImageConverterStackRequestsAPI1F21A538GET3206FEE5:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - RequestsLambda30155EB4
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:eu-west-1:036406153779:"
+            - Ref: RequestsAPIC0678278
+            - /
+            - Ref: RequestsAPIDeploymentStageprod7884A412
+            - /GET/
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsAPI/Default/GET/ApiPermission.ImageConverterStackRequestsAPI1F21A538.GET..
+  RequestsAPIGETApiPermissionTestImageConverterStackRequestsAPI1F21A538GET0360E23F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - RequestsLambda30155EB4
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:eu-west-1:036406153779:"
+            - Ref: RequestsAPIC0678278
+            - /test-invoke-stage/GET/
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsAPI/Default/GET/ApiPermission.Test.ImageConverterStackRequestsAPI1F21A538.GET..
+  RequestsAPIGETF702DC87:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Fn::GetAtt:
+          - RequestsAPIC0678278
+          - RootResourceId
+      RestApiId:
+        Ref: RequestsAPIC0678278
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:eu-west-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - RequestsLambda30155EB4
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+      RequestParameters:
+        method.request.querystring.nbFiles: true
+      RequestValidatorId:
+        Ref: requestsquerystringvalidator990F6EED
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsAPI/Default/GET/Resource
+  StatusAPIAD692700:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: StatusAPI
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusAPI/Resource
+  StatusAPICloudWatchRole46CA95AA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusAPI/CloudWatchRole/Resource
+  StatusAPIAccount08EAA759:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - StatusAPICloudWatchRole46CA95AA
+          - Arn
+    DependsOn:
+      - StatusAPIAD692700
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusAPI/Account
+  StatusAPIDeployment1E5CDB039a715220be71f407ca52ca9d1683b7da:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: StatusAPIAD692700
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - statusquerystringvalidator7551945C
+      - StatusAPIGET11078251
+      - StatusAPIOPTIONS0367418B
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusAPI/Deployment/Resource
+  StatusAPIDeploymentStageprodDEE6BFFD:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: StatusAPIAD692700
+      DeploymentId:
+        Ref: StatusAPIDeployment1E5CDB039a715220be71f407ca52ca9d1683b7da
+      StageName: prod
+    DependsOn:
+      - StatusAPIAccount08EAA759
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusAPI/DeploymentStage.prod/Resource
+  StatusAPIOPTIONS0367418B:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - StatusAPIAD692700
+          - RootResourceId
+      RestApiId:
+        Ref: StatusAPIAD692700
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'GET'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusAPI/Default/OPTIONS/Resource
+  StatusAPIGETApiPermissionImageConverterStackStatusAPI616FA460GETF4D3D1E6:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - StatusLambdaC33D2097
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:eu-west-1:036406153779:"
+            - Ref: StatusAPIAD692700
+            - /
+            - Ref: StatusAPIDeploymentStageprodDEE6BFFD
+            - /GET/
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusAPI/Default/GET/ApiPermission.ImageConverterStackStatusAPI616FA460.GET..
+  StatusAPIGETApiPermissionTestImageConverterStackStatusAPI616FA460GET64C73DDB:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - StatusLambdaC33D2097
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:eu-west-1:036406153779:"
+            - Ref: StatusAPIAD692700
+            - /test-invoke-stage/GET/
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusAPI/Default/GET/ApiPermission.Test.ImageConverterStackStatusAPI616FA460.GET..
+  StatusAPIGET11078251:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Fn::GetAtt:
+          - StatusAPIAD692700
+          - RootResourceId
+      RestApiId:
+        Ref: StatusAPIAD692700
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:eu-west-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - StatusLambdaC33D2097
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+      RequestParameters:
+        method.request.querystring.requestId: true
+      RequestValidatorId:
+        Ref: statusquerystringvalidator7551945C
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusAPI/Default/GET/Resource
+  statusquerystringvalidator7551945C:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: StatusAPIAD692700
+      ValidateRequestParameters: true
+    Metadata:
+      aws:cdk:path: ImageConverterStack/status-query-string-validator/Resource
+  requestsquerystringvalidator990F6EED:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: RequestsAPIC0678278
+      ValidateRequestParameters: true
+    Metadata:
+      aws:cdk:path: ImageConverterStack/requests-query-string-validator/Resource
+  pressignquerystringvalidator683536A7:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: PreSignAPI7FAE16CE
+      ValidateRequestParameters: true
+    Metadata:
+      aws:cdk:path: ImageConverterStack/pres-sign-query-string-validator/Resource
+  RequestsCanaryLambdaServiceRole5FF25572:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsCanaryLambda/ServiceRole/Resource
+  RequestsCanaryLambda3E8238C1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: 765ef2005be73b0c661d2f5aef20aae2d2134433982666159282c011b23aa179.zip
+      Role:
+        Fn::GetAtt:
+          - RequestsCanaryLambdaServiceRole5FF25572
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          REQUESTS_API_URL:
+            Fn::Join:
+              - ""
+              - - https://
+                - Ref: RequestsAPIC0678278
+                - .execute-api.eu-west-1.
+                - Ref: AWS::URLSuffix
+                - /
+                - Ref: RequestsAPIDeploymentStageprod7884A412
+                - /
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs16.x
+      Timeout: 3
+    DependsOn:
+      - RequestsCanaryLambdaServiceRole5FF25572
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsCanaryLambda/Resource
+      aws:asset:path: asset.765ef2005be73b0c661d2f5aef20aae2d2134433982666159282c011b23aa179
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  RequestsCanaryLambdaLogRetentionBBBE8A10:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: RequestsCanaryLambda3E8238C1
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: ImageConverterStack/RequestsCanaryLambda/LogRetention/Resource
+  StatusCanaryLambdaServiceRoleA7A96216:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusCanaryLambda/ServiceRole/Resource
+  StatusCanaryLambdaBD75CADC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: b168f64c38758c9e8d73541974c8d91c56c36ddf42aeaed0876ea4d2c5dfd57c.zip
+      Role:
+        Fn::GetAtt:
+          - StatusCanaryLambdaServiceRoleA7A96216
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          REQUESTS_API_URL:
+            Fn::Join:
+              - ""
+              - - https://
+                - Ref: RequestsAPIC0678278
+                - .execute-api.eu-west-1.
+                - Ref: AWS::URLSuffix
+                - /
+                - Ref: RequestsAPIDeploymentStageprod7884A412
+                - /
+          STATUS_API_URL:
+            Fn::Join:
+              - ""
+              - - https://
+                - Ref: StatusAPIAD692700
+                - .execute-api.eu-west-1.
+                - Ref: AWS::URLSuffix
+                - /
+                - Ref: StatusAPIDeploymentStageprodDEE6BFFD
+                - /
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs16.x
+      Timeout: 3
+    DependsOn:
+      - StatusCanaryLambdaServiceRoleA7A96216
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusCanaryLambda/Resource
+      aws:asset:path: asset.b168f64c38758c9e8d73541974c8d91c56c36ddf42aeaed0876ea4d2c5dfd57c
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  StatusCanaryLambdaLogRetention94D02C41:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: StatusCanaryLambdaBD75CADC
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: ImageConverterStack/StatusCanaryLambda/LogRetention/Resource
+  PresignCanaryLambdaServiceRoleFFB55939:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PresignCanaryLambda/ServiceRole/Resource
+  PresignCanaryLambda942AED98:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-eu-west-1
+        S3Key: 3e20908a07e7ffe474f784c1bc0aaf4889f642d2c1c59dcfa87eee1a769904cd.zip
+      Role:
+        Fn::GetAtt:
+          - PresignCanaryLambdaServiceRoleFFB55939
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          REQUESTS_API_URL:
+            Fn::Join:
+              - ""
+              - - https://
+                - Ref: RequestsAPIC0678278
+                - .execute-api.eu-west-1.
+                - Ref: AWS::URLSuffix
+                - /
+                - Ref: RequestsAPIDeploymentStageprod7884A412
+                - /
+          PRESIGN_API_URL:
+            Fn::Join:
+              - ""
+              - - https://
+                - Ref: PreSignAPI7FAE16CE
+                - .execute-api.eu-west-1.
+                - Ref: AWS::URLSuffix
+                - /
+                - Ref: PreSignAPIDeploymentStageprod66D2B26C
+                - /
+      Handler: index.handler
+      MemorySize: 128
+      Runtime: nodejs16.x
+      Timeout: 3
+    DependsOn:
+      - PresignCanaryLambdaServiceRoleFFB55939
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PresignCanaryLambda/Resource
+      aws:asset:path: asset.3e20908a07e7ffe474f784c1bc0aaf4889f642d2c1c59dcfa87eee1a769904cd
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  PresignCanaryLambdaLogRetention061078F9:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: PresignCanaryLambda942AED98
+      RetentionInDays: 1
+    Metadata:
+      aws:cdk:path: ImageConverterStack/PresignCanaryLambda/LogRetention/Resource
+  CanaryRuleDF66BAB6:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(1 minute)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - RequestsCanaryLambda3E8238C1
+              - Arn
+          Id: Target0
+        - Arn:
+            Fn::GetAtt:
+              - StatusCanaryLambdaBD75CADC
+              - Arn
+          Id: Target1
+        - Arn:
+            Fn::GetAtt:
+              - PresignCanaryLambda942AED98
+              - Arn
+          Id: Target2
+    Metadata:
+      aws:cdk:path: ImageConverterStack/CanaryRule/Resource
+  CanaryRuleAllowEventRuleImageConverterStackRequestsCanaryLambda9BF9537DEE1B3C57:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - RequestsCanaryLambda3E8238C1
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - CanaryRuleDF66BAB6
+          - Arn
+    Metadata:
+      aws:cdk:path: ImageConverterStack/CanaryRule/AllowEventRuleImageConverterStackRequestsCanaryLambda9BF9537D
+  CanaryRuleAllowEventRuleImageConverterStackStatusCanaryLambda660C5459224FBF89:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - StatusCanaryLambdaBD75CADC
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - CanaryRuleDF66BAB6
+          - Arn
+    Metadata:
+      aws:cdk:path: ImageConverterStack/CanaryRule/AllowEventRuleImageConverterStackStatusCanaryLambda660C5459
+  CanaryRuleAllowEventRuleImageConverterStackPresignCanaryLambda0E59881501A1495D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PresignCanaryLambda942AED98
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - CanaryRuleDF66BAB6
+          - Arn
+    Metadata:
+      aws:cdk:path: ImageConverterStack/CanaryRule/AllowEventRuleImageConverterStackPresignCanaryLambda0E598815
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2VRTXPCIBD9Ld6RVnPpVW170qmNTq8OgW2KJoBZ0Mlk+O8FEifp9MK+t7u8/VrSLKPPM3bHOReXeSUL2h0s4xcSXKcOM9qtHb+AJZtvNaDe7HUleTu6B96TNUPwRLSK1VoEySMrKoi5CXhSsboQjHbvTnErtYqhKd5DU0vEyN5uoOxBu4bDjhkjVRkT/ns9kaymXa77QsmOPfbIE8xODBEs0lU0pNIl0q0uc7BBMNbDK9Lu04FLMj1I7yg2oUFRhfyjNpKn+RJI75g/pQdXIG+keUw65Z4wI0tm4c5a2m3TjnJAuzIyjTTCFefaKUtewVS6rUPr0Tth4YZlGqAH4WvaVbwL2YH90SIGB5TD1QXtL1ZJwaxu+mJ/fZ5AXHmYNXfDhoP1nmwcWl0/Cgx9DvhPaN/omxTQkLT52Fe85fTjh7PGWU+UFkDP+HRbvNDFki5mZ5Ry3oSBZQ007+0vK5KVJroCAAA=
+    Metadata:
+      aws:cdk:path: ImageConverterStack/CDKMetadata/Default
+Outputs:
+  PreSignAPIEndpoint48DA9BF1:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: PreSignAPI7FAE16CE
+          - .execute-api.eu-west-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: PreSignAPIDeploymentStageprod66D2B26C
+          - /
+  RequestsAPIEndpointC83C02E6:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: RequestsAPIC0678278
+          - .execute-api.eu-west-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: RequestsAPIDeploymentStageprod7884A412
+          - /
+  StatusAPIEndpointE81E7FF9:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: StatusAPIAD692700
+          - .execute-api.eu-west-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: StatusAPIDeploymentStageprodDEE6BFFD
+          - /
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

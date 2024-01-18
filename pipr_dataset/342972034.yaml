@@ -1,0 +1,421 @@
+Resources:
+  BackgroundJobsTopicB73E7B8B:
+    Type: AWS::SNS::Topic
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/BackgroundJobsTopic/Resource
+  GreetingJobDLQ871DE503:
+    Type: AWS::SQS::Queue
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/GreetingJobDLQ/Resource
+  GreetingJobQueue01C6D7B0:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - GreetingJobDLQ871DE503
+            - Arn
+        maxReceiveCount: 5
+      VisibilityTimeout: 15
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/GreetingJobQueue/Resource
+  GreetingJobQueuePolicy2F38839D:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Ref: BackgroundJobsTopicB73E7B8B
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - GreetingJobQueue01C6D7B0
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: GreetingJobQueue01C6D7B0
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/GreetingJobQueue/Policy/Resource
+  GreetingJobQueueServerlessBackgroundJobsStackBackgroundJobsTopic365134BEEBB558A4:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      TopicArn:
+        Ref: BackgroundJobsTopicB73E7B8B
+      Endpoint:
+        Fn::GetAtt:
+          - GreetingJobQueue01C6D7B0
+          - Arn
+      FilterPolicy:
+        jobName:
+          - GreetingJob
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/GreetingJobQueue/ServerlessBackgroundJobsStackBackgroundJobsTopic365134BE/Resource
+  GreetingJobFunctionServiceRoleDF214677:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/GreetingJobFunction/ServiceRole/Resource
+  GreetingJobFunctionServiceRoleDefaultPolicy96605B68:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - GreetingJobQueue01C6D7B0
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: GreetingJobFunctionServiceRoleDefaultPolicy96605B68
+      Roles:
+        - Ref: GreetingJobFunctionServiceRoleDF214677
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/GreetingJobFunction/ServiceRole/DefaultPolicy/Resource
+  GreetingJobFunction10FF134A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters44f911a8e7048f4e985abb97e0c60e45470d3a190dbf564c453cb6aeff82ed26S3Bucket676C1CB5
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters44f911a8e7048f4e985abb97e0c60e45470d3a190dbf564c453cb6aeff82ed26S3VersionKey37A2E2D5
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters44f911a8e7048f4e985abb97e0c60e45470d3a190dbf564c453cb6aeff82ed26S3VersionKey37A2E2D5
+      Role:
+        Fn::GetAtt:
+          - GreetingJobFunctionServiceRoleDF214677
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.processJob
+      Runtime: nodejs12.x
+      Timeout: 15
+    DependsOn:
+      - GreetingJobFunctionServiceRoleDefaultPolicy96605B68
+      - GreetingJobFunctionServiceRoleDF214677
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/GreetingJobFunction/Resource
+      aws:asset:path: asset.44f911a8e7048f4e985abb97e0c60e45470d3a190dbf564c453cb6aeff82ed26
+      aws:asset:property: Code
+  GreetingJobFunctionSqsEventSourceServerlessBackgroundJobsStackGreetingJobQueueCFD2A880B6F442D6:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: GreetingJobFunction10FF134A
+      BatchSize: 10
+      EventSourceArn:
+        Fn::GetAtt:
+          - GreetingJobQueue01C6D7B0
+          - Arn
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/GreetingJobFunction/SqsEventSource:ServerlessBackgroundJobsStackGreetingJobQueueCFD2A880/Resource
+  GreetingJobFailureAlarm5E92E573:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      Dimensions:
+        - Name: QueueName
+          Value:
+            Fn::GetAtt:
+              - GreetingJobDLQ871DE503
+              - QueueName
+      MetricName: ApproximateAgeOfOldestMessage
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 900
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/GreetingJobFailureAlarm/Resource
+  PushupsJobDLQ6871947A:
+    Type: AWS::SQS::Queue
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/PushupsJobDLQ/Resource
+  PushupsJobQueueBB991F28:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - PushupsJobDLQ6871947A
+            - Arn
+        maxReceiveCount: 3
+      VisibilityTimeout: 30
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/PushupsJobQueue/Resource
+  PushupsJobQueuePolicy6197CEBC:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Ref: BackgroundJobsTopicB73E7B8B
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - PushupsJobQueueBB991F28
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: PushupsJobQueueBB991F28
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/PushupsJobQueue/Policy/Resource
+  PushupsJobQueueServerlessBackgroundJobsStackBackgroundJobsTopic365134BE31184E1B:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      TopicArn:
+        Ref: BackgroundJobsTopicB73E7B8B
+      Endpoint:
+        Fn::GetAtt:
+          - PushupsJobQueueBB991F28
+          - Arn
+      FilterPolicy:
+        jobName:
+          - PushupsJob
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/PushupsJobQueue/ServerlessBackgroundJobsStackBackgroundJobsTopic365134BE/Resource
+  PushupsJobFunctionServiceRoleAFE5E9D2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/PushupsJobFunction/ServiceRole/Resource
+  PushupsJobFunctionServiceRoleDefaultPolicyF6CFA319:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PushupsJobQueueBB991F28
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PushupsJobFunctionServiceRoleDefaultPolicyF6CFA319
+      Roles:
+        - Ref: PushupsJobFunctionServiceRoleAFE5E9D2
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/PushupsJobFunction/ServiceRole/DefaultPolicy/Resource
+  PushupsJobFunctionF1192519:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters70eb7502cc85b01128bec6e41758be9d20fdb2ee9a6de2361a8dad7e56fe50beS3Bucket3966BDA0
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters70eb7502cc85b01128bec6e41758be9d20fdb2ee9a6de2361a8dad7e56fe50beS3VersionKey04EBB281
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters70eb7502cc85b01128bec6e41758be9d20fdb2ee9a6de2361a8dad7e56fe50beS3VersionKey04EBB281
+      Role:
+        Fn::GetAtt:
+          - PushupsJobFunctionServiceRoleAFE5E9D2
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.processJob
+      Runtime: nodejs12.x
+      Timeout: 15
+    DependsOn:
+      - PushupsJobFunctionServiceRoleDefaultPolicyF6CFA319
+      - PushupsJobFunctionServiceRoleAFE5E9D2
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/PushupsJobFunction/Resource
+      aws:asset:path: asset.70eb7502cc85b01128bec6e41758be9d20fdb2ee9a6de2361a8dad7e56fe50be
+      aws:asset:property: Code
+  PushupsJobFunctionSqsEventSourceServerlessBackgroundJobsStackPushupsJobQueue053B7AE420753512:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: PushupsJobFunctionF1192519
+      BatchSize: 5
+      EventSourceArn:
+        Fn::GetAtt:
+          - PushupsJobQueueBB991F28
+          - Arn
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/PushupsJobFunction/SqsEventSource:ServerlessBackgroundJobsStackPushupsJobQueue053B7AE4/Resource
+  PushupsJobFailureAlarmF5A480B5:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      Dimensions:
+        - Name: QueueName
+          Value:
+            Fn::GetAtt:
+              - PushupsJobDLQ6871947A
+              - QueueName
+      MetricName: ApproximateAgeOfOldestMessage
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 600
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/PushupsJobFailureAlarm/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.88.0,@aws-cdk/aws-apigateway=1.88.0,@aws-cdk/aws-applicationautoscaling=1.88.0,@aws-cdk/aws-autoscaling-common=1.88.0,@aws-cdk/aws-cloudwatch=1.88.0,@aws-cdk/aws-codeguruprofiler=1.88.0,@aws-cdk/aws-ec2=1.88.0,@aws-cdk/aws-ecr=1.88.0,@aws-cdk/aws-ecr-assets=1.88.0,@aws-cdk/aws-events=1.88.0,@aws-cdk/aws-iam=1.88.0,@aws-cdk/aws-kms=1.88.0,@aws-cdk/aws-lambda=1.88.0,@aws-cdk/aws-lambda-event-sources=1.88.0,@aws-cdk/aws-lambda-nodejs=1.88.0,@aws-cdk/aws-logs=1.88.0,@aws-cdk/aws-s3=1.88.0,@aws-cdk/aws-s3-assets=1.88.0,@aws-cdk/aws-s3-notifications=1.88.0,@aws-cdk/aws-sns=1.88.0,@aws-cdk/aws-sns-subscriptions=1.88.0,@aws-cdk/aws-sqs=1.88.0,@aws-cdk/aws-ssm=1.88.0,@aws-cdk/cloud-assembly-schema=1.88.0,@aws-cdk/core=1.88.0,@aws-cdk/cx-api=1.88.0,@aws-cdk/region-info=1.88.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: ServerlessBackgroundJobsStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  BackgroundJobsTopicOutput:
+    Value:
+      Ref: BackgroundJobsTopicB73E7B8B
+    Export:
+      Name: BackgroundJobsTopic
+Parameters:
+  AssetParameters44f911a8e7048f4e985abb97e0c60e45470d3a190dbf564c453cb6aeff82ed26S3Bucket676C1CB5:
+    Type: String
+    Description: S3 bucket for asset "44f911a8e7048f4e985abb97e0c60e45470d3a190dbf564c453cb6aeff82ed26"
+  AssetParameters44f911a8e7048f4e985abb97e0c60e45470d3a190dbf564c453cb6aeff82ed26S3VersionKey37A2E2D5:
+    Type: String
+    Description: S3 key for asset version "44f911a8e7048f4e985abb97e0c60e45470d3a190dbf564c453cb6aeff82ed26"
+  AssetParameters44f911a8e7048f4e985abb97e0c60e45470d3a190dbf564c453cb6aeff82ed26ArtifactHashE8600440:
+    Type: String
+    Description: Artifact hash for asset "44f911a8e7048f4e985abb97e0c60e45470d3a190dbf564c453cb6aeff82ed26"
+  AssetParameters70eb7502cc85b01128bec6e41758be9d20fdb2ee9a6de2361a8dad7e56fe50beS3Bucket3966BDA0:
+    Type: String
+    Description: S3 bucket for asset "70eb7502cc85b01128bec6e41758be9d20fdb2ee9a6de2361a8dad7e56fe50be"
+  AssetParameters70eb7502cc85b01128bec6e41758be9d20fdb2ee9a6de2361a8dad7e56fe50beS3VersionKey04EBB281:
+    Type: String
+    Description: S3 key for asset version "70eb7502cc85b01128bec6e41758be9d20fdb2ee9a6de2361a8dad7e56fe50be"
+  AssetParameters70eb7502cc85b01128bec6e41758be9d20fdb2ee9a6de2361a8dad7e56fe50beArtifactHashA9EC35C5:
+    Type: String
+    Description: Artifact hash for asset "70eb7502cc85b01128bec6e41758be9d20fdb2ee9a6de2361a8dad7e56fe50be"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

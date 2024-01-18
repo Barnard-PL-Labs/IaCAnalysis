@@ -1,0 +1,538 @@
+Resources:
+  uiDeploymentBucket0CB7637D:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: example-saml-idp-ui-qa
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      WebsiteConfiguration:
+        IndexDocument: index.html
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/uiDeploymentBucket/Resource
+  uiDeploymentBucketPolicyEA51A495:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: uiDeploymentBucket0CB7637D
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - uiDeploymentBucketOAIE7B78D5C
+                  - S3CanonicalUserId
+            Resource:
+              - Fn::GetAtt:
+                  - uiDeploymentBucket0CB7637D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - uiDeploymentBucket0CB7637D
+                        - Arn
+                    - /*
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - uiDeploymentBucketOAIE7B78D5C
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - uiDeploymentBucket0CB7637D
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/uiDeploymentBucket/Policy/Resource
+  uiDeploymentBucketNameParam6DDFBF73:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Ref: uiDeploymentBucket0CB7637D
+      Description: Name of the distributionId deployment Bucket
+      Name: /example-saml-idp/bucket/uiDeploymentBucketName
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/uiDeploymentBucketNameParam/Resource
+  uiDeploymentBucketOAIE7B78D5C:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: CICD-UI-DeploymentBucket-OAI
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/uiDeploymentBucketOAI/Resource
+  uiDeploymentBucketOaiNameParam7CD63179:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Ref: uiDeploymentBucketOAIE7B78D5C
+      Description: Name of the custom ui deployment Bucket Origin Access Identity
+      Name: /example-saml-idp/cloudfront/uiDeploymentBucketOaiName
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/uiDeploymentBucketOaiNameParam/Resource
+  DistributionForUICFDistribution4607036E:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: custom UI
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::GetAtt:
+                - uiDeploymentBucket0CB7637D
+                - RegionalDomainName
+            Id: origin1
+            OriginPath: /build
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: uiDeploymentBucketOAIE7B78D5C
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/DistributionForUI/CFDistribution
+  CustomUICloudFrontURL062404B8:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Fn::Join:
+          - ""
+          - - https://
+            - Fn::GetAtt:
+                - DistributionForUICFDistribution4607036E
+                - DomainName
+      Description: Custom UI CloudFront url
+      Name: /example-saml-idp/cloudfront/distributionUrl
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/CustomUICloudFrontURL/Resource
+  CustomUICloudFrontDistributionId6CAA44CA:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Ref: DistributionForUICFDistribution4607036E
+      Description: Custom UI CloudFront Distribution ID
+      Name: /example-saml-idp/cloudfront/distributionId
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/CustomUICloudFrontDistributionId/Resource
+  qaexamplesamlidpuserpool3F2ED303:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Schema:
+        - AttributeDataType: String
+          Mutable: true
+          Name: groups
+          StringAttributeConstraints:
+            MaxLength: "2048"
+            MinLength: "1"
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameAttributes:
+        - email
+      UsernameConfiguration:
+        CaseSensitive: false
+      UserPoolName: qa-example-saml-idp-user-pool
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/qa-example-saml-idp-user-pool/Resource
+  qaexamplesamlidpuserpoolCognitoDomain44118306:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: qa-example-saml-idp
+      UserPoolId:
+        Ref: qaexamplesamlidpuserpool3F2ED303
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/qa-example-saml-idp-user-pool/CognitoDomain/Resource
+  MyCfnUserPoolIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Properties:
+      ProviderName: <Identity_provider_name>
+      ProviderType: SAML
+      UserPoolId:
+        Ref: qaexamplesamlidpuserpool3F2ED303
+      AttributeMapping:
+        email: http://shemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress
+        custom:groups: groupMembership
+      ProviderDetails:
+        MetadataFile: <?xml version="1.0" encoding="UTF-8"?>
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/MyCfnUserPoolIdentityProvider
+  qaexamplesamlidpappclient39CECD06:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: qaexamplesamlidpuserpool3F2ED303
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+        - profile
+      CallbackURLs:
+        - http://localhost:3000
+        - Fn::Join:
+            - ""
+            - - https://
+              - Fn::GetAtt:
+                  - DistributionForUICFDistribution4607036E
+                  - DomainName
+      ClientName: qa-example-saml-idp-app-client
+      GenerateSecret: false
+      ReadAttributes:
+        - birthdate
+        - custom:groups
+        - email
+        - email_verified
+        - family_name
+        - gender
+        - given_name
+        - locale
+        - middle_name
+        - name
+        - nickname
+        - picture
+        - preferred_username
+        - profile
+        - updated_at
+        - website
+        - zoneinfo
+      SupportedIdentityProviders:
+        - COGNITO
+        - <Identity_provider_name>
+      WriteAttributes:
+        - birthdate
+        - custom:groups
+        - family_name
+        - gender
+        - given_name
+        - locale
+        - middle_name
+        - name
+        - nickname
+        - picture
+        - preferred_username
+        - profile
+        - updated_at
+        - website
+        - zoneinfo
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/qa-example-saml-idp-app-client/Resource
+  qaexamplesamlidpidentitypool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: qaexamplesamlidpappclient39CECD06
+          ProviderName:
+            Fn::GetAtt:
+              - qaexamplesamlidpuserpool3F2ED303
+              - ProviderName
+      IdentityPoolName: qa-example-saml-idp-identity-pool
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/qa-example-saml-idp-identity-pool
+  cognitoAuthRole5E113E6F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: qaexamplesamlidpidentitypool
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Path: /
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/cognitoAuthRole/Resource
+  cognitoAuthRoleDefaultPolicyAE1EF479:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - mobileanalytics:PutEvents
+              - cognito-sync:*
+              - cognito-identity:*
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: cognitoAuthRoleDefaultPolicyAE1EF479
+      Roles:
+        - Ref: cognitoAuthRole5E113E6F
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/cognitoAuthRole/DefaultPolicy/Resource
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: qaexamplesamlidpidentitypool
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - cognitoAuthRole5E113E6F
+            - Arn
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/IdentityPoolRoleAttachment
+  SSMUserPoolId0E2C0273:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Ref: qaexamplesamlidpuserpool3F2ED303
+      Description: Cognito UserPoolId for application
+      Name: /qa/example-saml-idp/UserPoolId
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/SSM-UserPoolId/Resource
+  SSMAppClientIdF57BA3D1:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Ref: qaexamplesamlidpappclient39CECD06
+      Description: Cognito AppClientId for application
+      Name: /qa/example-saml-idp/AppClientId
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/SSM-AppClientId/Resource
+  SSMIdentityPoolId2CEBDA94:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Ref: qaexamplesamlidpidentitypool
+      Description: Cognito IdentityPoolId for application
+      Name: /qa/example-saml-idp/IdentityPoolId
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/SSM-IdentityPoolId/Resource
+  SSMDomainUrl7C4DE31C:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Fn::Join:
+          - ""
+          - - Ref: qaexamplesamlidpuserpoolCognitoDomain44118306
+            - .auth.us-east-1.amazoncognito.com
+      Description: Cognito UserPool domain url for app client
+      Name: /qa/example-saml-idp/DomainUrl
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/SSM-DomainUrl/Resource
+  SSMSAMLIdpNameEDD53F12:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value: <Identity_provider_name>
+      Description: Cognito UserPool SAML Idp name for user pool federated SAML SSO
+      Name: /qa/example-saml-idp/SAMLIdpName
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/SSM-SAMLIdpName/Resource
+  SSMSSORedirectURLA5719E43:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value:
+        Fn::Join:
+          - ""
+          - - https://
+            - Fn::GetAtt:
+                - DistributionForUICFDistribution4607036E
+                - DomainName
+      Description: Cognito UserPool redirect url for user pool federated SAML SSO
+      Name: /qa/example-saml-idp/SSORedirectURL
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/SSM-SSORedirectURL/Resource
+  SSMSuperadminGroupKeyF4AE499F:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value: custom:groups
+      Description: The cognito userpool user attribute that has the group name as the value.
+      Name: /qa/example-saml-idp/SuperadminGroupKey
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/SSM-SuperadminGroupKey/Resource
+  SSMSuperadminGroupName95871DDB:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value: superadmin
+      Description: The name of the group configured in identity provider console  that is sent in the SAML response
+      Name: /qa/example-saml-idp/SuperadminGroupName
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/SSM-SuperadminGroupName/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21Qy07DMBD8lt4TQ9oL15IKqadGQYgjcuxt2MbxIj+KUJR/x85bgtPOzszuaHfPDhl73PFvmwrZpAor1r06LpokUB+dPbDu2YsGXJJf9YTGUpBC8bPSY98n1rZxhUFdF9zwFhyY6FqaPhGKvLwa0o51F4M16qMQYO1ZgnbohqV59LxEz/+ORX6H6oQ25FXeIek4u+1DGtUaHbHuzYIpiFS0LHgGJ2o56q30l5nTC0N3lOGsWcgVBmVrXZllaEre9iUpOLrw7s82kH2CPPwuktE41PXL03/7iC/efflhewmWvBHDQE5a4nizJgnsZh/u2RPL9izb3SxianxIboGVY/0F54kRbfwBAAA=
+    Metadata:
+      aws:cdk:path: CognitoWithSAMLAuthStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  UIDeploymentBucketNameCfnOutput:
+    Value:
+      Ref: uiDeploymentBucket0CB7637D
+  uiDeploymentBucketOaiNameCfnOutput:
+    Value:
+      Ref: uiDeploymentBucketOAIE7B78D5C
+  cloudFrontUrl:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Fn::GetAtt:
+              - DistributionForUICFDistribution4607036E
+              - DomainName
+  cloudFrontDistributionId:
+    Value:
+      Ref: DistributionForUICFDistribution4607036E
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

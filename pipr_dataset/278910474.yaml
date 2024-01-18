@@ -1,0 +1,308 @@
+Resources:
+  tokyoCovidlambdarole970DEB1A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      RoleName: tokyoCovidlambdarole
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovidlambdarole/Resource
+  tokyoCovid19Handler832CE7D4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters65a83d2273ab250477c345975879943b2eaba7357e699f215e00717fe1cec259S3BucketB616B814
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters65a83d2273ab250477c345975879943b2eaba7357e699f215e00717fe1cec259S3VersionKey6DF799E9
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters65a83d2273ab250477c345975879943b2eaba7357e699f215e00717fe1cec259S3VersionKey6DF799E9
+      Role:
+        Fn::GetAtt:
+          - tokyoCovidlambdarole970DEB1A
+          - Arn
+      Environment:
+        Variables:
+          TZ: Asia/Tokyo
+          APPLICATION_ID: io.sassy.github.tokyo.covid19
+      FunctionName: tokyoCovid19Handler
+      Handler: main.handler
+      MemorySize: 256
+      Runtime: nodejs12.x
+      Timeout: 10
+    DependsOn:
+      - tokyoCovidlambdarole970DEB1A
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovid19Handler/Resource
+      aws:asset:path: asset.65a83d2273ab250477c345975879943b2eaba7357e699f215e00717fe1cec259
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  tokyoCovid19APIF20C179E:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: API
+      Name: tokyoCovid19-API
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovid19-API/Resource
+  tokyoCovid19APICloudWatchRoleDEBE2441:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovid19-API/CloudWatchRole/Resource
+  tokyoCovid19APIAccount2DF29D56:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - tokyoCovid19APICloudWatchRoleDEBE2441
+          - Arn
+    DependsOn:
+      - tokyoCovid19APIF20C179E
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovid19-API/Account
+  tokyoCovid19APIDeployment5D4A17B4f58ba2c9f326342ccf1bb8752a958ec1:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: tokyoCovid19APIF20C179E
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - tokyoCovid19APIcovidPOSTED011757
+      - tokyoCovid19APIcovid979737A7
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovid19-API/Deployment/Resource
+  tokyoCovid19APIDeploymentStageprod10213006:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: tokyoCovid19APIF20C179E
+      DeploymentId:
+        Ref: tokyoCovid19APIDeployment5D4A17B4f58ba2c9f326342ccf1bb8752a958ec1
+      StageName: prod
+    DependsOn:
+      - tokyoCovid19APIAccount2DF29D56
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovid19-API/DeploymentStage.prod/Resource
+  tokyoCovid19APIcovid979737A7:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - tokyoCovid19APIF20C179E
+          - RootResourceId
+      PathPart: covid
+      RestApiId:
+        Ref: tokyoCovid19APIF20C179E
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovid19-API/Default/covid/Resource
+  tokyoCovid19APIcovidPOSTApiPermissionClovaExtensionTokyoCovid19PositiveCountStacktokyoCovid19APIB4C4747EPOSTcovidEA8DBBB2:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - tokyoCovid19Handler832CE7D4
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: tokyoCovid19APIF20C179E
+            - /
+            - Ref: tokyoCovid19APIDeploymentStageprod10213006
+            - /POST/covid
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovid19-API/Default/covid/POST/ApiPermission.ClovaExtensionTokyoCovid19PositiveCountStacktokyoCovid19APIB4C4747E.POST..covid
+  tokyoCovid19APIcovidPOSTApiPermissionTestClovaExtensionTokyoCovid19PositiveCountStacktokyoCovid19APIB4C4747EPOSTcovid39EA17B8:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - tokyoCovid19Handler832CE7D4
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: tokyoCovid19APIF20C179E
+            - /test-invoke-stage/POST/covid
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovid19-API/Default/covid/POST/ApiPermission.Test.ClovaExtensionTokyoCovid19PositiveCountStacktokyoCovid19APIB4C4747E.POST..covid
+  tokyoCovid19APIcovidPOSTED011757:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: tokyoCovid19APIcovid979737A7
+      RestApiId:
+        Ref: tokyoCovid19APIF20C179E
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - tokyoCovid19Handler832CE7D4
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/tokyoCovid19-API/Default/covid/POST/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02P0U7DMAxFv2XvqUdBQnuk28TbtKl8gUlNydokVewwTVX/nSZlqE8+17bse0soX3fwtHnDGxe66baj9oFg/BDUnaqYSWZsjWvVwTuWELWow5e7YEBLQiGJc5Qh5nZN7GPQlHjeb4wY7yaVjo8GLYy17/Mw1Un1aD8bhPE9Op0202TNFwrWMOcb/FJgssOQXc0a9lF3JHtkUjiYFoVueJ9/EEs1mD8/D6y09tGJOtLQ+7sllw2vVMqZvS3wiJLPr3P984nk2zeptdA0Tcr5huDK259yB+UzlJsrG1OE+bGxBPVSfwE05A4EdQEAAA==
+    Metadata:
+      aws:cdk:path: ClovaExtensionTokyoCovid19PositiveCountStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters65a83d2273ab250477c345975879943b2eaba7357e699f215e00717fe1cec259S3BucketB616B814:
+    Type: String
+    Description: S3 bucket for asset "65a83d2273ab250477c345975879943b2eaba7357e699f215e00717fe1cec259"
+  AssetParameters65a83d2273ab250477c345975879943b2eaba7357e699f215e00717fe1cec259S3VersionKey6DF799E9:
+    Type: String
+    Description: S3 key for asset version "65a83d2273ab250477c345975879943b2eaba7357e699f215e00717fe1cec259"
+  AssetParameters65a83d2273ab250477c345975879943b2eaba7357e699f215e00717fe1cec259ArtifactHash3374E1EC:
+    Type: String
+    Description: Artifact hash for asset "65a83d2273ab250477c345975879943b2eaba7357e699f215e00717fe1cec259"
+Outputs:
+  tokyoCovid19APIEndpointD4096529:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: tokyoCovid19APIF20C179E
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: tokyoCovid19APIDeploymentStageprod10213006
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

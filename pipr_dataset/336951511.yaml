@@ -1,0 +1,694 @@
+Resources:
+  ArtifactsBucket2AAC5544:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/ArtifactsBucket/Resource
+  samrest0DA4E42C:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: sam-rest
+      RepositoryDescription: The CodeCommit repository
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/sam-rest/Resource
+  samrestCICDPipelineStackCodePipeline394191F6EventRuleADC9404F:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::GetAtt:
+              - samrest0DA4E42C
+              - Arn
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - master
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":"
+                - Ref: CodePipelineB74E5936
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - CodePipelineEventsRole4196480D
+              - Arn
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/sam-rest/CICDPipelineStackCodePipeline394191F6EventRule/Resource
+  CodePipelineRoleB3A660B4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Role/Resource
+  CodePipelineRoleDefaultPolicy8D520A8D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactsBucket2AAC5544
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactsBucket2AAC5544
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodePipelineSourceCodeCommitSourceCodePipelineActionRoleA0A02CAC
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodePipelineBuildCodeBuildCodePipelineActionRoleD4AF8729
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodePipelineDeployCreateChangeSetCodePipelineActionRole89805738
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodePipelineDeployCodePipelineActionRole6EF591E3
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodePipelineRoleDefaultPolicy8D520A8D
+      Roles:
+        - Ref: CodePipelineRoleB3A660B4
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Role/DefaultPolicy/Resource
+  CodePipelineB74E5936:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - CodePipelineRoleB3A660B4
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::GetAtt:
+                    - samrest0DA4E42C
+                    - Name
+                BranchName: master
+                PollForSourceChanges: false
+              Name: CodeCommit_Source
+              OutputArtifacts:
+                - Name: Artifact_Source_CodeCommit_Source
+              RoleArn:
+                Fn::GetAtt:
+                  - CodePipelineSourceCodeCommitSourceCodePipelineActionRoleA0A02CAC
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: Build45A36621
+              InputArtifacts:
+                - Name: Artifact_Source_CodeCommit_Source
+              Name: CodeBuild
+              OutputArtifacts:
+                - Name: Artifact_Build_CodeBuild
+              RoleArn:
+                Fn::GetAtt:
+                  - CodePipelineBuildCodeBuildCodePipelineActionRoleD4AF8729
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: SAM-REST-Stack
+                Capabilities: CAPABILITY_NAMED_IAM
+                RoleArn:
+                  Fn::GetAtt:
+                    - CodePipelineDeployCreateChangeSetRole349E28C2
+                    - Arn
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: SAM-REST-Stack-changeset
+                TemplatePath: Artifact_Build_CodeBuild::packaged.yaml
+              InputArtifacts:
+                - Name: Artifact_Build_CodeBuild
+              Name: CreateChangeSet
+              RoleArn:
+                Fn::GetAtt:
+                  - CodePipelineDeployCreateChangeSetCodePipelineActionRole89805738
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: SAM-REST-Stack
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: SAM-REST-Stack-changeset
+              Name: Deploy
+              RoleArn:
+                Fn::GetAtt:
+                  - CodePipelineDeployCodePipelineActionRole6EF591E3
+                  - Arn
+              RunOrder: 2
+          Name: Deploy
+      ArtifactStore:
+        Location:
+          Ref: ArtifactsBucket2AAC5544
+        Type: S3
+    DependsOn:
+      - CodePipelineRoleDefaultPolicy8D520A8D
+      - CodePipelineRoleB3A660B4
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Resource
+  CodePipelineSourceCodeCommitSourceCodePipelineActionRoleA0A02CAC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Source/CodeCommit_Source/CodePipelineActionRole/Resource
+  CodePipelineSourceCodeCommitSourceCodePipelineActionRoleDefaultPolicy669C9D69:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactsBucket2AAC5544
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactsBucket2AAC5544
+                        - Arn
+                    - /*
+          - Action:
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:UploadArchive
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:CancelUploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - samrest0DA4E42C
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodePipelineSourceCodeCommitSourceCodePipelineActionRoleDefaultPolicy669C9D69
+      Roles:
+        - Ref: CodePipelineSourceCodeCommitSourceCodePipelineActionRoleA0A02CAC
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Source/CodeCommit_Source/CodePipelineActionRole/DefaultPolicy/Resource
+  CodePipelineEventsRole4196480D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/EventsRole/Resource
+  CodePipelineEventsRoleDefaultPolicy13DBD2D2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codepipeline:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: CodePipelineB74E5936
+        Version: "2012-10-17"
+      PolicyName: CodePipelineEventsRoleDefaultPolicy13DBD2D2
+      Roles:
+        - Ref: CodePipelineEventsRole4196480D
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/EventsRole/DefaultPolicy/Resource
+  CodePipelineBuildCodeBuildCodePipelineActionRoleD4AF8729:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Build/CodeBuild/CodePipelineActionRole/Resource
+  CodePipelineBuildCodeBuildCodePipelineActionRoleDefaultPolicyED0B3DB6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Build45A36621
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodePipelineBuildCodeBuildCodePipelineActionRoleDefaultPolicyED0B3DB6
+      Roles:
+        - Ref: CodePipelineBuildCodeBuildCodePipelineActionRoleD4AF8729
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Build/CodeBuild/CodePipelineActionRole/DefaultPolicy/Resource
+  CodePipelineDeployCreateChangeSetCodePipelineActionRole89805738:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Deploy/CreateChangeSet/CodePipelineActionRole/Resource
+  CodePipelineDeployCreateChangeSetCodePipelineActionRoleDefaultPolicy993D7A22:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodePipelineDeployCreateChangeSetRole349E28C2
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactsBucket2AAC5544
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactsBucket2AAC5544
+                        - Arn
+                    - /*
+          - Action:
+              - cloudformation:CreateChangeSet
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStacks
+            Condition:
+              StringEqualsIfExists:
+                cloudformation:ChangeSetName: SAM-REST-Stack-changeset
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":cloudformation:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :stack/SAM-REST-Stack/*
+        Version: "2012-10-17"
+      PolicyName: CodePipelineDeployCreateChangeSetCodePipelineActionRoleDefaultPolicy993D7A22
+      Roles:
+        - Ref: CodePipelineDeployCreateChangeSetCodePipelineActionRole89805738
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Deploy/CreateChangeSet/CodePipelineActionRole/DefaultPolicy/Resource
+  CodePipelineDeployCreateChangeSetRole349E28C2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Deploy/CreateChangeSet/Role/Resource
+  CodePipelineDeployCreateChangeSetRoleDefaultPolicy6B633F6B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactsBucket2AAC5544
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactsBucket2AAC5544
+                        - Arn
+                    - /*
+          - Action: "*"
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CodePipelineDeployCreateChangeSetRoleDefaultPolicy6B633F6B
+      Roles:
+        - Ref: CodePipelineDeployCreateChangeSetRole349E28C2
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Deploy/CreateChangeSet/Role/DefaultPolicy/Resource
+  CodePipelineDeployCodePipelineActionRole6EF591E3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Deploy/Deploy/CodePipelineActionRole/Resource
+  CodePipelineDeployCodePipelineActionRoleDefaultPolicy35B7BCBA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStacks
+              - cloudformation:ExecuteChangeSet
+            Condition:
+              StringEqualsIfExists:
+                cloudformation:ChangeSetName: SAM-REST-Stack-changeset
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":cloudformation:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :stack/SAM-REST-Stack/*
+        Version: "2012-10-17"
+      PolicyName: CodePipelineDeployCodePipelineActionRoleDefaultPolicy35B7BCBA
+      Roles:
+        - Ref: CodePipelineDeployCodePipelineActionRole6EF591E3
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CodePipeline/Deploy/Deploy/CodePipelineActionRole/DefaultPolicy/Resource
+  BuildRoleB7C66CB2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/Build/Role/Resource
+  BuildRoleDefaultPolicyEAC4E6D6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: Build45A36621
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: Build45A36621
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: Build45A36621
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactsBucket2AAC5544
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactsBucket2AAC5544
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: BuildRoleDefaultPolicyEAC4E6D6
+      Roles:
+        - Ref: BuildRoleB7C66CB2
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/Build/Role/DefaultPolicy/Resource
+  Build45A36621:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: PACKAGE_BUCKET
+            Type: PLAINTEXT
+            Value:
+              Ref: ArtifactsBucket2AAC5544
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:2.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - BuildRoleB7C66CB2
+          - Arn
+      Source:
+        Type: CODEPIPELINE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/Build/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.88.0,@aws-cdk/aws-applicationautoscaling=1.88.0,@aws-cdk/aws-autoscaling=1.88.0,@aws-cdk/aws-autoscaling-common=1.88.0,@aws-cdk/aws-autoscaling-hooktargets=1.88.0,@aws-cdk/aws-cloudformation=1.88.0,@aws-cdk/aws-cloudwatch=1.88.0,@aws-cdk/aws-codebuild=1.88.0,@aws-cdk/aws-codecommit=1.88.0,@aws-cdk/aws-codeguruprofiler=1.88.0,@aws-cdk/aws-codepipeline=1.88.0,@aws-cdk/aws-codepipeline-actions=1.88.0,@aws-cdk/aws-ec2=1.88.0,@aws-cdk/aws-ecr=1.88.0,@aws-cdk/aws-ecr-assets=1.88.0,@aws-cdk/aws-ecs=1.88.0,@aws-cdk/aws-elasticloadbalancingv2=1.88.0,@aws-cdk/aws-events=1.88.0,@aws-cdk/aws-events-targets=1.88.0,@aws-cdk/aws-iam=1.88.0,@aws-cdk/aws-kms=1.88.0,@aws-cdk/aws-lambda=1.88.0,@aws-cdk/aws-logs=1.88.0,@aws-cdk/aws-s3=1.88.0,@aws-cdk/aws-s3-assets=1.88.0,@aws-cdk/aws-servicediscovery=1.88.0,@aws-cdk/aws-sns=1.88.0,@aws-cdk/aws-sns-subscriptions=1.88.0,@aws-cdk/aws-sqs=1.88.0,@aws-cdk/aws-ssm=1.88.0,@aws-cdk/cloud-assembly-schema=1.88.0,@aws-cdk/core=1.88.0,@aws-cdk/custom-resources=1.88.0,@aws-cdk/cx-api=1.88.0,@aws-cdk/region-info=1.88.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: CICD-Pipeline-Stack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

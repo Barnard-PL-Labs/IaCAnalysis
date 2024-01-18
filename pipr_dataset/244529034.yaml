@@ -1,0 +1,619 @@
+Resources:
+  RowmaConnectionManagerLBF9602519:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      LoadBalancerAttributes:
+        - Key: deletion_protection.enabled
+          Value: "false"
+      Scheme: internet-facing
+      SecurityGroups:
+        - Fn::GetAtt:
+            - RowmaConnectionManagerLBSecurityGroupFF9DA094
+            - GroupId
+      Subnets:
+        - Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99
+        - Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A
+      Type: application
+    DependsOn:
+      - EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1DefaultRouteFF4E2178
+      - EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2DefaultRouteB1375520
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/LB/Resource
+  RowmaConnectionManagerLBSecurityGroupFF9DA094:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Automatically created Security Group for ELB InfraStackRowmaConnectionManagerLB78917978
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow from anyone on port 80
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/LB/SecurityGroup/Resource
+  RowmaConnectionManagerLBSecurityGrouptoInfraStackRowmaConnectionManagerServiceSecurityGroup790B0484300062D82165:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId:
+        Fn::GetAtt:
+          - RowmaConnectionManagerLBSecurityGroupFF9DA094
+          - GroupId
+      IpProtocol: tcp
+      Description: Load balancer to target
+      DestinationSecurityGroupId:
+        Fn::GetAtt:
+          - RowmaConnectionManagerServiceSecurityGroupA0D15132
+          - GroupId
+      FromPort: 3000
+      ToPort: 3000
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/LB/SecurityGroup/to InfraStackRowmaConnectionManagerServiceSecurityGroup790B0484:3000
+  RowmaConnectionManagerLBPublicListener97FD2C8F:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn:
+            Ref: RowmaConnectionManagerLBPublicListenerECSGroupC4B19517
+          Type: forward
+      LoadBalancerArn:
+        Ref: RowmaConnectionManagerLBF9602519
+      Port: 80
+      Protocol: HTTP
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/LB/PublicListener/Resource
+  RowmaConnectionManagerLBPublicListenerECSGroupC4B19517:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      TargetGroupAttributes:
+        - Key: stickiness.enabled
+          Value: "true"
+        - Key: stickiness.type
+          Value: lb_cookie
+        - Key: stickiness.lb_cookie.duration_seconds
+          Value: "86400"
+      TargetType: ip
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/LB/PublicListener/ECSGroup/Resource
+  RowmaConnectionManagerTaskDefTaskRole4AD90B92:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/TaskDef/TaskRole/Resource
+  RowmaConnectionManagerTaskDef302B40A2:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Essential: true
+          Image: rowma/rowma
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: RowmaConnectionManagerTaskDefwebLogGroupE1B852F7
+              awslogs-stream-prefix: RowmaConnectionManager
+              awslogs-region:
+                Ref: AWS::Region
+          Name: web
+          PortMappings:
+            - ContainerPort: 3000
+              Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - RowmaConnectionManagerTaskDefExecutionRole758424B4
+          - Arn
+      Family: InfraStackRowmaConnectionManagerTaskDefE74E1357
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - RowmaConnectionManagerTaskDefTaskRole4AD90B92
+          - Arn
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/TaskDef/Resource
+  RowmaConnectionManagerTaskDefwebLogGroupE1B852F7:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/TaskDef/web/LogGroup/Resource
+  RowmaConnectionManagerTaskDefExecutionRole758424B4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/TaskDef/ExecutionRole/Resource
+  RowmaConnectionManagerTaskDefExecutionRoleDefaultPolicyC1FE7791:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - RowmaConnectionManagerTaskDefwebLogGroupE1B852F7
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: RowmaConnectionManagerTaskDefExecutionRoleDefaultPolicyC1FE7791
+      Roles:
+        - Ref: RowmaConnectionManagerTaskDefExecutionRole758424B4
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/TaskDef/ExecutionRole/DefaultPolicy/Resource
+  RowmaConnectionManagerServiceE66FD560:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Ref: EcsDefaultClusterMnL3mNNYN926A5246
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 1
+      EnableECSManagedTags: false
+      HealthCheckGracePeriodSeconds: 60
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: web
+          ContainerPort: 3000
+          TargetGroupArn:
+            Ref: RowmaConnectionManagerLBPublicListenerECSGroupC4B19517
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - Fn::GetAtt:
+                - RowmaConnectionManagerServiceSecurityGroupA0D15132
+                - GroupId
+          Subnets:
+            - Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99
+            - Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A
+      TaskDefinition:
+        Ref: RowmaConnectionManagerTaskDef302B40A2
+    DependsOn:
+      - RowmaConnectionManagerLBPublicListenerECSGroupC4B19517
+      - RowmaConnectionManagerLBPublicListener97FD2C8F
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/Service/Service
+  RowmaConnectionManagerServiceSecurityGroupA0D15132:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: InfraStack/RowmaConnectionManager/Service/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/Service/SecurityGroup/Resource
+  RowmaConnectionManagerServiceSecurityGroupfromInfraStackRowmaConnectionManagerLBSecurityGroupA7F39AC23000624CB4BF:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: Load balancer to target
+      FromPort: 3000
+      GroupId:
+        Fn::GetAtt:
+          - RowmaConnectionManagerServiceSecurityGroupA0D15132
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - RowmaConnectionManagerLBSecurityGroupFF9DA094
+          - GroupId
+      ToPort: 3000
+    Metadata:
+      aws:cdk:path: InfraStack/RowmaConnectionManager/Service/SecurityGroup/from InfraStackRowmaConnectionManagerLBSecurityGroupA7F39AC2:3000
+  EcsDefaultClusterMnL3mNNYN926A5246:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Resource
+  EcsDefaultClusterMnL3mNNYNVpc7788A521:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/Resource
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableA1FD6ACC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableAssociation8B583A17:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableA1FD6ACC
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1DefaultRouteFF4E2178:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableA1FD6ACC
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F
+    DependsOn:
+      - EcsDefaultClusterMnL3mNNYNVpcVPCGW2447264E
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1EIP8704DB2F:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/EIP
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1NATGateway5E3732C1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99
+      AllocationId:
+        Fn::GetAtt:
+          - EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1EIP8704DB2F
+          - AllocationId
+      Tags:
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/NATGateway
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.64.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTable263DEAA5:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTableAssociation43E5803C:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTable263DEAA5
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2DefaultRouteB1375520:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTable263DEAA5
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F
+    DependsOn:
+      - EcsDefaultClusterMnL3mNNYNVpcVPCGW2447264E
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2EIPF0764873:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/EIP
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2NATGateway4C855E00:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A
+      AllocationId:
+        Fn::GetAtt:
+          - EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2EIPF0764873
+          - AllocationId
+      Tags:
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/NATGateway
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1Subnet075EFF4C:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTable4F1D2E36:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTableAssociation34B92275:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTable4F1D2E36
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1Subnet075EFF4C
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1DefaultRouteA5ADF694:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTable4F1D2E36
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1NATGateway5E3732C1
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2SubnetE4CEDF73:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.192.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableDCE46591:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableAssociation111C622F:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableDCE46591
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2SubnetE4CEDF73
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2DefaultRoute20CE2D89:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableDCE46591
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2NATGateway4C855E00
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/IGW
+  EcsDefaultClusterMnL3mNNYNVpcVPCGW2447264E:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      InternetGatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F
+    Metadata:
+      aws:cdk:path: InfraStack/EcsDefaultClusterMnL3mNNYN/Vpc/VPCGW
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/31RQW7CMBB8S+/GLZy4UkoREmqjgLgix1nShWBH9joIRfl77SSElFY9eXY8yY5nJnzKX57ExY5kehrlmPBqQ0KemKf2FUi7LwQRGGX5rChylIJQq7UW6avIhZKQvguTCYINmBIlMMiFJZS5VySNAlVWTnj199eGzQ8/56EOLYHqNDc8uN/6zUBLo10RJIOxZiD9zg1IZ5CuveR/YpEZsPYXvVItvytkuNtFcxa5xJvYuEQBNfoexdoRbEWSw52/czNrtcTGfC8OYLGKwvEhaOmjvIgriwyWIdX+xysVWoBe0Drpphn5zr7OoCi83PKqK2Ur7OkNDqjwtvKR0YoE+lwH3EOhTRwdzJ1voemjgzVDceZVrNv3NmekfTaNwRbVLNeZ97TWWZ/7Ddd1mD4dFY5YDFY7064cYm8ybazVTOkU+NE+l+MpH0/4+OloEUfGKcIz8Lg9vwG26srQ1AIAAA==
+    Metadata:
+      aws:cdk:path: InfraStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  RowmaConnectionManagerLoadBalancerDNSAB085F45:
+    Value:
+      Fn::GetAtt:
+        - RowmaConnectionManagerLBF9602519
+        - DNSName
+  RowmaConnectionManagerServiceURL7EAD5D38:
+    Value:
+      Fn::Join:
+        - ""
+        - - http://
+          - Fn::GetAtt:
+              - RowmaConnectionManagerLBF9602519
+              - DNSName
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

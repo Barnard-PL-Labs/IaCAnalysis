@@ -1,0 +1,207 @@
+Resources:
+  budgetcutoffBudgetKillswitchTopicB69ECBBD:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Budget Killswitch Triggered
+      TopicName: budget-killswitch-topic
+    Metadata:
+      aws:cdk:path: AwsBudgetEmergencyCutoffStack/budget-cutoff/BudgetKillswitchTopic/Resource
+  budgetcutoffkillswitchtriggerF6A4E22F:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetLimit:
+          Amount: 10
+          Unit: USD
+        BudgetType: COST
+        TimeUnit: MONTHLY
+      NotificationsWithSubscribers:
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 100
+          Subscribers:
+            - Address:
+                Ref: budgetcutoffBudgetKillswitchTopicB69ECBBD
+              SubscriptionType: SNS
+    Metadata:
+      aws:cdk:path: AwsBudgetEmergencyCutoffStack/budget-cutoff/killswitch-trigger
+  budgetcutoffstackDeleteLambdaCutoffLambdaServiceRole42730295:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsBudgetEmergencyCutoffStack/budget-cutoff/stackDeleteLambda/CutoffLambda/ServiceRole/Resource
+  budgetcutoffstackDeleteLambdaCutoffLambdaServiceRoleDefaultPolicy5F910EB8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cloudformation:DeleteStack
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: budgetcutoffstackDeleteLambdaCutoffLambdaServiceRoleDefaultPolicy5F910EB8
+      Roles:
+        - Ref: budgetcutoffstackDeleteLambdaCutoffLambdaServiceRole42730295
+    Metadata:
+      aws:cdk:path: AwsBudgetEmergencyCutoffStack/budget-cutoff/stackDeleteLambda/CutoffLambda/ServiceRole/DefaultPolicy/Resource
+  budgetcutoffstackDeleteLambdaCutoffLambda180EEED1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |-
+          import json
+          import boto3
+          boto3.set_stream_logger('boto3.resources', logging.INFO)
+
+          def get_client(region):
+              if region == 'DEFAULT':
+                  return boto3.client('cloudformation')
+
+              return boto3.client('cloudformation', region_name=region)
+
+          def lambda_handler(event, context):
+              stacks_to_delete = {
+          		'DEFAULT': ['test-stack-a']
+          		'us-west-1': ['test-stack-b']
+          	}
+
+              for region, stacks in stacks_to_delete:
+                  client = get_client(region)
+
+                  for stack_name in stacks:
+                      client.delete_stack(StackName=stack_name)
+              
+              return {
+                  'statusCode': 200,
+                  'body': json.dumps('Stacks Deleted!')
+              }
+      Role:
+        Fn::GetAtt:
+          - budgetcutoffstackDeleteLambdaCutoffLambdaServiceRole42730295
+          - Arn
+      Handler: index.lambda_handler
+      Runtime: python3.9
+    DependsOn:
+      - budgetcutoffstackDeleteLambdaCutoffLambdaServiceRoleDefaultPolicy5F910EB8
+      - budgetcutoffstackDeleteLambdaCutoffLambdaServiceRole42730295
+    Metadata:
+      aws:cdk:path: AwsBudgetEmergencyCutoffStack/budget-cutoff/stackDeleteLambda/CutoffLambda/Resource
+  budgetcutoffstackDeleteLambdaCutoffLambdaAllowInvokeAwsBudgetEmergencyCutoffStackbudgetcutoffBudgetKillswitchTopic18902A176E20110F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - budgetcutoffstackDeleteLambdaCutoffLambda180EEED1
+          - Arn
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: budgetcutoffBudgetKillswitchTopicB69ECBBD
+    Metadata:
+      aws:cdk:path: AwsBudgetEmergencyCutoffStack/budget-cutoff/stackDeleteLambda/CutoffLambda/AllowInvoke:AwsBudgetEmergencyCutoffStackbudgetcutoffBudgetKillswitchTopic18902A17
+  budgetcutoffstackDeleteLambdaCutoffLambdaBudgetKillswitchTopic84EFC335:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn:
+        Ref: budgetcutoffBudgetKillswitchTopicB69ECBBD
+      Endpoint:
+        Fn::GetAtt:
+          - budgetcutoffstackDeleteLambdaCutoffLambda180EEED1
+          - Arn
+    Metadata:
+      aws:cdk:path: AwsBudgetEmergencyCutoffStack/budget-cutoff/stackDeleteLambda/CutoffLambda/BudgetKillswitchTopic/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02PwQrCMBBEv8V73Fq9eBQLnqX1B9JNlK1tUrKJIiH/bpMieJq3OzOwW0O9P8Buc5Jv3qJ6VhGt0xA7L/EpGmvYu4BeNHfTarbBoc68GIo8WZNELkY2DPFmZ8LsrtCFntHRnGN5+z8n0Qf10J5hMc4FxSinXkmIl2Dw1/nnq3YTMZc2yQlia8dyTNGrHQk/JVcopSSMVRoGrl71cXkT6s3ARFsXjKdJQ7vqFzGQJC8CAQAA
+    Metadata:
+      aws:cdk:path: AwsBudgetEmergencyCutoffStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

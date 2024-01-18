@@ -1,0 +1,411 @@
+Resources:
+  ASGraphQLNotesApiB8CBAA1B:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: cdk-notes
+      XrayEnabled: true
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/Resource
+  ASGraphQLNotesApiSchema53B59DB3:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ASGraphQLNotesApiB8CBAA1B
+          - ApiId
+      Definition: |
+        interface Node {
+          id: ID!
+        }
+
+        type Note implements Node {
+          id: ID!
+          name: String!
+          completed: Boolean!
+        }
+
+        input NoteInput {
+          id: ID!
+          name: String!
+          completed: Boolean!
+        }
+
+        input UpdateNoteInput {
+          id: ID!
+          name: String
+          completed: Boolean
+        }
+
+        type Query {
+          getNoteById(noteId: String!): Note
+          listNotes: [Note]
+        }
+
+        type Mutation {
+          createNote(note: NoteInput!): Note
+          updateNote(note: UpdateNoteInput!): Note
+          deleteNote(noteId: String!): String
+        }
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/Schema
+  ASGraphQLNotesApiDefaultApiKey0B1727B5:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ASGraphQLNotesApiB8CBAA1B
+          - ApiId
+      Expires: 1707283561
+    DependsOn:
+      - ASGraphQLNotesApiSchema53B59DB3
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/DefaultApiKey
+  ASGraphQLNotesApiASGraphQLNotesFnSourceServiceRole0CE7076C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/ASGraphQLNotesFnSource/ServiceRole/Resource
+  ASGraphQLNotesApiASGraphQLNotesFnSourceServiceRoleDefaultPolicyC4539968:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ASGraphQLNotesFn3C828724
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ASGraphQLNotesApiASGraphQLNotesFnSourceServiceRoleDefaultPolicyC4539968
+      Roles:
+        - Ref: ASGraphQLNotesApiASGraphQLNotesFnSourceServiceRole0CE7076C
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/ASGraphQLNotesFnSource/ServiceRole/DefaultPolicy/Resource
+  ASGraphQLNotesApiASGraphQLNotesFnSource3058480B:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ASGraphQLNotesApiB8CBAA1B
+          - ApiId
+      Name: ASGraphQLNotesFnSource
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - ASGraphQLNotesFn3C828724
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ASGraphQLNotesApiASGraphQLNotesFnSourceServiceRole0CE7076C
+          - Arn
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/ASGraphQLNotesFnSource/Resource
+  ASGraphQLNotesApiQuerygetNoteByIdResolverE7A60598:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ASGraphQLNotesApiB8CBAA1B
+          - ApiId
+      FieldName: getNoteById
+      TypeName: Query
+      DataSourceName: ASGraphQLNotesFnSource
+      Kind: UNIT
+    DependsOn:
+      - ASGraphQLNotesApiASGraphQLNotesFnSource3058480B
+      - ASGraphQLNotesApiSchema53B59DB3
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/QuerygetNoteByIdResolver/Resource
+  ASGraphQLNotesApiQuerylistNotesResolver3BC1B3DA:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ASGraphQLNotesApiB8CBAA1B
+          - ApiId
+      FieldName: listNotes
+      TypeName: Query
+      DataSourceName: ASGraphQLNotesFnSource
+      Kind: UNIT
+    DependsOn:
+      - ASGraphQLNotesApiASGraphQLNotesFnSource3058480B
+      - ASGraphQLNotesApiSchema53B59DB3
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/QuerylistNotesResolver/Resource
+  ASGraphQLNotesApiMutationcreateNoteResolver6B456B68:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ASGraphQLNotesApiB8CBAA1B
+          - ApiId
+      FieldName: createNote
+      TypeName: Mutation
+      DataSourceName: ASGraphQLNotesFnSource
+      Kind: UNIT
+    DependsOn:
+      - ASGraphQLNotesApiASGraphQLNotesFnSource3058480B
+      - ASGraphQLNotesApiSchema53B59DB3
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/MutationcreateNoteResolver/Resource
+  ASGraphQLNotesApiMutationdeleteNoteResolverE2BEF3A2:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ASGraphQLNotesApiB8CBAA1B
+          - ApiId
+      FieldName: deleteNote
+      TypeName: Mutation
+      DataSourceName: ASGraphQLNotesFnSource
+      Kind: UNIT
+    DependsOn:
+      - ASGraphQLNotesApiASGraphQLNotesFnSource3058480B
+      - ASGraphQLNotesApiSchema53B59DB3
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/MutationdeleteNoteResolver/Resource
+  ASGraphQLNotesApiMutationupdateNoteResolverB215793D:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ASGraphQLNotesApiB8CBAA1B
+          - ApiId
+      FieldName: updateNote
+      TypeName: Mutation
+      DataSourceName: ASGraphQLNotesFnSource
+      Kind: UNIT
+    DependsOn:
+      - ASGraphQLNotesApiASGraphQLNotesFnSource3058480B
+      - ASGraphQLNotesApiSchema53B59DB3
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesApi/MutationupdateNoteResolver/Resource
+  ASGraphQLSdkLayer4940F935:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameters1393bff132851cee21e5c303285dcfd63558eef08585af244ca077ed3b9cd539S3BucketCD9B3285
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1393bff132851cee21e5c303285dcfd63558eef08585af244ca077ed3b9cd539S3VersionKeyE9CB7556
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1393bff132851cee21e5c303285dcfd63558eef08585af244ca077ed3b9cd539S3VersionKeyE9CB7556
+      CompatibleRuntimes:
+        - nodejs12.x
+      Description: Just the SDK Modules required and no more
+      LicenseInfo: Apache-2.0
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLSdkLayer/Resource
+      aws:asset:path: asset.1393bff132851cee21e5c303285dcfd63558eef08585af244ca077ed3b9cd539
+      aws:asset:property: Content
+  ASGraphQLNotesFnServiceRoleA657FB6F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesFn/ServiceRole/Resource
+  ASGraphQLNotesFnServiceRoleDefaultPolicy646D3051:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ASGraphQLNotesTable2C5479D9
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: ASGraphQLNotesFnServiceRoleDefaultPolicy646D3051
+      Roles:
+        - Ref: ASGraphQLNotesFnServiceRoleA657FB6F
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesFn/ServiceRole/DefaultPolicy/Resource
+  ASGraphQLNotesFn3C828724:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersdfb47b746cbcc84775e33121c82e037aca5da50eabc172bf4b68eee58b49dfc3S3Bucket58CD03B3
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersdfb47b746cbcc84775e33121c82e037aca5da50eabc172bf4b68eee58b49dfc3S3VersionKeyDF3C9D14
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersdfb47b746cbcc84775e33121c82e037aca5da50eabc172bf4b68eee58b49dfc3S3VersionKeyDF3C9D14
+      Handler: main.handler
+      Role:
+        Fn::GetAtt:
+          - ASGraphQLNotesFnServiceRoleA657FB6F
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          NOTES_TABLE:
+            Ref: ASGraphQLNotesTable2C5479D9
+      Layers:
+        - Ref: ASGraphQLSdkLayer4940F935
+      MemorySize: 1024
+    DependsOn:
+      - ASGraphQLNotesFnServiceRoleDefaultPolicy646D3051
+      - ASGraphQLNotesFnServiceRoleA657FB6F
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesFn/Resource
+      aws:asset:path: asset.dfb47b746cbcc84775e33121c82e037aca5da50eabc172bf4b68eee58b49dfc3
+      aws:asset:property: Code
+  ASGraphQLNotesTable2C5479D9:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/ASGraphQLNotesTable/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.80.0,@aws-cdk/aws-applicationautoscaling=1.80.0,@aws-cdk/aws-appsync=1.80.0,@aws-cdk/aws-autoscaling-common=1.80.0,@aws-cdk/aws-cloudwatch=1.80.0,@aws-cdk/aws-codeguruprofiler=1.80.0,@aws-cdk/aws-dynamodb=1.80.0,@aws-cdk/aws-ec2=1.80.0,@aws-cdk/aws-ecr=1.80.0,@aws-cdk/aws-ecr-assets=1.80.0,@aws-cdk/aws-events=1.80.0,@aws-cdk/aws-iam=1.80.0,@aws-cdk/aws-kms=1.80.0,@aws-cdk/aws-lambda=1.80.0,@aws-cdk/aws-logs=1.80.0,@aws-cdk/aws-s3=1.80.0,@aws-cdk/aws-s3-assets=1.80.0,@aws-cdk/aws-sqs=1.80.0,@aws-cdk/aws-ssm=1.80.0,@aws-cdk/cloud-assembly-schema=1.80.0,@aws-cdk/core=1.80.0,@aws-cdk/custom-resources=1.80.0,@aws-cdk/cx-api=1.80.0,@aws-cdk/region-info=1.80.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: AppsyncGraphqlStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  GraphqlApiUrl:
+    Value:
+      Fn::GetAtt:
+        - ASGraphQLNotesApiB8CBAA1B
+        - GraphQLUrl
+  GraphqlApiKey:
+    Value:
+      Fn::GetAtt:
+        - ASGraphQLNotesApiDefaultApiKey0B1727B5
+        - ApiKey
+Parameters:
+  AssetParameters1393bff132851cee21e5c303285dcfd63558eef08585af244ca077ed3b9cd539S3BucketCD9B3285:
+    Type: String
+    Description: S3 bucket for asset "1393bff132851cee21e5c303285dcfd63558eef08585af244ca077ed3b9cd539"
+  AssetParameters1393bff132851cee21e5c303285dcfd63558eef08585af244ca077ed3b9cd539S3VersionKeyE9CB7556:
+    Type: String
+    Description: S3 key for asset version "1393bff132851cee21e5c303285dcfd63558eef08585af244ca077ed3b9cd539"
+  AssetParameters1393bff132851cee21e5c303285dcfd63558eef08585af244ca077ed3b9cd539ArtifactHash7B831DA2:
+    Type: String
+    Description: Artifact hash for asset "1393bff132851cee21e5c303285dcfd63558eef08585af244ca077ed3b9cd539"
+  AssetParametersdfb47b746cbcc84775e33121c82e037aca5da50eabc172bf4b68eee58b49dfc3S3Bucket58CD03B3:
+    Type: String
+    Description: S3 bucket for asset "dfb47b746cbcc84775e33121c82e037aca5da50eabc172bf4b68eee58b49dfc3"
+  AssetParametersdfb47b746cbcc84775e33121c82e037aca5da50eabc172bf4b68eee58b49dfc3S3VersionKeyDF3C9D14:
+    Type: String
+    Description: S3 key for asset version "dfb47b746cbcc84775e33121c82e037aca5da50eabc172bf4b68eee58b49dfc3"
+  AssetParametersdfb47b746cbcc84775e33121c82e037aca5da50eabc172bf4b68eee58b49dfc3ArtifactHashD21A6B2B:
+    Type: String
+    Description: Artifact hash for asset "dfb47b746cbcc84775e33121c82e037aca5da50eabc172bf4b68eee58b49dfc3"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

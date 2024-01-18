@@ -1,0 +1,390 @@
+Resources:
+  TestFunctionServiceRole6ABD93C7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestFunction/ServiceRole/Resource
+  TestFunction22AD90FC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters040a695a2e9322b243e184783361acba012db64da407da504863c1bf90f92c73S3Bucket4F63589D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters040a695a2e9322b243e184783361acba012db64da407da504863c1bf90f92c73S3VersionKeyAA276266
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters040a695a2e9322b243e184783361acba012db64da407da504863c1bf90f92c73S3VersionKeyAA276266
+      Handler: lambda.handler
+      Role:
+        Fn::GetAtt:
+          - TestFunctionServiceRole6ABD93C7
+          - Arn
+      Runtime: nodejs10.x
+    DependsOn:
+      - TestFunctionServiceRole6ABD93C7
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestFunction/Resource
+      aws:asset:path: asset.040a695a2e9322b243e184783361acba012db64da407da504863c1bf90f92c73
+      aws:asset:property: Code
+  TestApi65B47ECD:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: TestApi
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/Resource
+  TestApiDeployment8541C0A0e7dc70505d8aa80b02179ed3b17af0e9:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: TestApi65B47ECD
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - TestApiproxyANY735F7DD2
+      - TestApiproxy272A645C
+      - TestApiANY5CA817A4
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/Deployment/Resource
+  TestApiDeploymentStageprod9E5CEC48:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: TestApi65B47ECD
+      DeploymentId:
+        Ref: TestApiDeployment8541C0A0e7dc70505d8aa80b02179ed3b17af0e9
+      StageName: prod
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/DeploymentStage.prod/Resource
+  TestApiCloudWatchRole3E85D09F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/CloudWatchRole/Resource
+  TestApiAccountC79E0025:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - TestApiCloudWatchRole3E85D09F
+          - Arn
+    DependsOn:
+      - TestApi65B47ECD
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/Account
+  TestApiproxy272A645C:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - TestApi65B47ECD
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: TestApi65B47ECD
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/Default/{proxy+}/Resource
+  TestApiproxyANYApiPermissionSamOptionsReproTestApiC27A3212ANYproxyFB4E8ECF:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - TestFunction22AD90FC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: TestApi65B47ECD
+            - /
+            - Ref: TestApiDeploymentStageprod9E5CEC48
+            - /*/{proxy+}
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/Default/{proxy+}/ANY/ApiPermission.SamOptionsReproTestApiC27A3212.ANY..{proxy+}
+  TestApiproxyANYApiPermissionTestSamOptionsReproTestApiC27A3212ANYproxyCC000011:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - TestFunction22AD90FC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: TestApi65B47ECD
+            - /test-invoke-stage/*/{proxy+}
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/Default/{proxy+}/ANY/ApiPermission.Test.SamOptionsReproTestApiC27A3212.ANY..{proxy+}
+  TestApiproxyANY735F7DD2:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: TestApiproxy272A645C
+      RestApiId:
+        Ref: TestApi65B47ECD
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - TestFunction22AD90FC
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/Default/{proxy+}/ANY/Resource
+  TestApiANYApiPermissionSamOptionsReproTestApiC27A3212ANY08AD985A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - TestFunction22AD90FC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: TestApi65B47ECD
+            - /
+            - Ref: TestApiDeploymentStageprod9E5CEC48
+            - /*/
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/Default/ANY/ApiPermission.SamOptionsReproTestApiC27A3212.ANY..
+  TestApiANYApiPermissionTestSamOptionsReproTestApiC27A3212ANY220844E0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - TestFunction22AD90FC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: TestApi65B47ECD
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/Default/ANY/ApiPermission.Test.SamOptionsReproTestApiC27A3212.ANY..
+  TestApiANY5CA817A4:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - TestApi65B47ECD
+          - RootResourceId
+      RestApiId:
+        Ref: TestApi65B47ECD
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - TestFunction22AD90FC
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: SamOptionsRepro/TestApi/Default/ANY/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.12.0,@aws-cdk/aws-apigateway=1.12.0,@aws-cdk/aws-cloudwatch=1.12.0,@aws-cdk/aws-ec2=1.12.0,@aws-cdk/aws-events=1.12.0,@aws-cdk/aws-iam=1.12.0,@aws-cdk/aws-kms=1.12.0,@aws-cdk/aws-lambda=1.12.0,@aws-cdk/aws-s3=1.12.0,@aws-cdk/aws-s3-assets=1.12.0,@aws-cdk/aws-sqs=1.12.0,@aws-cdk/aws-ssm=1.12.0,@aws-cdk/core=1.12.0,@aws-cdk/cx-api=1.12.0,@aws-cdk/region-info=1.12.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters040a695a2e9322b243e184783361acba012db64da407da504863c1bf90f92c73S3Bucket4F63589D:
+    Type: String
+    Description: S3 bucket for asset "040a695a2e9322b243e184783361acba012db64da407da504863c1bf90f92c73"
+  AssetParameters040a695a2e9322b243e184783361acba012db64da407da504863c1bf90f92c73S3VersionKeyAA276266:
+    Type: String
+    Description: S3 key for asset version "040a695a2e9322b243e184783361acba012db64da407da504863c1bf90f92c73"
+  AssetParameters040a695a2e9322b243e184783361acba012db64da407da504863c1bf90f92c73ArtifactHashC1A5CE00:
+    Type: String
+    Description: Artifact hash for asset "040a695a2e9322b243e184783361acba012db64da407da504863c1bf90f92c73"
+Outputs:
+  TestApiEndpoint316CA9C6:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: TestApi65B47ECD
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: TestApiDeploymentStageprod9E5CEC48
+          - /
+  ApiUrl:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: TestApi65B47ECD
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: TestApiDeploymentStageprod9E5CEC48
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

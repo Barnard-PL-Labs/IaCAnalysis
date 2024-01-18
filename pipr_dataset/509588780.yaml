@@ -1,0 +1,1062 @@
+Description: Petclinic Application
+Metadata:
+  cdk_nag:
+    rules_to_suppress:
+      - id: AwsSolutions-S1
+        reason: "CDK construct does not provide a way to enable logging for S3 Bucket managed by Code Pipeline: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.pipelines.CodePipeline.html"
+      - id: AwsSolutions-IAM5
+        reason: "1/Default policies for code pipeline and these are resourced to s3 bucket, account and CDK limits to customize the default policies: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.pipelines.CodePipeline.html, 2/ecr:GetAuthorizationToken does not allow to scope to resource"
+      - id: AwsSolutions-KMS5
+        reason: "CDK construct does not provide a way to enable KMS rotation: https://docs.aws.amazon.com/cdk/api/v2/docs/aws-cdk-lib.pipelines.CodePipeline.html"
+Resources:
+  petclinicrepo2DE4A0F0:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: petclinic
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-repo/Resource
+  petclinicrepoCdkPipelineStackpetclinicpipelinePipelineF433CAEEmainEventRuleB3BF2C8C:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::GetAtt:
+              - petclinicrepo2DE4A0F0
+              - Arn
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - main
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:us-east-1:036406153779:"
+                - Ref: petclinicpipelinePipeline95543F55
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - petclinicpipelinePipelineEventsRole5D3695FD
+              - Arn
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-repo/CdkPipelineStackpetclinicpipelinePipelineF433CAEE-main-EventRule/Resource
+  petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/ArtifactsBucketEncryptionKey/Resource
+  petclinicpipelinePipelineArtifactsBucketEncryptionKeyAlias140780B5:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-cdkpipelinestackpetclinicpipelinepipelinef433caee
+      TargetKeyId:
+        Fn::GetAtt:
+          - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  petclinicpipelinePipelineArtifactsBucket4211495B:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/ArtifactsBucket/Resource
+  petclinicpipelinePipelineArtifactsBucketPolicy17BA344E:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: petclinicpipelinePipelineArtifactsBucket4211495B
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - petclinicpipelinePipelineArtifactsBucket4211495B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - petclinicpipelinePipelineArtifactsBucket4211495B
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+            Resource:
+              - Fn::GetAtt:
+                  - petclinicpipelinePipelineArtifactsBucket4211495B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - petclinicpipelinePipelineArtifactsBucket4211495B
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/ArtifactsBucket/Policy/Resource
+  petclinicpipelinePipelineRole213C1EB1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/Role/Resource
+  petclinicpipelinePipelineRoleDefaultPolicy23527D8E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - petclinicpipelinePipelineArtifactsBucket4211495B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - petclinicpipelinePipelineArtifactsBucket4211495B
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelineSourceCodeCommitCodePipelineActionRole5EF5A5A4
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelineBuildpetclinicsynthCodePipelineActionRole1D5A534F
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":iam::"
+                  - Ref: AWS::AccountId
+                  - :role/cdk-hnb659fds-deploy-role-
+                  - Ref: AWS::AccountId
+                  - "-"
+                  - Ref: AWS::Region
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelinepetclinicbuildCodePipelineActionRoleC7A1C493
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: petclinicpipelinePipelineRoleDefaultPolicy23527D8E
+      Roles:
+        - Ref: petclinicpipelinePipelineRole213C1EB1
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/Role/DefaultPolicy/Resource
+  petclinicpipelinePipeline95543F55:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - petclinicpipelinePipelineRole213C1EB1
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::GetAtt:
+                    - petclinicrepo2DE4A0F0
+                    - Name
+                BranchName: main
+                PollForSourceChanges: false
+              Name:
+                Fn::GetAtt:
+                  - petclinicrepo2DE4A0F0
+                  - Name
+              OutputArtifacts:
+                - Name: c8ec4592ac410cb85012ba84d8ff87f4af795121e3_Source
+              RoleArn:
+                Fn::GetAtt:
+                  - petclinicpipelinePipelineSourceCodeCommitCodePipelineActionRole5EF5A5A4
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProject3766B3D9
+              InputArtifacts:
+                - Name: c8ec4592ac410cb85012ba84d8ff87f4af795121e3_Source
+              Name: petclinic-synth
+              OutputArtifacts:
+                - Name: petclinic_synth_Output
+              RoleArn:
+                Fn::GetAtt:
+                  - petclinicpipelinePipelineBuildpetclinicsynthCodePipelineActionRole1D5A534F
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: petclinic-build-app
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":iam::"
+                      - Ref: AWS::AccountId
+                      - :role/cdk-hnb659fds-cfn-exec-role-
+                      - Ref: AWS::AccountId
+                      - "-"
+                      - Ref: AWS::Region
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: PipelineChange
+                TemplatePath: petclinic_synth_Output::assembly-CdkPipelineStack-petclinic-build/CdkPipelineStackpetclinicbuildapp8C6FFE5A.template.json
+              InputArtifacts:
+                - Name: petclinic_synth_Output
+              Name: app.Prepare
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: petclinic-build-app
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: PipelineChange
+              Name: app.Deploy
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 2
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: petclinicpipelinePipelinepetclinicbuild4AD43DA6
+              InputArtifacts:
+                - Name: c8ec4592ac410cb85012ba84d8ff87f4af795121e3_Source
+              Name: petclinic-build
+              RoleArn:
+                Fn::GetAtt:
+                  - petclinicpipelinePipelinepetclinicbuildCodePipelineActionRoleC7A1C493
+                  - Arn
+              RunOrder: 3
+          Name: petclinic-build
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: petclinic-deploy-app
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":iam::"
+                      - Ref: AWS::AccountId
+                      - :role/cdk-hnb659fds-cfn-exec-role-
+                      - Ref: AWS::AccountId
+                      - "-"
+                      - Ref: AWS::Region
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: PipelineChange
+                TemplatePath: petclinic_synth_Output::assembly-CdkPipelineStack-petclinic-deploy/CdkPipelineStackpetclinicdeployapp5C6D7F12.template.json
+              InputArtifacts:
+                - Name: petclinic_synth_Output
+              Name: Prepare
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: petclinic-deploy-app
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: PipelineChange
+              Name: Deploy
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 2
+          Name: petclinic-deploy
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+              - Arn
+          Type: KMS
+        Location:
+          Ref: petclinicpipelinePipelineArtifactsBucket4211495B
+        Type: S3
+      Name: petclinic-pipeline
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - petclinicpipelinePipelineRoleDefaultPolicy23527D8E
+      - petclinicpipelinePipelineRole213C1EB1
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/Resource
+  petclinicpipelinePipelineSourceCodeCommitCodePipelineActionRole5EF5A5A4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/Source/CodeCommit/CodePipelineActionRole/Resource
+  petclinicpipelinePipelineSourceCodeCommitCodePipelineActionRoleDefaultPolicy1B3B9F6A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - petclinicpipelinePipelineArtifactsBucket4211495B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - petclinicpipelinePipelineArtifactsBucket4211495B
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+                - Arn
+          - Action:
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:UploadArchive
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:CancelUploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicrepo2DE4A0F0
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: petclinicpipelinePipelineSourceCodeCommitCodePipelineActionRoleDefaultPolicy1B3B9F6A
+      Roles:
+        - Ref: petclinicpipelinePipelineSourceCodeCommitCodePipelineActionRole5EF5A5A4
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/Source/CodeCommit/CodePipelineActionRole/DefaultPolicy/Resource
+  petclinicpipelinePipelineEventsRole5D3695FD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/EventsRole/Resource
+  petclinicpipelinePipelineEventsRoleDefaultPolicy9D949BE9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codepipeline:us-east-1:036406153779:"
+                  - Ref: petclinicpipelinePipeline95543F55
+        Version: "2012-10-17"
+      PolicyName: petclinicpipelinePipelineEventsRoleDefaultPolicy9D949BE9
+      Roles:
+        - Ref: petclinicpipelinePipelineEventsRole5D3695FD
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/EventsRole/DefaultPolicy/Resource
+  petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProjectRoleD4F4E8E9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/Build/petclinic-synth/CdkBuildProject/Role/Resource
+  petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProjectRoleDefaultPolicyCA1502A0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProject3766B3D9
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProject3766B3D9
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProject3766B3D9
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - petclinicpipelinePipelineArtifactsBucket4211495B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - petclinicpipelinePipelineArtifactsBucket4211495B
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProjectRoleDefaultPolicyCA1502A0
+      Roles:
+        - Ref: petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProjectRoleD4F4E8E9
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/Build/petclinic-synth/CdkBuildProject/Role/DefaultPolicy/Resource
+  petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProject3766B3D9:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProjectRoleD4F4E8E9
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g aws-cdk"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cd cdk",
+                  "npm ci",
+                  "npm run build",
+                  "npx cdk synth"
+                ]
+              }
+            },
+            "artifacts": {
+              "base-directory": "cdk/cdk.out",
+              "files": "**/*"
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step petclinic/Pipeline/Build/petclinic-synth
+      EncryptionKey:
+        Fn::GetAtt:
+          - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+          - Arn
+      Name: petclinic-synth
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/Build/petclinic-synth/CdkBuildProject/Resource
+  petclinicpipelinePipelineBuildpetclinicsynthCodePipelineActionRole1D5A534F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/Build/petclinic-synth/CodePipelineActionRole/Resource
+  petclinicpipelinePipelineBuildpetclinicsynthCodePipelineActionRoleDefaultPolicy3BABCEE3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelineBuildpetclinicsynthCdkBuildProject3766B3D9
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: petclinicpipelinePipelineBuildpetclinicsynthCodePipelineActionRoleDefaultPolicy3BABCEE3
+      Roles:
+        - Ref: petclinicpipelinePipelineBuildpetclinicsynthCodePipelineActionRole1D5A534F
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/Build/petclinic-synth/CodePipelineActionRole/DefaultPolicy/Resource
+  petclinicpipelinePipelinepetclinicbuild4AD43DA6:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_MEDIUM
+        EnvironmentVariables:
+          - Name: AWS_ACCOUNT_ID
+            Type: PLAINTEXT
+            Value: "036406153779"
+          - Name: AWS_DEFAULT_REGION
+            Type: PLAINTEXT
+            Value: us-east-1
+          - Name: IMAGE_REPO_NAME
+            Type: PLAINTEXT
+            Value: petclinic
+          - Name: IMAGE_TAG
+            Type: PLAINTEXT
+            Value: latest
+          - Name: DOCKER_USER_NAME
+            Type: SECRETS_MANAGER
+            Value: dockerhub_credentials:username
+          - Name: DOCKER_USER_PASSWORD
+            Type: SECRETS_MANAGER
+            Value: dockerhub_credentials:password
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - petclinicbuildrole221C44AC
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "env": {
+              "variables": {
+                "IMAGE_TAG": "latest"
+              },
+              "exported-variables": [
+                "IMAGE_TAG",
+                "CODEBUILD_BUILD_NUMBER",
+                "CODEBUILD_RESOLVED_SOURCE_VERSION"
+              ]
+            },
+            "phases": {
+              "install": {
+                "runtime-versions": {
+                  "java": "corretto8"
+                },
+                "commands": [
+                  "echo running install commands...",
+                  "COMMIT_HASH=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-8)",
+                  "IMAGE_TAG=${COMMIT_HASH:=latest}"
+                ]
+              },
+              "pre_build": {
+                "commands": [
+                  "echo Logging in to Amazon ECR...",
+                  "echo $DOCKER_USER_PASSWORD | docker login -u $DOCKER_USER_NAME --password-stdin",
+                  "aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "echo Build started on `date`",
+                  "cd petclinic",
+                  "./mvnw package -Dmaven.test.skip=true",
+                  "docker build -t $IMAGE_REPO_NAME:$IMAGE_TAG .",
+                  "docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest",
+                  "docker tag $IMAGE_REPO_NAME:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG",
+                  "echo building app"
+                ]
+              },
+              "post_build": {
+                "commands": [
+                  "echo Running post build steps...",
+                  "docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:latest",
+                  "docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$IMAGE_REPO_NAME:$IMAGE_TAG"
+                ]
+              }
+            },
+            "cache": {
+              "paths": [
+                "/root/.m2/**/*"
+              ]
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step petclinic/Pipeline/petclinic-build/petclinic-build
+      EncryptionKey:
+        Fn::GetAtt:
+          - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+          - Arn
+      Name: petclinic-build
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/petclinic-build/petclinic-build/petclinic-build/Resource
+  petclinicpipelinePipelinepetclinicbuildCodePipelineActionRoleC7A1C493:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/petclinic-build/petclinic-build/CodePipelineActionRole/Resource
+  petclinicpipelinePipelinepetclinicbuildCodePipelineActionRoleDefaultPolicyD31F8AA7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelinepetclinicbuild4AD43DA6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: petclinicpipelinePipelinepetclinicbuildCodePipelineActionRoleDefaultPolicyD31F8AA7
+      Roles:
+        - Ref: petclinicpipelinePipelinepetclinicbuildCodePipelineActionRoleC7A1C493
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-pipeline/Pipeline/petclinic-build/petclinic-build/CodePipelineActionRole/DefaultPolicy/Resource
+  petclinicbuildrole221C44AC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+      Description: petclinic-build-role
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: secretsmanager:GetSecretValue
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - :secretsmanager:us-east-1:036406153779:secret:dockerhub_credentials
+              - Action: ecr:GetAuthorizationToken
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:GetRepositoryPolicy
+                  - ecr:DescribeRepositories
+                  - ecr:ListImages
+                  - ecr:DescribeImages
+                  - ecr:BatchGetImage
+                  - ecr:GetLifecyclePolicy
+                  - ecr:GetLifecyclePolicyPreview
+                  - ecr:ListTagsForResource
+                  - ecr:DescribeImageScanFindings
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - :ecr:us-east-1:036406153779:repository/petclinic
+            Version: "2012-10-17"
+          PolicyName: petclinic-code-build-policy
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-build-role/Resource
+  petclinicbuildroleDefaultPolicyF9FE182C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: secretsmanager:GetSecretValue
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :secretsmanager:us-east-1:036406153779:secret:dockerhub_credentials-??????
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: petclinicpipelinePipelinepetclinicbuild4AD43DA6
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: petclinicpipelinePipelinepetclinicbuild4AD43DA6
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: petclinicpipelinePipelinepetclinicbuild4AD43DA6
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - petclinicpipelinePipelineArtifactsBucket4211495B
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - petclinicpipelinePipelineArtifactsBucket4211495B
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - petclinicpipelinePipelineArtifactsBucketEncryptionKey74B5B98E
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: petclinicbuildroleDefaultPolicyF9FE182C
+      Roles:
+        - Ref: petclinicbuildrole221C44AC
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/petclinic-build-role/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/0VPy46DMAz8lt6Nt7SXXtsee0HsB6xocCVDHogkXVVR/n0TCMtpxuOZeHLC+ozHQ/drK9GPleQnhm/XiRGS9BOE6UkYpdhhaGkylp2ZP3B/6X2KQG/SziaHl7TsEkbI2YknkqwJQ1NY3m88wqhS7EHLixmukjubh4VEsGcMNy9GclksbIXGSBafXV7nCNyp1MSUJhl35+bJ1Z6eZb/3amYzkFjOFBojbPUt3lPi/wstWeNnsV4oPIJOFhzs17u+YH3C+jBY5mr22rEibFf8A7I6CudwAQAA
+    Metadata:
+      aws:cdk:path: CdkPipelineStack/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

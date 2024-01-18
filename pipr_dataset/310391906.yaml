@@ -1,0 +1,1930 @@
+Description: (SO8002) - Data Transfer Hub - S3 Plugin - Template version undefined
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Source Information
+        Parameters:
+          - srcType
+          - srcBucket
+          - srcPrefix
+          - srcRegion
+          - srcEndpoint
+          - srcInCurrentAccount
+          - srcCredentials
+          - srcEvent
+      - Label:
+          default: Destination Information
+        Parameters:
+          - destBucket
+          - destPrefix
+          - destRegion
+          - destInCurrentAccount
+          - destCredentials
+          - destStorageClass
+          - destAcl
+      - Label:
+          default: ECS Cluster Information
+        Parameters:
+          - ecsClusterName
+      - Label:
+          default: Network Information
+        Parameters:
+          - ecsVpcId
+          - ecsSubnets
+      - Label:
+          default: Notification Information
+        Parameters:
+          - alarmEmail
+      - Label:
+          default: Advanced Options
+        Parameters:
+          - finderDepth
+          - finderNumber
+          - workerNumber
+          - includeMetadata
+          - maxCapacity
+          - minCapacity
+          - desiredCapacity
+    ParameterLabels:
+      srcType:
+        default: Source Type
+      srcBucket:
+        default: Source Bucket
+      srcPrefix:
+        default: Source Prefix
+      srcRegion:
+        default: Source Region
+      srcEndpoint:
+        default: Source Endpoint URL
+      srcInCurrentAccount:
+        default: Source In Current Account
+      srcCredentials:
+        default: Source Credentials
+      destBucket:
+        default: Destination Bucket
+      destPrefix:
+        default: Destination Prefix
+      destRegion:
+        default: Destination Region
+      destInCurrentAccount:
+        default: Destination In Current Account
+      destCredentials:
+        default: Destination Credentials
+      destStorageClass:
+        default: Destination Storage Class
+      destAcl:
+        default: Destination Access Control List
+      ecsClusterName:
+        default: ECS Cluster Name
+      ecsVpcId:
+        default: VPC ID
+      ecsSubnets:
+        default: Subnet IDs
+      alarmEmail:
+        default: Alarm Email
+      includeMetadata:
+        default: Include Metadata
+      srcEvent:
+        default: Enable S3 Event
+      maxCapacity:
+        default: Maximum Capacity
+      minCapacity:
+        default: Minimum Capacity
+      desiredCapacity:
+        default: Desired Capacity
+Parameters:
+  srcType:
+    Type: String
+    Default: Amazon_S3
+    AllowedValues:
+      - Amazon_S3
+      - Aliyun_OSS
+      - Qiniu_Kodo
+      - Tencent_COS
+    Description: Choose type of source storage, including Amazon S3, Aliyun OSS, Qiniu Kodo, Tencent COS
+  srcBucket:
+    Type: String
+    Description: Source Bucket Name
+  srcPrefix:
+    Type: String
+    Default: ""
+    Description: Source Prefix (Optional)
+  srcRegion:
+    Type: String
+    Default: ""
+    Description: Source Region Name
+  srcEndpoint:
+    Type: String
+    Default: ""
+    Description: Source Endpoint URL (Optional), leave blank unless you want to provide a custom Endpoint URL
+  srcInCurrentAccount:
+    Type: String
+    Default: "false"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Source Bucket in current account? If not, you should provide a credential with read access
+  srcCredentials:
+    Type: String
+    Default: ""
+    Description: The secret name in Secrets Manager used to keep AK/SK credentials for Source Bucket. Leave blank if source bucket is in current account or source is open data
+  destBucket:
+    Type: String
+    Description: Destination Bucket Name
+  destPrefix:
+    Type: String
+    Default: ""
+    Description: Destination Prefix (Optional)
+  destRegion:
+    Type: String
+    Default: ""
+    Description: Destination Region Name
+  destInCurrentAccount:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Destination Bucket in current account? If not, you should provide a credential with read and write access
+  destCredentials:
+    Type: String
+    Default: ""
+    Description: The secret name in Secrets Manager used to keep AK/SK credentials for Destination Bucket. Leave blank if desination bucket is in current account
+  destStorageClass:
+    Type: String
+    Default: STANDARD
+    AllowedValues:
+      - STANDARD
+      - STANDARD_IA
+      - ONEZONE_IA
+      - INTELLIGENT_TIERING
+    Description: Destination Storage Class, Default to STANDAD
+  destAcl:
+    Type: String
+    Default: bucket-owner-full-control
+    AllowedValues:
+      - private
+      - public-read
+      - public-read-write
+      - authenticated-read
+      - aws-exec-read
+      - bucket-owner-read
+      - bucket-owner-full-control
+    Description: Destination Access Control List
+  ecsClusterName:
+    Type: String
+    Default: ""
+    Description: ECS Cluster Name to run ECS task (Please make sure the cluster exists)
+  ecsVpcId:
+    Type: AWS::EC2::VPC::Id
+    Default: ""
+    Description: VPC ID to run ECS task and EC2 instances, e.g. vpc-bef13dc7
+  ecsSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: ""
+    Description: Subnet IDs to run ECS task and EC2 instances. Please provide two subnets at least delimited by comma, e.g. subnet-97bfc4cd,subnet-7ad7de32
+  alarmEmail:
+    Type: String
+    AllowedPattern: \w[-\w.+]*@([A-Za-z0-9][-A-Za-z0-9]+\.)+[A-Za-z]{2,14}
+    Description: Error notification will be sent to this email address
+  includeMetadata:
+    Type: String
+    Default: "true"
+    AllowedValues:
+      - "true"
+      - "false"
+    Description: Add replication of object metadata, there will be additional API calls
+  srcEvent:
+    Type: String
+    Default: "No"
+    AllowedValues:
+      - "No"
+      - Create
+      - CreateAndDelete
+    Description: Whether to enable S3 Event to trigger the replication. Note that S3Event is only applicable if source is in Current account
+  finderDepth:
+    Type: String
+    Default: "0"
+    Description: The depth of sub folders to compare in parallel. 0 means comparing all objects in sequence
+  finderNumber:
+    Type: String
+    Default: "1"
+    Description: The number of finder threads to run in parallel
+  workerNumber:
+    Type: String
+    Default: "4"
+    Description: The number of worker threads to run in one worker node/instance
+  maxCapacity:
+    Type: Number
+    Default: "20"
+    Description: Maximum Capacity for Auto Scaling Group
+  minCapacity:
+    Type: Number
+    Default: "1"
+    Description: Minimum Capacity for Auto Scaling Group
+  desiredCapacity:
+    Type: Number
+    Default: "1"
+    Description: Desired Capacity for Auto Scaling Group
+  AssetParameters71da4132946b30859eab46bed3a3ddcd4324d7ed5760e95f8384806e86263418S3BucketB7EFD512:
+    Type: String
+    Description: S3 bucket for asset "71da4132946b30859eab46bed3a3ddcd4324d7ed5760e95f8384806e86263418"
+  AssetParameters71da4132946b30859eab46bed3a3ddcd4324d7ed5760e95f8384806e86263418S3VersionKeyA412D5C3:
+    Type: String
+    Description: S3 key for asset version "71da4132946b30859eab46bed3a3ddcd4324d7ed5760e95f8384806e86263418"
+  AssetParameters71da4132946b30859eab46bed3a3ddcd4324d7ed5760e95f8384806e86263418ArtifactHash57B609FD:
+    Type: String
+    Description: Artifact hash for asset "71da4132946b30859eab46bed3a3ddcd4324d7ed5760e95f8384806e86263418"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43:
+    Type: String
+    Description: S3 bucket for asset "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7:
+    Type: String
+    Description: S3 key for asset version "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cArtifactHash627DAAA7:
+    Type: String
+    Description: Artifact hash for asset "c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c"
+  AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3Bucket02FC0B28:
+    Type: String
+    Description: S3 bucket for asset "4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbc"
+  AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3VersionKey547E84F8:
+    Type: String
+    Description: S3 key for asset version "4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbc"
+  AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcArtifactHashF236251A:
+    Type: String
+    Description: Artifact hash for asset "4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbc"
+  AssetParameters43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4S3Bucket3A2B0B46:
+    Type: String
+    Description: S3 bucket for asset "43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4"
+  AssetParameters43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4S3VersionKey7A50E10B:
+    Type: String
+    Description: S3 key for asset version "43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4"
+  AssetParameters43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4ArtifactHashCB97A4BE:
+    Type: String
+    Description: Artifact hash for asset "43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4"
+  AssetParametersee7ea6fb78c0246ae0cbe4c572edb05b7385b0e068f87e8877fc66c4c3c00b83S3Bucket0D20A02F:
+    Type: String
+    Description: S3 bucket for asset "ee7ea6fb78c0246ae0cbe4c572edb05b7385b0e068f87e8877fc66c4c3c00b83"
+  AssetParametersee7ea6fb78c0246ae0cbe4c572edb05b7385b0e068f87e8877fc66c4c3c00b83S3VersionKeyA5313DD0:
+    Type: String
+    Description: S3 key for asset version "ee7ea6fb78c0246ae0cbe4c572edb05b7385b0e068f87e8877fc66c4c3c00b83"
+  AssetParametersee7ea6fb78c0246ae0cbe4c572edb05b7385b0e068f87e8877fc66c4c3c00b83ArtifactHash6EE38069:
+    Type: String
+    Description: Artifact hash for asset "ee7ea6fb78c0246ae0cbe4c572edb05b7385b0e068f87e8877fc66c4c3c00b83"
+  SsmParameterValueawsserviceamiamazonlinuxlatestamzn2amihvmarm64gp2C96584B6F00A464EAD1953AFF4B05118Parameter:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-arm64-gp2
+Resources:
+  S3TransferTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: ObjectKey
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: ObjectKey
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: false
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/Common/S3TransferTable/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W74
+            reason: Use deafult encryption. Encryption key owned by Amazon
+  S3TransferQueueDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsMasterKeyId: alias/aws/sqs
+      MessageRetentionPeriod: 1209600
+      VisibilityTimeout: 1800
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/Common/S3TransferQueueDLQ/Resource
+  S3TransferQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - S3TransferQueueDLQ
+            - Arn
+        maxReceiveCount: 5
+      VisibilityTimeout: 900
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/Common/S3TransferQueue/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W48
+            reason: No need to use encryption
+  CommonS3TransferQueuePolicy08E28469:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: SQS:SendMessage
+            Condition:
+              StringEquals:
+                aws:SourceArn:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":s3:::"
+                      - Ref: srcBucket
+            Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - S3TransferQueue
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: S3TransferQueue
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/Common/S3TransferQueue/Policy/Resource
+  CommonS3TransferDLQAlarm01AE3F95:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: S3TransferAlarmTopic
+      DatapointsToAlarm: 1
+      Dimensions:
+        - Name: QueueName
+          Value:
+            Fn::GetAtt:
+              - S3TransferQueueDLQ
+              - QueueName
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 0
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/Common/S3TransferDLQAlarm/Resource
+  CommonSNSTopicEncryptionKeyAC08966E:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:GenerateDataKey*
+              - kms:Decrypt
+              - kms:Encrypt
+            Effect: Allow
+            Principal:
+              Service:
+                - sns.amazonaws.com
+                - cloudwatch.amazonaws.com
+            Resource: "*"
+            Sid: "0"
+          - Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:GenerateDataKey
+              - kms:TagResource
+              - kms:UntagResource
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+            Sid: "1"
+        Version: "2012-10-17"
+      Enabled: true
+      EnableKeyRotation: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/Common/SNSTopicEncryptionKey/Resource
+  CommonSNSTopicEncryptionKeyAliasBD265BB5:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName:
+        Fn::Join:
+          - ""
+          - - alias/dth/sns/
+            - Ref: AWS::StackName
+      TargetKeyId:
+        Fn::GetAtt:
+          - CommonSNSTopicEncryptionKeyAC08966E
+          - Arn
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/Common/SNSTopicEncryptionKey/Alias/Resource
+  S3TransferAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName:
+        Fn::Join:
+          - ""
+          - - Data Transfer Hub Alarm (
+            - Ref: AWS::StackName
+            - )
+      KmsMasterKeyId:
+        Fn::GetAtt:
+          - CommonSNSTopicEncryptionKeyAC08966E
+          - Arn
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/Common/S3TransferAlarmTopic/Resource
+  CommonS3TransferAlarmTopicTokenSubscription1A53FF898:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn:
+        Ref: S3TransferAlarmTopic
+      Endpoint:
+        Ref: alarmEmail
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/Common/S3TransferAlarmTopic/TokenSubscription:1/Resource
+  DefaultPolicyBB6BAB25:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - S3TransferTable
+                - Arn
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":secretsmanager:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - ":secret:"
+                    - Ref: srcCredentials
+                    - -??????
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":secretsmanager:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - ":secret:"
+                    - Ref: destCredentials
+                    - -??????
+        Version: "2012-10-17"
+      PolicyName: DefaultPolicyBB6BAB25
+      Roles:
+        - Ref: ECSStackJobFinderTaskDefTaskRole4409C45D
+        - Ref: EC2WorkerStackWorkerAsgRole81C6AA56
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/DefaultPolicy/Resource
+  ECSStackFinderLogGroup224DDC3A:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/FinderLogGroup/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: log group is encrypted with the default master key
+  ECSStackJobFinderTaskDefTaskRole4409C45D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/JobFinderTaskDef/TaskRole/Resource
+  ECSStackJobFinderTaskDefTaskRoleDefaultPolicyF4AB424C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - S3TransferQueue
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: srcBucket
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: srcBucket
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: destBucket
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: destBucket
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: ECSStackJobFinderTaskDefTaskRoleDefaultPolicyF4AB424C
+      Roles:
+        - Ref: ECSStackJobFinderTaskDefTaskRole4409C45D
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/JobFinderTaskDef/TaskRole/DefaultPolicy/Resource
+  ECSStackJobFinderTaskDef5B729650:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: AWS_DEFAULT_REGION
+              Value:
+                Ref: AWS::Region
+            - Name: JOB_TABLE_NAME
+              Value:
+                Ref: S3TransferTable
+            - Name: JOB_QUEUE_NAME
+              Value:
+                Fn::GetAtt:
+                  - S3TransferQueue
+                  - QueueName
+            - Name: SOURCE_TYPE
+              Value:
+                Ref: srcType
+            - Name: SRC_BUCKET
+              Value:
+                Ref: srcBucket
+            - Name: SRC_PREFIX
+              Value:
+                Ref: srcPrefix
+            - Name: SRC_REGION
+              Value:
+                Ref: srcRegion
+            - Name: SRC_ENDPOINT
+              Value:
+                Ref: srcEndpoint
+            - Name: SRC_CREDENTIALS
+              Value:
+                Ref: srcCredentials
+            - Name: SRC_IN_CURRENT_ACCOUNT
+              Value:
+                Ref: srcInCurrentAccount
+            - Name: DEST_BUCKET
+              Value:
+                Ref: destBucket
+            - Name: DEST_PREFIX
+              Value:
+                Ref: destPrefix
+            - Name: DEST_REGION
+              Value:
+                Ref: destRegion
+            - Name: DEST_CREDENTIALS
+              Value:
+                Ref: destCredentials
+            - Name: DEST_IN_CURRENT_ACCOUNT
+              Value:
+                Ref: destInCurrentAccount
+            - Name: FINDER_DEPTH
+              Value:
+                Ref: finderDepth
+            - Name: FINDER_NUMBER
+              Value:
+                Ref: finderNumber
+          Essential: true
+          Image: public.ecr.aws/aws-gcr-solutions/data-transfer-hub-cli:1.0.0
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: ECSStackFinderLogGroup224DDC3A
+              awslogs-stream-prefix: ecsJobSender
+              awslogs-region:
+                Ref: AWS::Region
+          Name: DefaultContainer
+      Cpu: "4096"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - ECSStackJobFinderTaskDefExecutionRoleFED47354
+          - Arn
+      Family:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -DTHFinderTask
+      Memory: "8192"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - ECSStackJobFinderTaskDefTaskRole4409C45D
+          - Arn
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/JobFinderTaskDef/Resource
+  ECSStackJobFinderTaskDefExecutionRoleFED47354:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/JobFinderTaskDef/ExecutionRole/Resource
+  ECSStackJobFinderTaskDefExecutionRoleDefaultPolicyBE7C0245:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ECSStackFinderLogGroup224DDC3A
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ECSStackJobFinderTaskDefExecutionRoleDefaultPolicyBE7C0245
+      Roles:
+        - Ref: ECSStackJobFinderTaskDefExecutionRoleFED47354
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/JobFinderTaskDef/ExecutionRole/DefaultPolicy/Resource
+  ECSStackJobFinderTaskDefEventsRole8F09186E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/JobFinderTaskDef/EventsRole/Resource
+  ECSStackJobFinderTaskDefEventsRoleDefaultPolicyF788A393:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ecs:RunTask
+            Condition:
+              ArnEquals:
+                ecs:cluster:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":ecs:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :cluster/
+                      - Ref: ecsClusterName
+            Effect: Allow
+            Resource:
+              Ref: ECSStackJobFinderTaskDef5B729650
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ECSStackJobFinderTaskDefExecutionRoleFED47354
+                - Arn
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ECSStackJobFinderTaskDefTaskRole4409C45D
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ECSStackJobFinderTaskDefEventsRoleDefaultPolicyF788A393
+      Roles:
+        - Ref: ECSStackJobFinderTaskDefEventsRole8F09186E
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/JobFinderTaskDef/EventsRole/DefaultPolicy/Resource
+  ECSStackS3RepECSSGA44D2CD9:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription:
+        Fn::Join:
+          - ""
+          - - "Security Group for running "
+            - Ref: AWS::StackName
+            - -DTHFinderTask
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: ecsVpcId
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/S3RepECSSG/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W5
+            reason: Open egress rule is required to access public network
+          - id: W40
+            reason: Open egress rule is required to access public network
+  ECSStackDTHFinderSchedule13B0438D:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(1 hour)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":ecs:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - :cluster/
+                - Ref: ecsClusterName
+          EcsParameters:
+            LaunchType: FARGATE
+            NetworkConfiguration:
+              AwsVpcConfiguration:
+                AssignPublicIp: ENABLED
+                SecurityGroups:
+                  - Fn::GetAtt:
+                      - ECSStackS3RepECSSGA44D2CD9
+                      - GroupId
+                Subnets:
+                  Ref: ecsSubnets
+            TaskCount: 1
+            TaskDefinitionArn:
+              Ref: ECSStackJobFinderTaskDef5B729650
+          Id: Target0
+          Input: "{}"
+          RoleArn:
+            Fn::GetAtt:
+              - ECSStackJobFinderTaskDefEventsRole8F09186E
+              - Arn
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/DTHFinderSchedule/Resource
+  ECSStackEventHandlerServiceRole49EFABAB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    DependsOn:
+      - ECSStackJobFinderTaskDefEventsRoleDefaultPolicyF788A393
+      - ECSStackJobFinderTaskDefEventsRole8F09186E
+      - ECSStackJobFinderTaskDefExecutionRoleDefaultPolicyBE7C0245
+      - ECSStackJobFinderTaskDefExecutionRoleFED47354
+      - ECSStackJobFinderTaskDef5B729650
+      - ECSStackJobFinderTaskDefTaskRoleDefaultPolicyF4AB424C
+      - ECSStackJobFinderTaskDefTaskRole4409C45D
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/EventHandler/ServiceRole/Resource
+  ECSStackEventHandlerServiceRoleDefaultPolicy35F4869C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ECSStackJobFinderTaskDefTaskRole4409C45D
+                - Arn
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ECSStackJobFinderTaskDefExecutionRoleFED47354
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ECSStackEventHandlerServiceRoleDefaultPolicy35F4869C
+      Roles:
+        - Ref: ECSStackEventHandlerServiceRole49EFABAB
+    DependsOn:
+      - ECSStackJobFinderTaskDefEventsRoleDefaultPolicyF788A393
+      - ECSStackJobFinderTaskDefEventsRole8F09186E
+      - ECSStackJobFinderTaskDefExecutionRoleDefaultPolicyBE7C0245
+      - ECSStackJobFinderTaskDefExecutionRoleFED47354
+      - ECSStackJobFinderTaskDef5B729650
+      - ECSStackJobFinderTaskDefTaskRoleDefaultPolicyF4AB424C
+      - ECSStackJobFinderTaskDefTaskRole4409C45D
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/EventHandler/ServiceRole/DefaultPolicy/Resource
+  ECSStackEventHandler46571048:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters71da4132946b30859eab46bed3a3ddcd4324d7ed5760e95f8384806e86263418S3BucketB7EFD512
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters71da4132946b30859eab46bed3a3ddcd4324d7ed5760e95f8384806e86263418S3VersionKeyA412D5C3
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters71da4132946b30859eab46bed3a3ddcd4324d7ed5760e95f8384806e86263418S3VersionKeyA412D5C3
+      Role:
+        Fn::GetAtt:
+          - ECSStackEventHandlerServiceRole49EFABAB
+          - Arn
+      Handler: lambda_event_handler.lambda_handler
+      MemorySize: 256
+      Runtime: python3.8
+      Timeout: 900
+    DependsOn:
+      - ECSStackEventHandlerServiceRoleDefaultPolicy35F4869C
+      - ECSStackEventHandlerServiceRole49EFABAB
+      - ECSStackJobFinderTaskDefEventsRoleDefaultPolicyF788A393
+      - ECSStackJobFinderTaskDefEventsRole8F09186E
+      - ECSStackJobFinderTaskDefExecutionRoleDefaultPolicyBE7C0245
+      - ECSStackJobFinderTaskDefExecutionRoleFED47354
+      - ECSStackJobFinderTaskDef5B729650
+      - ECSStackJobFinderTaskDefTaskRoleDefaultPolicyF4AB424C
+      - ECSStackJobFinderTaskDefTaskRole4409C45D
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/EventHandler/Resource
+      aws:asset:path: asset.71da4132946b30859eab46bed3a3ddcd4324d7ed5760e95f8384806e86263418
+      aws:asset:property: Code
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "False alarm: The Lambda function does have the permission to write CloudWatch Logs."
+          - id: W92
+            reason: No concurrencies required for this function
+          - id: W89
+            reason: This function does not need to be deployed in a VPC
+  ECSStackECSTaskPolicyB99BC25B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ecs:ListTasks
+            Effect: Allow
+            Resource: "*"
+          - Action: ecs:RunTask
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ecs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :task-definition/
+                  - Ref: AWS::StackName
+                  - -DTHFinderTask
+        Version: "2012-10-17"
+      PolicyName: ECSStackECSTaskPolicyB99BC25B
+      Roles:
+        - Ref: ECSStackEventHandlerServiceRole49EFABAB
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/ECSTaskPolicy/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: List Task Action requires any resources
+  ECSStackProviderframeworkonEventServiceRole29686D33:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    DependsOn:
+      - ECSStackJobFinderTaskDefEventsRoleDefaultPolicyF788A393
+      - ECSStackJobFinderTaskDefEventsRole8F09186E
+      - ECSStackJobFinderTaskDefExecutionRoleDefaultPolicyBE7C0245
+      - ECSStackJobFinderTaskDefExecutionRoleFED47354
+      - ECSStackJobFinderTaskDef5B729650
+      - ECSStackJobFinderTaskDefTaskRoleDefaultPolicyF4AB424C
+      - ECSStackJobFinderTaskDefTaskRole4409C45D
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/Provider/framework-onEvent/ServiceRole/Resource
+  ECSStackProviderframeworkonEventServiceRoleDefaultPolicy25D96399:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ECSStackEventHandler46571048
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ECSStackProviderframeworkonEventServiceRoleDefaultPolicy25D96399
+      Roles:
+        - Ref: ECSStackProviderframeworkonEventServiceRole29686D33
+    DependsOn:
+      - ECSStackJobFinderTaskDefEventsRoleDefaultPolicyF788A393
+      - ECSStackJobFinderTaskDefEventsRole8F09186E
+      - ECSStackJobFinderTaskDefExecutionRoleDefaultPolicyBE7C0245
+      - ECSStackJobFinderTaskDefExecutionRoleFED47354
+      - ECSStackJobFinderTaskDef5B729650
+      - ECSStackJobFinderTaskDefTaskRoleDefaultPolicyF4AB424C
+      - ECSStackJobFinderTaskDefTaskRole4409C45D
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/Provider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  ECSStackProviderframeworkonEvent81440AC2:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3BucketEAC9DD43
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49cS3VersionKeyDD9AE9E7
+      Role:
+        Fn::GetAtt:
+          - ECSStackProviderframeworkonEventServiceRole29686D33
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (DataTransferS3Stack/ECSStack/Provider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - ECSStackEventHandler46571048
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - ECSStackJobFinderTaskDefEventsRoleDefaultPolicyF788A393
+      - ECSStackJobFinderTaskDefEventsRole8F09186E
+      - ECSStackJobFinderTaskDefExecutionRoleDefaultPolicyBE7C0245
+      - ECSStackJobFinderTaskDefExecutionRoleFED47354
+      - ECSStackJobFinderTaskDef5B729650
+      - ECSStackJobFinderTaskDefTaskRoleDefaultPolicyF4AB424C
+      - ECSStackJobFinderTaskDefTaskRole4409C45D
+      - ECSStackProviderframeworkonEventServiceRoleDefaultPolicy25D96399
+      - ECSStackProviderframeworkonEventServiceRole29686D33
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/Provider/framework-onEvent/Resource
+      aws:asset:path: asset.c691172cdeefa2c91b5a2907f9d81118e47597634943344795f1a844192dd49c
+      aws:asset:property: Code
+  ECSStackDRHS3CustomResource873D4CA4:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - ECSStackProviderframeworkonEvent81440AC2
+          - Arn
+      cluster_name:
+        Ref: ecsClusterName
+      family:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -DTHFinderTask
+      subnets:
+        Ref: ecsSubnets
+      security_group:
+        Ref: ECSStackS3RepECSSGA44D2CD9
+      stack_name:
+        Ref: AWS::StackName
+    DependsOn:
+      - ECSStackJobFinderTaskDefEventsRoleDefaultPolicyF788A393
+      - ECSStackJobFinderTaskDefEventsRole8F09186E
+      - ECSStackJobFinderTaskDefExecutionRoleDefaultPolicyBE7C0245
+      - ECSStackJobFinderTaskDefExecutionRoleFED47354
+      - ECSStackJobFinderTaskDef5B729650
+      - ECSStackJobFinderTaskDefTaskRoleDefaultPolicyF4AB424C
+      - ECSStackJobFinderTaskDefTaskRole4409C45D
+      - ECSStackProviderframeworkonEvent81440AC2
+      - ECSStackProviderframeworkonEventServiceRoleDefaultPolicy25D96399
+      - ECSStackProviderframeworkonEventServiceRole29686D33
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/ECSStack/DRHS3CustomResource/Default
+  EC2WorkerStackS3RepEC2SG6645AAB9:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for Data Replication Hub EC2 instances
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: ecsVpcId
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepEC2SG/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W5
+            reason: Open egress rule is required to access public network
+          - id: W40
+            reason: Open egress rule is required to access public network
+  EC2WorkerStackWorkerAsgRole81C6AA56:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - ec2.
+                    - Ref: AWS::URLSuffix
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/WorkerAsgRole/Resource
+  EC2WorkerStackWorkerAsgRoleDefaultPolicy3BF8DE22:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cloudformation:SignalResource
+            Effect: Allow
+            Resource:
+              Ref: AWS::StackId
+          - Action:
+              - cloudformation:DescribeStackResource
+              - cloudformation:SignalResource
+            Effect: Allow
+            Resource:
+              Ref: AWS::StackId
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - S3TransferQueue
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: srcBucket
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: srcBucket
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: destBucket
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: destBucket
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: EC2WorkerStackWorkerAsgRoleDefaultPolicy3BF8DE22
+      Roles:
+        - Ref: EC2WorkerStackWorkerAsgRole81C6AA56
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/WorkerAsgRole/DefaultPolicy/Resource
+  EC2WorkerStackCWAgentPolicy2A407C92:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - cloudwatch:PutMetricData
+              - ec2:DescribeVolumes
+              - ec2:DescribeTags
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogStreams
+              - logs:DescribeLogGroups
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: EC2WorkerStackCWAgentPolicy2A407C92
+      Roles:
+        - Ref: EC2WorkerStackWorkerAsgRole81C6AA56
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/CWAgentPolicy/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: Publish log streams requires any resources
+  EC2WorkerStackS3RepWorkerASGInstanceProfileD516D910:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: EC2WorkerStackWorkerAsgRole81C6AA56
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerASG/InstanceProfile
+  EC2WorkerStackS3RepWorkerASGLaunchConfigD3935352:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:
+        Ref: SsmParameterValueawsserviceamiamazonlinuxlatestamzn2amihvmarm64gp2C96584B6F00A464EAD1953AFF4B05118Parameter
+      InstanceType: t4g.micro
+      AssociatePublicIpAddress: true
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            Encrypted: true
+            VolumeSize: 8
+      IamInstanceProfile:
+        Ref: EC2WorkerStackS3RepWorkerASGInstanceProfileD516D910
+      InstanceMonitoring: true
+      SecurityGroups:
+        - Fn::GetAtt:
+            - EC2WorkerStackS3RepEC2SG6645AAB9
+            - GroupId
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+            - ""
+            - - |-
+                #!/bin/bash
+                # fingerprint: 576dab768f74c98b
+                (
+                  set +e
+                  /opt/aws/bin/cfn-init -v --region 
+              - Ref: AWS::Region
+              - " --stack "
+              - Ref: AWS::StackName
+              - |-2
+                 --resource EC2WorkerStackS3RepWorkerASGED108717 -c default
+                  /opt/aws/bin/cfn-signal -e $? --region 
+              - Ref: AWS::Region
+              - " --stack "
+              - Ref: AWS::StackName
+              - |-2
+                 --resource EC2WorkerStackS3RepWorkerASGED108717
+                  cat /var/log/cfn-init.log >&2
+                )
+                yum update -y
+                cd /home/ec2-user/
+                echo "net.core.default_qdisc = fq" >> /etc/sysctl.conf
+                echo "net.ipv4.tcp_congestion_control = bbr" >> /etc/sysctl.conf
+                sysctl -p
+                echo `sysctl net.ipv4.tcp_congestion_control` > worker.log
+                yum install -y amazon-cloudwatch-agent
+                sed -i  -e "s/##log group##/
+              - Ref: EC2WorkerStackS3RepWorkerLogGroup4CACF965
+              - |-
+                /g" cw_agent_config.json
+                /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/home/ec2-user/cw_agent_config.json -s
+                curl -LO "
+              - Fn::FindInMap:
+                  - EC2WorkerStackAssetTableD4360D99
+                  - Ref: AWS::Partition
+                  - assetDomain
+              - |-
+                /data-transfer-hub-cli/v1.0.0/dthcli_1.0.0_linux_arm64.tar.gz"
+                tar zxvf dthcli_1.0.0_linux_arm64.tar.gz
+                echo "export JOB_TABLE_NAME=
+              - Ref: S3TransferTable
+              - |-
+                " >> env.sh
+                echo "export JOB_QUEUE_NAME=
+              - Fn::GetAtt:
+                  - S3TransferQueue
+                  - QueueName
+              - |-
+                " >> env.sh
+                echo "export SOURCE_TYPE=
+              - Ref: srcType
+              - |-
+                " >> env.sh
+                echo "export SRC_BUCKET=
+              - Ref: srcBucket
+              - |-
+                " >> env.sh
+                echo "export SRC_PREFIX=
+              - Ref: srcPrefix
+              - |-
+                " >> env.sh
+                echo "export SRC_REGION=
+              - Ref: srcRegion
+              - |-
+                " >> env.sh
+                echo "export SRC_ENDPOINT=
+              - Ref: srcEndpoint
+              - |-
+                " >> env.sh
+                echo "export SRC_CREDENTIALS=
+              - Ref: srcCredentials
+              - |-
+                " >> env.sh
+                echo "export SRC_IN_CURRENT_ACCOUNT=
+              - Ref: srcInCurrentAccount
+              - |-
+                " >> env.sh
+                echo "export DEST_BUCKET=
+              - Ref: destBucket
+              - |-
+                " >> env.sh
+                echo "export DEST_PREFIX=
+              - Ref: destPrefix
+              - |-
+                " >> env.sh
+                echo "export DEST_REGION=
+              - Ref: destRegion
+              - |-
+                " >> env.sh
+                echo "export DEST_CREDENTIALS=
+              - Ref: destCredentials
+              - |-
+                " >> env.sh
+                echo "export DEST_IN_CURRENT_ACCOUNT=
+              - Ref: destInCurrentAccount
+              - |-
+                " >> env.sh
+                echo "export DEST_STORAGE_CLASS=
+              - Ref: destStorageClass
+              - |-
+                " >> env.sh
+                echo "export DEST_ACL=
+              - Ref: destAcl
+              - |-
+                " >> env.sh
+                echo "export FINDER_DEPTH=
+              - Ref: finderDepth
+              - |-
+                " >> env.sh
+                echo "export FINDER_NUMBER=
+              - Ref: finderNumber
+              - |-
+                " >> env.sh
+                echo "export WORKER_NUMBER=
+              - Ref: workerNumber
+              - |-
+                " >> env.sh
+                echo "export INCLUDE_METADATA=
+              - Ref: includeMetadata
+              - |-
+                " >> env.sh
+                echo "export AWS_DEFAULT_REGION=
+              - Ref: AWS::Region
+              - |-
+                " >> env.sh
+                echo "source /home/ec2-user/env.sh" >> start-worker.sh
+                echo "nohup ./dthcli run -t Worker |& tee -a /home/ec2-user/worker.log" >> start-worker.sh
+                echo "echo 'Error occured, trying to terminate instance...' >> /home/ec2-user/worker.log" >> start-worker.sh
+                echo "shutdown" >> start-worker.sh
+                chmod +x start-worker.sh
+                ./start-worker.sh
+    DependsOn:
+      - EC2WorkerStackWorkerAsgRoleDefaultPolicy3BF8DE22
+      - EC2WorkerStackWorkerAsgRole81C6AA56
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerASG/LaunchConfig
+  EC2WorkerStackS3RepWorkerASGED108717:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      MaxSize:
+        Ref: maxCapacity
+      MinSize:
+        Ref: minCapacity
+      AutoScalingGroupName:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -Worker-ASG
+      Cooldown: "120"
+      DesiredCapacity:
+        Ref: desiredCapacity
+      LaunchConfigurationName:
+        Ref: EC2WorkerStackS3RepWorkerASGLaunchConfigD3935352
+      MetricsCollection:
+        - Granularity: 1Minute
+          Metrics:
+            - GroupDesiredCapacity
+            - GroupInServiceInstances
+      Tags:
+        - Key: Name
+          PropagateAtLaunch: true
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -Replication-Worker
+      VPCZoneIdentifier:
+        Ref: ecsSubnets
+    CreationPolicy:
+      ResourceSignal:
+        Count:
+          Ref: minCapacity
+    UpdatePolicy:
+      AutoScalingScheduledAction:
+        IgnoreUnmodifiedGroupSizeProperties: true
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerASG/ASG
+      AWS::CloudFormation::Init:
+        configSets:
+          default:
+            - config
+        config:
+          files:
+            /home/ec2-user/cw_agent_config.json:
+              content: |-
+                {
+                    "agent": {
+                        "metrics_collection_interval": 60,
+                        "run_as_user": "root"
+                    },
+                    "logs": {
+                        "logs_collected": {
+                            "files": {
+                                "collect_list": [
+                                    {
+                                        "file_path": "/home/ec2-user/worker.log",
+                                        "log_group_name": "##log group##",
+                                        "log_stream_name": "Instance-{instance_id}"
+                                    }
+                                ]
+                            }
+                        }
+                    },
+                    "metrics": {
+                        "append_dimensions": {
+                            "AutoScalingGroupName": "${aws:AutoScalingGroupName}",
+                            "InstanceId": "${aws:InstanceId}"
+                        },
+                        "aggregation_dimensions": [
+                            [
+                                "AutoScalingGroupName"
+                            ]
+                        ],
+                        "metrics_collected": {
+                            "disk": {
+                                "measurement": [
+                                    "used_percent"
+                                ],
+                                "metrics_collection_interval": 60,
+                                "resources": [
+                                    "*"
+                                ]
+                            },
+                            "mem": {
+                                "measurement": [
+                                    "mem_used_percent"
+                                ],
+                                "metrics_collection_interval": 60
+                            }
+                        }
+                    }
+                }
+              encoding: plain
+              mode: "000644"
+              owner: root
+              group: root
+  EC2WorkerStackS3RepWorkerASGScaleOutSQSLowerPolicyF2DDE3D0:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName:
+        Ref: EC2WorkerStackS3RepWorkerASGED108717
+      AdjustmentType: ChangeInCapacity
+      PolicyType: StepScaling
+      StepAdjustments:
+        - MetricIntervalUpperBound: 0
+          ScalingAdjustment: -10000
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerASG/ScaleOutSQS/LowerPolicy/Resource
+  EC2WorkerStackS3RepWorkerASGScaleOutSQSLowerAlarmA6D05E90:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: LessThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: EC2WorkerStackS3RepWorkerASGScaleOutSQSLowerPolicyF2DDE3D0
+      AlarmDescription: Lower threshold scaling alarm
+      Metrics:
+        - Expression: notvisible + visible
+          Id: expr_1
+          Label: "# of messages"
+        - Id: notvisible
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: QueueName
+                  Value:
+                    Fn::GetAtt:
+                      - S3TransferQueue
+                      - QueueName
+              MetricName: ApproximateNumberOfMessagesNotVisible
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Maximum
+          ReturnData: false
+        - Id: visible
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: QueueName
+                  Value:
+                    Fn::GetAtt:
+                      - S3TransferQueue
+                      - QueueName
+              MetricName: ApproximateNumberOfMessagesVisible
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Maximum
+          ReturnData: false
+      Threshold: 0
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerASG/ScaleOutSQS/LowerAlarm/Resource
+  EC2WorkerStackS3RepWorkerASGScaleOutSQSUpperPolicy9EC3CAD2:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName:
+        Ref: EC2WorkerStackS3RepWorkerASGED108717
+      AdjustmentType: ChangeInCapacity
+      PolicyType: StepScaling
+      StepAdjustments:
+        - MetricIntervalLowerBound: 0
+          MetricIntervalUpperBound: 400
+          ScalingAdjustment: 1
+        - MetricIntervalLowerBound: 400
+          MetricIntervalUpperBound: 1900
+          ScalingAdjustment: 2
+        - MetricIntervalLowerBound: 1900
+          MetricIntervalUpperBound: 9900
+          ScalingAdjustment: 5
+        - MetricIntervalLowerBound: 9900
+          ScalingAdjustment: 10
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerASG/ScaleOutSQS/UpperPolicy/Resource
+  EC2WorkerStackS3RepWorkerASGScaleOutSQSUpperAlarmB2E9CFF5:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: EC2WorkerStackS3RepWorkerASGScaleOutSQSUpperPolicy9EC3CAD2
+      AlarmDescription: Upper threshold scaling alarm
+      Metrics:
+        - Expression: notvisible + visible
+          Id: expr_1
+          Label: "# of messages"
+        - Id: notvisible
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: QueueName
+                  Value:
+                    Fn::GetAtt:
+                      - S3TransferQueue
+                      - QueueName
+              MetricName: ApproximateNumberOfMessagesNotVisible
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Maximum
+          ReturnData: false
+        - Id: visible
+          MetricStat:
+            Metric:
+              Dimensions:
+                - Name: QueueName
+                  Value:
+                    Fn::GetAtt:
+                      - S3TransferQueue
+                      - QueueName
+              MetricName: ApproximateNumberOfMessagesVisible
+              Namespace: AWS/SQS
+            Period: 60
+            Stat: Maximum
+          ReturnData: false
+      Threshold: 100
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerASG/ScaleOutSQS/UpperAlarm/Resource
+  EC2WorkerStackS3RepWorkerLogGroup4CACF965:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 14
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerLogGroup/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: log group is encrypted with the default master key
+  EC2WorkerStackS3RepWorkerLogGroupCompletedBytesB8BE9208:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterPattern: '[data, time, p="----->Completed", Bytes, ...]'
+      LogGroupName:
+        Ref: EC2WorkerStackS3RepWorkerLogGroup4CACF965
+      MetricTransformations:
+        - MetricName: CompletedBytes
+          MetricNamespace:
+            Ref: AWS::StackName
+          MetricValue: $Bytes
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerLogGroup/CompletedBytes/Resource
+  EC2WorkerStackS3RepWorkerLogGroupTransferredObjects84B3F0E2:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterPattern: '[data, time, p="----->Transferred", ..., s="DONE"]'
+      LogGroupName:
+        Ref: EC2WorkerStackS3RepWorkerLogGroup4CACF965
+      MetricTransformations:
+        - MetricName: TransferredObjects
+          MetricNamespace:
+            Ref: AWS::StackName
+          MetricValue: "1"
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerLogGroup/Transferred-Objects/Resource
+  EC2WorkerStackS3RepWorkerLogGroupFailedObjects3D5CF7BC:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      FilterPattern: '[data, time, p="----->Transferred", ..., s="ERROR"]'
+      LogGroupName:
+        Ref: EC2WorkerStackS3RepWorkerLogGroup4CACF965
+      MetricTransformations:
+        - MetricName: FailedObjects
+          MetricNamespace:
+            Ref: AWS::StackName
+          MetricValue: "1"
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EC2WorkerStack/S3RepWorkerLogGroup/Failed-Objects/Resource
+  DashboardStackS3Migration32EE701A:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardBody:
+        Fn::Join:
+          - ""
+          - - '{"widgets":[{"type":"metric","width":6,"height":6,"x":0,"y":0,"properties":{"view":"timeSeries","title":"Network","region":"'
+            - Ref: AWS::Region
+            - '","metrics":[["'
+            - Ref: AWS::StackName
+            - '","CompletedBytes",{"label":"Completed(Bytes)","period":60,"stat":"Sum"}]],"yAxis":{}}},{"type":"metric","width":6,"height":6,"x":6,"y":0,"properties":{"view":"timeSeries","title":"Transferred/Failed Objects","region":"'
+            - Ref: AWS::Region
+            - '","metrics":[["'
+            - Ref: AWS::StackName
+            - '","TransferredObjects",{"label":"Transferred(Objects)","period":60,"stat":"Sum"}],["'
+            - Ref: AWS::StackName
+            - '","FailedObjects",{"label":"Failed(Objects)","period":60,"stat":"Sum"}]],"yAxis":{}}},{"type":"metric","width":6,"height":6,"x":12,"y":0,"properties":{"view":"timeSeries","title":"Running/Waiting Jobs History","region":"'
+            - Ref: AWS::Region
+            - '","metrics":[["AWS/SQS","ApproximateNumberOfMessagesVisible","QueueName","'
+            - Fn::GetAtt:
+                - S3TransferQueue
+                - QueueName
+            - '",{"label":"Waiting Jobs","period":60,"stat":"Maximum"}],["AWS/SQS","ApproximateNumberOfMessagesNotVisible","QueueName","'
+            - Fn::GetAtt:
+                - S3TransferQueue
+                - QueueName
+            - '",{"label":"Running Jobs","period":60,"stat":"Maximum"}]],"yAxis":{}}},{"type":"metric","width":6,"height":6,"x":18,"y":0,"properties":{"view":"singleValue","title":"Running/Waiting Jobs","region":"'
+            - Ref: AWS::Region
+            - '","metrics":[["AWS/SQS","ApproximateNumberOfMessagesVisible","QueueName","'
+            - Fn::GetAtt:
+                - S3TransferQueue
+                - QueueName
+            - '",{"label":"Waiting Jobs","period":60,"stat":"Maximum"}],["AWS/SQS","ApproximateNumberOfMessagesNotVisible","QueueName","'
+            - Fn::GetAtt:
+                - S3TransferQueue
+                - QueueName
+            - '",{"label":"Running Jobs","period":60,"stat":"Maximum"}]]}},{"type":"metric","width":6,"height":6,"x":0,"y":6,"properties":{"view":"timeSeries","title":"Network In/Out","region":"'
+            - Ref: AWS::Region
+            - '","metrics":[["AWS/EC2","NetworkIn","AutoScalingGroupName","'
+            - Ref: EC2WorkerStackS3RepWorkerASGED108717
+            - '",{"period":60,"stat":"Sum"}],["AWS/EC2","NetworkOut","AutoScalingGroupName","'
+            - Ref: EC2WorkerStackS3RepWorkerASGED108717
+            - '",{"period":60,"stat":"Sum"}]],"yAxis":{}}},{"type":"metric","width":6,"height":6,"x":6,"y":6,"properties":{"view":"timeSeries","title":"CPU Utilization (Average)","region":"'
+            - Ref: AWS::Region
+            - '","metrics":[["AWS/EC2","CPUUtilization","AutoScalingGroupName","'
+            - Ref: EC2WorkerStackS3RepWorkerASGED108717
+            - '",{"label":"CPU %","period":60}]],"yAxis":{}}},{"type":"metric","width":6,"height":6,"x":12,"y":6,"properties":{"view":"timeSeries","title":"Memory / Disk (Average)","region":"'
+            - Ref: AWS::Region
+            - '","metrics":[["CWAgent","mem_used_percent","AutoScalingGroupName","'
+            - Ref: EC2WorkerStackS3RepWorkerASGED108717
+            - '",{"label":"MEM %","period":60}],["CWAgent","disk_used_percent","AutoScalingGroupName","'
+            - Ref: EC2WorkerStackS3RepWorkerASGED108717
+            - '",{"label":"Disk %","period":60}]],"yAxis":{}}},{"type":"metric","width":6,"height":6,"x":18,"y":6,"properties":{"view":"timeSeries","title":"Desired / InService Instances","region":"'
+            - Ref: AWS::Region
+            - '","metrics":[["AWS/AutoScaling","GroupDesiredCapacity","AutoScalingGroupName","'
+            - Ref: EC2WorkerStackS3RepWorkerASGED108717
+            - '",{"label":"Desired Capacity","period":60,"stat":"Maximum"}],["AWS/AutoScaling","GroupInServiceInstances","AutoScalingGroupName","'
+            - Ref: EC2WorkerStackS3RepWorkerASGED108717
+            - '",{"label":"In Service Instances","period":60,"stat":"Maximum"}]],"yAxis":{}}}]}'
+      DashboardName:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -Dashboard-
+            - Ref: AWS::Region
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/DashboardStack/S3Migration/Resource
+  EventStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL:
+        Fn::Join:
+          - ""
+          - - https://s3.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: AssetParametersee7ea6fb78c0246ae0cbe4c572edb05b7385b0e068f87e8877fc66c4c3c00b83S3Bucket0D20A02F
+            - /
+            - Fn::Select:
+                - 0
+                - Fn::Split:
+                    - "||"
+                    - Ref: AssetParametersee7ea6fb78c0246ae0cbe4c572edb05b7385b0e068f87e8877fc66c4c3c00b83S3VersionKeyA5313DD0
+            - Fn::Select:
+                - 1
+                - Fn::Split:
+                    - "||"
+                    - Ref: AssetParametersee7ea6fb78c0246ae0cbe4c572edb05b7385b0e068f87e8877fc66c4c3c00b83S3VersionKeyA5313DD0
+      Parameters:
+        referencetoDataTransferS3StacksrcEvent7CA6A539Ref:
+          Ref: srcEvent
+        referencetoDataTransferS3StacksrcBucketB2F81E7FRef:
+          Ref: srcBucket
+        referencetoDataTransferS3StackCommonS3TransferQueue78E5E9F8Arn:
+          Fn::GetAtt:
+            - S3TransferQueue
+            - Arn
+        referencetoDataTransferS3StackCommonS3TransferQueue78E5E9F8QueueName:
+          Fn::GetAtt:
+            - S3TransferQueue
+            - QueueName
+        referencetoDataTransferS3StacksrcPrefix22AA9AA8Ref:
+          Ref: srcPrefix
+        referencetoDataTransferS3StackAssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3Bucket8FFFEC56Ref:
+          Ref: AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3Bucket02FC0B28
+        referencetoDataTransferS3StackAssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3VersionKey1087AA6DRef:
+          Ref: AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3VersionKey547E84F8
+        referencetoDataTransferS3StackAssetParameters43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4S3Bucket1EE47C9FRef:
+          Ref: AssetParameters43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4S3Bucket3A2B0B46
+        referencetoDataTransferS3StackAssetParameters43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4S3VersionKey703DFB74Ref:
+          Ref: AssetParameters43079f879513e0d85eeb42ddfe71e5ead66edf1ee02c33bb165d7c2f926030c4S3VersionKey7A50E10B
+    DependsOn:
+      - CommonS3TransferQueuePolicy08E28469
+      - S3TransferQueue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/EventStack.NestedStack/EventStack.NestedStackResource
+      nestedTemplateName: DataTransferS3StackEventStackF81805B0.nested.template
+      domain: https://aws-gcr-solutions.s3.amazonaws.com
+    Condition: UseS3Event
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2VT227bMAz9lr4r6tJiwB6XpugwbMWyJD9AS7TD2pY8XVIEhv99lHxJur1Yh0e8HFL0Wq4fPstPd1/h3a+Uru97ZR3K/hBA1WJbmh04aDGgE3v0NjqFYmuNDy6qkO5/xdDFIDbeY+CgikwlttEH2179S3OLX6HrsldpliqcUlMgawaRhPT+UT5FVWN4Ao9CXwy0VheyP0LR5CQZDML/8bL/HTFmcgT5u7MNqctCjuYgVGOjfoegTrLfNODa5DGCZ/CnwoLTiVqMQdQtl/iBOVc6Ng2BH8MYsATD90fbkcq6MjjEwitHXeoo93ljD4Kglf1V4IT2duxsPr/zkMEo3DlbUuq1sRVX+mmrb87GLrks+BWDI/VCTXqnNOIbexCoOO4FXAUBj+DrZyzJ0KztX8aaAGTQXbmU4YFXAlV0FC5L+Q8EO53RBK60j1MjMauGttDA9aNRc8kZ8/AeV5A2x8u8QAJisF5Bw/vBD8TGYTSuLQPHnlhkSVV0MGf8z/UQsJuIab43zGZR8sFl4P3Im7ty07p6ydM/k05TNFajfPP35/UX/mfk+u7NE61cNIFalPvx/AvbD6EhTwMAAA==
+    Metadata:
+      aws:cdk:path: DataTransferS3Stack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  CommonTableName4099A6E9:
+    Description: DynamoDB Table Name
+    Value:
+      Ref: S3TransferTable
+  CommonQueueNameEB26B1B7:
+    Description: Queue Name
+    Value:
+      Fn::GetAtt:
+        - S3TransferQueue
+        - QueueName
+  CommonDLQQueueName98D51C56:
+    Description: Dead Letter Queue Name
+    Value:
+      Fn::GetAtt:
+        - S3TransferQueueDLQ
+        - QueueName
+  CommonAlarmTopicName54A80B94:
+    Description: Alarm Topic Name
+    Value:
+      Fn::GetAtt:
+        - S3TransferAlarmTopic
+        - TopicName
+  ECSStackTaskDefinitionNameE8E07C57:
+    Description: Task Definition Name
+    Value:
+      Fn::Join:
+        - ""
+        - - Ref: AWS::StackName
+          - -DTHFinderTask
+Mappings:
+  EC2WorkerStackAssetTableD4360D99:
+    aws:
+      assetDomain: https://aws-gcr-solutions-assets.s3.amazonaws.com
+    aws-cn:
+      assetDomain: https://aws-gcr-solutions-assets.s3.cn-northwest-1.amazonaws.com.cn
+Conditions:
+  UseS3Event:
+    Fn::And:
+      - Fn::Equals:
+          - "true"
+          - Ref: srcInCurrentAccount
+      - Fn::Equals:
+          - Amazon_S3
+          - Ref: srcType
+      - Fn::Not:
+          - Fn::Equals:
+              - "No"
+              - Ref: srcEvent
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

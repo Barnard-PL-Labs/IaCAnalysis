@@ -1,0 +1,1258 @@
+Resources:
+  UserPoolStackProperMintUserPoolF6D8DCE6:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Schema:
+        - Mutable: true
+          Name: email
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/UserPoolStack/ProperMintUserPool/Resource
+  UserPoolStackUserPoolClient8B5BB5C2:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: UserPoolStackProperMintUserPoolF6D8DCE6
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ExplicitAuthFlows:
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_CUSTOM_AUTH
+        - ALLOW_USER_SRP_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/UserPoolStack/UserPoolClient/Resource
+  UserPoolStackidentitypoolC067AC22:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: true
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: UserPoolStackUserPoolClient8B5BB5C2
+          ProviderName:
+            Fn::GetAtt:
+              - UserPoolStackProperMintUserPoolF6D8DCE6
+              - ProviderName
+      IdentityPoolName: my-identity-pool
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/UserPoolStack/identity-pool
+  UserPoolStackanonymousgrouprole05BA8691:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: UserPoolStackidentitypoolC067AC22
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Description: Default role for anonymous users
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/UserPoolStack/anonymous-group-role/Resource
+  UserPoolStackusersgrouproleA25C6E61:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: UserPoolStackidentitypoolC067AC22
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Description: Default role for authenticated users
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/UserPoolStack/users-group-role/Resource
+  UserPoolStackusersgrouproleDefaultPolicyAF05E30F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: UserPoolStackusersgrouproleDefaultPolicyAF05E30F
+      Roles:
+        - Ref: UserPoolStackusersgrouproleA25C6E61
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/UserPoolStack/users-group-role/DefaultPolicy/Resource
+  UserPoolStackidentitypoolroleattachmentC4503C34:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: UserPoolStackidentitypoolC067AC22
+      RoleMappings:
+        mapping:
+          AmbiguousRoleResolution: AuthenticatedRole
+          IdentityProvider:
+            Fn::Join:
+              - ""
+              - - cognito-idp.us-east-1.amazonaws.com/
+                - Ref: UserPoolStackProperMintUserPoolF6D8DCE6
+                - ":"
+                - Ref: UserPoolStackUserPoolClient8B5BB5C2
+          Type: Token
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - UserPoolStackusersgrouproleA25C6E61
+            - Arn
+        unauthenticated:
+          Fn::GetAtt:
+            - UserPoolStackanonymousgrouprole05BA8691
+            - Arn
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/UserPoolStack/identity-pool-role-attachment
+  ProperMintDBChannelsTable67A64C53:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: channelUser
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: "N"
+        - AttributeName: postId
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: postsByUser
+          KeySchema:
+            - AttributeName: channelUser
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: posts
+          KeySchema:
+            - AttributeName: postId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      TableName: channels
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/ProperMintDB/ChannelsTable/Resource
+  ProperMintDBReactionsTableC75BA853:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: channelPost
+          AttributeType: S
+        - AttributeName: reactionTimestamp
+          AttributeType: S
+        - AttributeName: commentId
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
+        - AttributeName: likeId
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: reactionsByPost
+          KeySchema:
+            - AttributeName: channelPost
+              KeyType: HASH
+            - AttributeName: reactionTimestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: comments
+          KeySchema:
+            - AttributeName: commentId
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: likes
+          KeySchema:
+            - AttributeName: likeId
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TableName: reactions
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/ProperMintDB/ReactionsTable/Resource
+  ImageRepositoryimageRepository7FFAFA1D:
+    Type: AWS::S3::Bucket
+    Properties:
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - HEAD
+              - PUT
+              - POST
+              - DELETE
+            AllowedOrigins:
+              - "*"
+            ExposedHeaders:
+              - x-amz-server-side-encryption
+              - x-amz-request-id
+              - x-amz-id-2
+              - ETag
+            MaxAge: 3000
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/ImageRepository/imageRepository/Resource
+  ImageRepositoryimageRepositoryPolicy6BA40F8F:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: ImageRepositoryimageRepository7FFAFA1D
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ImageRepositoryimageRepository7FFAFA1D
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/ImageRepository/imageRepository/Policy/Resource
+  ImageRepositorySiteCertificateCertificateRequestorFunctionServiceRoleB45E7760:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/ImageRepository/SiteCertificate/CertificateRequestorFunction/ServiceRole/Resource
+  ImageRepositorySiteCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy8D880837:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - acm:RequestCertificate
+              - acm:DescribeCertificate
+              - acm:DeleteCertificate
+              - acm:AddTagsToCertificate
+            Effect: Allow
+            Resource: "*"
+          - Action: route53:GetChange
+            Effect: Allow
+            Resource: "*"
+          - Action: route53:changeResourceRecordSets
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :route53:::hostedzone/Z05500821YTQ34CAFWG04
+        Version: "2012-10-17"
+      PolicyName: ImageRepositorySiteCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy8D880837
+      Roles:
+        - Ref: ImageRepositorySiteCertificateCertificateRequestorFunctionServiceRoleB45E7760
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/ImageRepository/SiteCertificate/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource
+  ImageRepositorySiteCertificateCertificateRequestorFunction0B2F2F1E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters7af6295e521fd55af94332393ceffb3e866aac4dc4956321f7918f21e72199e4S3Bucket5BEBDCBE
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters7af6295e521fd55af94332393ceffb3e866aac4dc4956321f7918f21e72199e4S3VersionKey326451BC
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters7af6295e521fd55af94332393ceffb3e866aac4dc4956321f7918f21e72199e4S3VersionKey326451BC
+      Role:
+        Fn::GetAtt:
+          - ImageRepositorySiteCertificateCertificateRequestorFunctionServiceRoleB45E7760
+          - Arn
+      Handler: index.certificateRequestHandler
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - ImageRepositorySiteCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy8D880837
+      - ImageRepositorySiteCertificateCertificateRequestorFunctionServiceRoleB45E7760
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/ImageRepository/SiteCertificate/CertificateRequestorFunction/Resource
+      aws:asset:path: asset.7af6295e521fd55af94332393ceffb3e866aac4dc4956321f7918f21e72199e4
+      aws:asset:property: Code
+  ImageRepositorySiteCertificateCertificateRequestorResource38A27E35:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - ImageRepositorySiteCertificateCertificateRequestorFunction0B2F2F1E
+          - Arn
+      DomainName: m.propermint.life
+      HostedZoneId: Z05500821YTQ34CAFWG04
+      Region: us-east-1
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/ImageRepository/SiteCertificate/CertificateRequestorResource/Default
+  ImageRepositorySiteDistributionCFDistributionA795FC29:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - m.propermint.life
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::GetAtt:
+                - ImageRepositoryimageRepository7FFAFA1D
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig: {}
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Fn::GetAtt:
+              - ImageRepositorySiteCertificateCertificateRequestorResource38A27E35
+              - Arn
+          MinimumProtocolVersion: TLSv1.1_2016
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/ImageRepository/SiteDistribution/CFDistribution
+  ImageRepositorySiteAliasRecordA8BBF643:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: m.propermint.life.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - ImageRepositorySiteDistributionCFDistributionA795FC29
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId: Z05500821YTQ34CAFWG04
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/ImageRepository/SiteAliasRecord/Resource
+  PostProcessorProcessPostQueue4D28D244:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/PostProcessor/ProcessPostQueue/Resource
+  PostProcessorProcessPostHandlerServiceRole6B9CB8C7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/PostProcessor/ProcessPostHandler/ServiceRole/Resource
+  PostProcessorProcessPostHandlerServiceRoleDefaultPolicy0D3430D4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PostProcessorProcessPostQueue4D28D244
+                - Arn
+          - Action:
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ImageRepositoryimageRepository7FFAFA1D
+                      - Arn
+                  - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ImageRepositoryimageRepository7FFAFA1D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ImageRepositoryimageRepository7FFAFA1D
+                        - Arn
+                    - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ProperMintDBChannelsTable67A64C53
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ProperMintDBChannelsTable67A64C53
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: PostProcessorProcessPostHandlerServiceRoleDefaultPolicy0D3430D4
+      Roles:
+        - Ref: PostProcessorProcessPostHandlerServiceRole6B9CB8C7
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/PostProcessor/ProcessPostHandler/ServiceRole/DefaultPolicy/Resource
+  PostProcessorProcessPostHandler78A16E0E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3BucketB365C50C
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3VersionKey56107670
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3VersionKey56107670
+      Role:
+        Fn::GetAtt:
+          - PostProcessorProcessPostHandlerServiceRole6B9CB8C7
+          - Arn
+      Environment:
+        Variables:
+          IMAGE_BUCKET:
+            Ref: ImageRepositoryimageRepository7FFAFA1D
+          CHANNELS_TABLE:
+            Ref: ProperMintDBChannelsTable67A64C53
+      Handler: processPostHandler.handler
+      MemorySize: 5120
+      Runtime: nodejs14.x
+    DependsOn:
+      - PostProcessorProcessPostHandlerServiceRoleDefaultPolicy0D3430D4
+      - PostProcessorProcessPostHandlerServiceRole6B9CB8C7
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/PostProcessor/ProcessPostHandler/Resource
+      aws:asset:path: asset.a3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256
+      aws:asset:property: Code
+  PostProcessorProcessPostHandlerSqsEventSourcePropermintCdkStackPostProcessorProcessPostQueue48112A12ADAE7FD2:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: PostProcessorProcessPostHandler78A16E0E
+      EventSourceArn:
+        Fn::GetAtt:
+          - PostProcessorProcessPostQueue4D28D244
+          - Arn
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/PostProcessor/ProcessPostHandler/SqsEventSource:PropermintCdkStackPostProcessorProcessPostQueue48112A12/Resource
+  PostProcessorProcessReactionsQueueFCB0B8A9:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/PostProcessor/ProcessReactionsQueue/Resource
+  PostProcessorProcessReactionsHandlerServiceRole3EE3F234:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/PostProcessor/ProcessReactionsHandler/ServiceRole/Resource
+  PostProcessorProcessReactionsHandlerServiceRoleDefaultPolicy26AC4301:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PostProcessorProcessReactionsQueueFCB0B8A9
+                - Arn
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ProperMintDBReactionsTableC75BA853
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ProperMintDBReactionsTableC75BA853
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: PostProcessorProcessReactionsHandlerServiceRoleDefaultPolicy26AC4301
+      Roles:
+        - Ref: PostProcessorProcessReactionsHandlerServiceRole3EE3F234
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/PostProcessor/ProcessReactionsHandler/ServiceRole/DefaultPolicy/Resource
+  PostProcessorProcessReactionsHandlerC682BFBC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3BucketB365C50C
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3VersionKey56107670
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3VersionKey56107670
+      Role:
+        Fn::GetAtt:
+          - PostProcessorProcessReactionsHandlerServiceRole3EE3F234
+          - Arn
+      Environment:
+        Variables:
+          REACTIONS_TABLE:
+            Ref: ProperMintDBReactionsTableC75BA853
+      Handler: processReactionsHandler.handler
+      MemorySize: 5120
+      Runtime: nodejs14.x
+    DependsOn:
+      - PostProcessorProcessReactionsHandlerServiceRoleDefaultPolicy26AC4301
+      - PostProcessorProcessReactionsHandlerServiceRole3EE3F234
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/PostProcessor/ProcessReactionsHandler/Resource
+      aws:asset:path: asset.a3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256
+      aws:asset:property: Code
+  PostProcessorProcessReactionsHandlerSqsEventSourcePropermintCdkStackPostProcessorProcessReactionsQueueA0FE7528BA6391D5:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: PostProcessorProcessReactionsHandlerC682BFBC
+      EventSourceArn:
+        Fn::GetAtt:
+          - PostProcessorProcessReactionsQueueFCB0B8A9
+          - Arn
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/PostProcessor/ProcessReactionsHandler/SqsEventSource:PropermintCdkStackPostProcessorProcessReactionsQueueA0FE7528/Resource
+  GraphQlStackProperMintAppApiLogsRoleD9C03365:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/ApiLogsRole/Resource
+  GraphQlStackProperMintAppACB1AE3B:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: ProperMintApp
+      AdditionalAuthenticationProviders:
+        - AuthenticationType: AMAZON_COGNITO_USER_POOLS
+          UserPoolConfig:
+            AwsRegion: us-east-1
+            UserPoolId:
+              Ref: UserPoolStackProperMintUserPoolF6D8DCE6
+      LogConfig:
+        CloudWatchLogsRoleArn:
+          Fn::GetAtt:
+            - GraphQlStackProperMintAppApiLogsRoleD9C03365
+            - Arn
+        FieldLogLevel: ALL
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/Resource
+  GraphQlStackProperMintAppSchemaD3D2812F:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      Definition: |
+        # graphql/schema.graphql
+        type Post @aws_api_key @aws_cognito_user_pools {
+            postId: ID!
+            channelId: ID!
+            title: String!
+            content: String
+            imagePath: String
+            author: String!
+            status: String!
+            totalLikes: Int!
+            topLikes: [String]!
+            totalComments: Int!
+            topComments: [Comment]!
+        }
+
+        input PostInput {
+            postId: ID!
+            channelId: ID!
+            title: String!
+            content: String
+            imagePath: String
+        }
+
+        input UpdatePostInput {
+            postId: ID!
+            channelId: ID!
+            title: String
+            content: String
+            imagePath: String
+        }
+
+        type Comment @aws_api_key @aws_cognito_user_pools {
+            commentId: ID!
+            channelId: ID!
+            postId: ID!
+            comment: String!
+            author: String!
+            status: String!
+            totalLikes: Int!
+            topLikes: [String]!
+        }
+
+        input CommentInput {
+            commentId: ID!
+            postId: ID!
+            channelId: ID!
+            comment: String!
+        }
+
+        type Query {
+            getPostById(postId: ID!): Post @aws_api_key @aws_cognito_user_pools
+            listPosts(channelId: ID!): [Post]! @aws_api_key @aws_cognito_user_pools
+            postsByUsername(channelId: ID!): [Post]! @aws_cognito_user_pools
+        }
+
+        type Mutation {
+            createPost(post: PostInput!): Post! @aws_cognito_user_pools
+            deletePost(postId: ID!): ID @aws_cognito_user_pools
+            updatePost(post: UpdatePostInput!): Post @aws_cognito_user_pools
+            createComment(comment: CommentInput!): Comment! @aws_cognito_user_pools
+            deleteComment(commentId: ID!): Comment! @aws_cognito_user_pools
+            likePost(postId: ID!): ID! @aws_cognito_user_pools
+            unlikePost(postId: ID!): ID! @aws_cognito_user_pools
+            likeComment(commentId: ID!): ID! @aws_cognito_user_pools
+            unlikeComment(commentId: ID!): ID! @aws_cognito_user_pools
+        }
+
+        type Subscription {
+            onCreatePost: Post! @aws_subscribe(mutations: ["createPost"])
+        }
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/Schema
+  GraphQlStackProperMintAppDefaultApiKeyA857C97C:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      Expires: 1737131962
+    DependsOn:
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/DefaultApiKey
+  GraphQlStackProperMintAppGraphQlDataSourceServiceRoleE769B5C9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/ServiceRole/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceServiceRoleDefaultPolicy010EBEC1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - GraphQlStackGraphQlHandlerE1969FCD
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: GraphQlStackProperMintAppGraphQlDataSourceServiceRoleDefaultPolicy010EBEC1
+      Roles:
+        - Ref: GraphQlStackProperMintAppGraphQlDataSourceServiceRoleE769B5C9
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/ServiceRole/DefaultPolicy/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceA686486E:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      Name: GraphQlDataSource
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - GraphQlStackGraphQlHandlerE1969FCD
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppGraphQlDataSourceServiceRoleE769B5C9
+          - Arn
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceQuerygetPostByIdResolver4917FDD2:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: getPostById
+      TypeName: Query
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/QuerygetPostByIdResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceQuerylistPostsResolver4A4A4BA5:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: listPosts
+      TypeName: Query
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/QuerylistPostsResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceQuerypostsByUsernameResolver9C2355E3:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: postsByUsername
+      TypeName: Query
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/QuerypostsByUsernameResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceMutationcreatePostResolver64BBF8B8:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: createPost
+      TypeName: Mutation
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/MutationcreatePostResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceMutationdeletePostResolverCE259F94:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: deletePost
+      TypeName: Mutation
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/MutationdeletePostResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceMutationupdatePostResolver0ECFCA34:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: updatePost
+      TypeName: Mutation
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/MutationupdatePostResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceMutationcreateCommentResolver54DAC41C:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: createComment
+      TypeName: Mutation
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/MutationcreateCommentResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceMutationdeleteCommentResolver77398668:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: deleteComment
+      TypeName: Mutation
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/MutationdeleteCommentResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceMutationlikePostResolverD986B39C:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: likePost
+      TypeName: Mutation
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/MutationlikePostResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceMutationunlikePostResolverF1D9B409:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: unlikePost
+      TypeName: Mutation
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/MutationunlikePostResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceMutationlikeCommentResolverB05B9D7A:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: likeComment
+      TypeName: Mutation
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/MutationlikeCommentResolver/Resource
+  GraphQlStackProperMintAppGraphQlDataSourceMutationunlikeCommentResolver86C1AD88:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - GraphQlStackProperMintAppACB1AE3B
+          - ApiId
+      FieldName: unlikeComment
+      TypeName: Mutation
+      DataSourceName: GraphQlDataSource
+      Kind: UNIT
+    DependsOn:
+      - GraphQlStackProperMintAppGraphQlDataSourceA686486E
+      - GraphQlStackProperMintAppSchemaD3D2812F
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/ProperMintApp/GraphQlDataSource/MutationunlikeCommentResolver/Resource
+  GraphQlStackGraphQlHandlerServiceRoleE6184119:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/GraphQlHandler/ServiceRole/Resource
+  GraphQlStackGraphQlHandlerServiceRoleDefaultPolicy2B9E08A8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ProperMintDBChannelsTable67A64C53
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ProperMintDBChannelsTable67A64C53
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ProperMintDBReactionsTableC75BA853
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ProperMintDBReactionsTableC75BA853
+                        - Arn
+                    - /index/*
+          - Action:
+              - sqs:SendMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PostProcessorProcessPostQueue4D28D244
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: GraphQlStackGraphQlHandlerServiceRoleDefaultPolicy2B9E08A8
+      Roles:
+        - Ref: GraphQlStackGraphQlHandlerServiceRoleE6184119
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/GraphQlHandler/ServiceRole/DefaultPolicy/Resource
+  GraphQlStackGraphQlHandlerE1969FCD:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3BucketB365C50C
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3VersionKey56107670
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3VersionKey56107670
+      Role:
+        Fn::GetAtt:
+          - GraphQlStackGraphQlHandlerServiceRoleE6184119
+          - Arn
+      Environment:
+        Variables:
+          PROCESS_POST_QUEUE:
+            Ref: PostProcessorProcessPostQueue4D28D244
+          CHANNELS_TABLE:
+            Ref: ProperMintDBChannelsTable67A64C53
+          REACTIONS_TABLE:
+            Ref: ProperMintDBReactionsTableC75BA853
+      Handler: graphQlHandler.handler
+      MemorySize: 2048
+      Runtime: nodejs14.x
+    DependsOn:
+      - GraphQlStackGraphQlHandlerServiceRoleDefaultPolicy2B9E08A8
+      - GraphQlStackGraphQlHandlerServiceRoleE6184119
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/GraphQlStack/GraphQlHandler/Resource
+      aws:asset:path: asset.a3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2WS227bMAyGn6X3mrZsGNDb1FmHYR2WJjtcFrTEJGok0dUhgyH43afDkrjYFb//Jy2RtBZ88f6Wv7sxZEnII0/bAOLIOrI+uCgCgz/+KQnaWxWIp58e3ZpIs25nL3yGTiu0YZ66Ol9kBhXG88dzvSGNy5DvPZhsTkyB4amYpbDGNWklxiIbTUyOFgzJnqcf0LfKChPzH3i6i+KI9d5/1ML1mFe6iTvw+WuBLqidEhDQgIU9Or6y/hdoJbMlu2uaaTC9BJ7uoxVBkS3nXvjTKY+ypegEfoNhUHZf0v+7pd8n8B6D58sSmNAU5c6RDTx1he8L/8Z+pfIvUX083zXXE3MUA37Msy83KMjJurtKW8w79S+ep8eIsa6qwsRyC360gqfPDobDi14OqmSrenx4rbbikDdSjOx/xZE91PFXEKANVFu6qg160id0rY/G01Ttc/X3GIYYWB07P7t9XVL0gcy8as5rcGAwtFMvG7QkkT/7t6fFbX7NfHHz7JV642J+YAb5psW/pisvI+kCAAA=
+    Metadata:
+      aws:cdk:path: PropermintCdkStack/CDKMetadata/Default
+Outputs:
+  ImageRepositoryCDN4FF15CD6:
+    Value: https://m.propermint.life
+  ImageRepositoryCertificateB70ACA55:
+    Value:
+      Fn::GetAtt:
+        - ImageRepositorySiteCertificateCertificateRequestorResource38A27E35
+        - Arn
+  ProjectRegion:
+    Value: us-east-1
+  GraphQLAPIURL:
+    Value:
+      Fn::GetAtt:
+        - GraphQlStackProperMintAppACB1AE3B
+        - GraphQLUrl
+  AppSyncAPIKey:
+    Value:
+      Fn::GetAtt:
+        - GraphQlStackProperMintAppDefaultApiKeyA857C97C
+        - ApiKey
+  DistributionId:
+    Value:
+      Ref: ImageRepositorySiteDistributionCFDistributionA795FC29
+  ImageRepositoryBucket:
+    Value:
+      Ref: ImageRepositoryimageRepository7FFAFA1D
+  UserPoolId:
+    Value:
+      Ref: UserPoolStackProperMintUserPoolF6D8DCE6
+  UserPoolClientId:
+    Value:
+      Ref: UserPoolStackUserPoolClient8B5BB5C2
+  IdentityPoolId:
+    Value:
+      Ref: UserPoolStackidentitypoolC067AC22
+Parameters:
+  AssetParameters7af6295e521fd55af94332393ceffb3e866aac4dc4956321f7918f21e72199e4S3Bucket5BEBDCBE:
+    Type: String
+    Description: S3 bucket for asset "7af6295e521fd55af94332393ceffb3e866aac4dc4956321f7918f21e72199e4"
+  AssetParameters7af6295e521fd55af94332393ceffb3e866aac4dc4956321f7918f21e72199e4S3VersionKey326451BC:
+    Type: String
+    Description: S3 key for asset version "7af6295e521fd55af94332393ceffb3e866aac4dc4956321f7918f21e72199e4"
+  AssetParameters7af6295e521fd55af94332393ceffb3e866aac4dc4956321f7918f21e72199e4ArtifactHash5E28809B:
+    Type: String
+    Description: Artifact hash for asset "7af6295e521fd55af94332393ceffb3e866aac4dc4956321f7918f21e72199e4"
+  AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3BucketB365C50C:
+    Type: String
+    Description: S3 bucket for asset "a3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256"
+  AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256S3VersionKey56107670:
+    Type: String
+    Description: S3 key for asset version "a3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256"
+  AssetParametersa3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256ArtifactHash8BCD26D4:
+    Type: String
+    Description: Artifact hash for asset "a3a5599a5263641afd0e363081502c58a910df9f342d895163db5367d6ea3256"
+Mappings:
+  AWSCloudFrontPartitionHostedZoneIdMap:
+    aws:
+      zoneId: Z2FDTNDATAQYW2
+    aws-cn:
+      zoneId: Z3RFFRIM2A3IF5
+

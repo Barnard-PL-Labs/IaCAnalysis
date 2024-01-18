@@ -1,0 +1,168 @@
+Parameters:
+  SsmParameterValuegithubpersonalaccesstokenC96584B6F00A464EAD1953AFF4B05118Parameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: github-personal-access-token
+Resources:
+  functionalvoteamplifyRole4E2E5DD8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: amplify.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: functional-vote-stack/functional-vote-amplify/Role/Resource
+  functionalvoteamplify86EECA1A:
+    Type: AWS::Amplify::App
+    Properties:
+      Name: functional-vote-amplify
+      BasicAuthConfig:
+        EnableBasicAuth: false
+      BuildSpec: |
+        version: "1.0"
+        appRoot: frontend
+        frontend:
+          phases:
+            build:
+              commands:
+                - npm install
+                - npm run build
+          artifacts:
+            baseDirectory: build
+            files:
+              - "**/*"
+          cache:
+            paths:
+              - node_modules/**/*
+      CustomRules:
+        - Source: </^[^.]+$/>
+          Status: "200"
+          Target: /index.html
+      IAMServiceRole:
+        Fn::GetAtt:
+          - functionalvoteamplifyRole4E2E5DD8
+          - Arn
+      OauthToken:
+        Ref: SsmParameterValuegithubpersonalaccesstokenC96584B6F00A464EAD1953AFF4B05118Parameter
+      Repository: https://github.com/maxrchung/FunctionalVote
+    Metadata:
+      aws:cdk:path: functional-vote-stack/functional-vote-amplify/Resource
+  functionalvoteamplifymasterA6E613A0:
+    Type: AWS::Amplify::Branch
+    Properties:
+      AppId:
+        Fn::GetAtt:
+          - functionalvoteamplify86EECA1A
+          - AppId
+      BranchName: master
+      EnableAutoBuild: true
+      EnablePullRequestPreview: true
+    Metadata:
+      aws:cdk:path: functional-vote-stack/functional-vote-amplify/master/Resource
+  functionalvoteamplifymaxrchungcom17E1345A:
+    Type: AWS::Amplify::Domain
+    Properties:
+      AppId:
+        Fn::GetAtt:
+          - functionalvoteamplify86EECA1A
+          - AppId
+      DomainName: maxrchung.com
+      SubDomainSettings:
+        - BranchName:
+            Fn::GetAtt:
+              - functionalvoteamplifymasterA6E613A0
+              - BranchName
+          Prefix: functionalvote
+      AutoSubDomainCreationPatterns:
+        - "*"
+        - pr*
+      AutoSubDomainIAMRole:
+        Fn::GetAtt:
+          - functionalvoteamplifyRole4E2E5DD8
+          - Arn
+      EnableAutoSubDomain: false
+    Metadata:
+      aws:cdk:path: functional-vote-stack/functional-vote-amplify/maxrchung.com/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/0WOTQ6CMBCFz+K+lFQ3LlU8gMETTMoQB+gMaYvGNL27VExcvZ8veXlGm8NRm90JXqGy3VgnKx51ukewo2p6voEHhxG9ajHI4i2qRjhEv9hY+L/teQUdRRLOqswlcPNE/Vun8zwXXuTige2jpJ+7igPiUmwuKwKnUyvTd7NozlmxdKiHUD/Nene/Ph4CUeUXjuRQt5t+ACYCxKjOAAAA
+    Metadata:
+      aws:cdk:path: functional-vote-stack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

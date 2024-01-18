@@ -1,0 +1,360 @@
+Resources:
+  necklaceOfArtemisSystemMap:
+    Type: AWS::Location::Map
+    Properties:
+      Configuration:
+        Style: VectorEsriStreets
+      MapName: necklaceOfArtemisSystemMap
+      PricingPlan: RequestBasedUsage
+      Description: Map for Necklace of Artemis System
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/necklaceOfArtemisSystemMap
+  necklaceOfArtemisSystemMapGeoFence:
+    Type: AWS::Location::GeofenceCollection
+    Properties:
+      CollectionName: necklaceOfArtemisSystemGeoFence
+      PricingPlan: RequestBasedUsage
+      Description: GeoFence for Necklace of Artemis System
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/necklaceOfArtemisSystemMapGeoFence
+  necklaceOfArtemisSystemMapTracker:
+    Type: AWS::Location::Tracker
+    Properties:
+      PricingPlan: RequestBasedUsage
+      TrackerName: necklaceOfArtemisSystemMapTracker
+      Description: Tracker for Necklace of Artemis System
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/necklaceOfArtemisSystemMapTracker
+  necklaceOfArtemisSystemMapTrackerConsumer:
+    Type: AWS::Location::TrackerConsumer
+    Properties:
+      ConsumerArn:
+        Fn::GetAtt:
+          - necklaceOfArtemisSystemMapGeoFence
+          - CollectionArn
+      TrackerName: necklaceOfArtemisSystemMapTracker
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/necklaceOfArtemisSystemMapTrackerConsumer
+  updateDevicePostionServiceRoleB6B84F02:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/updateDevicePostion/ServiceRole/Resource
+  updateDevicePostionServiceRoleDefaultPolicy221C4B7E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action: geo:BatchUpdateDevicePosition
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: updateDevicePostionServiceRoleDefaultPolicy221C4B7E
+      Roles:
+        - Ref: updateDevicePostionServiceRoleB6B84F02
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/updateDevicePostion/ServiceRole/DefaultPolicy/Resource
+  updateDevicePostionD49B03CC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705S3Bucket7F022637
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705S3VersionKey3F69ABBE
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705S3VersionKey3F69ABBE
+      Role:
+        Fn::GetAtt:
+          - updateDevicePostionServiceRoleB6B84F02
+          - Arn
+      Description: Amazon Location Service Update Device Position.
+      Environment:
+        Variables:
+          AMAZON_LOCATION_SERVICE_TRACKER_NAME: necklaceOfArtemisSystemMapTracker
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.devicePositionHandler
+      Runtime: nodejs14.x
+      Timeout: 30
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - updateDevicePostionServiceRoleDefaultPolicy221C4B7E
+      - updateDevicePostionServiceRoleB6B84F02
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/updateDevicePostion/Resource
+      aws:asset:path: asset.70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705
+      aws:asset:property: Code
+  geoFenceNotifyServiceRole2490971A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/geoFenceNotify/ServiceRole/Resource
+  geoFenceNotifyServiceRoleDefaultPolicy827516FB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - ssm:GetParameter
+              - ssm:GetParameters
+              - kms:Decrypt
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: geoFenceNotifyServiceRoleDefaultPolicy827516FB
+      Roles:
+        - Ref: geoFenceNotifyServiceRole2490971A
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/geoFenceNotify/ServiceRole/DefaultPolicy/Resource
+  geoFenceNotifyE2F192D9:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705S3Bucket7F022637
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705S3VersionKey3F69ABBE
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705S3VersionKey3F69ABBE
+      Role:
+        Fn::GetAtt:
+          - geoFenceNotifyServiceRole2490971A
+          - Arn
+      Description: Geo Fence Notify
+      Environment:
+        Variables:
+          LINE_NOTIFY_TOKEN: LINE_NOTIFY_TOKEN
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.sendNotificationHandler
+      Runtime: nodejs14.x
+      Timeout: 30
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - geoFenceNotifyServiceRoleDefaultPolicy827516FB
+      - geoFenceNotifyServiceRole2490971A
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/geoFenceNotify/Resource
+      aws:asset:path: asset.70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705
+      aws:asset:property: Code
+  necklaceOfArtemisSystemGeoFenceEventDlq2ACBA09B:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/necklaceOfArtemisSystemGeoFenceEventDlq/Resource
+  necklaceOfArtemisSystemGeoFenceEventDlqPolicyC4C416CA:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Fn::GetAtt:
+                    - necklaceOfArtemisSystemGeoFenceEventRule984DE82D
+                    - Arn
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - necklaceOfArtemisSystemGeoFenceEventDlq2ACBA09B
+                - Arn
+            Sid: AllowEventRuleAmazonLocationServiceWithSoracomStacknecklaceOfArtemisSystemGeoFenceEventRuleCF5640BB
+        Version: "2012-10-17"
+      Queues:
+        - Ref: necklaceOfArtemisSystemGeoFenceEventDlq2ACBA09B
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/necklaceOfArtemisSystemGeoFenceEventDlq/Policy/Resource
+  necklaceOfArtemisSystemGeoFenceEventRule984DE82D:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Necklace of Artemis System Geofence EventRule
+      EventPattern:
+        source:
+          - aws.geo
+        resources:
+          - Fn::GetAtt:
+              - necklaceOfArtemisSystemMapGeoFence
+              - CollectionArn
+        detail-type:
+          - Location Geofence Event
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - geoFenceNotifyE2F192D9
+              - Arn
+          DeadLetterConfig:
+            Arn:
+              Fn::GetAtt:
+                - necklaceOfArtemisSystemGeoFenceEventDlq2ACBA09B
+                - Arn
+          Id: Target0
+          RetryPolicy:
+            MaximumEventAgeInSeconds: 7200
+            MaximumRetryAttempts: 2
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/necklaceOfArtemisSystemGeoFenceEventRule/Resource
+  necklaceOfArtemisSystemGeoFenceEventRuleAllowEventRuleAmazonLocationServiceWithSoracomStackgeoFenceNotify026074DF9971DFA6:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - geoFenceNotifyE2F192D9
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - necklaceOfArtemisSystemGeoFenceEventRule984DE82D
+          - Arn
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/necklaceOfArtemisSystemGeoFenceEventRule/AllowEventRuleAmazonLocationServiceWithSoracomStackgeoFenceNotify026074DF
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01Py1LDMAz8lt4dlbQXjtDMwAmmBH5AOGrHqR9g2WUYj/8d28kAF2vXkna1PfT7Hdxs7vCLOzldtkk6T5BeA8qLuGemUOBZ2bMYnOXgowxiONkjejQUyFcyErvoJVVcpiYVlLNZVMmkncRKIZXmE37UmUdyJ7KSBqc1ydqtv2++WC6CK6yO0ZDPQqN5n7CzbqKZ4bmVh2iXXYUG0uh082/16LSS3+3OhrLgfYc1DEPLVDgcYvEIB2Ra5duJv6p1mbxRzC0MfzKkl0ixuSygvX9e/2gWdCVb3NIY17tKzTmLGgFm3l77W+h30G9mVqrz0QZlCMal/gDkVlnBlgEAAA==
+    Metadata:
+      aws:cdk:path: AmazonLocationServiceWithSoracomStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705S3Bucket7F022637:
+    Type: String
+    Description: S3 bucket for asset "70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705"
+  AssetParameters70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705S3VersionKey3F69ABBE:
+    Type: String
+    Description: S3 key for asset version "70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705"
+  AssetParameters70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705ArtifactHash54FC658E:
+    Type: String
+    Description: Artifact hash for asset "70dea4b6a7db6e410a2a31a08992d159bb6cbaa22520da6a5244a7843611b705"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

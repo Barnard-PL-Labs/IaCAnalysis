@@ -1,0 +1,1403 @@
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  WorldIDVerificationResourcesDLQforWorldIDqueue83B5E40F:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      VisibilityTimeout: 900
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/DLQ for World ID queue/Resource
+  WorldIDVerificationResourcesWorldIDverificationqueue6632F1BB:
+    Type: AWS::SQS::Queue
+    Properties:
+      RedrivePolicy:
+        deadLetterTargetArn:
+          Fn::GetAtt:
+            - WorldIDVerificationResourcesDLQforWorldIDqueue83B5E40F
+            - Arn
+        maxReceiveCount: 1
+      VisibilityTimeout: 900
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/World ID verification queue/Resource
+  WorldIDVerificationResourcesWorldIDEventBus56D51592:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: WorldIDDiscordBotWorldIDVerificationResourcesWorldIDEventBusB5871E2B
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/World ID EventBus/Resource
+  WorldIDVerificationResourcesNodeCanvasLayer73C61BD0:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location:
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:990551184979:applications/lambda-layer-canvas-nodejs
+        SemanticVersion: 2.9.3
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/NodeCanvasLayer
+  WorldIDVerificationResourcesqrgeneratorServiceRoleF1BCC9A7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/qr-generator/ServiceRole/Resource
+  WorldIDVerificationResourcesqrgeneratorServiceRoleDefaultPolicy2C13A221:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: WorldIDVerificationResourcesqrgeneratorServiceRoleDefaultPolicy2C13A221
+      Roles:
+        - Ref: WorldIDVerificationResourcesqrgeneratorServiceRoleF1BCC9A7
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/qr-generator/ServiceRole/DefaultPolicy/Resource
+  WorldIDVerificationResourcesqrgenerator25201E32:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: f70ee8766a6073582437cab02414e12231107bb0f60342a387e52be5c8716a58.zip
+      Role:
+        Fn::GetAtt:
+          - WorldIDVerificationResourcesqrgeneratorServiceRoleF1BCC9A7
+          - Arn
+      Architectures:
+        - x86_64
+      Description: Generates PNG image for QR code
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps --disable-proto=throw
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Layers:
+        - Fn::GetAtt:
+            - WorldIDVerificationResourcesNodeCanvasLayer73C61BD0
+            - Outputs.LayerVersion
+        - Fn::FindInMap:
+            - CloudwatchlambdainsightsversionMap
+            - Ref: AWS::Region
+            - 1x0x119x0xx86x64
+      MemorySize: 1024
+      ReservedConcurrentExecutions: 100
+      Runtime: nodejs16.x
+      Timeout: 10
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - WorldIDVerificationResourcesqrgeneratorServiceRoleDefaultPolicy2C13A221
+      - WorldIDVerificationResourcesqrgeneratorServiceRoleF1BCC9A7
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/qr-generator/Resource
+      aws:asset:path: asset.f70ee8766a6073582437cab02414e12231107bb0f60342a387e52be5c8716a58
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  WorldIDVerificationResourcesqrgeneratorFunctionUrl6D6034D3:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      TargetFunctionArn:
+        Fn::GetAtt:
+          - WorldIDVerificationResourcesqrgenerator25201E32
+          - Arn
+      Cors:
+        AllowCredentials: true
+        AllowMethods:
+          - "*"
+        AllowOrigins:
+          - "*"
+        MaxAge: 86400
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/qr-generator/FunctionUrl/Resource
+  WorldIDVerificationResourcesqrgeneratorinvokefunctionurl15AAC0BE:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunctionUrl
+      FunctionName:
+        Fn::GetAtt:
+          - WorldIDVerificationResourcesqrgenerator25201E32
+          - Arn
+      Principal: "*"
+      FunctionUrlAuthType: NONE
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/qr-generator/invoke-function-url
+  WorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandlerServiceRoleF7CAED90:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/Role Assignment  Verification Success Handler/ServiceRole/Resource
+  WorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandlerServiceRoleDefaultPolicy6EB9169B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":secretsmanager:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :secret:WorldIdDiscordBotToken-??????
+        Version: "2012-10-17"
+      PolicyName: WorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandlerServiceRoleDefaultPolicy6EB9169B
+      Roles:
+        - Ref: WorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandlerServiceRoleF7CAED90
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/Role Assignment  Verification Success Handler/ServiceRole/DefaultPolicy/Resource
+  WorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandler1B4717A3:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 6d019a766e0f518d79d1788728b23945efabfcfa9e7baf7a0fb40ee50b4c4aff.zip
+      Role:
+        Fn::GetAtt:
+          - WorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandlerServiceRoleF7CAED90
+          - Arn
+      Architectures:
+        - arm64
+      Description: Assigns role(s) to an user on successful verification with World ID
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps --disable-proto=throw
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+          ROLES_TO_ASSIGN: Verified human
+          TOKEN_SECRET_ARN:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":secretsmanager:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - :secret:WorldIdDiscordBotToken
+      Handler: index.handler
+      Layers:
+        - Fn::Join:
+            - ""
+            - - "arn:aws:lambda:"
+              - Ref: AWS::Region
+              - :580247275435:layer:LambdaInsightsExtension-Arm64:1
+      Runtime: nodejs16.x
+      Timeout: 20
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - WorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandlerServiceRoleDefaultPolicy6EB9169B
+      - WorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandlerServiceRoleF7CAED90
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/Role Assignment  Verification Success Handler/Resource
+      aws:asset:path: asset.6d019a766e0f518d79d1788728b23945efabfcfa9e7baf7a0fb40ee50b4c4aff
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  WorldIDVerificationResourcesOnVerificationSuccessA3445FAA:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Emitted when an user successfully completed verification with World ID
+      EventBusName:
+        Ref: WorldIDVerificationResourcesWorldIDEventBus56D51592
+      EventPattern:
+        source:
+          - world.id
+        detail-type:
+          - User successfully verified
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - WorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandler1B4717A3
+              - Arn
+          Id: Target0
+          InputPath: $.detail
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/On Verification Success/Resource
+  WorldIDVerificationResourcesOnVerificationSuccessAllowEventRuleWorldIDDiscordBotWorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandler26E67E6B90ED0329:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - WorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandler1B4717A3
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - WorldIDVerificationResourcesOnVerificationSuccessA3445FAA
+          - Arn
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/On Verification Success/AllowEventRuleWorldIDDiscordBotWorldIDVerificationResourcesRoleAssignmentVerificationSuccessHandler26E67E6B
+  WorldIDVerificationResourcesqueueprocessingServiceRole1C6B24E2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/queue-processing/ServiceRole/Resource
+  WorldIDVerificationResourcesqueueprocessingServiceRoleDefaultPolicy5B7A1351:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - WorldIDVerificationResourcesWorldIDverificationqueue6632F1BB
+                - Arn
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":secretsmanager:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :secret:WorldIdDiscordBotToken-??????
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - WorldIDVerificationResourcesWorldIDEventBus56D51592
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: WorldIDVerificationResourcesqueueprocessingServiceRoleDefaultPolicy5B7A1351
+      Roles:
+        - Ref: WorldIDVerificationResourcesqueueprocessingServiceRole1C6B24E2
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/queue-processing/ServiceRole/DefaultPolicy/Resource
+  WorldIDVerificationResourcesqueueprocessingF8CF2FE5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: d99d2818f1189e760578dc0e185369ecf0e24a5c4f727c3d72d72ea858efa791.zip
+      Role:
+        Fn::GetAtt:
+          - WorldIDVerificationResourcesqueueprocessingServiceRole1C6B24E2
+          - Arn
+      Architectures:
+        - arm64
+      Description: Function that processes SQS messages and doing World ID verification flow
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps --disable-proto=throw
+          TOKEN_SECRET_ARN:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":secretsmanager:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - :secret:WorldIdDiscordBotToken
+          QR_GENERATOR_URL:
+            Fn::GetAtt:
+              - WorldIDVerificationResourcesqrgeneratorFunctionUrl6D6034D3
+              - FunctionUrl
+          EVENT_BUS_NAME:
+            Ref: WorldIDVerificationResourcesWorldIDEventBus56D51592
+          APP_NAME: World ID Discord Bot
+          ACTION_ID: wid_fb74a74cc94d3ffbe3f6669f556b36e4
+          SIGNAL: <none>
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Layers:
+        - Fn::Join:
+            - ""
+            - - "arn:aws:lambda:"
+              - Ref: AWS::Region
+              - :580247275435:layer:LambdaInsightsExtension-Arm64:1
+      MemorySize: 256
+      ReservedConcurrentExecutions: 100
+      Runtime: nodejs16.x
+      Timeout: 900
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - WorldIDVerificationResourcesqueueprocessingServiceRoleDefaultPolicy5B7A1351
+      - WorldIDVerificationResourcesqueueprocessingServiceRole1C6B24E2
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/queue-processing/Resource
+      aws:asset:path: asset.d99d2818f1189e760578dc0e185369ecf0e24a5c4f727c3d72d72ea858efa791
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  WorldIDVerificationResourcesqueueprocessingSqsEventSourceWorldIDDiscordBotWorldIDVerificationResourcesWorldIDverificationqueueF617B5A80BD3CB44:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: WorldIDVerificationResourcesqueueprocessingF8CF2FE5
+      BatchSize: 1
+      EventSourceArn:
+        Fn::GetAtt:
+          - WorldIDVerificationResourcesWorldIDverificationqueue6632F1BB
+          - Arn
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/World ID Verification Resources/queue-processing/SqsEventSource:WorldIDDiscordBotWorldIDVerificationResourcesWorldIDverificationqueueF617B5A8/Resource
+  AccessLogs8B620ECA:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 30
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/AccessLogs/Resource
+  discordbotapi5484B478:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: Discord Bot Api Endpoint
+      Name: discord-bot-api
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Resource
+  discordbotapiCloudWatchRoleB1A1160D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/CloudWatchRole/Resource
+  discordbotapiAccount3F1EE700:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - discordbotapiCloudWatchRoleB1A1160D
+          - Arn
+    DependsOn:
+      - discordbotapi5484B478
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Account
+  discordbotapiDeploymentFB90C3ECe5087a80f404dd6a16af4f448c09e112:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: discordbotapi5484B478
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - discordbotapioauth2callbackGETADB70C2B
+      - discordbotapioauth2callbackOPTIONS9FA9F797
+      - discordbotapioauth2callbackCDCCAC0B
+      - discordbotapiOPTIONS9B4E4ECB
+      - discordbotapiPOSTA12D3063
+      - discordbotapiDiscordInteractionModel48CC4217
+      - InteractionsRequestValidator3AD172EC
+      - OAuthRequestValidator56792EA4
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Deployment/Resource
+  discordbotapiDeploymentStageprodE3B8CBF8:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: discordbotapi5484B478
+      AccessLogSetting:
+        DestinationArn:
+          Fn::GetAtt:
+            - AccessLogs8B620ECA
+            - Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","user":"$context.identity.user","caller":"$context.identity.caller","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}'
+      DeploymentId:
+        Ref: discordbotapiDeploymentFB90C3ECe5087a80f404dd6a16af4f448c09e112
+      StageName: prod
+      TracingEnabled: true
+    DependsOn:
+      - discordbotapiAccount3F1EE700
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/DeploymentStage.prod/Resource
+  discordbotapiOPTIONS9B4E4ECB:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - discordbotapi5484B478
+          - RootResourceId
+      RestApiId:
+        Ref: discordbotapi5484B478
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Default/OPTIONS/Resource
+  discordbotapiPOSTStartSyncExecutionRole3D6EFC21:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Default/POST/StartSyncExecutionRole/Resource
+  discordbotapiPOSTStartSyncExecutionRoleDefaultPolicy304039E1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartSyncExecution
+            Effect: Allow
+            Resource:
+              Ref: DiscordInteractionResponseStateMachineE0027175
+        Version: "2012-10-17"
+      PolicyName: discordbotapiPOSTStartSyncExecutionRoleDefaultPolicy304039E1
+      Roles:
+        - Ref: discordbotapiPOSTStartSyncExecutionRole3D6EFC21
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Default/POST/StartSyncExecutionRole/DefaultPolicy/Resource
+  discordbotapiPOSTA12D3063:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Fn::GetAtt:
+          - discordbotapi5484B478
+          - RootResourceId
+      RestApiId:
+        Ref: discordbotapi5484B478
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - discordbotapiPOSTStartSyncExecutionRole3D6EFC21
+            - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: |
+                #set($inputRoot = $input.path('$'))
+                #if($input.path('$.status').toString().equals("FAILED"))
+                  #set($context.responseOverride.status = 500)
+                  {
+                    "error": "$input.path('$.error')"
+                    "cause": "$input.path('$.cause')"
+                  }
+                #else
+                  #set($result = $util.parseJson($inputRoot.output))
+                  #set($context.responseOverride.status = $result.statusCode)
+                  $result.body
+                #end
+            StatusCode: "200"
+        PassthroughBehavior: NEVER
+        RequestTemplates:
+          application/json:
+            Fn::Join:
+              - ""
+              - - |-
+                  ## Velocity Template used for API Gateway request mapping template
+                  ##
+                  ## This template forwards the request body, header, path, and querystring
+                  ## to the execution input of the state machine.
+                  ##
+                  ## "@@" is used here as a placeholder for '"' to avoid using escape characters.
+
+                  #set($inputString = '')
+                  #set($includeHeaders = true)
+                  #set($includeQueryString = false)
+                  #set($includePath = false)
+                  #set($includeAuthorizer = false)
+                  #set($allParams = $input.params())
+                  {
+                      "stateMachineArn": "
+                - Ref: DiscordInteractionResponseStateMachineE0027175
+                - |
+                  ",
+
+                      #set($inputString = "$inputString,@@body@@: $input.body")
+
+                      #if ($includeHeaders)
+                          #set($inputString = "$inputString, @@header@@:{")
+                          #foreach($paramName in $allParams.header.keySet())
+                              #set($inputString = "$inputString @@$paramName@@: @@$util.escapeJavaScript($allParams.header.get($paramName))@@")
+                              #if($foreach.hasNext)
+                                  #set($inputString = "$inputString,")
+                              #end
+                          #end
+                          #set($inputString = "$inputString }")
+                          
+                      #end
+
+                      #if ($includeQueryString)
+                          #set($inputString = "$inputString, @@querystring@@:{")
+                          #foreach($paramName in $allParams.querystring.keySet())
+                              #set($inputString = "$inputString @@$paramName@@: @@$util.escapeJavaScript($allParams.querystring.get($paramName))@@")
+                              #if($foreach.hasNext)
+                                  #set($inputString = "$inputString,")
+                              #end
+                          #end
+                          #set($inputString = "$inputString }")
+                      #end
+
+                      #if ($includePath)
+                          #set($inputString = "$inputString, @@path@@:{")
+                          #foreach($paramName in $allParams.path.keySet())
+                              #set($inputString = "$inputString @@$paramName@@: @@$util.escapeJavaScript($allParams.path.get($paramName))@@")
+                              #if($foreach.hasNext)
+                                  #set($inputString = "$inputString,")
+                              #end
+                          #end
+                          #set($inputString = "$inputString }")
+                      #end
+                      
+                      #if ($includeAuthorizer)
+                          #set($inputString = "$inputString, @@authorizer@@:{")
+                          #foreach($paramName in $context.authorizer.keySet())
+                              #set($inputString = "$inputString @@$paramName@@: @@$util.escapeJavaScript($context.authorizer.get($paramName))@@")
+                              #if($foreach.hasNext)
+                                  #set($inputString = "$inputString,")
+                              #end
+                          #end
+                          #set($inputString = "$inputString }")
+                      #end
+
+                      #set($requestContext = "")
+                      ## Check if the request context should be included as part of the execution input
+                      #if($requestContext && !$requestContext.empty)
+                          #set($inputString = "$inputString,")
+                          #set($inputString = "$inputString @@requestContext@@: $requestContext")
+                      #end
+
+                      #set($inputString = "$inputString}")
+                      #set($inputString = $inputString.replaceAll("@@",'"'))
+                      #set($len = $inputString.length() - 1)
+                      "input": "{$util.escapeJavaScript($inputString.substring(1,$len))}"
+                  }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :states:action/StartSyncExecution
+      MethodResponses:
+        - ResponseModels:
+            application/json: Empty
+          StatusCode: "200"
+        - ResponseModels:
+            application/json: Error
+          StatusCode: "400"
+        - ResponseModels:
+            application/json: Error
+          StatusCode: "500"
+      OperationName: DiscordInteractions
+      RequestModels:
+        application/json:
+          Ref: discordbotapiDiscordInteractionModel48CC4217
+      RequestParameters:
+        method.request.header.x-signature-ed25519: true
+        method.request.header.x-signature-timestamp: true
+      RequestValidatorId:
+        Ref: InteractionsRequestValidator3AD172EC
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Default/POST/Resource
+  discordbotapioauth2callbackCDCCAC0B:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - discordbotapi5484B478
+          - RootResourceId
+      PathPart: oauth2callback
+      RestApiId:
+        Ref: discordbotapi5484B478
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Default/oauth2callback/Resource
+  discordbotapioauth2callbackOPTIONS9FA9F797:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: discordbotapioauth2callbackCDCCAC0B
+      RestApiId:
+        Ref: discordbotapi5484B478
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Default/oauth2callback/OPTIONS/Resource
+  discordbotapioauth2callbackGETApiPermissionWorldIDDiscordBotdiscordbotapi10012698GEToauth2callbackA76F639F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ConfigureDiscordServerlambdaD03F6493
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: discordbotapi5484B478
+            - /
+            - Ref: discordbotapiDeploymentStageprodE3B8CBF8
+            - /GET/oauth2callback
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Default/oauth2callback/GET/ApiPermission.WorldIDDiscordBotdiscordbotapi10012698.GET..oauth2callback
+  discordbotapioauth2callbackGETApiPermissionTestWorldIDDiscordBotdiscordbotapi10012698GEToauth2callback5DFA89FD:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ConfigureDiscordServerlambdaD03F6493
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: discordbotapi5484B478
+            - /test-invoke-stage/GET/oauth2callback
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Default/oauth2callback/GET/ApiPermission.Test.WorldIDDiscordBotdiscordbotapi10012698.GET..oauth2callback
+  discordbotapioauth2callbackGETADB70C2B:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: discordbotapioauth2callbackCDCCAC0B
+      RestApiId:
+        Ref: discordbotapi5484B478
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - ConfigureDiscordServerlambdaD03F6493
+                  - Arn
+              - /invocations
+      OperationName: DiscordOAuth2Callback
+      RequestParameters:
+        method.request.querystring.code: true
+        method.request.querystring.guild_id: true
+        method.request.querystring.permissions: true
+      RequestValidatorId:
+        Ref: OAuthRequestValidator56792EA4
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/Default/oauth2callback/GET/Resource
+  discordbotapiDiscordInteractionModel48CC4217:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: discordbotapi5484B478
+      ContentType: application/json
+      Schema:
+        type: object
+        properties:
+          type:
+            type: integer
+        required:
+          - type
+        $schema: http://json-schema.org/draft-04/schema#
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/discord-bot-api/DiscordInteractionModel/Resource
+  validationServiceRoleBA4B090E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/validation/ServiceRole/Resource
+  validationServiceRoleDefaultPolicyB3E75F98:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: validationServiceRoleDefaultPolicyB3E75F98
+      Roles:
+        - Ref: validationServiceRoleBA4B090E
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/validation/ServiceRole/DefaultPolicy/Resource
+  validationFA37DF24:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 41aa66e9791c68e55347748df0ee9abfc7d160f767d0d9c04aed186d854973cf.zip
+      Role:
+        Fn::GetAtt:
+          - validationServiceRoleBA4B090E
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps --disable-proto=throw
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+          BOT_PUBLIC_KEY: aa4f7f5e1affd2c054ca07a2733007d44775826c821f6c0ddc3d3826a54eeb1a
+      Handler: index.handler
+      Layers:
+        - Fn::Join:
+            - ""
+            - - "arn:aws:lambda:"
+              - Ref: AWS::Region
+              - :580247275435:layer:LambdaInsightsExtension-Arm64:1
+      Runtime: nodejs16.x
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - validationServiceRoleDefaultPolicyB3E75F98
+      - validationServiceRoleBA4B090E
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/validation/Resource
+      aws:asset:path: asset.41aa66e9791c68e55347748df0ee9abfc7d160f767d0d9c04aed186d854973cf
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  InteractionResponsesLogGroup038A1BE6:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/vendedlogs/states/WorldID-Discord-Bot-interaction-response-state-machine
+      RetentionInDays: 30
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/InteractionResponsesLogGroup/Resource
+  DiscordInteractionResponseStateMachineRole48F8BCDE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::FindInMap:
+                  - ServiceprincipalMap
+                  - Ref: AWS::Region
+                  - states
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/Discord Interaction Response State Machine/Role/Resource
+  DiscordInteractionResponseStateMachineRoleDefaultPolicy0FAA80BB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogDelivery
+              - logs:GetLogDelivery
+              - logs:UpdateLogDelivery
+              - logs:DeleteLogDelivery
+              - logs:ListLogDeliveries
+              - logs:PutResourcePolicy
+              - logs:DescribeResourcePolicies
+              - logs:DescribeLogGroups
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+              - xray:GetSamplingRules
+              - xray:GetSamplingTargets
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - validationFA37DF24
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - validationFA37DF24
+                        - Arn
+                    - :*
+          - Action: sqs:SendMessage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - WorldIDVerificationResourcesWorldIDverificationqueue6632F1BB
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DiscordInteractionResponseStateMachineRoleDefaultPolicy0FAA80BB
+      Roles:
+        - Ref: DiscordInteractionResponseStateMachineRole48F8BCDE
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/Discord Interaction Response State Machine/Role/DefaultPolicy/Resource
+  DiscordInteractionResponseStateMachineE0027175:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - DiscordInteractionResponseStateMachineRole48F8BCDE
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Verify Discord interaction payload","States":{"Verify Discord interaction payload":{"Next":"Is payload valid?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.validness","Resource":"'
+            - Fn::GetAtt:
+                - validationFA37DF24
+                - Arn
+            - "\"},\"Is payload valid?\":{\"Type\":\"Choice\",\"Choices\":[{\"Variable\":\"$.validness\",\"BooleanEquals\":true,\"Next\":\"Is this PING from Discord?\"}],\"Default\":\"Unauthorized\"},\"Unauthorized\":{\"Type\":\"Pass\",\"Result\":{\"statusCode\":401},\"End\":true},\"Is this PING from Discord?\":{\"Type\":\"Choice\",\"Choices\":[{\"Variable\":\"$.body.type\",\"NumericEquals\":1,\"Next\":\"Respond with PONG\"}],\"Default\":\"Is that \\\"verify\\\" command?\"},\"Is that \\\"verify\\\" command?\":{\"Type\":\"Choice\",\"Choices\":[{\"Variable\":\"$.body.data.name\",\"StringEquals\":\"verify\",\"Next\":\"Send interaction to processing\"}],\"Default\":\"Resulting with code 404\"},\"Resulting with code 404\":{\"Type\":\"Pass\",\"Result\":{\"statusCode\":404,\"body\":\"States.Format('Unknown command {}', $.body.data.name)\"},\"Next\":\"Finished due to unknown command\"},\"Finished due to unknown command\":{\"Type\":\"Succeed\"},\"Send interaction to processing\":{\"Next\":\"Respond with 200 and pending message...\",\"Type\":\"Task\",\"ResultPath\":\"$.sqs\",\"Resource\":\"arn:"
+            - Ref: AWS::Partition
+            - :states:::sqs:sendMessage","Parameters":{"QueueUrl":"
+            - Ref: WorldIDVerificationResourcesWorldIDverificationqueue6632F1BB
+            - '","MessageBody.$":"$.body"}},"Respond with 200 and pending message...":{"Type":"Pass","Result":{"statusCode":200,"body":"{\"type\":5,\"data\":{\"flags\":64}}"},"End":true},"Respond with PONG":{"Type":"Pass","Result":{"statusCode":200,"body":"{\"type\":1}"},"Next":"Finish with PING response"},"Finish with PING response":{"Type":"Succeed"}},"TimeoutSeconds":5}'
+      LoggingConfiguration:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn:
+                Fn::GetAtt:
+                  - InteractionResponsesLogGroup038A1BE6
+                  - Arn
+        IncludeExecutionData: true
+        Level: ALL
+      StateMachineType: EXPRESS
+      TracingConfiguration:
+        Enabled: true
+    DependsOn:
+      - DiscordInteractionResponseStateMachineRoleDefaultPolicy0FAA80BB
+      - DiscordInteractionResponseStateMachineRole48F8BCDE
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/Discord Interaction Response State Machine/Resource
+  InteractionsRequestValidator3AD172EC:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: discordbotapi5484B478
+      ValidateRequestBody: true
+      ValidateRequestParameters: true
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/Interactions Request Validator/Resource
+  ConfigureDiscordServerlambdaServiceRoleD2461438:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/CloudWatchLambdaInsightsExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/Configure Discord Server lambda/ServiceRole/Resource
+  ConfigureDiscordServerlambdaServiceRoleDefaultPolicy8481FBF7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":secretsmanager:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :secret:WorldIdDiscordBotToken-??????
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":secretsmanager:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :secret:WorldIdDiscordBotClientSecret-??????
+        Version: "2012-10-17"
+      PolicyName: ConfigureDiscordServerlambdaServiceRoleDefaultPolicy8481FBF7
+      Roles:
+        - Ref: ConfigureDiscordServerlambdaServiceRoleD2461438
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/Configure Discord Server lambda/ServiceRole/DefaultPolicy/Resource
+  ConfigureDiscordServerlambdaD03F6493:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 422993547fabd725666f3aa6abb9f85b807c4b953050657057fc2f994010165a.zip
+      Role:
+        Fn::GetAtt:
+          - ConfigureDiscordServerlambdaServiceRoleD2461438
+          - Arn
+      Architectures:
+        - arm64
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps --disable-proto=throw
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+          BOT_APP_ID: "984381699360161823"
+          TOKEN_SECRET_ARN:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":secretsmanager:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - :secret:WorldIdDiscordBotToken
+          CLIENT_SECRET_ARN:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":secretsmanager:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - :secret:WorldIdDiscordBotClientSecret
+          ROLES_TO_ASSIGN: Verified human
+      Handler: index.handler
+      Layers:
+        - Fn::Join:
+            - ""
+            - - "arn:aws:lambda:"
+              - Ref: AWS::Region
+              - :580247275435:layer:LambdaInsightsExtension-Arm64:1
+      Runtime: nodejs16.x
+      Timeout: 60
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - ConfigureDiscordServerlambdaServiceRoleDefaultPolicy8481FBF7
+      - ConfigureDiscordServerlambdaServiceRoleD2461438
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/Configure Discord Server lambda/Resource
+      aws:asset:path: asset.422993547fabd725666f3aa6abb9f85b807c4b953050657057fc2f994010165a
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  OAuthRequestValidator56792EA4:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: discordbotapi5484B478
+      ValidateRequestParameters: true
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/OAuth Request Validator/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/11STW/CMAz9LbuHTLDLrsA+NGndWKvtikJqSmibhDoBoar/fU5aOtjJzx+x/Z4z47NHPr0TJ5zIvJxUasPbzAlZshTQ+EYCo9y6xQPy9suDB7bc6gg6BkfQjuLPwS48htSIU1/F2mA7hqLm5MytrZQUThnNKlFvcrHWJoc98o9oXryWMamovk3N0CLYlaGX5+D2iHo+rAUi0AbzYMjnCy9LcAuBMLTnLT0Yu17Ad1OFRoNZQVMrxFAQt88i70RYq3QxcrqJdqwyBTF/N8VrY7wNVRfcMWFVIRycxJk4ALq5VZHGH5xLabx27AlsZc41tQ/RK49uUETuPbgcIzJLwO1MHpIDGk/VD+lxQoJGej1I4eBp/o+oVC6cafra2xhJ6sBuB5Fw7QSWgWRU8k0fTQksO2AGOk8AkRb794LU3hlFw1d0GJZ5KQHywMWRcHKn9IXS6Hcdi8cLNAe1r4T/9M56d0OL8NLoXIV5HQufh+/x/jilXzyjj7xHpSYNSatq4GlvfwGNEJmu5AIAAA==
+    Metadata:
+      aws:cdk:path: WorldID-Discord-Bot/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Mappings:
+  CloudwatchlambdainsightsversionMap:
+    af-south-1:
+      1x0x119x0xx86x64: arn:aws:lambda:af-south-1:012438385374:layer:LambdaInsightsExtension:9
+    ap-east-1:
+      1x0x119x0xx86x64: arn:aws:lambda:ap-east-1:519774774795:layer:LambdaInsightsExtension:9
+    ap-northeast-1:
+      1x0x119x0xx86x64: arn:aws:lambda:ap-northeast-1:580247275435:layer:LambdaInsightsExtension:23
+    ap-northeast-2:
+      1x0x119x0xx86x64: arn:aws:lambda:ap-northeast-2:580247275435:layer:LambdaInsightsExtension:16
+    ap-south-1:
+      1x0x119x0xx86x64: arn:aws:lambda:ap-south-1:580247275435:layer:LambdaInsightsExtension:16
+    ap-southeast-1:
+      1x0x119x0xx86x64: arn:aws:lambda:ap-southeast-1:580247275435:layer:LambdaInsightsExtension:16
+    ap-southeast-2:
+      1x0x119x0xx86x64: arn:aws:lambda:ap-southeast-2:580247275435:layer:LambdaInsightsExtension:16
+    ca-central-1:
+      1x0x119x0xx86x64: arn:aws:lambda:ca-central-1:580247275435:layer:LambdaInsightsExtension:16
+    cn-north-1:
+      1x0x119x0xx86x64: arn:aws-cn:lambda:cn-north-1:488211338238:layer:LambdaInsightsExtension:9
+    cn-northwest-1:
+      1x0x119x0xx86x64: arn:aws-cn:lambda:cn-northwest-1:488211338238:layer:LambdaInsightsExtension:9
+    eu-central-1:
+      1x0x119x0xx86x64: arn:aws:lambda:eu-central-1:580247275435:layer:LambdaInsightsExtension:16
+    eu-north-1:
+      1x0x119x0xx86x64: arn:aws:lambda:eu-north-1:580247275435:layer:LambdaInsightsExtension:16
+    eu-south-1:
+      1x0x119x0xx86x64: arn:aws:lambda:eu-south-1:339249233099:layer:LambdaInsightsExtension:9
+    eu-west-1:
+      1x0x119x0xx86x64: arn:aws:lambda:eu-west-1:580247275435:layer:LambdaInsightsExtension:16
+    eu-west-2:
+      1x0x119x0xx86x64: arn:aws:lambda:eu-west-2:580247275435:layer:LambdaInsightsExtension:16
+    eu-west-3:
+      1x0x119x0xx86x64: arn:aws:lambda:eu-west-3:580247275435:layer:LambdaInsightsExtension:16
+    me-south-1:
+      1x0x119x0xx86x64: arn:aws:lambda:me-south-1:285320876703:layer:LambdaInsightsExtension:9
+    sa-east-1:
+      1x0x119x0xx86x64: arn:aws:lambda:sa-east-1:580247275435:layer:LambdaInsightsExtension:16
+    us-east-1:
+      1x0x119x0xx86x64: arn:aws:lambda:us-east-1:580247275435:layer:LambdaInsightsExtension:16
+    us-east-2:
+      1x0x119x0xx86x64: arn:aws:lambda:us-east-2:580247275435:layer:LambdaInsightsExtension:16
+    us-west-1:
+      1x0x119x0xx86x64: arn:aws:lambda:us-west-1:580247275435:layer:LambdaInsightsExtension:16
+    us-west-2:
+      1x0x119x0xx86x64: arn:aws:lambda:us-west-2:580247275435:layer:LambdaInsightsExtension:16
+  ServiceprincipalMap:
+    af-south-1:
+      states: states.af-south-1.amazonaws.com
+    ap-east-1:
+      states: states.ap-east-1.amazonaws.com
+    ap-northeast-1:
+      states: states.ap-northeast-1.amazonaws.com
+    ap-northeast-2:
+      states: states.ap-northeast-2.amazonaws.com
+    ap-northeast-3:
+      states: states.ap-northeast-3.amazonaws.com
+    ap-south-1:
+      states: states.ap-south-1.amazonaws.com
+    ap-southeast-1:
+      states: states.ap-southeast-1.amazonaws.com
+    ap-southeast-2:
+      states: states.ap-southeast-2.amazonaws.com
+    ap-southeast-3:
+      states: states.ap-southeast-3.amazonaws.com
+    ca-central-1:
+      states: states.ca-central-1.amazonaws.com
+    cn-north-1:
+      states: states.cn-north-1.amazonaws.com
+    cn-northwest-1:
+      states: states.cn-northwest-1.amazonaws.com
+    eu-central-1:
+      states: states.eu-central-1.amazonaws.com
+    eu-north-1:
+      states: states.eu-north-1.amazonaws.com
+    eu-south-1:
+      states: states.eu-south-1.amazonaws.com
+    eu-south-2:
+      states: states.eu-south-2.amazonaws.com
+    eu-west-1:
+      states: states.eu-west-1.amazonaws.com
+    eu-west-2:
+      states: states.eu-west-2.amazonaws.com
+    eu-west-3:
+      states: states.eu-west-3.amazonaws.com
+    me-south-1:
+      states: states.me-south-1.amazonaws.com
+    sa-east-1:
+      states: states.sa-east-1.amazonaws.com
+    us-east-1:
+      states: states.us-east-1.amazonaws.com
+    us-east-2:
+      states: states.us-east-2.amazonaws.com
+    us-gov-east-1:
+      states: states.us-gov-east-1.amazonaws.com
+    us-gov-west-1:
+      states: states.us-gov-west-1.amazonaws.com
+    us-iso-east-1:
+      states: states.amazonaws.com
+    us-iso-west-1:
+      states: states.amazonaws.com
+    us-isob-east-1:
+      states: states.amazonaws.com
+    us-west-1:
+      states: states.us-west-1.amazonaws.com
+    us-west-2:
+      states: states.us-west-2.amazonaws.com
+Outputs:
+  discordbotapiEndpoint66B0A069:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: discordbotapi5484B478
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: discordbotapiDeploymentStageprodE3B8CBF8
+          - /
+  OAuth2CallbackUrl:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: discordbotapi5484B478
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: discordbotapiDeploymentStageprodE3B8CBF8
+          - //oauth2callback
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,392 @@
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  DenoRuntime:
+    Type: AWS::Serverless::Application
+    Properties:
+      Location:
+        ApplicationId: arn:aws:serverlessrepo:us-east-1:390065572566:applications/deno
+        SemanticVersion: 1.5.2
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoRuntime
+  DenoTestFnServiceRole8AB1AA46:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoTestFn/ServiceRole/Resource
+  DenoTestFn2728326F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters36c66f3f3926b026a11aefacb30a6f2ed5bc5974184e0fd197a177e3973a7216S3Bucket233DB78C
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters36c66f3f3926b026a11aefacb30a6f2ed5bc5974184e0fd197a177e3973a7216S3VersionKey3BF480F7
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters36c66f3f3926b026a11aefacb30a6f2ed5bc5974184e0fd197a177e3973a7216S3VersionKey3BF480F7
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - DenoTestFnServiceRole8AB1AA46
+          - Arn
+      Runtime: provided
+      Layers:
+        - Fn::GetAtt:
+            - DenoRuntime
+            - Outputs.LayerArn
+    DependsOn:
+      - DenoTestFnServiceRole8AB1AA46
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoTestFn/Resource
+      aws:asset:path: asset.36c66f3f3926b026a11aefacb30a6f2ed5bc5974184e0fd197a177e3973a7216
+      aws:asset:property: Code
+  DenoEndpoint76226AF7:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: DenoEndpoint
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/Resource
+  DenoEndpointCloudWatchRoleE6157320:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/CloudWatchRole/Resource
+  DenoEndpointAccountC2C993AC:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - DenoEndpointCloudWatchRoleE6157320
+          - Arn
+    DependsOn:
+      - DenoEndpoint76226AF7
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/Account
+  DenoEndpointDeploymentAC6EF03D6c9015065173fe3d3a8db8de5b79b0f9:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: DenoEndpoint76226AF7
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - DenoEndpointproxyANYEC6D6CEF
+      - DenoEndpointproxy793A9BD9
+      - DenoEndpointANY40BD19CA
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/Deployment/Resource
+  DenoEndpointDeploymentStageprodB25E35E2:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: DenoEndpoint76226AF7
+      DeploymentId:
+        Ref: DenoEndpointDeploymentAC6EF03D6c9015065173fe3d3a8db8de5b79b0f9
+      StageName: prod
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/DeploymentStage.prod/Resource
+  DenoEndpointproxy793A9BD9:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - DenoEndpoint76226AF7
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: DenoEndpoint76226AF7
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/Default/{proxy+}/Resource
+  DenoEndpointproxyANYApiPermissionRpcLambdaStackDenoEndpointC50615BEANYproxy8B35228D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DenoTestFn2728326F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: DenoEndpoint76226AF7
+            - /
+            - Ref: DenoEndpointDeploymentStageprodB25E35E2
+            - /*/*
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/Default/{proxy+}/ANY/ApiPermission.RpcLambdaStackDenoEndpointC50615BE.ANY..{proxy+}
+  DenoEndpointproxyANYApiPermissionTestRpcLambdaStackDenoEndpointC50615BEANYproxy0B9A48D7:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DenoTestFn2728326F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: DenoEndpoint76226AF7
+            - /test-invoke-stage/*/*
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/Default/{proxy+}/ANY/ApiPermission.Test.RpcLambdaStackDenoEndpointC50615BE.ANY..{proxy+}
+  DenoEndpointproxyANYEC6D6CEF:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: DenoEndpointproxy793A9BD9
+      RestApiId:
+        Ref: DenoEndpoint76226AF7
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - DenoTestFn2728326F
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/Default/{proxy+}/ANY/Resource
+  DenoEndpointANYApiPermissionRpcLambdaStackDenoEndpointC50615BEANY330F41B4:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DenoTestFn2728326F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: DenoEndpoint76226AF7
+            - /
+            - Ref: DenoEndpointDeploymentStageprodB25E35E2
+            - /*/
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/Default/ANY/ApiPermission.RpcLambdaStackDenoEndpointC50615BE.ANY..
+  DenoEndpointANYApiPermissionTestRpcLambdaStackDenoEndpointC50615BEANY511E8374:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DenoTestFn2728326F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: DenoEndpoint76226AF7
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/Default/ANY/ApiPermission.Test.RpcLambdaStackDenoEndpointC50615BE.ANY..
+  DenoEndpointANY40BD19CA:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - DenoEndpoint76226AF7
+          - RootResourceId
+      RestApiId:
+        Ref: DenoEndpoint76226AF7
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - DenoTestFn2728326F
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/DenoEndpoint/Default/ANY/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.79.0,@aws-cdk/aws-apigateway=1.79.0,@aws-cdk/aws-applicationautoscaling=1.79.0,@aws-cdk/aws-autoscaling-common=1.79.0,@aws-cdk/aws-cloudwatch=1.79.0,@aws-cdk/aws-codeguruprofiler=1.79.0,@aws-cdk/aws-ec2=1.79.0,@aws-cdk/aws-ecr=1.79.0,@aws-cdk/aws-ecr-assets=1.79.0,@aws-cdk/aws-events=1.79.0,@aws-cdk/aws-iam=1.79.0,@aws-cdk/aws-kms=1.79.0,@aws-cdk/aws-lambda=1.79.0,@aws-cdk/aws-logs=1.79.0,@aws-cdk/aws-s3=1.79.0,@aws-cdk/aws-s3-assets=1.79.0,@aws-cdk/aws-sam=1.79.0,@aws-cdk/aws-sqs=1.79.0,@aws-cdk/aws-ssm=1.79.0,@aws-cdk/cloud-assembly-schema=1.79.0,@aws-cdk/core=1.79.0,@aws-cdk/cx-api=1.79.0,@aws-cdk/region-info=1.79.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: RpcLambdaStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters36c66f3f3926b026a11aefacb30a6f2ed5bc5974184e0fd197a177e3973a7216S3Bucket233DB78C:
+    Type: String
+    Description: S3 bucket for asset "36c66f3f3926b026a11aefacb30a6f2ed5bc5974184e0fd197a177e3973a7216"
+  AssetParameters36c66f3f3926b026a11aefacb30a6f2ed5bc5974184e0fd197a177e3973a7216S3VersionKey3BF480F7:
+    Type: String
+    Description: S3 key for asset version "36c66f3f3926b026a11aefacb30a6f2ed5bc5974184e0fd197a177e3973a7216"
+  AssetParameters36c66f3f3926b026a11aefacb30a6f2ed5bc5974184e0fd197a177e3973a7216ArtifactHashC745B7FE:
+    Type: String
+    Description: Artifact hash for asset "36c66f3f3926b026a11aefacb30a6f2ed5bc5974184e0fd197a177e3973a7216"
+Outputs:
+  DenoEndpointE36282D8:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: DenoEndpoint76226AF7
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: DenoEndpointDeploymentStageprodB25E35E2
+          - /
+  endpointUrl:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: DenoEndpoint76226AF7
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: DenoEndpointDeploymentStageprodB25E35E2
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

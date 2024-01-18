@@ -1,0 +1,268 @@
+Resources:
+  SauronLambdaSauronLambdaBucketC8DCFF57:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: SauronStack/SauronLambda/SauronLambdaBucket/Resource
+  SauronLambdaSauronLambdaHandlerServiceRoleCEEF2E1B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SauronStack/SauronLambda/SauronLambdaHandler/ServiceRole/Resource
+  SauronLambdaSauronLambdaHandlerServiceRoleDefaultPolicy1BB615D2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SauronLambdaSauronLambdaBucketC8DCFF57
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SauronLambdaSauronLambdaBucketC8DCFF57
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: SauronLambdaSauronLambdaHandlerServiceRoleDefaultPolicy1BB615D2
+      Roles:
+        - Ref: SauronLambdaSauronLambdaHandlerServiceRoleCEEF2E1B
+    Metadata:
+      aws:cdk:path: SauronStack/SauronLambda/SauronLambdaHandler/ServiceRole/DefaultPolicy/Resource
+  SauronLambdaSauronLambdaHandler2263B631:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |-
+          def lambda_handler(input, context):
+              status_code = 200
+              bode = input["body"]
+              print(bode)
+              if (bode == "erro"):
+                  status_code = 404
+
+              return {
+                  'statusCode': status_code,
+                  'body': bode
+              }
+      Role:
+        Fn::GetAtt:
+          - SauronLambdaSauronLambdaHandlerServiceRoleCEEF2E1B
+          - Arn
+      Environment:
+        Variables:
+          BUCKET:
+            Ref: SauronLambdaSauronLambdaBucketC8DCFF57
+      FunctionName: SauronLambda
+      Handler: index.lambda_handler
+      Runtime: python3.9
+    DependsOn:
+      - SauronLambdaSauronLambdaHandlerServiceRoleDefaultPolicy1BB615D2
+      - SauronLambdaSauronLambdaHandlerServiceRoleCEEF2E1B
+    Metadata:
+      aws:cdk:path: SauronStack/SauronLambda/SauronLambdaHandler/Resource
+  SauronLambdaSauronLambdaHandlerLogRetention1F87DCF0:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: SauronLambdaSauronLambdaHandler2263B631
+    Metadata:
+      aws:cdk:path: SauronStack/SauronLambda/SauronLambdaHandler/LogRetention/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SauronStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: SauronStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 558dc75fbdc793c8e2f64f85d2d7ed2cb820c727ec7e9b08666ad1af0103992e.zip
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: SauronStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+      aws:asset:path: asset.558dc75fbdc793c8e2f64f85d2d7ed2cb820c727ec7e9b08666ad1af0103992e
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ListLogsQuery:
+    Type: AWS::Logs::QueryDefinition
+    Properties:
+      Name: ListLogs
+      QueryString: fields @timestamp, @message | sort @timestamp desc
+      LogGroupNames:
+        - Fn::GetAtt:
+            - SauronLambdaSauronLambdaHandlerLogRetention1F87DCF0
+            - LogGroupName
+    Metadata:
+      aws:cdk:path: SauronStack/ListLogsQuery
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/z2OzQ6CMBCEn8V7WQUuXgXjyYPiA5haFrICbcK2GtLw7lJ+PM3s7OTbTSA5wGEnvxypsolaeoF/WKkaMUVPzyn4zKkGrcgrvbpFMsk4ilZ2r1KCvzitLBkdapsfBckOfGFaDPGsN9OSGsK4uIlgagZ/NXWBFvXGuDvshzNWpGlBcfqUzGgZTkHGmYhsXK9Q/M28m/6vSdehkRtdrgBtSoQ37z/xEeIE4t2biaLeTSc7hGLRH3GW1J0PAQAA
+    Metadata:
+      aws:cdk:path: SauronStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

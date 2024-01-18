@@ -1,0 +1,300 @@
+Adding component file : helloworld.yaml
+Resources:
+  ImageBuilderImageBuilderRoleC21C1910:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonSSMManagedInstanceCore
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/EC2InstanceProfileForImageBuilder
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds
+      RoleName: ImageBuilderRole-test-123
+    Metadata:
+      aws:cdk:path: my-stack-dev/ImageBuilder/ImageBuilderRole/Resource
+  ImageBuilderImageBuilderInstanceProfile1CFFF6CC:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: ImageBuilderImageBuilderRoleC21C1910
+      InstanceProfileName: ImageBuilderInstanceProfiletest-123
+    Metadata:
+      aws:cdk:path: my-stack-dev/ImageBuilder/ImageBuilderInstanceProfile
+  ImageBuilderAKeyPairEC2KeyPairkeypairtest12354F95184:
+    Type: Custom::EC2-Key-Pair
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - EC2KeyNameManagerLambdaBE629145
+          - Arn
+      Name: keypair-test-123
+      Description: This is a Key Pair for the Image Builder
+      KmsPrivate: alias/aws/secretsmanager
+      KmsPublic: alias/aws/secretsmanager
+      StorePublicKey: false
+      ExposePublicKey: false
+      RemoveKeySecretsAfterDays: 0
+      SecretPrefix: ec2-ssh-key/
+      StackName: my-stack-dev
+      Tags:
+        CreatedByCfnCustomResource: CFN::Resource::Custom::EC2-Key-Pair
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: my-stack-dev/ImageBuilder/AKeyPair/EC2-Key-Pair-keypair-test-123/Default
+  ImageBuilderComponenthelloworldyaml785EB055:
+    Type: AWS::ImageBuilder::Component
+    Properties:
+      Name: component-helloworld-yaml
+      Platform: Linux
+      Version: 1.0.0
+      Data: |-
+        name: HelloWorld
+        description: Echos the message "Hello World"
+        schemaVersion: 1.0
+        phases:
+          -
+            name: 'build'
+            steps:
+              -
+                name: HelloWorldShellStep
+                action: ExecuteBash
+                timeoutSeconds: 120
+                onFailure: Abort
+                maxAttempts: 3
+                inputs:
+                  commands:
+                    - 'echo "Hello World"'
+      Tags:
+        component-0: helloworld.yaml
+    Metadata:
+      aws:cdk:path: my-stack-dev/ImageBuilder/Component-helloworld.yaml
+  ImageBuilderImageRecipeBADED66B:
+    Type: AWS::ImageBuilder::ImageRecipe
+    Properties:
+      Components:
+        - ComponentArn:
+            Fn::GetAtt:
+              - ImageBuilderComponenthelloworldyaml785EB055
+              - Arn
+        - ComponentArn: arn:aws:imagebuilder:ap-southeast-2:aws:component/reboot-linux/1.0.1/1
+      Name: ImageRecipetest-123
+      ParentImage: arn:aws:imagebuilder:us-east-1:aws:image/amazon-linux-2-x86/x.x.x
+      Version: 1.0.0
+    Metadata:
+      aws:cdk:path: my-stack-dev/ImageBuilder/ImageRecipe
+  ImageBuilderImageInfrastructureConfigurationE7B6379B:
+    Type: AWS::ImageBuilder::InfrastructureConfiguration
+    Properties:
+      InstanceProfileName: ImageBuilderInstanceProfiletest-123
+      Name: ImageInfrastructureConfigurationtest-123
+      Description: ImageInfrastructureConfiguration
+      InstanceTypes:
+        - t3.medium
+      KeyPair:
+        Fn::GetAtt:
+          - ImageBuilderAKeyPairEC2KeyPairkeypairtest12354F95184
+          - KeyPairName
+      SecurityGroupIds:
+        - sg-12345
+      SubnetId: subnet-12345
+      TerminateInstanceOnFailure: true
+    DependsOn:
+      - ImageBuilderImageBuilderInstanceProfile1CFFF6CC
+    Metadata:
+      aws:cdk:path: my-stack-dev/ImageBuilder/ImageInfrastructureConfiguration
+  ImageBuilderImageDistributionConfigurationEB811183:
+    Type: AWS::ImageBuilder::DistributionConfiguration
+    Properties:
+      Distributions:
+        - AmiDistributionConfiguration:
+            name: test-ami-{{imagebuilder:buildDate}}
+          Region: us-east-1
+      Name: test-123
+    Metadata:
+      aws:cdk:path: my-stack-dev/ImageBuilder/ImageDistributionConfiguration
+  ImageBuilderImagePipelineB87083D4:
+    Type: AWS::ImageBuilder::ImagePipeline
+    Properties:
+      InfrastructureConfigurationArn:
+        Fn::GetAtt:
+          - ImageBuilderImageInfrastructureConfigurationE7B6379B
+          - Arn
+      Name: ImagePipelinetest-123
+      Description: ImagePipeline
+      DistributionConfigurationArn:
+        Fn::GetAtt:
+          - ImageBuilderImageDistributionConfigurationEB811183
+          - Arn
+      ImageRecipeArn:
+        Fn::GetAtt:
+          - ImageBuilderImageRecipeBADED66B
+          - Arn
+    DependsOn:
+      - ImageBuilderImageDistributionConfigurationEB811183
+      - ImageBuilderImageInfrastructureConfigurationE7B6379B
+      - ImageBuilderImageRecipeBADED66B
+    Metadata:
+      aws:cdk:path: my-stack-dev/ImageBuilder/ImagePipeline
+  EC2KeyPairManagerPolicyEBBC1576:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ec2:DescribeKeyPairs
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - ec2:CreateKeyPair
+              - ec2:CreateTags
+            Condition:
+              StringLike:
+                aws:RequestTag/CreatedByCfnCustomResource: CFN::Resource::Custom::EC2-Key-Pair
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :ec2:*:*:key-pair/*
+          - Action:
+              - ec2:CreateTags
+              - ec2:DeleteKeyPair
+              - ec2:DeleteTags
+            Condition:
+              StringLike:
+                ec2:ResourceTag/CreatedByCfnCustomResource: CFN::Resource::Custom::EC2-Key-Pair
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :ec2:*:*:key-pair/*
+          - Action: secretsmanager:ListSecrets
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - secretsmanager:CreateSecret
+              - secretsmanager:TagResource
+            Condition:
+              StringLike:
+                aws:RequestTag/CreatedByCfnCustomResource: CFN::Resource::Custom::EC2-Key-Pair
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - secretsmanager:DeleteResourcePolicy
+              - secretsmanager:DeleteSecret
+              - secretsmanager:DescribeSecret
+              - secretsmanager:GetResourcePolicy
+              - secretsmanager:GetSecretValue
+              - secretsmanager:ListSecretVersionIds
+              - secretsmanager:PutResourcePolicy
+              - secretsmanager:PutSecretValue
+              - secretsmanager:RestoreSecret
+              - secretsmanager:UntagResource
+              - secretsmanager:UpdateSecret
+              - secretsmanager:UpdateSecretVersionStage
+            Condition:
+              StringLike:
+                secretsmanager:ResourceTag/CreatedByCfnCustomResource: CFN::Resource::Custom::EC2-Key-Pair
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      Description: Used by Lambda CFN-Resource-Custom-EC2-Key-Pair, which is a custom CFN resource, managing EC2 Key Pairs
+      ManagedPolicyName: my-stack-dev-CFN-Resource-Custom-EC2-Key-Pair
+      Path: /
+    Metadata:
+      aws:cdk:path: my-stack-dev/EC2-Key-Pair-Manager-Policy/Resource
+  EC2KeyPairManagerRoleB243C519:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Description: Used by Lambda CFN-Resource-Custom-EC2-Key-Pair, which is a custom CFN resource, managing EC2 Key Pairs
+      ManagedPolicyArns:
+        - Ref: EC2KeyPairManagerPolicyEBBC1576
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      RoleName: my-stack-dev-CFN-Resource-Custom-EC2-Key-Pair
+    Metadata:
+      aws:cdk:path: my-stack-dev/EC2-Key-Pair-Manager-Role/Resource
+  EC2KeyNameManagerLambdaBE629145:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: d4663b8f26ea88305d62ea78a61c46b495ac7247f57445ba3bcfce4814605192.zip
+      Role:
+        Fn::GetAtt:
+          - EC2KeyPairManagerRoleB243C519
+          - Arn
+      Description: "Custom CFN resource: Manage EC2 Key Pairs"
+      FunctionName: my-stack-dev-CFN-Resource-Custom-EC2-Key-Pair
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 180
+    DependsOn:
+      - EC2KeyPairManagerRoleB243C519
+    Metadata:
+      aws:cdk:path: my-stack-dev/EC2-Key-Name-Manager-Lambda/Resource
+      aws:asset:path: asset.d4663b8f26ea88305d62ea78a61c46b495ac7247f57445ba3bcfce4814605192.zip
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/2WQwU7EMAxEv2XvaaDLZa9sERIHRFU+YOWmbuVt4lRJDEJV/520SyUQp/HMs0dKjvqk7w/wGQvTjYWlVs/vCcyocnSZCZyeG29RVT3v+sIxARusg+8pR6/AMGBXe0vma134EyyKXHatkO0w6DnzyrvJM3La2lbaoKHpp7wPEFMQkyRg5bmnQQIk8rziJ8qMWln9P7hV1bnIEuOiLLi2Az0/C5t9ZZ8XFR8uECOmqB9XyV6fxYyYzhDzcSUxeddg9BLM7fm/5jdJkyS1XebvGoiHRbHvUF/j3Ud50uVRl4drJCqCcCKHurnpN+wJ4ChwAQAA
+    Metadata:
+      aws:cdk:path: my-stack-dev/CDKMetadata/Default
+Outputs:
+  ImageBuilderImageInfrastructureConfigurationOutput6771A249:
+    Description: ImageImagePipeline Name
+    Value:
+      Fn::GetAtt:
+        - ImageBuilderImagePipelineB87083D4
+        - Name
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

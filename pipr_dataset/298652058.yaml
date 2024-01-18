@@ -1,0 +1,282 @@
+Resources:
+  DestinationBucket4BECDB47:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: aws-cdk-twitter-sentiment-raw
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: aws-cdk-twitter-sentiment/DestinationBucket/Resource
+  DeliveryRole2A8B8F29:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - s3:AbortMultipartUpload
+                  - s3:GetBucketLocation
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - s3:ListBucketMultipartUploads
+                  - s3:PutObject
+                Effect: Allow
+                Resource:
+                  - Fn::GetAtt:
+                      - DestinationBucket4BECDB47
+                      - Arn
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - DestinationBucket4BECDB47
+                            - Arn
+                        - /*
+              - Action: glue:GetTableVersions
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: root
+    Metadata:
+      aws:cdk:path: aws-cdk-twitter-sentiment/DeliveryRole/Resource
+  ExportToS3:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: aws-cdk-twitter-sentiment-stream-raw
+      DeliveryStreamType: DirectPut
+      ExtendedS3DestinationConfiguration:
+        BucketARN:
+          Fn::GetAtt:
+            - DestinationBucket4BECDB47
+            - Arn
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 64
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName: KDF-aws-cdk-twitter-sentiment-stream-raw
+          LogStreamName: S3Delivery
+        CompressionFormat: GZIP
+        ErrorOutputPrefix: errors/!{firehose:error-output-type}/year=!{timestamp:YYYY}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/
+        Prefix: data/year=!{timestamp:YYYY}/month=!{timestamp:MM}/day=!{timestamp:dd}/hour=!{timestamp:HH}/
+        RoleARN:
+          Fn::GetAtt:
+            - DeliveryRole2A8B8F29
+            - Arn
+    Metadata:
+      aws:cdk:path: aws-cdk-twitter-sentiment/ExportToS3
+  twitterFunctionServiceRole6D5788F2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: aws-cdk-twitter-sentiment/twitterFunction/ServiceRole/Resource
+  twitterFunctionServiceRoleDefaultPolicy595838D0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - secretsmanager:GetResourcePolicy
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+              - secretsmanager:ListSecretVersionIds
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":secretsmanager:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :secret:TwitterAPIKeys*
+          - Action:
+              - firehose:PutRecord
+              - firehose:PutRecordBatch
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ExportToS3
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: twitterFunctionServiceRoleDefaultPolicy595838D0
+      Roles:
+        - Ref: twitterFunctionServiceRole6D5788F2
+    Metadata:
+      aws:cdk:path: aws-cdk-twitter-sentiment/twitterFunction/ServiceRole/DefaultPolicy/Resource
+  twitterFunction49AA0983:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters20ce307ad74b8b0a4abf34e59c216b371af8496b554d87ca8d7e7d46e03f526bS3Bucket50245977
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters20ce307ad74b8b0a4abf34e59c216b371af8496b554d87ca8d7e7d46e03f526bS3VersionKey34C1E95E
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters20ce307ad74b8b0a4abf34e59c216b371af8496b554d87ca8d7e7d46e03f526bS3VersionKey34C1E95E
+      Handler: handler.lambda_handler
+      Role:
+        Fn::GetAtt:
+          - twitterFunctionServiceRole6D5788F2
+          - Arn
+      Runtime: python3.8
+      Environment:
+        Variables:
+          SECRET_NAME: TwitterAPIKeys
+          DELIVERY_STREAM_NAME: aws-cdk-twitter-sentiment-stream-raw
+      FunctionName: aws-cdk-twitter-sentiment-lambda
+      MemorySize: 128
+      Timeout: 900
+    DependsOn:
+      - twitterFunctionServiceRoleDefaultPolicy595838D0
+      - twitterFunctionServiceRole6D5788F2
+    Metadata:
+      aws:cdk:path: aws-cdk-twitter-sentiment/twitterFunction/Resource
+      aws:asset:path: /Users/lqiao/dev/misc/dataset/298652058/twitter
+      aws:asset:property: Code
+  twitterFunctionAllowEventRuleawscdktwittersentimentRule45B9AFFE4ED6A542:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - twitterFunction49AA0983
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - Rule4C995B7F
+          - Arn
+    Metadata:
+      aws:cdk:path: aws-cdk-twitter-sentiment/twitterFunction/AllowEventRuleawscdktwittersentimentRule45B9AFFE
+  Rule4C995B7F:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(1 minute)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - twitterFunction49AA0983
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: aws-cdk-twitter-sentiment/Rule/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.65.0,@aws-cdk/aws-applicationautoscaling=1.65.0,@aws-cdk/aws-autoscaling=1.65.0,@aws-cdk/aws-autoscaling-common=1.65.0,@aws-cdk/aws-autoscaling-hooktargets=1.65.0,@aws-cdk/aws-cloudwatch=1.65.0,@aws-cdk/aws-codeguruprofiler=1.65.0,@aws-cdk/aws-ec2=1.65.0,@aws-cdk/aws-ecr=1.65.0,@aws-cdk/aws-ecr-assets=1.65.0,@aws-cdk/aws-ecs=1.65.0,@aws-cdk/aws-elasticloadbalancingv2=1.65.0,@aws-cdk/aws-events=1.65.0,@aws-cdk/aws-events-targets=1.65.0,@aws-cdk/aws-iam=1.65.0,@aws-cdk/aws-kinesisfirehose=1.65.0,@aws-cdk/aws-kms=1.65.0,@aws-cdk/aws-lambda=1.65.0,@aws-cdk/aws-logs=1.65.0,@aws-cdk/aws-s3=1.65.0,@aws-cdk/aws-s3-assets=1.65.0,@aws-cdk/aws-servicediscovery=1.65.0,@aws-cdk/aws-sns=1.65.0,@aws-cdk/aws-sns-subscriptions=1.65.0,@aws-cdk/aws-sqs=1.65.0,@aws-cdk/aws-ssm=1.65.0,@aws-cdk/cloud-assembly-schema=1.65.0,@aws-cdk/core=1.65.0,@aws-cdk/custom-resources=1.65.0,@aws-cdk/cx-api=1.65.0,@aws-cdk/region-info=1.65.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: aws-cdk-twitter-sentiment/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters20ce307ad74b8b0a4abf34e59c216b371af8496b554d87ca8d7e7d46e03f526bS3Bucket50245977:
+    Type: String
+    Description: S3 bucket for asset "20ce307ad74b8b0a4abf34e59c216b371af8496b554d87ca8d7e7d46e03f526b"
+  AssetParameters20ce307ad74b8b0a4abf34e59c216b371af8496b554d87ca8d7e7d46e03f526bS3VersionKey34C1E95E:
+    Type: String
+    Description: S3 key for asset version "20ce307ad74b8b0a4abf34e59c216b371af8496b554d87ca8d7e7d46e03f526b"
+  AssetParameters20ce307ad74b8b0a4abf34e59c216b371af8496b554d87ca8d7e7d46e03f526bArtifactHash05C4588A:
+    Type: String
+    Description: Artifact hash for asset "20ce307ad74b8b0a4abf34e59c216b371af8496b554d87ca8d7e7d46e03f526b"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

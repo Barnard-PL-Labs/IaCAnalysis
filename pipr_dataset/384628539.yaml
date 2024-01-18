@@ -1,0 +1,360 @@
+Description: SNS SMS Configuration Stack
+Resources:
+  smsStatusRoleC88FB0E5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+        Version: "2012-10-17"
+      Description: SNS SMS CloudWatch logging Role
+    Metadata:
+      aws:cdk:path: SnsConfigStack/smsStatusRole/Resource
+  smsStatusRoleDefaultPolicyCB82B9C6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:PutMetricFilter
+              - logs:PutRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+            Sid: CreateLogs
+        Version: "2012-10-17"
+      PolicyName: smsStatusRoleDefaultPolicyCB82B9C6
+      Roles:
+        - Ref: smsStatusRoleC88FB0E5
+    Metadata:
+      aws:cdk:path: SnsConfigStack/smsStatusRole/DefaultPolicy/Resource
+  smsReportBucketBA7E8BAF:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays: 60
+            Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SnsConfigStack/smsReportBucket/Resource
+  smsReportBucketPolicy94E52179:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: smsReportBucketBA7E8BAF
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - smsReportBucketBA7E8BAF
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - smsReportBucketBA7E8BAF
+                        - Arn
+                    - /*
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                aws:SourceAccount: "036406153779"
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - smsReportBucketBA7E8BAF
+                      - Arn
+                  - /*
+            Sid: AllowPutObject
+          - Action: s3:GetBucketLocation
+            Condition:
+              StringEquals:
+                aws:SourceAccount: "036406153779"
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - smsReportBucketBA7E8BAF
+                - Arn
+            Sid: AllowGetBucket
+          - Action: s3:ListBucket
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - smsReportBucketBA7E8BAF
+                - Arn
+            Sid: AllowListBucket
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SnsConfigStack/smsReportBucket/Policy/Resource
+  smsReportBucketAutoDeleteObjectsCustomResource7D71B19B:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: smsReportBucketBA7E8BAF
+    DependsOn:
+      - smsReportBucketPolicy94E52179
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SnsConfigStack/smsReportBucket/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SnsConfigStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 483ae06ed27ef8ca76e011264d772420593a6cfe8544759c306ef3b98c9e25be.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: smsReportBucketBA7E8BAF
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: SnsConfigStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.483ae06ed27ef8ca76e011264d772420593a6cfe8544759c306ef3b98c9e25be
+      aws:asset:property: Code
+  snsConfigCustomResourcePolicy1D8AA587:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:SetSMSAttributes
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: snsConfigCustomResourcePolicy1D8AA587
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: SnsConfigStack/snsConfig/CustomResourcePolicy/Resource
+  snsConfigF225C485:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"SNS","action":"setSMSAttributes","parameters":{"attributes":{"MonthlySpendLimit":"1","DeliveryStatusIAMRole":"'
+            - Fn::GetAtt:
+                - smsStatusRoleC88FB0E5
+                - Arn
+            - '","DeliveryStatusSuccessSamplingRate":"100","DefaultSenderID":"MYID","DefaultSMSType":"Transactional","UsageReportS3Bucket":"'
+            - Ref: smsReportBucketBA7E8BAF
+            - '"}},"physicalResourceId":{}}'
+      Update:
+        Fn::Join:
+          - ""
+          - - '{"service":"SNS","action":"setSMSAttributes","parameters":{"attributes":{"MonthlySpendLimit":"1","DeliveryStatusIAMRole":"'
+            - Fn::GetAtt:
+                - smsStatusRoleC88FB0E5
+                - Arn
+            - '","DeliveryStatusSuccessSamplingRate":"100","DefaultSenderID":"MYID","DefaultSMSType":"Transactional","UsageReportS3Bucket":"'
+            - Ref: smsReportBucketBA7E8BAF
+            - '"}},"physicalResourceId":{}}'
+      Delete: '{"service":"SNS","action":"setSMSAttributes","parameters":{"attributes":{"MonthlySpendLimit":"","DeliveryStatusIAMRole":"","DeliveryStatusSuccessSamplingRate":"0","DefaultSenderID":"","UsageReportS3Bucket":""}},"physicalResourceId":{}}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - snsConfigCustomResourcePolicy1D8AA587
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SnsConfigStack/snsConfig/Resource/Default
+  AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SnsConfigStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource
+  AWS679f53fac002430cb0da5b7982bd22872D164C4C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 39381d2c8b8ec42679de4960c24f0c83c56772cdc2b10b6fc14cd0a99aba42ed.zip
+      Role:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 120
+    DependsOn:
+      - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: SnsConfigStack/AWS679f53fac002430cb0da5b7982bd2287/Resource
+      aws:asset:path: asset.39381d2c8b8ec42679de4960c24f0c83c56772cdc2b10b6fc14cd0a99aba42ed
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  AWS679f53fac002430cb0da5b7982bd2287LogRetentionCE72797A:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: AWS679f53fac002430cb0da5b7982bd22872D164C4C
+      RetentionInDays: 7
+    Metadata:
+      aws:cdk:path: SnsConfigStack/AWS679f53fac002430cb0da5b7982bd2287/LogRetention/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SnsConfigStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: SnsConfigStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 558dc75fbdc793c8e2f64f85d2d7ed2cb820c727ec7e9b08666ad1af0103992e.zip
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: SnsConfigStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+      aws:asset:path: asset.558dc75fbdc793c8e2f64f85d2d7ed2cb820c727ec7e9b08666ad1af0103992e
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/11PQW7CMBB8C/fNtgkHei1IPXFA4QGRcbaRieOVvDYIRfk7TgxU9DQz6/HObIXlBj9X6iqFbvvCmhOOx6B0D2nUjEYNONZsCXa/bsEDW6Nvs8xsAlnjuI26pzBPHyzDn/lNZ7FVQhNYNZxalUKN6ywFdj/R6WDYwYuk708+pzVKhILg9wxguRPcc1dTIJctuyiBh5qEo9e5+Yu/PR08X0xLHpZV6ewulQC9eBr/MKWgq/xb+SQTOG4Jz/JxKb+wrLBcncWYwsdUZSCsM94B8eK+02UBAAA=
+    Metadata:
+      aws:cdk:path: SnsConfigStack/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,1001 @@
+Resources:
+  NextjsS3DeployDemoBucket25B1BFFE:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/NextjsS3DeployDemoBucket/Resource
+  NextjsS3DeployDemoBucketPolicy5CAD053A:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: NextjsS3DeployDemoBucket25B1BFFE
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - NextjsS3DeployDemoBucket25B1BFFE
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - NextjsS3DeployDemoBucket25B1BFFE
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - CloudfrontNextjsS3DeployDemoOAI6FEBF44B
+                  - S3CanonicalUserId
+            Resource:
+              - Fn::GetAtt:
+                  - NextjsS3DeployDemoBucket25B1BFFE
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - NextjsS3DeployDemoBucket25B1BFFE
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/NextjsS3DeployDemoBucket/Policy/Resource
+  NextjsS3DeployDemoBucketAutoDeleteObjectsCustomResource36C4EF1E:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: NextjsS3DeployDemoBucket25B1BFFE
+    DependsOn:
+      - NextjsS3DeployDemoBucketPolicy5CAD053A
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/NextjsS3DeployDemoBucket/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: NextjsS3DeployDemoBucket25B1BFFE
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1
+      aws:asset:property: Code
+  CloudfrontNextjsS3DeployDemoOAI6FEBF44B:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Allows CloudFront to reach the bucket
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Cloudfront/NextjsS3DeployDemoOAI/Resource
+  CloudfrontNextjsS3DeployDemoDistF63CC8E5:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: false
+          TargetOriginId: NextjsS3DeployDemoInfraStackCloudfrontNextjsS3DeployDemoDistOrigin1AFC9BB5B
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - NextjsS3DeployDemoBucket25B1BFFE
+                - RegionalDomainName
+            Id: NextjsS3DeployDemoInfraStackCloudfrontNextjsS3DeployDemoDistOrigin1AFC9BB5B
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: CloudfrontNextjsS3DeployDemoOAI6FEBF44B
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Cloudfront/NextjsS3DeployDemoDist/Resource
+  PipelineArtifactsBucketAEA9A052:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/ArtifactsBucket/Resource
+  PipelineRoleB27FAA37:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/Role/Resource
+  PipelineRoleDefaultPolicy7BDC1ABB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineSourceCodeCommitSourceCodePipelineActionRole686A33D9
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineReactReactActionCodePipelineActionRole0AFB8E12
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineReactDeployActionCodePipelineActionRoleDFF8FB3C
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineCloudfrontCfActionCodePipelineActionRoleE17856C7
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineRoleDefaultPolicy7BDC1ABB
+      Roles:
+        - Ref: PipelineRoleB27FAA37
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/Role/DefaultPolicy/Resource
+  Pipeline9850B417:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - PipelineRoleB27FAA37
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName: nextjs-example
+                BranchName: main
+                PollForSourceChanges: false
+              Name: CodeCommitSource
+              OutputArtifacts:
+                - Name: source
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineSourceCodeCommitSourceCodePipelineActionRole686A33D9
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineNextjsS3DeployDemoReactProjectFC752138
+              InputArtifacts:
+                - Name: source
+              Name: ReactAction
+              OutputArtifacts:
+                - Name: react
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineReactReactActionCodePipelineActionRole0AFB8E12
+                  - Arn
+              RunOrder: 10
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              Configuration:
+                BucketName:
+                  Ref: NextjsS3DeployDemoBucket25B1BFFE
+                Extract: "true"
+                CannedACL: private
+              InputArtifacts:
+                - Name: react
+              Name: DeployAction
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineReactDeployActionCodePipelineActionRoleDFF8FB3C
+                  - Arn
+              RunOrder: 20
+          Name: React
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PipelineNextjsS3DeployDemoCloudfrontProject36004905
+              InputArtifacts:
+                - Name: source
+              Name: CfAction
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineCloudfrontCfActionCodePipelineActionRoleE17856C7
+                  - Arn
+              RunOrder: 10
+          Name: Cloudfront
+      ArtifactStore:
+        Location:
+          Ref: PipelineArtifactsBucketAEA9A052
+        Type: S3
+      Name: NextjsS3DeployDemoPipeline
+    DependsOn:
+      - PipelineRoleDefaultPolicy7BDC1ABB
+      - PipelineRoleB27FAA37
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/Resource
+  PipelineSourceCodeCommitSourceCodePipelineActionRole686A33D9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/Source/CodeCommitSource/CodePipelineActionRole/Resource
+  PipelineSourceCodeCommitSourceCodePipelineActionRoleDefaultPolicy0F0D2281:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+          - Action:
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:UploadArchive
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:CancelUploadArchive
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codecommit:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :nextjs-example
+        Version: "2012-10-17"
+      PolicyName: PipelineSourceCodeCommitSourceCodePipelineActionRoleDefaultPolicy0F0D2281
+      Roles:
+        - Ref: PipelineSourceCodeCommitSourceCodePipelineActionRole686A33D9
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/Source/CodeCommitSource/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineEventsRole96280D9B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/EventsRole/Resource
+  PipelineEventsRoleDefaultPolicy62809D8F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codepipeline:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: Pipeline9850B417
+        Version: "2012-10-17"
+      PolicyName: PipelineEventsRoleDefaultPolicy62809D8F
+      Roles:
+        - Ref: PipelineEventsRole96280D9B
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/EventsRole/DefaultPolicy/Resource
+  PipelineReactReactActionCodePipelineActionRole0AFB8E12:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/React/ReactAction/CodePipelineActionRole/Resource
+  PipelineReactReactActionCodePipelineActionRoleDefaultPolicy0A3F0986:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineNextjsS3DeployDemoReactProjectFC752138
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineReactReactActionCodePipelineActionRoleDefaultPolicy0A3F0986
+      Roles:
+        - Ref: PipelineReactReactActionCodePipelineActionRole0AFB8E12
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/React/ReactAction/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineReactDeployActionCodePipelineActionRoleDFF8FB3C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/React/DeployAction/CodePipelineActionRole/Resource
+  PipelineReactDeployActionCodePipelineActionRoleDefaultPolicyE7442C96:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - NextjsS3DeployDemoBucket25B1BFFE
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - NextjsS3DeployDemoBucket25B1BFFE
+                        - Arn
+                    - /*
+          - Action: s3:PutObjectAcl
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - NextjsS3DeployDemoBucket25B1BFFE
+                      - Arn
+                  - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PipelineReactDeployActionCodePipelineActionRoleDefaultPolicyE7442C96
+      Roles:
+        - Ref: PipelineReactDeployActionCodePipelineActionRoleDFF8FB3C
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/React/DeployAction/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineCloudfrontCfActionCodePipelineActionRoleE17856C7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/Cloudfront/CfAction/CodePipelineActionRole/Resource
+  PipelineCloudfrontCfActionCodePipelineActionRoleDefaultPolicy709349E9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineNextjsS3DeployDemoCloudfrontProject36004905
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineCloudfrontCfActionCodePipelineActionRoleDefaultPolicy709349E9
+      Roles:
+        - Ref: PipelineCloudfrontCfActionCodePipelineActionRoleE17856C7
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/Pipeline/Cloudfront/CfAction/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineCodeRepoNextjsS3DeployDemoInfraStackPipeline5E703908mainEventRule9F4C4FF6:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codecommit:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - :nextjs-example
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - main
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":"
+                - Ref: Pipeline9850B417
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - PipelineEventsRole96280D9B
+              - Arn
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/CodeRepo/NextjsS3DeployDemoInfraStackPipeline5E703908-main-EventRule/Resource
+  PipelineNextjsS3DeployDemoReactProjectRole95B04553:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/NextjsS3DeployDemoReactProject/Role/Resource
+  PipelineNextjsS3DeployDemoReactProjectRoleDefaultPolicy6AB8C3C0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: PipelineNextjsS3DeployDemoReactProjectFC752138
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: PipelineNextjsS3DeployDemoReactProjectFC752138
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: PipelineNextjsS3DeployDemoReactProjectFC752138
+                  - -*
+          - Action:
+              - codecommit:*
+              - s3:*
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PipelineNextjsS3DeployDemoReactProjectRoleDefaultPolicy6AB8C3C0
+      Roles:
+        - Ref: PipelineNextjsS3DeployDemoReactProjectRole95B04553
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/NextjsS3DeployDemoReactProject/Role/DefaultPolicy/Resource
+  PipelineNextjsS3DeployDemoReactProjectFC752138:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineNextjsS3DeployDemoReactProjectRole95B04553
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "build": {
+                "commands": [
+                  "npm i",
+                  "npm run build"
+                ]
+              }
+            },
+            "artifacts": {
+              "name": "react",
+              "files": [
+                "**/*"
+              ],
+              "base-directory": "out"
+            }
+          }
+        Type: NO_SOURCE
+      EncryptionKey: alias/aws/s3
+      Name: NextjsS3DeployDemoReactProject
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/NextjsS3DeployDemoReactProject/Resource
+  PipelineNextjsS3DeployDemoCloudfrontProjectRole3241D44D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/NextjsS3DeployDemoCloudfrontProject/Role/Resource
+  PipelineNextjsS3DeployDemoCloudfrontProjectRoleDefaultPolicyEBAF5C34:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: PipelineNextjsS3DeployDemoCloudfrontProject36004905
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: PipelineNextjsS3DeployDemoCloudfrontProject36004905
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: PipelineNextjsS3DeployDemoCloudfrontProject36004905
+                  - -*
+          - Action: cloudfront:*
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucketAEA9A052
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucketAEA9A052
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PipelineNextjsS3DeployDemoCloudfrontProjectRoleDefaultPolicyEBAF5C34
+      Roles:
+        - Ref: PipelineNextjsS3DeployDemoCloudfrontProjectRole3241D44D
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/NextjsS3DeployDemoCloudfrontProject/Role/DefaultPolicy/Resource
+  PipelineNextjsS3DeployDemoCloudfrontProject36004905:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PipelineNextjsS3DeployDemoCloudfrontProjectRole3241D44D
+          - Arn
+      Source:
+        BuildSpec:
+          Fn::Join:
+            - ""
+            - - |-
+                {
+                  "version": "0.2",
+                  "phases": {
+                    "build": {
+                      "commands": [
+                        "aws cloudfront create-invalidation --distribution-id 
+              - Ref: CloudfrontNextjsS3DeployDemoDistF63CC8E5
+              - |-2
+                 --paths \"/*\""
+                      ]
+                    }
+                  }
+                }
+        Type: NO_SOURCE
+      EncryptionKey: alias/aws/s3
+      Name: NextjsS3DeployDemoCloudfrontProject
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/Pipeline/NextjsS3DeployDemoCloudfrontProject/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21QXU/DMAz8LXvPMsqExCOjCImnVeUXdIk3uR9JlThFKMp/x2mLOiSefI4vd2cXsjg+yYfdS/Pl90p3h6isAxk/qVGdKK3x5IIiUQZPdqjB2+AUiPJqNvxnVDk7oQYnTt4DscwNzS3zq8Y1AxBPuDkHGgOJez320khoTRI5S/RHGV+D6oDydEVLqWyP6nt7XvokVG+DvjprSMazQ3Y+KQXef2gwhDT/KDPnPXP+ZbwhL4yXkINk+n3PBlbDiCP0aPhG1Yrm7VacBDaDjLXtlyPlusX9DQoT23mmhZXGdVG/BOw1Szvbgpo3X2FKSRgmyNYfpuJZFo+y2LUece8CRx9A1kv9AfO35Y7SAQAA
+    Metadata:
+      aws:cdk:path: NextjsS3DeployDemoInfraStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3Bucket4842F32D:
+    Type: String
+    Description: S3 bucket for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1S3VersionKeyD0A0B57A:
+    Type: String
+    Description: S3 key for asset version "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+  AssetParameters1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1ArtifactHash0128B949:
+    Type: String
+    Description: Artifact hash for asset "1f7e277bd526ebce1983fa1e7a84a5281ec533d9187caaebb773681bbf7bf4c1"
+Outputs:
+  CloudfrontDistIdD6E0FEE0:
+    Value:
+      Ref: CloudfrontNextjsS3DeployDemoDistF63CC8E5
+    Export:
+      Name: NextjsS3DeployDemoDistId
+  CloudfrontDistDomainName1DD8E921:
+    Value:
+      Fn::GetAtt:
+        - CloudfrontNextjsS3DeployDemoDistF63CC8E5
+        - DomainName
+    Export:
+      Name: NextjsS3DeployDemoDistDomainName
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

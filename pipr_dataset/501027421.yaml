@@ -1,0 +1,532 @@
+Resources:
+  urlshortenertable1148BB8B:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      TableName: shorturl-table
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: url-shortener-stack/url-shortener-table/Resource
+  lambdaexecutionroleA5050CA0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Description: Simple lambda execution role for the lambda
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path: /service-role/
+      RoleName: url-shortener-lambdaexec-role
+    Metadata:
+      aws:cdk:path: url-shortener-stack/lambda-execution-role/Resource
+  lambdaexecutionroleDefaultPolicy22D63868:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTelemetryRecords
+              - xray:PutTraceSegments
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:ConditionCheckItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+              - dynamodb:GetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:PutItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - urlshortenertable1148BB8B
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: lambdaexecutionroleDefaultPolicy22D63868
+      Roles:
+        - Ref: lambdaexecutionroleA5050CA0
+    Metadata:
+      aws:cdk:path: url-shortener-stack/lambda-execution-role/DefaultPolicy/Resource
+  urlshortenerrepo7D49C364:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: url-shortener-repo
+      RepositoryPolicyText:
+        Statement:
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:BatchGetImage
+              - ecr:GetDownloadUrlForLayer
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: url-shortener-stack/url-shortener-repo/Resource
+  shorturldockerfn8751F43F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 4
+                  - Fn::Split:
+                      - ":"
+                      - Fn::GetAtt:
+                          - urlshortenerrepo7D49C364
+                          - Arn
+              - .dkr.ecr.
+              - Fn::Select:
+                  - 3
+                  - Fn::Split:
+                      - ":"
+                      - Fn::GetAtt:
+                          - urlshortenerrepo7D49C364
+                          - Arn
+              - "."
+              - Ref: AWS::URLSuffix
+              - /
+              - Ref: urlshortenerrepo7D49C364
+              - :latest
+      Role:
+        Fn::GetAtt:
+          - lambdaexecutionroleA5050CA0
+          - Arn
+      FunctionName: url-shortener-lambda
+      MemorySize: 128
+      PackageType: Image
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - lambdaexecutionroleDefaultPolicy22D63868
+      - lambdaexecutionroleA5050CA0
+    Metadata:
+      aws:cdk:path: url-shortener-stack/shorturl-docker-fn/Resource
+  shorturldockerfnInvokeFcyXBRX02EWa52GlFECQiCzDt0fdRUDi4mo4foC5aU07F0E257:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - shorturldockerfn8751F43F
+          - Arn
+      Principal: apigateway.amazonaws.com
+    Metadata:
+      aws:cdk:path: url-shortener-stack/shorturl-docker-fn/InvokeFcyXBRX02EWa52GlF+ECQiCzDt0fdRUDi4mo4foC5aU=
+  LambdaApigwB8E7369F:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: url-shortener-apigw
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Resource
+  LambdaApigwCloudWatchRole0F464456:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/CloudWatchRole/Resource
+  LambdaApigwAccountB9D7CB83:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - LambdaApigwCloudWatchRole0F464456
+          - Arn
+    DependsOn:
+      - LambdaApigwB8E7369F
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Account
+  LambdaApigwDeploymentD59A435052fba99e9dc7b2ead6104c0df389884c:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: LambdaApigwB8E7369F
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - LambdaApigwproxyANY0A4EE26C
+      - LambdaApigwproxyOPTIONS7E7E9C3B
+      - LambdaApigwproxyEA3E3BC2
+      - LambdaApigwANYB0017F93
+      - LambdaApigwOPTIONS4B091AC7
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Deployment/Resource
+  LambdaApigwDeploymentStageprod095F98B8:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: LambdaApigwB8E7369F
+      DeploymentId:
+        Ref: LambdaApigwDeploymentD59A435052fba99e9dc7b2ead6104c0df389884c
+      StageName: prod
+    DependsOn:
+      - LambdaApigwAccountB9D7CB83
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/DeploymentStage.prod/Resource
+  LambdaApigwOPTIONS4B091AC7:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - LambdaApigwB8E7369F
+          - RootResourceId
+      RestApiId:
+        Ref: LambdaApigwB8E7369F
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Default/OPTIONS/Resource
+  LambdaApigwproxyEA3E3BC2:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - LambdaApigwB8E7369F
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: LambdaApigwB8E7369F
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Default/{proxy+}/Resource
+  LambdaApigwproxyOPTIONS7E7E9C3B:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: LambdaApigwproxyEA3E3BC2
+      RestApiId:
+        Ref: LambdaApigwB8E7369F
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Default/{proxy+}/OPTIONS/Resource
+  LambdaApigwproxyANYApiPermissionurlshortenerstackLambdaApigw9B5069F8ANYproxyCDEE418A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - shorturldockerfn8751F43F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: LambdaApigwB8E7369F
+            - /
+            - Ref: LambdaApigwDeploymentStageprod095F98B8
+            - /*/*
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Default/{proxy+}/ANY/ApiPermission.urlshortenerstackLambdaApigw9B5069F8.ANY..{proxy+}
+  LambdaApigwproxyANYApiPermissionTesturlshortenerstackLambdaApigw9B5069F8ANYproxy3FC737E4:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - shorturldockerfn8751F43F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: LambdaApigwB8E7369F
+            - /test-invoke-stage/*/*
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Default/{proxy+}/ANY/ApiPermission.Test.urlshortenerstackLambdaApigw9B5069F8.ANY..{proxy+}
+  LambdaApigwproxyANY0A4EE26C:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: LambdaApigwproxyEA3E3BC2
+      RestApiId:
+        Ref: LambdaApigwB8E7369F
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - shorturldockerfn8751F43F
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Default/{proxy+}/ANY/Resource
+  LambdaApigwANYApiPermissionurlshortenerstackLambdaApigw9B5069F8ANY083410E3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - shorturldockerfn8751F43F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: LambdaApigwB8E7369F
+            - /
+            - Ref: LambdaApigwDeploymentStageprod095F98B8
+            - /*/
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Default/ANY/ApiPermission.urlshortenerstackLambdaApigw9B5069F8.ANY..
+  LambdaApigwANYApiPermissionTesturlshortenerstackLambdaApigw9B5069F8ANY404DF3D5:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - shorturldockerfn8751F43F
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: LambdaApigwB8E7369F
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Default/ANY/ApiPermission.Test.urlshortenerstackLambdaApigw9B5069F8.ANY..
+  LambdaApigwANYB0017F93:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - LambdaApigwB8E7369F
+          - RootResourceId
+      RestApiId:
+        Ref: LambdaApigwB8E7369F
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - shorturldockerfn8751F43F
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: url-shortener-stack/LambdaApigw/Default/ANY/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02PQU/DMAyFf8vuaaA9IK5jExISiKpwR25iOq9NXCUpo6r630nTAT35e88vtlPI4k7e7uDiM6XbrKNaTm8BVCui9THp0YJhHc13qDsUh0+bYBYERk4Vr16qJXekxkWuNAtULmawZ0+BXWr9q1l0YGoNcjqyatE9GWjwcbAqENsluuUSnSHvo5oF9NRAwAuMcnpOIyr0Yd/TOv8P90rxYIM4Yt/xaDBidDcq/rNJ568Qn/LgFD6AR/GC4cR6aV6pdPw9/kaumxLPs9jar0Poh7ANLHxgqymk8y1rlGd/85Xfy7yQ+e7siTIXLyWDslrrD4cBvjmXAQAA
+    Metadata:
+      aws:cdk:path: url-shortener-stack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  LambdaApigwEndpoint5D5D286B:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: LambdaApigwB8E7369F
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: LambdaApigwDeploymentStageprod095F98B8
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

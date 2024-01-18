@@ -1,0 +1,1298 @@
+Resources:
+  ArtifactBucket7410C9EF:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/ArtifactBucket/Resource
+  ArtifactBucketPolicy4B4B7752:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: ArtifactBucket7410C9EF
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ArtifactBucket7410C9EF
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/ArtifactBucket/Policy/Resource
+  CodePipelineRoleB31C27BE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipelineRole/Resource
+  CodePipelineRoleDefaultPolicy2731C56D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactBucket7410C9EF
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactBucket7410C9EF
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodePipelineDeployToTestBuildandDeployCodePipelineActionRole5C6E7FBD
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodePipelineDeployToTestSmokeTestsCodePipelineActionRole21DE0DBB
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodePipelineDeployToTestManualApprovalOfTestEnvironmentCodePipelineActionRole2BB51222
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodePipelineDeployToProdBuildandDeployCodePipelineActionRole1265002B
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodePipelineDeployToProdSmokeTestsCodePipelineActionRole19E7F253
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodePipelineRoleDefaultPolicy2731C56D
+      Roles:
+        - Ref: CodePipelineRoleB31C27BE
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipelineRole/DefaultPolicy/Resource
+  CodeBuildTrustRole2F277EDA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodeBuildTrustRole/Resource
+  CodeBuildTrustRoleDefaultPolicy81CBB892:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: iam:GetRolePolicy
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodeBuildTrustRole2F277EDA
+                - Arn
+          - Action:
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:CreateRole
+              - iam:DeleteRole
+              - iam:DeleteRolePolicy
+              - iam:AttachRolePolicy
+              - iam:DetachRolePolicy
+              - iam:PutRolePolicy
+              - iam:PassRole
+              - iam:TagRole
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/libcal-gateway-test*
+              - Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/libcal-gateway-prod*
+          - Action:
+              - cloudformation:ListExports
+              - cloudfront:GetDistribution
+              - cloudfront:CreateDistribution
+              - cloudfront:UpdateDistribution
+              - cloudfront:TagResource
+              - cloudfront:CreateInvalidation
+              - logs:CreateLogGroup
+            Effect: Allow
+            Resource: "*"
+          - Action: logs:CreateLogStream
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${AWS::StackName}-*
+          - Action: logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${AWS::StackName}-*:log-stream:*
+          - Action:
+              - s3:ListBucket
+              - s3:ListBucketVersions
+              - s3:GetBucketLocation
+              - s3:GetBucketPolicy
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactBucket7410C9EF
+                  - Arn
+              - arn:aws:s3:::cdktoolkit-stagingbucket-*
+              - arn:aws:s3:::cdk-*
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactBucket7410C9EF
+                        - Arn
+                    - /*
+              - arn:aws:s3:::cdktoolkit-stagingbucket-*/*
+              - arn:aws:s3:::cdk-*/*
+          - Action: lambda:*
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:libcal-gateway-test*
+              - Fn::Sub: arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:libcal-gateway-prod*
+          - Action:
+              - cloudformation:DescribeStacks
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DescribeChangeSet
+              - cloudformation:CreateChangeSet
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:DeleteChangeSet
+              - cloudformation:DeleteStack
+              - cloudformation:GetTemplate
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/libcal-gateway-test/*
+              - Fn::Sub: arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/libcal-gateway-prod/*
+          - Action: cloudformation:DescribeStacks
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/CDKToolkit/*
+          - Action:
+              - sts:AssumeRole
+              - iam:PassRole
+            Effect: Allow
+            Resource:
+              - arn:aws:iam::*:role/cdk-readOnlyRole
+              - arn:aws:iam::*:role/cdk-hnb659fds-deploy-role-*
+              - arn:aws:iam::*:role/cdk-hnb659fds-file-publishing-*
+              - arn:aws:iam::*:role/cdk-hnb659fds-image-publishing-*
+          - Action: apigateway:PATCH
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:apigateway:${AWS::Region}::/account
+          - Action: apigateway:POST
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:aws:apigateway:${AWS::Region}::/restapis
+              - Fn::Sub: arn:aws:apigateway:${AWS::Region}::/domainnames
+          - Action: apigateway:*
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:apigateway:${AWS::Region}::/restapis/*
+          - Action:
+              - ssm:GetParametersByPath
+              - ssm:GetParameter
+              - ssm:GetParameters
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/all/libcal-gateway/*
+              - Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/all/sentry/*
+              - Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/all/github/*
+          - Action:
+              - secretsmanager:GetSecretValue
+              - secretsmanager:DescribeSecret
+              - secretsmanager:ListSecretVersionIds
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/all/libcal-gateway-*
+              - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/all/contentful/test-*
+              - Fn::Sub: arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/all/contentful/prod-*
+          - Action:
+              - ssm:PutParameter
+              - ssm:DeleteParameter
+              - ssm:AddTagsToResource
+              - ssm:RemoveTagsFromResource
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/all/libcal-gateway/*
+          - Action: ssm:GetParameters
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/all/sentry/ci-token
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: LibCalGatewayTestBuildProject5DDEB49E
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: LibCalGatewayTestBuildProject5DDEB49E
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: LibCalGatewayTestBuildProject5DDEB49E
+                  - -*
+          - Action: ssm:GetParameters
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/all/libcal-gateway/test/api-url
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: QAProject2C291CF9
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: QAProject2C291CF9
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: QAProject2C291CF9
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ArtifactBucket7410C9EF
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ArtifactBucket7410C9EF
+                        - Arn
+                    - /*
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: LibCalGatewayProdBuildProjectA82AC352
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: LibCalGatewayProdBuildProjectA82AC352
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: LibCalGatewayProdBuildProjectA82AC352
+                  - -*
+          - Action: ssm:GetParameters
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/all/libcal-gateway/prod/api-url
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: QAProjectProd99543C17
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: QAProjectProd99543C17
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: QAProjectProd99543C17
+                  - -*
+        Version: "2012-10-17"
+      PolicyName: CodeBuildTrustRoleDefaultPolicy81CBB892
+      Roles:
+        - Ref: CodeBuildTrustRole2F277EDA
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodeBuildTrustRole/DefaultPolicy/Resource
+  CodePipelineB74E5936:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - CodePipelineRoleB31C27BE
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: ndlib
+                Repo: libcal-gateway
+                Branch: master
+                OAuthToken: "{{resolve:secretsmanager:/all/github/ndlib-git:SecretString:oauth::}}"
+                PollForSourceChanges: false
+              Name: SourceAppCode
+              Namespace: Source_SourceAppCode_NS
+              OutputArtifacts:
+                - Name: AppCode
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: ndlib
+                Repo: libcal-gateway-blueprints
+                Branch: master
+                OAuthToken: "{{resolve:secretsmanager:/all/github/ndlib-git:SecretString:oauth::}}"
+                PollForSourceChanges: false
+              Name: SourceInfraCode
+              OutputArtifacts:
+                - Name: InfraCode
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: LibCalGatewayTestBuildProject5DDEB49E
+                EnvironmentVariables: '[{"name":"VERSION","type":"PLAINTEXT","value":"#{Source_SourceAppCode_NS.CommitId}"}]'
+                PrimarySource: AppCode
+              InputArtifacts:
+                - Name: AppCode
+                - Name: InfraCode
+              Name: Build_and_Deploy
+              RoleArn:
+                Fn::GetAtt:
+                  - CodePipelineDeployToTestBuildandDeployCodePipelineActionRole5C6E7FBD
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: QAProject2C291CF9
+              InputArtifacts:
+                - Name: AppCode
+              Name: SmokeTests
+              RoleArn:
+                Fn::GetAtt:
+                  - CodePipelineDeployToTestSmokeTestsCodePipelineActionRole21DE0DBB
+                  - Arn
+              RunOrder: 98
+            - ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: "1"
+              Configuration:
+                NotificationArn:
+                  Ref: PipelineApprovalTopic515BF0D4
+                CustomData: Approve or Reject this change after testing
+              Name: ManualApprovalOfTestEnvironment
+              RoleArn:
+                Fn::GetAtt:
+                  - CodePipelineDeployToTestManualApprovalOfTestEnvironmentCodePipelineActionRole2BB51222
+                  - Arn
+              RunOrder: 99
+          Name: DeployToTest
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: LibCalGatewayProdBuildProjectA82AC352
+                EnvironmentVariables: '[{"name":"VERSION","type":"PLAINTEXT","value":"#{Source_SourceAppCode_NS.CommitId}"}]'
+                PrimarySource: AppCode
+              InputArtifacts:
+                - Name: AppCode
+                - Name: InfraCode
+              Name: Build_and_Deploy
+              RoleArn:
+                Fn::GetAtt:
+                  - CodePipelineDeployToProdBuildandDeployCodePipelineActionRole1265002B
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: QAProjectProd99543C17
+              InputArtifacts:
+                - Name: AppCode
+              Name: SmokeTests
+              RoleArn:
+                Fn::GetAtt:
+                  - CodePipelineDeployToProdSmokeTestsCodePipelineActionRole19E7F253
+                  - Arn
+              RunOrder: 98
+          Name: DeployToProd
+      ArtifactStore:
+        Location:
+          Ref: ArtifactBucket7410C9EF
+        Type: S3
+    DependsOn:
+      - CodePipelineRoleDefaultPolicy2731C56D
+      - CodePipelineRoleB31C27BE
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/Resource
+  CodePipelineOnStateChange186535EF:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codepipeline
+        resources:
+          - Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":"
+                - Ref: CodePipelineB74E5936
+        detail-type:
+          - CodePipeline Pipeline Execution State Change
+      State: ENABLED
+      Targets:
+        - Arn:
+            Ref: PipelineNotificationsDFC71D2E
+          Id: Target0
+          InputTransformer:
+            InputPathsMap:
+              detail-pipeline: $.detail.pipeline
+              detail-state: $.detail.state
+            InputTemplate:
+              Fn::Join:
+                - ""
+                - - '"The pipeline <detail-pipeline> has changed state to <detail-state>. To view the pipeline, go to '
+                  - Fn::Sub: https://${AWS::Region}.console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/
+                  - <detail-pipeline>."
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/OnStateChange/Resource
+  CodePipelineSourceSourceAppCodeWebhookResource25D99242:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: "{{resolve:secretsmanager:/all/github/ndlib-git:SecretString:oauth::}}"
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetAction: SourceAppCode
+      TargetPipeline:
+        Ref: CodePipelineB74E5936
+      TargetPipelineVersion: 1
+      RegisterWithThirdParty: true
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/Source/SourceAppCode/WebhookResource
+  CodePipelineDeployToTestBuildandDeployCodePipelineActionRole5C6E7FBD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/DeployToTest/Build_and_Deploy/CodePipelineActionRole/Resource
+  CodePipelineDeployToTestBuildandDeployCodePipelineActionRoleDefaultPolicy91852D75:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LibCalGatewayTestBuildProject5DDEB49E
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodePipelineDeployToTestBuildandDeployCodePipelineActionRoleDefaultPolicy91852D75
+      Roles:
+        - Ref: CodePipelineDeployToTestBuildandDeployCodePipelineActionRole5C6E7FBD
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/DeployToTest/Build_and_Deploy/CodePipelineActionRole/DefaultPolicy/Resource
+  CodePipelineDeployToTestSmokeTestsCodePipelineActionRole21DE0DBB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/DeployToTest/SmokeTests/CodePipelineActionRole/Resource
+  CodePipelineDeployToTestSmokeTestsCodePipelineActionRoleDefaultPolicy081A1CBC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - QAProject2C291CF9
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodePipelineDeployToTestSmokeTestsCodePipelineActionRoleDefaultPolicy081A1CBC
+      Roles:
+        - Ref: CodePipelineDeployToTestSmokeTestsCodePipelineActionRole21DE0DBB
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/DeployToTest/SmokeTests/CodePipelineActionRole/DefaultPolicy/Resource
+  CodePipelineDeployToTestManualApprovalOfTestEnvironmentCodePipelineActionRole2BB51222:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/DeployToTest/ManualApprovalOfTestEnvironment/CodePipelineActionRole/Resource
+  CodePipelineDeployToTestManualApprovalOfTestEnvironmentCodePipelineActionRoleDefaultPolicy486978B1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: PipelineApprovalTopic515BF0D4
+        Version: "2012-10-17"
+      PolicyName: CodePipelineDeployToTestManualApprovalOfTestEnvironmentCodePipelineActionRoleDefaultPolicy486978B1
+      Roles:
+        - Ref: CodePipelineDeployToTestManualApprovalOfTestEnvironmentCodePipelineActionRole2BB51222
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/DeployToTest/ManualApprovalOfTestEnvironment/CodePipelineActionRole/DefaultPolicy/Resource
+  CodePipelineDeployToProdBuildandDeployCodePipelineActionRole1265002B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/DeployToProd/Build_and_Deploy/CodePipelineActionRole/Resource
+  CodePipelineDeployToProdBuildandDeployCodePipelineActionRoleDefaultPolicyB185AAA5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LibCalGatewayProdBuildProjectA82AC352
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodePipelineDeployToProdBuildandDeployCodePipelineActionRoleDefaultPolicyB185AAA5
+      Roles:
+        - Ref: CodePipelineDeployToProdBuildandDeployCodePipelineActionRole1265002B
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/DeployToProd/Build_and_Deploy/CodePipelineActionRole/DefaultPolicy/Resource
+  CodePipelineDeployToProdSmokeTestsCodePipelineActionRole19E7F253:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/DeployToProd/SmokeTests/CodePipelineActionRole/Resource
+  CodePipelineDeployToProdSmokeTestsCodePipelineActionRoleDefaultPolicy07393262:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - QAProjectProd99543C17
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodePipelineDeployToProdSmokeTestsCodePipelineActionRoleDefaultPolicy07393262
+      Roles:
+        - Ref: CodePipelineDeployToProdSmokeTestsCodePipelineActionRole19E7F253
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CodePipeline/DeployToProd/SmokeTests/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineNotificationsDFC71D2E:
+    Type: AWS::SNS::Topic
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/PipelineNotifications/PipelineNotifications/Resource
+  PipelineNotificationsPolicy999E1640:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Resource:
+              Ref: PipelineNotificationsDFC71D2E
+            Sid: "0"
+        Version: "2012-10-17"
+      Topics:
+        - Ref: PipelineNotificationsDFC71D2E
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/PipelineNotifications/PipelineNotifications/Policy/Resource
+  PipelineNotificationsPipelineSubscription61C50531:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn:
+        Ref: PipelineNotificationsDFC71D2E
+      Endpoint: wse-notifications-group@nd.edu
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/PipelineNotifications/PipelineSubscription/Resource
+  LibCalGatewayTestBuildProject5DDEB49E:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: STACK_NAME
+            Type: PLAINTEXT
+            Value: libcal-gateway-test
+          - Name: CI
+            Type: PLAINTEXT
+            Value: "true"
+          - Name: STAGE
+            Type: PLAINTEXT
+            Value: test
+          - Name: CONTACT
+            Type: PLAINTEXT
+            Value: lqiao@nd.edu
+          - Name: OWNER
+            Type: PLAINTEXT
+            Value: lqiao
+          - Name: SENTRY_AUTH_TOKEN
+            Type: PARAMETER_STORE
+            Value: /all/sentry/ci-token
+          - Name: SENTRY_ORG
+            Type: PLAINTEXT
+            Value: university-of-notre-dame-ts
+          - Name: SENTRY_PROJECT
+            Type: PLAINTEXT
+            Value: libcal-gateway
+          - Name: GITHUB_REPO
+            Type: PLAINTEXT
+            Value: ndlib/libcal-gateway
+        Image: aws/codebuild/standard:4.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CodeBuildTrustRole2F277EDA
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "n stable",
+                  "echo \"Ensure that the codebuild directory is executable\"",
+                  "chmod -R 755 ./scripts/codebuild/*",
+                  "export BLUEPRINTS_DIR=\"$CODEBUILD_SRC_DIR_InfraCode\"",
+                  "./scripts/codebuild/install.sh"
+                ]
+              },
+              "pre_build": {
+                "commands": [
+                  "./scripts/codebuild/pre_build.sh"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "./scripts/codebuild/build.sh"
+                ]
+              },
+              "post_build": {
+                "commands": [
+                  "./scripts/codebuild/post_build.sh"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/LibCalGatewayTestBuildProject/Resource
+  QAProject2C291CF9:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: API_URL
+            Type: PARAMETER_STORE
+            Value: /all/libcal-gateway/test/api-url
+          - Name: CI
+            Type: PLAINTEXT
+            Value: "true"
+        Image: aws/codebuild/standard:4.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CodeBuildTrustRole2F277EDA
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "n stable",
+                  "npm install -g newman",
+                  "echo \"Ensure that the Newman spec is readable\"",
+                  "chmod -R 755 ./tests/postman/*"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "echo \"Beginning tests at `date`\"",
+                  "newman run ./tests/postman/qa_collection.json --env-var libcalGatewayApiUrl=$API_URL"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/QAProject/Resource
+  PipelineApprovalTopic515BF0D4:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: PipelineApprovalTopic
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/PipelineApprovalTopic/Resource
+  SlackApprovalNotifyLambdaSNSSubscription906553E5:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn:
+        Ref: PipelineApprovalTopic515BF0D4
+      Endpoint:
+        Fn::ImportValue: slack-approval-bot-wse-approvals-notifier:LambdaArn
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/SlackApproval/NotifyLambdaSNSSubscription/Resource
+  SlackApprovalNotifyLambdaSNSPermission6916B29D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::ImportValue: slack-approval-bot-wse-approvals-notifier:LambdaArn
+      Principal: sns.amazonaws.com
+      SourceArn:
+        Ref: PipelineApprovalTopic515BF0D4
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/SlackApproval/NotifyLambdaSNSPermission
+  LibCalGatewayProdBuildProjectA82AC352:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: STACK_NAME
+            Type: PLAINTEXT
+            Value: libcal-gateway-prod
+          - Name: CI
+            Type: PLAINTEXT
+            Value: "true"
+          - Name: STAGE
+            Type: PLAINTEXT
+            Value: prod
+          - Name: CONTACT
+            Type: PLAINTEXT
+            Value: lqiao@nd.edu
+          - Name: OWNER
+            Type: PLAINTEXT
+            Value: lqiao
+          - Name: SENTRY_AUTH_TOKEN
+            Type: PARAMETER_STORE
+            Value: /all/sentry/ci-token
+          - Name: SENTRY_ORG
+            Type: PLAINTEXT
+            Value: university-of-notre-dame-ts
+          - Name: SENTRY_PROJECT
+            Type: PLAINTEXT
+            Value: libcal-gateway
+          - Name: GITHUB_REPO
+            Type: PLAINTEXT
+            Value: ndlib/libcal-gateway
+        Image: aws/codebuild/standard:4.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CodeBuildTrustRole2F277EDA
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "n stable",
+                  "echo \"Ensure that the codebuild directory is executable\"",
+                  "chmod -R 755 ./scripts/codebuild/*",
+                  "export BLUEPRINTS_DIR=\"$CODEBUILD_SRC_DIR_InfraCode\"",
+                  "./scripts/codebuild/install.sh"
+                ]
+              },
+              "pre_build": {
+                "commands": [
+                  "./scripts/codebuild/pre_build.sh"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "./scripts/codebuild/build.sh"
+                ]
+              },
+              "post_build": {
+                "commands": [
+                  "./scripts/codebuild/post_build.sh"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/LibCalGatewayProdBuildProject/Resource
+  QAProjectProd99543C17:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: API_URL
+            Type: PARAMETER_STORE
+            Value: /all/libcal-gateway/prod/api-url
+          - Name: CI
+            Type: PLAINTEXT
+            Value: "true"
+        Image: aws/codebuild/standard:4.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CodeBuildTrustRole2F277EDA
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "n stable",
+                  "npm install -g newman",
+                  "echo \"Ensure that the Newman spec is readable\"",
+                  "chmod -R 755 ./tests/postman/*"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "echo \"Beginning tests at `date`\"",
+                  "newman run ./tests/postman/qa_collection.json --env-var libcalGatewayApiUrl=$API_URL"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/QAProjectProd/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01PyW7DIBD9ltzxtE4uOTc/YCWVeqxYpurYGCyWVBXyv5fFlX3hLTM8Hme4XOH1xH98J9XUaRKQHoHLiWXrM/kLpLcoJwzs9mU21mCwmuTvbje9MuIzpLvVWEYV983/HWkVLrSgJoOQho3VjQP/QPFt7bQyfKIJPqfGLTXjyrzJ1rtdSBavkXru7x3lIwovHS2BrCmzo26NRCSt9jqDsyPK+vGNrkzzWSgOxUI3k/f1cqmE3kYna72bNYparMmxMPqXZ3+F/gz9afREnYsm0Ixwb/gHNIW6ZoQBAAA=
+    Metadata:
+      aws:cdk:path: libcal-gateway-pipeline/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

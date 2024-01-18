@@ -1,0 +1,439 @@
+Resources:
+  WafIPSetUpdaterLambdaServiceRole11B0CBF8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/WafIPSetUpdaterLambda/ServiceRole/Resource
+  WafIPSetUpdaterLambdaServiceRoleDefaultPolicy642F8DC3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - waf:*
+              - waf-regional:*
+              - wafv2:*
+              - elasticloadbalancing:SetWebACL
+              - apigateway:SetWebACL
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: WafIPSetUpdaterLambdaServiceRoleDefaultPolicy642F8DC3
+      Roles:
+        - Ref: WafIPSetUpdaterLambdaServiceRole11B0CBF8
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/WafIPSetUpdaterLambda/ServiceRole/DefaultPolicy/Resource
+  WafIPSetUpdaterLambdaF9F986C1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |-
+          # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+          # SPDX-License-Identifier: MIT-0
+
+          import urllib.parse
+          import urllib.error
+          import urllib.request
+          import os
+          import logging
+          import json
+          import hashlib
+          import boto3
+
+
+          def lambda_handler(event, context):
+              # Set up logging
+              if len(logging.getLogger().handlers) > 0:
+                  logging.getLogger().setLevel(logging.ERROR)
+              else:
+                  logging.basicConfig(level=logging.DEBUG)
+
+              # Set the environment variable DEBUG to 'true' if you want verbose debug details in CloudWatch Logs.
+              try:
+                  if os.environ['DEBUG'] == 'true':
+                      logging.getLogger().setLevel(logging.INFO)
+              except KeyError:
+                  pass
+
+              try:
+                  # If you want a different service, set the SERVICE environment variable.
+                  # It defaults to CLOUDFRONT. Using 'jq' and 'curl' get the list of possible
+                  # services like this:
+                  # curl -s 'https://ip-ranges.amazonaws.com/ip-ranges.json' | jq -r '.prefixes[] | .service' ip-ranges.json | sort -u
+                  SERVICE = os.getenv('SERVICE', "CLOUDFRONT")
+
+                  message = json.loads(event['Records'][0]['Sns']['Message'])
+
+                  # Load the ip ranges from the url
+                  ip_ranges = json.loads(get_ip_groups_json(message['url'], message['md5']))
+
+                  # Extract the service ranges
+                  # global_cf_ranges = get_ranges_for_service(ip_ranges, SERVICE, "GLOBAL")
+                  # region_cf_ranges = get_ranges_for_service(ip_ranges, SERVICE, "REGION")
+                  all_cf_ranges = get_ranges_for_service(ip_ranges, SERVICE)
+
+                  # Update the IP set
+                  result = update_ip_set(SERVICE, message['create-time'], all_cf_ranges)
+
+                  return result
+
+              except Exception as e:
+                  logging.exception(e)
+                  raise e
+              
+
+
+          def get_ip_groups_json(url, expected_hash):
+
+              logging.debug("Updating from " + url)
+
+              response = urllib.request.urlopen(url)
+              ip_json = response.read()
+
+              if expected_hash == 'seed':
+                  logging.info('hash set to seed, bypassing md5 check')
+                  return ip_json
+
+              m = hashlib.md5()
+              m.update(ip_json)
+              hash = m.hexdigest()
+
+              if hash != expected_hash:
+                  raise Exception('MD5 Mismatch: got ' + hash +
+                                  ' expected ' + expected_hash)
+
+              return ip_json
+
+
+          def get_ranges_for_service(ranges, service):
+
+              service_ranges = list()
+              for prefix in ranges['prefixes']:
+                  if prefix['service'] == service:
+                      logging.info(('Found ' + service + ' region: ' +
+                                    prefix['region'] + ' range: ' + prefix['ip_prefix']))
+                      service_ranges.append(prefix['ip_prefix'])
+
+              return service_ranges
+
+
+          def update_ip_set(service, time, ranges):
+              client = boto3.client('wafv2')
+
+              ip_set_list = client.list_ip_sets(
+                  Scope='REGIONAL'
+              )
+
+              ip_set_name = os.environ['IPSET_NAME']
+              ip_set_description = 'IP Address ranges for service ' + service + ' as of ' + time
+
+              for ipset in ip_set_list['IPSets']:
+                  if ipset['Name'] != ip_set_name:
+                      continue
+                  ipset_id = ipset['Id']
+                  ipset_lock = ipset['LockToken']
+                  break
+
+              response = client.update_ip_set(
+                  Name=ip_set_name,
+                  Scope='REGIONAL',
+                  Id=ipset_id,
+                  Description=ip_set_description,
+                  Addresses=ranges,
+                  LockToken=ipset_lock
+              )
+              return response
+      Role:
+        Fn::GetAtt:
+          - WafIPSetUpdaterLambdaServiceRole11B0CBF8
+          - Arn
+      Description: This lambda is used to update the CloudFront IP Sets in WAF
+      Environment:
+        Variables:
+          SERVICE: CLOUDFRONT
+          IPSET_NAME: CloudFront-IPs
+          DEBUG: "true"
+      Handler: index.lambda_handler
+      Runtime: python3.7
+    DependsOn:
+      - WafIPSetUpdaterLambdaServiceRoleDefaultPolicy642F8DC3
+      - WafIPSetUpdaterLambdaServiceRole11B0CBF8
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/WafIPSetUpdaterLambda/Resource
+  WafIPSetUpdaterLambdaAllowInvokeCloudfrontWafLambdaStackipSNSTopic70AF636675BCB2E9:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - WafIPSetUpdaterLambdaF9F986C1
+          - Arn
+      Principal: sns.amazonaws.com
+      SourceArn: arn:aws:sns:us-east-1:806199016981:AmazonIpSpaceChanged
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/WafIPSetUpdaterLambda/AllowInvoke:CloudfrontWafLambdaStackipSNSTopic70AF6366
+  WafIPSetUpdaterLambdaipSNSTopic3E909CEA:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      TopicArn: arn:aws:sns:us-east-1:806199016981:AmazonIpSpaceChanged
+      Endpoint:
+        Fn::GetAtt:
+          - WafIPSetUpdaterLambdaF9F986C1
+          - Arn
+      Region: us-east-1
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/WafIPSetUpdaterLambda/ipSNSTopic/Resource
+  ipset:
+    Type: AWS::WAFv2::IPSet
+    Properties:
+      Addresses: []
+      IPAddressVersion: IPV4
+      Scope: REGIONAL
+      Name: CloudFront-IPs
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/ipset
+  waf:
+    Type: AWS::WAFv2::WebACL
+    Properties:
+      DefaultAction:
+        Block: {}
+      Scope: REGIONAL
+      VisibilityConfig:
+        CloudWatchMetricsEnabled: true
+        MetricName: cloudfront-ipset-waf
+        SampledRequestsEnabled: true
+      Description: This waf is configured with an IPSet to restrict access from only CloudFront.
+      Name: CloudFront-IPSet-WAF
+      Rules:
+        - Action:
+            Allow: {}
+          Name: Restrict-CloudFront-IPs
+          Priority: 0
+          Statement:
+            IPSetReferenceStatement:
+              Arn:
+                Fn::GetAtt:
+                  - ipset
+                  - Arn
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: true
+            MetricName: cloudfront-waf-ipset-metrics
+            SampledRequestsEnabled: true
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/waf
+  ipSeederipseederRoleA4BE7EC6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/ipSeeder/ipseederRole/Resource
+  ipSeederipseederRoleDefaultPolicyA65CFFC9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - WafIPSetUpdaterLambdaF9F986C1
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ipSeederipseederRoleDefaultPolicyA65CFFC9
+      Roles:
+        - Ref: ipSeederipseederRoleA4BE7EC6
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/ipSeeder/ipseederRole/DefaultPolicy/Resource
+  ipSeederWafIpSeederCustomLambdaResource7817497B:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - SingletonLambda1fb3e13dd78c490fb286d74bd5d89289D8219E93
+          - Arn
+      LambdaARN:
+        Fn::GetAtt:
+          - WafIPSetUpdaterLambdaF9F986C1
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/ipSeeder/WafIpSeederCustomLambdaResource/Default
+  SingletonLambda1fb3e13dd78c490fb286d74bd5d89289D8219E93:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |-
+          # Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+          # SPDX-License-Identifier: MIT-0
+
+          def lambda_handler(event, context):
+              import logging
+              import boto3
+              import json
+              import cfnresponse
+              
+              logging.getLogger().setLevel(logging.INFO)
+
+              resource_id = 'Seed-WAF-IPSet'
+
+              try:
+                  logging.info('Input event: %s', event)
+
+                  # Check if this is a Create and we're failing Creates
+                  if event['RequestType'] == 'Create' and event['ResourceProperties'].get('FailCreate', False):
+                      raise RuntimeError('Create failure requested')
+
+                  if event['RequestType'] == 'Create':
+                      client = boto3.client('lambda')
+                      lambdaEvent = """{
+                      "Records": [
+                          {
+                          "EventVersion": "1.0",
+                          "EventSubscriptionArn": "arn:aws:sns:EXAMPLE",
+                          "EventSource": "aws:sns",
+                          "Sns": {
+                              "SignatureVersion": "1",
+                              "Timestamp": "1970-01-01T00:00:00.000Z",
+                              "Signature": "EXAMPLE",
+                              "SigningCertUrl": "EXAMPLE",
+                              "MessageId": "95df01b4-ee98-5cb9-9903-4c221d41eb5e",
+                              "Type": "Notification",
+                              "UnsubscribeUrl": "EXAMPLE",
+                              "TopicArn": "arn:aws:sns:EXAMPLE",
+                              "Subject": "TestInvoke"
+                          }
+                          }
+                      ]
+                      }"""
+
+                      payload = json.loads(lambdaEvent)
+                      payload['Records'][0]['Sns']['Message'] = '{\"create-time\": \"Intial Seed\", \"synctoken\": \"0123456789\", \"md5\": \"seed\", \"url\": \"https://ip-ranges.amazonaws.com/ip-ranges.json\"}'
+
+                      response = client.invoke(
+                          FunctionName=event['ResourceProperties']['LambdaARN'],
+                          InvocationType='Event',
+                          Payload=json.dumps(payload).encode()
+                      )
+                      logging.info(response)
+                  
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {}, resource_id)
+              except Exception as e:
+                  logging.exception(e)
+                  # cfnresponse's error message is always "see CloudWatch"
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {}, resource_id)
+      Role:
+        Fn::GetAtt:
+          - ipSeederipseederRoleA4BE7EC6
+          - Arn
+      Description: This lambda function is used to seed the intial IP set for CloudFront
+      Handler: index.lambda_handler
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - ipSeederipseederRoleDefaultPolicyA65CFFC9
+      - ipSeederipseederRoleA4BE7EC6
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/SingletonLambda1fb3e13dd78c490fb286d74bd5d89289/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE1VQy2oDMQz8lt4dpc6h5Nh2oRDoYdkN9Oy1vUWJbQXLTijG/951Qkp6mpE0o5cE+fwC8ulVXXilzXFdNEULZUxKH0VHgVPMOonBMuWorejm8MgXhcGEFKpoHYpTfjIKykcOuqWb5pH3NnpkbtGI4dvZRH/1KlB5KAO525iGPTnUP1fnlVXBgZf18sQ64une9l+8pxPqd8W2iouazxsoi2LXjzY16Zed3rrPKrSjbGaKXjUTdJkT+ftptYpAxsKB12e5BblZXnRgxFXMIaG3MNzwF+C7aBo/AQAA
+    Metadata:
+      aws:cdk:path: CloudfrontWafLambdaStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

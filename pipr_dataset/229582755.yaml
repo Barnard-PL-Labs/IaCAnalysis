@@ -1,0 +1,1273 @@
+Resources:
+  UsersLayer16AA2A1A:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameters4b415527c1fe212de04e93549d06a5ff090d2a0c1e9ccc00ab6f51249d3179f6S3Bucket72122B9D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4b415527c1fe212de04e93549d06a5ff090d2a0c1e9ccc00ab6f51249d3179f6S3VersionKey3FFBEA14
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4b415527c1fe212de04e93549d06a5ff090d2a0c1e9ccc00ab6f51249d3179f6S3VersionKey3FFBEA14
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/UsersLayer/Resource
+      aws:asset:path: asset.4b415527c1fe212de04e93549d06a5ff090d2a0c1e9ccc00ab6f51249d3179f6
+      aws:asset:property: Content
+  EmailBucket843A740F:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/EmailBucket/Resource
+  EmailBucketPolicyBBC68546:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: EmailBucket843A740F
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                aws:Referer:
+                  Ref: AWS::AccountId
+            Effect: Allow
+            Principal:
+              Service: ses.amazonaws.com
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - EmailBucket843A740F
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/EmailBucket/Policy/Resource
+  UserBucket9D85EFED:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/UserBucket/Resource
+  UserBucketNotifications861496F8:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: UserBucket9D85EFED
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: suffix
+                    Value: raw-portrait.jpg
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - ProcessImage08D3112B
+                - Arn
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: suffix
+                    Value: memoji.png
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - ProcessImage08D3112B
+                - Arn
+    DependsOn:
+      - ProcessImageAllowBucketNotificationsFromRateMemojiApiUserBucketE937AC44114983CB
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/UserBucket/Notifications/Resource
+  UserBucketPolicy698BF045:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: UserBucket9D85EFED
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - CloudFrontD198EC06
+                  - S3CanonicalUserId
+            Resource:
+              - Fn::GetAtt:
+                  - UserBucket9D85EFED
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - UserBucket9D85EFED
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/UserBucket/Policy/Resource
+  ConfirmUploadTemplate:
+    Type: AWS::SES::Template
+    Properties:
+      Template:
+        HtmlPart: |-
+          Hey, thanks for uploading your pictures!<br><br>
+
+          Your Memoji is ready to go. Share this private link to have people rate your Memoji:<br><br>
+
+          {{share_url}}<br><br>
+
+          If you dare to have total strangers rate your Memoji for a more objective perspective, go ahead and make it public:<br><br>
+
+          {{public_url}}
+        SubjectPart: Your Memoji is a go!
+        TemplateName: ConfirmUploadTemplate
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/ConfirmUploadTemplate
+  ProcessEmailServiceRoleF4244BF9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/ProcessEmail/ServiceRole/Resource
+  ProcessEmailServiceRoleDefaultPolicy10164F36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ses:SendTemplatedEmail
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - EmailBucket843A740F
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - EmailBucket843A740F
+                        - Arn
+                    - /*
+          - Action:
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - UserBucket9D85EFED
+                      - Arn
+                  - /*
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - UsersTable9725E9C8
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RequestUploadTokensTableDF8D31FE
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - AssetTokensTable7CA59056
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ShareTokensTable8C437931
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: ProcessEmailServiceRoleDefaultPolicy10164F36
+      Roles:
+        - Ref: ProcessEmailServiceRoleF4244BF9
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/ProcessEmail/ServiceRole/DefaultPolicy/Resource
+  ProcessEmail458CA797:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters9de9ab48261377dfce93eae2a801411c325570d99f64acbc8725759ef3749439S3Bucket52F5A896
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters9de9ab48261377dfce93eae2a801411c325570d99f64acbc8725759ef3749439S3VersionKey2BCDF441
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters9de9ab48261377dfce93eae2a801411c325570d99f64acbc8725759ef3749439S3VersionKey2BCDF441
+      Handler: process-email.handler
+      Role:
+        Fn::GetAtt:
+          - ProcessEmailServiceRoleF4244BF9
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MAIL_BUCKET:
+            Ref: EmailBucket843A740F
+          USER_BUCKET:
+            Ref: UserBucket9D85EFED
+          NO_REPLY_EMAIL: noreply@ratememoji.com
+          PUBLIC_URL: https://ratememoji.com
+      Layers:
+        - Ref: UsersLayer16AA2A1A
+      Timeout: 10
+    DependsOn:
+      - ProcessEmailServiceRoleDefaultPolicy10164F36
+      - ProcessEmailServiceRoleF4244BF9
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/ProcessEmail/Resource
+      aws:asset:path: asset.9de9ab48261377dfce93eae2a801411c325570d99f64acbc8725759ef3749439
+      aws:asset:property: Code
+  ProcessEmailAllowSesDE1E751D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ProcessEmail458CA797
+          - Arn
+      Principal: ses.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/ProcessEmail/AllowSes
+  Gateway43CB3636:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: RateMemoji API
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Resource
+  GatewayDeployment880EB8C2c80a6f66549d89f5bb507c447b46832f:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: Gateway43CB3636
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - GatewaysharestokenGETE5B860ED
+      - Gatewaysharestoken512FA88F
+      - Gatewayshares493E70B4
+      - GatewayuploadrequestsPOSTF9A6D651
+      - Gatewayuploadrequests6FEC09DD
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Deployment/Resource
+  GatewayDeploymentStageprod62BC6904:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: Gateway43CB3636
+      DeploymentId:
+        Ref: GatewayDeployment880EB8C2c80a6f66549d89f5bb507c447b46832f
+      StageName: prod
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/DeploymentStage.prod/Resource
+  GatewayCloudWatchRole34305E06:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/CloudWatchRole/Resource
+  GatewayAccount6D7AA49C:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - GatewayCloudWatchRole34305E06
+          - Arn
+    DependsOn:
+      - Gateway43CB3636
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Account
+  Gatewayuploadrequests6FEC09DD:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - Gateway43CB3636
+          - RootResourceId
+      PathPart: upload-requests
+      RestApiId:
+        Ref: Gateway43CB3636
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Default/upload-requests/Resource
+  GatewayuploadrequestsPOSTApiPermissionRateMemojiApiGatewayE3BEFD7APOSTuploadrequests5BCF2991:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - RequestUploadAE05D41A
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: Gateway43CB3636
+            - /
+            - Ref: GatewayDeploymentStageprod62BC6904
+            - /POST/upload-requests
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Default/upload-requests/POST/ApiPermission.RateMemojiApiGatewayE3BEFD7A.POST..upload-requests
+  GatewayuploadrequestsPOSTApiPermissionTestRateMemojiApiGatewayE3BEFD7APOSTuploadrequests36352ADE:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - RequestUploadAE05D41A
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: Gateway43CB3636
+            - /test-invoke-stage/POST/upload-requests
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Default/upload-requests/POST/ApiPermission.Test.RateMemojiApiGatewayE3BEFD7A.POST..upload-requests
+  GatewayuploadrequestsPOSTF9A6D651:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: Gatewayuploadrequests6FEC09DD
+      RestApiId:
+        Ref: Gateway43CB3636
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - RequestUploadAE05D41A
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Default/upload-requests/POST/Resource
+  Gatewayshares493E70B4:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - Gateway43CB3636
+          - RootResourceId
+      PathPart: shares
+      RestApiId:
+        Ref: Gateway43CB3636
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Default/shares/Resource
+  Gatewaysharestoken512FA88F:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: Gatewayshares493E70B4
+      PathPart: "{token}"
+      RestApiId:
+        Ref: Gateway43CB3636
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Default/shares/{token}/Resource
+  GatewaysharestokenGETApiPermissionRateMemojiApiGatewayE3BEFD7AGETsharestokenF9B018F4:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - GetSharedPair15D36EF1
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: Gateway43CB3636
+            - /
+            - Ref: GatewayDeploymentStageprod62BC6904
+            - /GET/shares/{token}
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Default/shares/{token}/GET/ApiPermission.RateMemojiApiGatewayE3BEFD7A.GET..shares.{token}
+  GatewaysharestokenGETApiPermissionTestRateMemojiApiGatewayE3BEFD7AGETsharestoken9DAFB5AA:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - GetSharedPair15D36EF1
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: Gateway43CB3636
+            - /test-invoke-stage/GET/shares/{token}
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Default/shares/{token}/GET/ApiPermission.Test.RateMemojiApiGatewayE3BEFD7A.GET..shares.{token}
+  GatewaysharestokenGETE5B860ED:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: Gatewaysharestoken512FA88F
+      RestApiId:
+        Ref: Gateway43CB3636
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - GetSharedPair15D36EF1
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/Gateway/Default/shares/{token}/GET/Resource
+  RuleSetE30C6C48:
+    Type: AWS::SES::ReceiptRuleSet
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/RuleSet/Resource
+  RuleSetRule023C3B8E1:
+    Type: AWS::SES::ReceiptRule
+    Properties:
+      Rule:
+        Actions:
+          - S3Action:
+              BucketName:
+                Ref: EmailBucket843A740F
+          - LambdaAction:
+              FunctionArn:
+                Fn::GetAtt:
+                  - ProcessEmail458CA797
+                  - Arn
+        Enabled: true
+        Recipients:
+          - doreply@ratememoji.com
+      RuleSetName:
+        Ref: RuleSetE30C6C48
+    DependsOn:
+      - EmailBucketPolicyBBC68546
+      - ProcessEmailAllowSesDE1E751D
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/RuleSet/Rule0/Resource
+  RequestUploadTemplate:
+    Type: AWS::SES::Template
+    Properties:
+      Template:
+        HtmlPart: |-
+          Hey there!<br><br>
+
+          Welcome to RateMemoji. Please reply to this e-mail and attach both your Memoji and a picture of your face.<br><br>
+
+          Make sure to keep the line below:<br><br>
+
+          id: {{token}}
+        SubjectPart: Welcome to RateMemoji
+        TemplateName: RequestUploadTemplate
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/RequestUploadTemplate
+  RequestUploadServiceRole2FE4CCB8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/RequestUpload/ServiceRole/Resource
+  RequestUploadServiceRoleDefaultPolicy90173B24:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ses:SendTemplatedEmail
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - UsersTable9725E9C8
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - RequestUploadTokensTableDF8D31FE
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: RequestUploadServiceRoleDefaultPolicy90173B24
+      Roles:
+        - Ref: RequestUploadServiceRole2FE4CCB8
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/RequestUpload/ServiceRole/DefaultPolicy/Resource
+  RequestUploadAE05D41A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters1812e6fb1b2f547168ec333274f7c38e6d41ef423a08e731b26fdb87d7681e46S3Bucket80CC5D17
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1812e6fb1b2f547168ec333274f7c38e6d41ef423a08e731b26fdb87d7681e46S3VersionKey2CBD3648
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1812e6fb1b2f547168ec333274f7c38e6d41ef423a08e731b26fdb87d7681e46S3VersionKey2CBD3648
+      Handler: request-upload.handler
+      Role:
+        Fn::GetAtt:
+          - RequestUploadServiceRole2FE4CCB8
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          EMAIL: doreply@ratememoji.com
+      Layers:
+        - Ref: UsersLayer16AA2A1A
+    DependsOn:
+      - RequestUploadServiceRoleDefaultPolicy90173B24
+      - RequestUploadServiceRole2FE4CCB8
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/RequestUpload/Resource
+      aws:asset:path: asset.1812e6fb1b2f547168ec333274f7c38e6d41ef423a08e731b26fdb87d7681e46
+      aws:asset:property: Code
+  CloudFrontD198EC06:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Allows CloudFront to reach the bucket
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/CloudFront/Resource
+  UserUploadsCFDistributionC2159C6D:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - UserBucket9D85EFED
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: CloudFrontD198EC06
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/UserUploads/CFDistribution
+  GetSharedPairServiceRole03946ADF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/GetSharedPair/ServiceRole/Resource
+  GetSharedPairServiceRoleDefaultPolicy414AD617:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - UsersTable9725E9C8
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ShareTokensTable8C437931
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: GetSharedPairServiceRoleDefaultPolicy414AD617
+      Roles:
+        - Ref: GetSharedPairServiceRole03946ADF
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/GetSharedPair/ServiceRole/DefaultPolicy/Resource
+  GetSharedPair15D36EF1:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters2669493eaaad474fcfb01529130c925bab810f004ba9bc1c8d50ccf11f8730e1S3BucketDC2A68DE
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters2669493eaaad474fcfb01529130c925bab810f004ba9bc1c8d50ccf11f8730e1S3VersionKey99A75A8D
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters2669493eaaad474fcfb01529130c925bab810f004ba9bc1c8d50ccf11f8730e1S3VersionKey99A75A8D
+      Handler: get-shared-pair.handler
+      Role:
+        Fn::GetAtt:
+          - GetSharedPairServiceRole03946ADF
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          ASSETS_URL:
+            Fn::Join:
+              - ""
+              - - https://
+                - Fn::GetAtt:
+                    - UserUploadsCFDistributionC2159C6D
+                    - DomainName
+    DependsOn:
+      - GetSharedPairServiceRoleDefaultPolicy414AD617
+      - GetSharedPairServiceRole03946ADF
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/GetSharedPair/Resource
+      aws:asset:path: asset.2669493eaaad474fcfb01529130c925bab810f004ba9bc1c8d50ccf11f8730e1
+      aws:asset:property: Code
+  ProcessImageServiceRole5A575E23:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/ProcessImage/ServiceRole/Resource
+  ProcessImageServiceRoleDefaultPolicy4C1708BE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: rekognition:*
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - UserBucket9D85EFED
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - UserBucket9D85EFED
+                        - Arn
+                    - /*
+          - Action:
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - UserBucket9D85EFED
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: ProcessImageServiceRoleDefaultPolicy4C1708BE
+      Roles:
+        - Ref: ProcessImageServiceRole5A575E23
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/ProcessImage/ServiceRole/DefaultPolicy/Resource
+  ProcessImage08D3112B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersb5b7a894a08981de317cd99e7a09e1b1494f2d7cbe29f9e178eaa497d3df1a49S3Bucket7EEE0326
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb5b7a894a08981de317cd99e7a09e1b1494f2d7cbe29f9e178eaa497d3df1a49S3VersionKey00A2E84C
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersb5b7a894a08981de317cd99e7a09e1b1494f2d7cbe29f9e178eaa497d3df1a49S3VersionKey00A2E84C
+      Handler: process-image.handler
+      Role:
+        Fn::GetAtt:
+          - ProcessImageServiceRole5A575E23
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          NO_REPLY_EMAIL: noreply@ratememoji.com
+      Timeout: 10
+    DependsOn:
+      - ProcessImageServiceRoleDefaultPolicy4C1708BE
+      - ProcessImageServiceRole5A575E23
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/ProcessImage/Resource
+      aws:asset:path: asset.b5b7a894a08981de317cd99e7a09e1b1494f2d7cbe29f9e178eaa497d3df1a49
+      aws:asset:property: Code
+  ProcessImageAllowBucketNotificationsFromRateMemojiApiUserBucketE937AC44114983CB:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ProcessImage08D3112B
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount: "036406153779"
+      SourceArn:
+        Fn::GetAtt:
+          - UserBucket9D85EFED
+          - Arn
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/ProcessImage/AllowBucketNotificationsFromRateMemojiApiUserBucketE937AC44
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |-
+          exports.handler = (event, context) => {
+              // eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-extraneous-dependencies
+              const s3 = new (require('aws-sdk').S3)();
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const https = require("https");
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const url = require("url");
+              log(JSON.stringify(event, undefined, 2));
+              const props = event.ResourceProperties;
+              if (event.RequestType === 'Delete') {
+                  props.NotificationConfiguration = {}; // this is how you clean out notifications
+              }
+              const req = {
+                  Bucket: props.BucketName,
+                  NotificationConfiguration: props.NotificationConfiguration
+              };
+              return s3.putBucketNotificationConfiguration(req, (err, data) => {
+                  log({ err, data });
+                  if (err) {
+                      return submitResponse("FAILED", err.message + `\nMore information in CloudWatch Log Stream: ${context.logStreamName}`);
+                  }
+                  else {
+                      return submitResponse("SUCCESS");
+                  }
+              });
+              function log(obj) {
+                  console.error(event.RequestId, event.StackId, event.LogicalResourceId, obj);
+              }
+              // tslint:disable-next-line:max-line-length
+              // adapted from https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-function-code.html#cfn-lambda-function-code-cfnresponsemodule
+              // to allow sending an error messge as a reason.
+              function submitResponse(responseStatus, reason) {
+                  const responseBody = JSON.stringify({
+                      Status: responseStatus,
+                      Reason: reason || "See the details in CloudWatch Log Stream: " + context.logStreamName,
+                      PhysicalResourceId: event.PhysicalResourceId || event.LogicalResourceId,
+                      StackId: event.StackId,
+                      RequestId: event.RequestId,
+                      LogicalResourceId: event.LogicalResourceId,
+                      NoEcho: false,
+                  });
+                  log({ responseBody });
+                  const parsedUrl = url.parse(event.ResponseURL);
+                  const options = {
+                      hostname: parsedUrl.hostname,
+                      port: 443,
+                      path: parsedUrl.path,
+                      method: "PUT",
+                      headers: {
+                          "content-type": "",
+                          "content-length": responseBody.length
+                      }
+                  };
+                  const request = https.request(options, (r) => {
+                      log({ statusCode: r.statusCode, statusMessage: r.statusMessage });
+                      context.done();
+                  });
+                  request.on("error", (error) => {
+                      log({ sendError: error });
+                      context.done();
+                  });
+                  request.write(responseBody);
+                  request.end();
+              }
+          };
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: nodejs10.x
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  UsersTable9725E9C8:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      TableName: Users
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/UsersTable/Resource
+  RequestUploadTokensTableDF8D31FE:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: token
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: token
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      TableName: RequestUploadTokens
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/RequestUploadTokensTable/Resource
+  AssetTokensTable7CA59056:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: token
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: token
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      TableName: AssetTokens
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/AssetTokensTable/Resource
+  ShareTokensTable8C437931:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: token
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: token
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      TableName: ShareTokens
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/ShareTokensTable/Resource
+  RateMemojiApiBuildRole55075889:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/RateMemojiApiBuild/Role/Resource
+  RateMemojiApiBuildRoleDefaultPolicy595C02F2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: RateMemojiApiBuild1DD77743
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: RateMemojiApiBuild1DD77743
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: RateMemojiApiBuildRoleDefaultPolicy595C02F2
+      Roles:
+        - Ref: RateMemojiApiBuildRole55075889
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/RateMemojiApiBuild/Role/DefaultPolicy/Resource
+  RateMemojiApiBuild1DD77743:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:1.0
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - RateMemojiApiBuildRole55075889
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": "npm install"
+              },
+              "build": {
+                "commands": [
+                  "npm run build",
+                  "npm run cdk deploy -- --require-approval never"
+                ]
+              }
+            }
+          }
+        Type: NO_SOURCE
+      Cache:
+        Modes:
+          - LOCAL_DOCKER_LAYER_CACHE
+        Type: LOCAL
+      Name: RateMemojiApiBuild
+    Metadata:
+      aws:cdk:path: RateMemoji/Api/RateMemojiApiBuild/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.27.0,@aws-cdk/aws-apigateway=1.27.0,@aws-cdk/aws-applicationautoscaling=1.27.0,@aws-cdk/aws-autoscaling=1.27.0,@aws-cdk/aws-autoscaling-common=1.27.0,@aws-cdk/aws-autoscaling-hooktargets=1.27.0,@aws-cdk/aws-certificatemanager=1.27.0,@aws-cdk/aws-cloudformation=1.27.0,@aws-cdk/aws-cloudfront=1.27.0,@aws-cdk/aws-cloudwatch=1.27.0,@aws-cdk/aws-codebuild=1.27.0,@aws-cdk/aws-dynamodb=1.27.0,@aws-cdk/aws-ec2=1.27.0,@aws-cdk/aws-ecr=1.27.0,@aws-cdk/aws-ecr-assets=1.27.0,@aws-cdk/aws-ecs=1.27.0,@aws-cdk/aws-elasticloadbalancingv2=1.27.0,@aws-cdk/aws-events=1.27.0,@aws-cdk/aws-iam=1.27.0,@aws-cdk/aws-kms=1.27.0,@aws-cdk/aws-lambda=1.27.0,@aws-cdk/aws-logs=1.27.0,@aws-cdk/aws-s3=1.27.0,@aws-cdk/aws-s3-assets=1.27.0,@aws-cdk/aws-s3-notifications=1.27.0,@aws-cdk/aws-servicediscovery=1.27.0,@aws-cdk/aws-ses=1.27.0,@aws-cdk/aws-ses-actions=1.27.0,@aws-cdk/aws-sns=1.27.0,@aws-cdk/aws-sns-subscriptions=1.27.0,@aws-cdk/aws-sqs=1.27.0,@aws-cdk/aws-ssm=1.27.0,@aws-cdk/aws-stepfunctions=1.27.0,@aws-cdk/aws-stepfunctions-tasks=1.27.0,@aws-cdk/core=1.27.0,@aws-cdk/custom-resources=1.27.0,@aws-cdk/cx-api=1.27.0,@aws-cdk/region-info=1.27.0,jsii-runtime=node.js/v18.12.1
+Parameters:
+  AssetParameters4b415527c1fe212de04e93549d06a5ff090d2a0c1e9ccc00ab6f51249d3179f6S3Bucket72122B9D:
+    Type: String
+    Description: S3 bucket for asset "4b415527c1fe212de04e93549d06a5ff090d2a0c1e9ccc00ab6f51249d3179f6"
+  AssetParameters4b415527c1fe212de04e93549d06a5ff090d2a0c1e9ccc00ab6f51249d3179f6S3VersionKey3FFBEA14:
+    Type: String
+    Description: S3 key for asset version "4b415527c1fe212de04e93549d06a5ff090d2a0c1e9ccc00ab6f51249d3179f6"
+  AssetParameters4b415527c1fe212de04e93549d06a5ff090d2a0c1e9ccc00ab6f51249d3179f6ArtifactHashB5FD601B:
+    Type: String
+    Description: Artifact hash for asset "4b415527c1fe212de04e93549d06a5ff090d2a0c1e9ccc00ab6f51249d3179f6"
+  AssetParameters9de9ab48261377dfce93eae2a801411c325570d99f64acbc8725759ef3749439S3Bucket52F5A896:
+    Type: String
+    Description: S3 bucket for asset "9de9ab48261377dfce93eae2a801411c325570d99f64acbc8725759ef3749439"
+  AssetParameters9de9ab48261377dfce93eae2a801411c325570d99f64acbc8725759ef3749439S3VersionKey2BCDF441:
+    Type: String
+    Description: S3 key for asset version "9de9ab48261377dfce93eae2a801411c325570d99f64acbc8725759ef3749439"
+  AssetParameters9de9ab48261377dfce93eae2a801411c325570d99f64acbc8725759ef3749439ArtifactHash39A73CE6:
+    Type: String
+    Description: Artifact hash for asset "9de9ab48261377dfce93eae2a801411c325570d99f64acbc8725759ef3749439"
+  AssetParameters1812e6fb1b2f547168ec333274f7c38e6d41ef423a08e731b26fdb87d7681e46S3Bucket80CC5D17:
+    Type: String
+    Description: S3 bucket for asset "1812e6fb1b2f547168ec333274f7c38e6d41ef423a08e731b26fdb87d7681e46"
+  AssetParameters1812e6fb1b2f547168ec333274f7c38e6d41ef423a08e731b26fdb87d7681e46S3VersionKey2CBD3648:
+    Type: String
+    Description: S3 key for asset version "1812e6fb1b2f547168ec333274f7c38e6d41ef423a08e731b26fdb87d7681e46"
+  AssetParameters1812e6fb1b2f547168ec333274f7c38e6d41ef423a08e731b26fdb87d7681e46ArtifactHashC5E65684:
+    Type: String
+    Description: Artifact hash for asset "1812e6fb1b2f547168ec333274f7c38e6d41ef423a08e731b26fdb87d7681e46"
+  AssetParameters2669493eaaad474fcfb01529130c925bab810f004ba9bc1c8d50ccf11f8730e1S3BucketDC2A68DE:
+    Type: String
+    Description: S3 bucket for asset "2669493eaaad474fcfb01529130c925bab810f004ba9bc1c8d50ccf11f8730e1"
+  AssetParameters2669493eaaad474fcfb01529130c925bab810f004ba9bc1c8d50ccf11f8730e1S3VersionKey99A75A8D:
+    Type: String
+    Description: S3 key for asset version "2669493eaaad474fcfb01529130c925bab810f004ba9bc1c8d50ccf11f8730e1"
+  AssetParameters2669493eaaad474fcfb01529130c925bab810f004ba9bc1c8d50ccf11f8730e1ArtifactHash5A676FA4:
+    Type: String
+    Description: Artifact hash for asset "2669493eaaad474fcfb01529130c925bab810f004ba9bc1c8d50ccf11f8730e1"
+  AssetParametersb5b7a894a08981de317cd99e7a09e1b1494f2d7cbe29f9e178eaa497d3df1a49S3Bucket7EEE0326:
+    Type: String
+    Description: S3 bucket for asset "b5b7a894a08981de317cd99e7a09e1b1494f2d7cbe29f9e178eaa497d3df1a49"
+  AssetParametersb5b7a894a08981de317cd99e7a09e1b1494f2d7cbe29f9e178eaa497d3df1a49S3VersionKey00A2E84C:
+    Type: String
+    Description: S3 key for asset version "b5b7a894a08981de317cd99e7a09e1b1494f2d7cbe29f9e178eaa497d3df1a49"
+  AssetParametersb5b7a894a08981de317cd99e7a09e1b1494f2d7cbe29f9e178eaa497d3df1a49ArtifactHash1169BF04:
+    Type: String
+    Description: Artifact hash for asset "b5b7a894a08981de317cd99e7a09e1b1494f2d7cbe29f9e178eaa497d3df1a49"
+Outputs:
+  GatewayEndpoint4DF49EE0:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: Gateway43CB3636
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: GatewayDeploymentStageprod62BC6904
+          - /
+

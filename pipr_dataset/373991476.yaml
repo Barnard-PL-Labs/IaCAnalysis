@@ -1,0 +1,628 @@
+Resources:
+  democert2ECC3318:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: acgdemo.lhl.lol
+      DomainValidationOptions:
+        - DomainName: acgdemo.lhl.lol
+          HostedZoneId: Z03326323P2H9ZQLWW45L
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/democert/Resource
+  appServiceLBA8C88153:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      LoadBalancerAttributes:
+        - Key: deletion_protection.enabled
+          Value: "false"
+      Scheme: internet-facing
+      SecurityGroups:
+        - Fn::GetAtt:
+            - appServiceLBSecurityGroup6E308F33
+            - GroupId
+      Subnets:
+        - Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99
+        - Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A
+      Type: application
+    DependsOn:
+      - EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1DefaultRouteFF4E2178
+      - EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2DefaultRouteB1375520
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/LB/Resource
+  appServiceLBSecurityGroup6E308F33:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Automatically created Security Group for ELB DeployStackCdkDemoappServiceLBD8326153
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow from anyone on port 443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/LB/SecurityGroup/Resource
+  appServiceLBSecurityGrouptoDeployStackCdkDemoappServiceSecurityGroupB097D3F780772AB7DF:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId:
+        Fn::GetAtt:
+          - appServiceLBSecurityGroup6E308F33
+          - GroupId
+      IpProtocol: tcp
+      Description: Load balancer to target
+      DestinationSecurityGroupId:
+        Fn::GetAtt:
+          - appServiceSecurityGroupCD56E88F
+          - GroupId
+      FromPort: 80
+      ToPort: 80
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/LB/SecurityGroup/to DeployStackCdkDemoappServiceSecurityGroupB097D3F7:80
+  appServiceLBPublicListenerDB78DCCA:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn:
+            Ref: appServiceLBPublicListenerECSGroup25038D41
+          Type: forward
+      LoadBalancerArn:
+        Ref: appServiceLBA8C88153
+      Certificates:
+        - CertificateArn:
+            Ref: democert2ECC3318
+      Port: 443
+      Protocol: HTTPS
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/LB/PublicListener/Resource
+  appServiceLBPublicListenerECSGroup25038D41:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/LB/PublicListener/ECSGroup/Resource
+  appServiceDNSACF407FD:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: acgdemo.lhl.lol.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::Join:
+            - ""
+            - - dualstack.
+              - Fn::GetAtt:
+                  - appServiceLBA8C88153
+                  - DNSName
+        HostedZoneId:
+          Fn::GetAtt:
+            - appServiceLBA8C88153
+            - CanonicalHostedZoneID
+      HostedZoneId: Z03326323P2H9ZQLWW45L
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/DNS/Resource
+  appServiceTaskDefTaskRoleE90F50F0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/TaskDef/TaskRole/Resource
+  appServiceTaskDefD05D97D3:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: PORT
+              Value: "80"
+          Essential: true
+          Image: matthewzhaocc/cdk-demo
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: appServiceTaskDefwebLogGroup443BBF97
+              awslogs-stream-prefix: appService
+              awslogs-region:
+                Ref: AWS::Region
+          Name: web
+          PortMappings:
+            - ContainerPort: 80
+              Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - appServiceTaskDefExecutionRole0F0AFC05
+          - Arn
+      Family: DeployStackCdkDemoappServiceTaskDefDD3E14E6
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - appServiceTaskDefTaskRoleE90F50F0
+          - Arn
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/TaskDef/Resource
+  appServiceTaskDefwebLogGroup443BBF97:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/TaskDef/web/LogGroup/Resource
+  appServiceTaskDefExecutionRole0F0AFC05:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/TaskDef/ExecutionRole/Resource
+  appServiceTaskDefExecutionRoleDefaultPolicyD8EEDC45:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - appServiceTaskDefwebLogGroup443BBF97
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: appServiceTaskDefExecutionRoleDefaultPolicyD8EEDC45
+      Roles:
+        - Ref: appServiceTaskDefExecutionRole0F0AFC05
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/TaskDef/ExecutionRole/DefaultPolicy/Resource
+  appServiceEAEA993D:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Ref: EcsDefaultClusterMnL3mNNYN926A5246
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 1
+      EnableECSManagedTags: false
+      HealthCheckGracePeriodSeconds: 60
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: web
+          ContainerPort: 80
+          TargetGroupArn:
+            Ref: appServiceLBPublicListenerECSGroup25038D41
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::GetAtt:
+                - appServiceSecurityGroupCD56E88F
+                - GroupId
+          Subnets:
+            - Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1Subnet075EFF4C
+            - Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2SubnetE4CEDF73
+      TaskDefinition:
+        Ref: appServiceTaskDefD05D97D3
+    DependsOn:
+      - appServiceLBPublicListenerECSGroup25038D41
+      - appServiceLBPublicListenerDB78DCCA
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/Service/Service
+  appServiceSecurityGroupCD56E88F:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DeployStackCdkDemo/appService/Service/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/Service/SecurityGroup/Resource
+  appServiceSecurityGroupfromDeployStackCdkDemoappServiceLBSecurityGroup0898281B80EF7B1D7D:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: Load balancer to target
+      FromPort: 80
+      GroupId:
+        Fn::GetAtt:
+          - appServiceSecurityGroupCD56E88F
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - appServiceLBSecurityGroup6E308F33
+          - GroupId
+      ToPort: 80
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/appService/Service/SecurityGroup/from DeployStackCdkDemoappServiceLBSecurityGroup0898281B:80
+  EcsDefaultClusterMnL3mNNYN926A5246:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Resource
+  EcsDefaultClusterMnL3mNNYNVpc7788A521:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/Resource
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableA1FD6ACC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableAssociation8B583A17:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableA1FD6ACC
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1DefaultRouteFF4E2178:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableA1FD6ACC
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F
+    DependsOn:
+      - EcsDefaultClusterMnL3mNNYNVpcVPCGW2447264E
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1EIP8704DB2F:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/EIP
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1NATGateway5E3732C1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1EIP8704DB2F
+          - AllocationId
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99
+      Tags:
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/NATGateway
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.64.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTable263DEAA5:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTableAssociation43E5803C:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTable263DEAA5
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2DefaultRouteB1375520:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTable263DEAA5
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F
+    DependsOn:
+      - EcsDefaultClusterMnL3mNNYNVpcVPCGW2447264E
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2EIPF0764873:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/EIP
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2NATGateway4C855E00:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2EIPF0764873
+          - AllocationId
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A
+      Tags:
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/NATGateway
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1Subnet075EFF4C:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTable4F1D2E36:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTableAssociation34B92275:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTable4F1D2E36
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1Subnet075EFF4C
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1DefaultRouteA5ADF694:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTable4F1D2E36
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1NATGateway5E3732C1
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2SubnetE4CEDF73:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.192.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableDCE46591:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableAssociation111C622F:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableDCE46591
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2SubnetE4CEDF73
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2DefaultRoute20CE2D89:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableDCE46591
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2NATGateway4C855E00
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/IGW
+  EcsDefaultClusterMnL3mNNYNVpcVPCGW2447264E:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      InternetGatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/EcsDefaultClusterMnL3mNNYN/Vpc/VPCGW
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE31SwW7bMAz9lt4VNe5QdMdlaVcEKFojDnpXZMZl40iGRKUoDP/7KNmxvW6YLnp8ehQJPmayzZaZXF79UB9+ocvjtbYOZFuQ0kextsaTC5rE+mC24G1wGiLmhxIJrelEtrybp7d9/lz8EqgJ1IkoaTU4wgNqRXBSRlXgZLueuPT5FHYCtF80igic8XLVNHXkufCTVeVPVSujofylXMXiAtwZuSTUyhPqmhX7pEBTnW9k++9sF0v+Ec916AnMoLng2fuOKwM9OhuaKJmFsXOuWYAODulzlPyfeKgceP8XvTE9/9ro+Paar0Ue9txEEfYGkjsT2tpAsFP7GiZ+4lbeW42p+VEcwcMmj9ezokce5Yf6FLnDc5zq+PHGRBdgFPSdDNGKeGPeTmDYaBc/vf3GE98Cr0PZb09EBVCyVLaDZzvlj/dwQIOXjr4y1pBCHvuM++J3mtYA68AmJbsG2AlUJ95H248j3bnl0aX+e9SJ2lbc05OtRlsuuOMjjC1Bvvvrc/ZdZjcyu3r3iAsXDOEJ5La/fwMRn1mhSwMAAA==
+    Metadata:
+      aws:cdk:path: DeployStackCdkDemo/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  appServiceLoadBalancerDNSFA309B30:
+    Value:
+      Fn::GetAtt:
+        - appServiceLBA8C88153
+        - DNSName
+  appServiceServiceURL18F82F61:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: appServiceDNSACF407FD
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

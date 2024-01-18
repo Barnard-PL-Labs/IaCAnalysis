@@ -1,0 +1,543 @@
+Parameters:
+  GitHubSecret:
+    Type: String
+    Default: webhooksecret
+    Description: GitHub Webhook HMAC Secret
+  ConfigStorageS3BucketName:
+    Type: String
+    Default: my-stack-dev-tools-monorepo-configuration
+    Description: S3 bucket name for storage of configuration
+  ConfigStoragePrefix:
+    Type: String
+    Default: mono-repo/config
+    Description: S3 Object Prefix
+  AssetParametersa93f922840e5ec6bd5761cf37fd73a2d197fb92355b674f4a0f861c4cd298c60S3Bucket1BFB38AE:
+    Type: String
+    Description: S3 bucket for asset "a93f922840e5ec6bd5761cf37fd73a2d197fb92355b674f4a0f861c4cd298c60"
+  AssetParametersa93f922840e5ec6bd5761cf37fd73a2d197fb92355b674f4a0f861c4cd298c60S3VersionKeyF186C631:
+    Type: String
+    Description: S3 key for asset version "a93f922840e5ec6bd5761cf37fd73a2d197fb92355b674f4a0f861c4cd298c60"
+  AssetParametersa93f922840e5ec6bd5761cf37fd73a2d197fb92355b674f4a0f861c4cd298c60ArtifactHash81EBC75F:
+    Type: String
+    Description: Artifact hash for asset "a93f922840e5ec6bd5761cf37fd73a2d197fb92355b674f4a0f861c4cd298c60"
+  AssetParameters553e577b597d0ac5c3108f2d285cb564e73f439b0780ab13c28df7440dbc09fcS3Bucket8C557780:
+    Type: String
+    Description: S3 bucket for asset "553e577b597d0ac5c3108f2d285cb564e73f439b0780ab13c28df7440dbc09fc"
+  AssetParameters553e577b597d0ac5c3108f2d285cb564e73f439b0780ab13c28df7440dbc09fcS3VersionKeyE9A7E575:
+    Type: String
+    Description: S3 key for asset version "553e577b597d0ac5c3108f2d285cb564e73f439b0780ab13c28df7440dbc09fc"
+  AssetParameters553e577b597d0ac5c3108f2d285cb564e73f439b0780ab13c28df7440dbc09fcArtifactHash5C09E098:
+    Type: String
+    Description: Artifact hash for asset "553e577b597d0ac5c3108f2d285cb564e73f439b0780ab13c28df7440dbc09fc"
+  AssetParameters14906733a7028584bef5a647e873dc1db7b35edd31150612db0b0942b064717aS3Bucket2BA619B1:
+    Type: String
+    Description: S3 bucket for asset "14906733a7028584bef5a647e873dc1db7b35edd31150612db0b0942b064717a"
+  AssetParameters14906733a7028584bef5a647e873dc1db7b35edd31150612db0b0942b064717aS3VersionKey90C5520C:
+    Type: String
+    Description: S3 key for asset version "14906733a7028584bef5a647e873dc1db7b35edd31150612db0b0942b064717a"
+  AssetParameters14906733a7028584bef5a647e873dc1db7b35edd31150612db0b0942b064717aArtifactHash212124B0:
+    Type: String
+    Description: Artifact hash for asset "14906733a7028584bef5a647e873dc1db7b35edd31150612db0b0942b064717a"
+Resources:
+  ConfigStorageBucket92E510BE:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName:
+        Ref: ConfigStorageS3BucketName
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: my-stack-dev/ConfigStorageBucket/Resource
+  GitHubEventEvalFunctionServiceRole7F5FC4C8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: my-stack-dev/GitHubEventEvalFunction/ServiceRole/Resource
+  GitHubEventEvalFunctionServiceRoleDefaultPolicy2FAAC155:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action: codepipeline:*
+            Effect: Allow
+            Resource: "*"
+          - Action: s3:*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ConfigStorageBucket92E510BE
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: GitHubEventEvalFunctionServiceRoleDefaultPolicy2FAAC155
+      Roles:
+        - Ref: GitHubEventEvalFunctionServiceRole7F5FC4C8
+    Metadata:
+      aws:cdk:path: my-stack-dev/GitHubEventEvalFunction/ServiceRole/DefaultPolicy/Resource
+  GitHubEventEvalFunction924E71E8:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa93f922840e5ec6bd5761cf37fd73a2d197fb92355b674f4a0f861c4cd298c60S3Bucket1BFB38AE
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa93f922840e5ec6bd5761cf37fd73a2d197fb92355b674f4a0f861c4cd298c60S3VersionKeyF186C631
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa93f922840e5ec6bd5761cf37fd73a2d197fb92355b674f4a0f861c4cd298c60S3VersionKeyF186C631
+      Role:
+        Fn::GetAtt:
+          - GitHubEventEvalFunctionServiceRole7F5FC4C8
+          - Arn
+      Environment:
+        Variables:
+          S3_BUCKET:
+            Ref: ConfigStorageS3BucketName
+          S3_PREFIX:
+            Ref: ConfigStoragePrefix
+      Handler: index.handler
+      Runtime: python3.8
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - GitHubEventEvalFunctionServiceRoleDefaultPolicy2FAAC155
+      - GitHubEventEvalFunctionServiceRole7F5FC4C8
+    Metadata:
+      aws:cdk:path: my-stack-dev/GitHubEventEvalFunction/Resource
+      aws:asset:path: asset.a93f922840e5ec6bd5761cf37fd73a2d197fb92355b674f4a0f861c4cd298c60
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  GitHubWebhookFunctionServiceRoleFB95AE13:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    DependsOn:
+      - GitHubEventEvalFunction924E71E8
+      - GitHubEventEvalFunctionServiceRoleDefaultPolicy2FAAC155
+      - GitHubEventEvalFunctionServiceRole7F5FC4C8
+    Metadata:
+      aws:cdk:path: my-stack-dev/GitHubWebhookFunction/ServiceRole/Resource
+  GitHubWebhookFunctionServiceRoleDefaultPolicy4AC25033:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - GitHubEventEvalFunction924E71E8
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: GitHubWebhookFunctionServiceRoleDefaultPolicy4AC25033
+      Roles:
+        - Ref: GitHubWebhookFunctionServiceRoleFB95AE13
+    DependsOn:
+      - GitHubEventEvalFunction924E71E8
+      - GitHubEventEvalFunctionServiceRoleDefaultPolicy2FAAC155
+      - GitHubEventEvalFunctionServiceRole7F5FC4C8
+    Metadata:
+      aws:cdk:path: my-stack-dev/GitHubWebhookFunction/ServiceRole/DefaultPolicy/Resource
+  GitHubWebhookFunctionA7279CB5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters553e577b597d0ac5c3108f2d285cb564e73f439b0780ab13c28df7440dbc09fcS3Bucket8C557780
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters553e577b597d0ac5c3108f2d285cb564e73f439b0780ab13c28df7440dbc09fcS3VersionKeyE9A7E575
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters553e577b597d0ac5c3108f2d285cb564e73f439b0780ab13c28df7440dbc09fcS3VersionKeyE9A7E575
+      Role:
+        Fn::GetAtt:
+          - GitHubWebhookFunctionServiceRoleFB95AE13
+          - Arn
+      Environment:
+        Variables:
+          GITHUB_SECRET:
+            Ref: GitHubSecret
+          EVAL_FUNCTION_ARN:
+            Fn::GetAtt:
+              - GitHubEventEvalFunction924E71E8
+              - Arn
+      Handler: index.handler
+      Runtime: python3.8
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - GitHubEventEvalFunction924E71E8
+      - GitHubEventEvalFunctionServiceRoleDefaultPolicy2FAAC155
+      - GitHubEventEvalFunctionServiceRole7F5FC4C8
+      - GitHubWebhookFunctionServiceRoleDefaultPolicy4AC25033
+      - GitHubWebhookFunctionServiceRoleFB95AE13
+    Metadata:
+      aws:cdk:path: my-stack-dev/GitHubWebhookFunction/Resource
+      aws:asset:path: asset.553e577b597d0ac5c3108f2d285cb564e73f439b0780ab13c28df7440dbc09fc
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  MonoRepoS3Role551F4FA9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: my-stack-dev/MonoRepoS3Role/Resource
+  MonoRepoS3RoleDefaultPolicy8038851D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - events:*
+              - logs:*
+            Effect: Allow
+            Resource: "*"
+            Sid: CloudWatchAccess
+          - Action: s3:*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ConfigStorageBucket92E510BE
+                      - Arn
+                  - /*
+            Sid: S3Access
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: MonoRepoS3RoleDefaultPolicy8038851D
+      Roles:
+        - Ref: MonoRepoS3Role551F4FA9
+    Metadata:
+      aws:cdk:path: my-stack-dev/MonoRepoS3Role/DefaultPolicy/Resource
+  MonoRepoS3ConfigCloudFormationResourceFunction37E10E88:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters14906733a7028584bef5a647e873dc1db7b35edd31150612db0b0942b064717aS3Bucket2BA619B1
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters14906733a7028584bef5a647e873dc1db7b35edd31150612db0b0942b064717aS3VersionKey90C5520C
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters14906733a7028584bef5a647e873dc1db7b35edd31150612db0b0942b064717aS3VersionKey90C5520C
+      Role:
+        Fn::GetAtt:
+          - MonoRepoS3Role551F4FA9
+          - Arn
+      Environment:
+        Variables:
+          S3_BUCKET:
+            Ref: ConfigStorageS3BucketName
+          S3_PREFIX:
+            Ref: ConfigStoragePrefix
+      Handler: index.handler
+      Runtime: python3.8
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - MonoRepoS3RoleDefaultPolicy8038851D
+      - MonoRepoS3Role551F4FA9
+    Metadata:
+      aws:cdk:path: my-stack-dev/MonoRepoS3ConfigCloudFormationResourceFunction/Resource
+      aws:asset:path: asset.14906733a7028584bef5a647e873dc1db7b35edd31150612db0b0942b064717a
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  AccessLogD598EBE9:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /aws/api/GitHubIntegrationS3
+      RetentionInDays: 1
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: my-stack-dev/AccessLog/Resource
+  HttpApiF5A9A8A7:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: HttpApi
+      ProtocolType: HTTP
+    Metadata:
+      aws:cdk:path: my-stack-dev/HttpApi/Resource
+  HttpApiDefaultStage3EEB07D6:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: HttpApiF5A9A8A7
+      StageName: $default
+      AccessLogSettings:
+        DestinationArn:
+          Fn::GetAtt:
+            - AccessLogD598EBE9
+            - Arn
+        Format: '{"requestId":"$context.requestId","userAgent":"$context.identity.userAgent","sourceIp":"$context.identity.sourceIp","requestTime":"$context.requestTime","requestTimeEpoch":"$context.requestTimeEpoch","httpMethod":"$context.httpMethod","path":"$context.path","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength","domainName":"$context.domainName"}'
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: my-stack-dev/HttpApi/DefaultStage/Resource
+  HttpApiPOSTjingood2pushWebhookIntegrationPermissionDD8D0DD1:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - GitHubWebhookFunctionA7279CB5
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: HttpApiF5A9A8A7
+            - /*/*/jingood2/push
+    Metadata:
+      aws:cdk:path: my-stack-dev/HttpApi/POST--jingood2--push/WebhookIntegration-Permission
+  HttpApiPOSTjingood2pushWebhookIntegration93750501:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: HttpApiF5A9A8A7
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::GetAtt:
+          - GitHubWebhookFunctionA7279CB5
+          - Arn
+      PayloadFormatVersion: "2.0"
+    Metadata:
+      aws:cdk:path: my-stack-dev/HttpApi/POST--jingood2--push/WebhookIntegration/Resource
+  HttpApiPOSTjingood2push149EC4A4:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: HttpApiF5A9A8A7
+      RouteKey: POST /jingood2/push
+      AuthorizationType: NONE
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: HttpApiPOSTjingood2pushWebhookIntegration93750501
+    Metadata:
+      aws:cdk:path: my-stack-dev/HttpApi/POST--jingood2--push/Resource
+  ApiGWLogWriterRole70F203A0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: my-stack-dev/ApiGWLogWriterRole/Resource
+  ApiGWLogWriterRoleDefaultPolicy66970765:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:DescribeLogGroups
+              - logs:DescribeLogStreams
+              - logs:PutLogEvents
+              - logs:GetLogEvents
+              - logs:FilterLogEvents
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AccessLogD598EBE9
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ApiGWLogWriterRoleDefaultPolicy66970765
+      Roles:
+        - Ref: ApiGWLogWriterRole70F203A0
+    Metadata:
+      aws:cdk:path: my-stack-dev/ApiGWLogWriterRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/12Py2rDMBBFvyV7eYLtTZZNAn1Aocb9AlWeGsW2ZDSjhCD87/XIDZSu7hlxpLkqoawPUO2e9I0K0w37ZHxASJ+szaDO367RQU/IGNTZO+IQDasjEfJq9Nb14nxEniMLtUg+BoPCq99Ztt4tSh5PVEM6RTNgNn9pi5MmXNSop69OQ3qOzsg90f5yg2GyRPlFqydIrR/zppyNH625Zy/ToqgutDQlyIXV6HuC9O77l+DjLOaD14az7TXjTd+vFaRX5vk4W1EkZJTv5mUbyFHrI2/05hj7oB9F/43ZW5ZFOd8hXGh/LQ9QVlDuLmRtEaJjOyG0W/4AB+fzRJIBAAA=
+    Metadata:
+      aws:cdk:path: my-stack-dev/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  GitHubWebhookEndpoint:
+    Description: GitHub webhook endpoint URL
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: HttpApiF5A9A8A7
+          - .execute-api.ap-northeast-2.amazonaws.com/jingood2/push
+  HttpApiId:
+    Description: HTTP API Id
+    Value:
+      Ref: HttpApiF5A9A8A7
+  MonoRepoS3RoleOut:
+    Description: Role ARN for S3 CF resource
+    Value:
+      Fn::GetAtt:
+        - MonoRepoS3Role551F4FA9
+        - Arn
+  MonoRepoS3ConfigCloudFormationResourceFunctionOutput:
+    Description: Role ARN for mono repo cloud formation s3 config function
+    Value:
+      Fn::GetAtt:
+        - MonoRepoS3ConfigCloudFormationResourceFunction37E10E88
+        - Arn
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

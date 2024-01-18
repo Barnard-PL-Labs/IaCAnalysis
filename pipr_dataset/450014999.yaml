@@ -1,0 +1,809 @@
+Resources:
+  SnsCostAllocationPipelineArtifactsBucketD7088852:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/ArtifactsBucket/Resource
+  SnsCostAllocationPipelineArtifactsBucketPolicy48AC6C57:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: SnsCostAllocationPipelineArtifactsBucketD7088852
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - SnsCostAllocationPipelineArtifactsBucketD7088852
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SnsCostAllocationPipelineArtifactsBucketD7088852
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+            Resource:
+              - Fn::GetAtt:
+                  - SnsCostAllocationPipelineArtifactsBucketD7088852
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SnsCostAllocationPipelineArtifactsBucketD7088852
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/ArtifactsBucket/Policy/Resource
+  SnsCostAllocationPipelineRoleED20BD06:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Role/Resource
+  SnsCostAllocationPipelineRoleDefaultPolicy1282237D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SnsCostAllocationPipelineArtifactsBucketD7088852
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SnsCostAllocationPipelineArtifactsBucketD7088852
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SnsCostAllocationPipelineBuildSynthCodePipelineActionRoleAC6D77F2
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SnsCostAllocationPipelineUpdatePipelineSelfMutateCodePipelineActionRoleCB85CA7A
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SnsCostAllocationPipelineAssetsFileAsset1CodePipelineActionRole9762E31A
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":iam::"
+                  - Ref: AWS::AccountId
+                  - :role/cdk-hnb659fds-deploy-role-
+                  - Ref: AWS::AccountId
+                  - "-"
+                  - Ref: AWS::Region
+        Version: "2012-10-17"
+      PolicyName: SnsCostAllocationPipelineRoleDefaultPolicy1282237D
+      Roles:
+        - Ref: SnsCostAllocationPipelineRoleED20BD06
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Role/DefaultPolicy/Resource
+  SnsCostAllocationPipeline4C2657D6:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - SnsCostAllocationPipelineRoleED20BD06
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: cabcookie
+                Repo: sns-cost-allocation
+                Branch: main
+                OAuthToken: "{{resolve:secretsmanager:github-token:SecretString:::}}"
+                PollForSourceChanges: false
+              Name: cabcookie_sns-cost-allocation
+              OutputArtifacts:
+                - Name: cabcookie_sns_cost_allocation_Source
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: SnsCostAllocationPipelineBuildSynthCdkBuildProject3F926DBC
+                EnvironmentVariables: '[{"name":"_PROJECT_CONFIG_HASH","type":"PLAINTEXT","value":"00ebacfb32b1bde8d3638577308e7b7144dfa3b0a58a83bc6ff38a3b1f26951c"}]'
+              InputArtifacts:
+                - Name: cabcookie_sns_cost_allocation_Source
+              Name: Synth
+              OutputArtifacts:
+                - Name: Synth_Output
+              RoleArn:
+                Fn::GetAtt:
+                  - SnsCostAllocationPipelineBuildSynthCodePipelineActionRoleAC6D77F2
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: SnsCostAllocationPipelineUpdatePipelineSelfMutation6B5ED3F3
+                EnvironmentVariables: '[{"name":"_PROJECT_CONFIG_HASH","type":"PLAINTEXT","value":"d2bb8aac42e380fc040dccfe8ca1e4eab3b65f74b47af0e47ca64eab34f08964"}]'
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: SelfMutate
+              RoleArn:
+                Fn::GetAtt:
+                  - SnsCostAllocationPipelineUpdatePipelineSelfMutateCodePipelineActionRoleCB85CA7A
+                  - Arn
+              RunOrder: 1
+          Name: UpdatePipeline
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: SnsCostAllocationPipelineAssetsFileAsset1472B5A7C
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: FileAsset1
+              RoleArn:
+                Fn::GetAtt:
+                  - SnsCostAllocationPipelineAssetsFileAsset1CodePipelineActionRole9762E31A
+                  - Arn
+              RunOrder: 1
+          Name: Assets
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: LambdaToSendSms-HandleSnsSmsMessagesStack
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":iam::"
+                      - Ref: AWS::AccountId
+                      - :role/cdk-hnb659fds-cfn-exec-role-
+                      - Ref: AWS::AccountId
+                      - "-"
+                      - Ref: AWS::Region
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: PipelineChange
+                TemplatePath: Synth_Output::assembly-SnsCostAllocationStack-LambdaToSendSms/SnsCostAllocationStackLambdaToSendSmsHandleSnsSmsMessagesStackCEDFF63B.template.json
+              InputArtifacts:
+                - Name: Synth_Output
+              Name: Prepare
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: LambdaToSendSms-HandleSnsSmsMessagesStack
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: PipelineChange
+              Name: Deploy
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 2
+          Name: LambdaToSendSms
+      ArtifactStore:
+        Location:
+          Ref: SnsCostAllocationPipelineArtifactsBucketD7088852
+        Type: S3
+      Name: SnsCostAllocation
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - SnsCostAllocationPipelineRoleDefaultPolicy1282237D
+      - SnsCostAllocationPipelineRoleED20BD06
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Resource
+  SnsCostAllocationPipelineSourcecabcookiesnscostallocationWebhookResource81BBE94D:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: "{{resolve:secretsmanager:github-token:SecretString:::}}"
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetAction: cabcookie_sns-cost-allocation
+      TargetPipeline:
+        Ref: SnsCostAllocationPipeline4C2657D6
+      TargetPipelineVersion: 1
+      RegisterWithThirdParty: true
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Source/cabcookie_sns-cost-allocation/WebhookResource
+  SnsCostAllocationPipelineBuildSynthCdkBuildProjectRole1CEA91AA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Build/Synth/CdkBuildProject/Role/Resource
+  SnsCostAllocationPipelineBuildSynthCdkBuildProjectRoleDefaultPolicyE590B162:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: SnsCostAllocationPipelineBuildSynthCdkBuildProject3F926DBC
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: SnsCostAllocationPipelineBuildSynthCdkBuildProject3F926DBC
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: SnsCostAllocationPipelineBuildSynthCdkBuildProject3F926DBC
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SnsCostAllocationPipelineArtifactsBucketD7088852
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SnsCostAllocationPipelineArtifactsBucketD7088852
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: SnsCostAllocationPipelineBuildSynthCdkBuildProjectRoleDefaultPolicyE590B162
+      Roles:
+        - Ref: SnsCostAllocationPipelineBuildSynthCdkBuildProjectRole1CEA91AA
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Build/Synth/CdkBuildProject/Role/DefaultPolicy/Resource
+  SnsCostAllocationPipelineBuildSynthCdkBuildProject3F926DBC:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - SnsCostAllocationPipelineBuildSynthCdkBuildProjectRole1CEA91AA
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "build": {
+                "commands": [
+                  "npm ci",
+                  "npm run build",
+                  "npx cdk synth"
+                ]
+              }
+            },
+            "artifacts": {
+              "base-directory": "cdk.out",
+              "files": "**/*"
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Build/Synth/CdkBuildProject/Resource
+  SnsCostAllocationPipelineBuildSynthCodePipelineActionRoleAC6D77F2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Build/Synth/CodePipelineActionRole/Resource
+  SnsCostAllocationPipelineBuildSynthCodePipelineActionRoleDefaultPolicyF1A957A9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SnsCostAllocationPipelineBuildSynthCdkBuildProject3F926DBC
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: SnsCostAllocationPipelineBuildSynthCodePipelineActionRoleDefaultPolicyF1A957A9
+      Roles:
+        - Ref: SnsCostAllocationPipelineBuildSynthCodePipelineActionRoleAC6D77F2
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Build/Synth/CodePipelineActionRole/DefaultPolicy/Resource
+  SnsCostAllocationPipelineUpdatePipelineSelfMutateCodePipelineActionRoleCB85CA7A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/UpdatePipeline/SelfMutate/CodePipelineActionRole/Resource
+  SnsCostAllocationPipelineUpdatePipelineSelfMutateCodePipelineActionRoleDefaultPolicyDEF38486:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SnsCostAllocationPipelineUpdatePipelineSelfMutation6B5ED3F3
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: SnsCostAllocationPipelineUpdatePipelineSelfMutateCodePipelineActionRoleDefaultPolicyDEF38486
+      Roles:
+        - Ref: SnsCostAllocationPipelineUpdatePipelineSelfMutateCodePipelineActionRoleCB85CA7A
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/UpdatePipeline/SelfMutate/CodePipelineActionRole/DefaultPolicy/Resource
+  SnsCostAllocationPipelineAssetsFileAsset1CodePipelineActionRole9762E31A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Assets/FileAsset1/CodePipelineActionRole/Resource
+  SnsCostAllocationPipelineAssetsFileAsset1CodePipelineActionRoleDefaultPolicyC103C4AA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SnsCostAllocationPipelineAssetsFileAsset1472B5A7C
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: SnsCostAllocationPipelineAssetsFileAsset1CodePipelineActionRoleDefaultPolicyC103C4AA
+      Roles:
+        - Ref: SnsCostAllocationPipelineAssetsFileAsset1CodePipelineActionRole9762E31A
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Pipeline/Assets/FileAsset1/CodePipelineActionRole/DefaultPolicy/Resource
+  SnsCostAllocationPipelineUpdatePipelineSelfMutationRole273EAA61:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/UpdatePipeline/SelfMutation/Role/Resource
+  SnsCostAllocationPipelineUpdatePipelineSelfMutationRoleDefaultPolicy7318863C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: SnsCostAllocationPipelineUpdatePipelineSelfMutation6B5ED3F3
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: SnsCostAllocationPipelineUpdatePipelineSelfMutation6B5ED3F3
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: SnsCostAllocationPipelineUpdatePipelineSelfMutation6B5ED3F3
+                  - -*
+          - Action: sts:AssumeRole
+            Condition:
+              ForAnyValue:StringEquals:
+                iam:ResourceTag/aws-cdk:bootstrap-role:
+                  - image-publishing
+                  - file-publishing
+                  - deploy
+            Effect: Allow
+            Resource: arn:*:iam::036406153779:role/*
+          - Action: cloudformation:DescribeStacks
+            Effect: Allow
+            Resource: "*"
+          - Action: s3:ListBucket
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SnsCostAllocationPipelineArtifactsBucketD7088852
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SnsCostAllocationPipelineArtifactsBucketD7088852
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: SnsCostAllocationPipelineUpdatePipelineSelfMutationRoleDefaultPolicy7318863C
+      Roles:
+        - Ref: SnsCostAllocationPipelineUpdatePipelineSelfMutationRole273EAA61
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/UpdatePipeline/SelfMutation/Role/DefaultPolicy/Resource
+  SnsCostAllocationPipelineUpdatePipelineSelfMutation6B5ED3F3:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - SnsCostAllocationPipelineUpdatePipelineSelfMutationRole273EAA61
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g aws-cdk"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk -a . deploy SnsCostAllocationStack --require-approval=never --verbose"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+      Name: SnsCostAllocation-selfupdate
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/UpdatePipeline/SelfMutation/Resource
+  SnsCostAllocationPipelineAssetsFileRoleDC069790:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Assets/FileRole/Resource
+  SnsCostAllocationPipelineAssetsFileRoleDefaultPolicyDA66E109:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :logs:us-east-1:036406153779:log-group:/aws/codebuild/*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/*
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource: "*"
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-file-publishing-role-${AWS::AccountId}-${AWS::Region}
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SnsCostAllocationPipelineArtifactsBucketD7088852
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SnsCostAllocationPipelineArtifactsBucketD7088852
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: SnsCostAllocationPipelineAssetsFileRoleDefaultPolicyDA66E109
+      Roles:
+        - Ref: SnsCostAllocationPipelineAssetsFileRoleDC069790
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Assets/FileRole/DefaultPolicy/Resource
+  SnsCostAllocationPipelineAssetsFileAsset1472B5A7C:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - SnsCostAllocationPipelineAssetsFileRoleDC069790
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-SnsCostAllocationStack-LambdaToSendSms/SnsCostAllocationStackLambdaToSendSmsHandleSnsSmsMessagesStackCEDFF63B.assets.json\" --verbose publish \"aab9b4229bdb4e7e9a850ca90d2507c653ab838a11377ee5d30e72265b0fe753:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/SnsCostAllocationPipeline/Assets/FileAsset1/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01OSw6CMBA9C/syCm5YywUILlwaKGMcWltCqcY0vbtAi7h6n3kz83Io4Jg0b5PyTqSSWnCXqeGCDTSgJIUGSt1hFRWbkzfHZ2ebg/vNyrv651dsH1oLz8wJ3NlygdNiRxag0pL4Z7eD9oyaJ7hay/XQintyyywtWkuy2ytUo+6Rr28i9Z7VaLQdeTgVuWdq3obeHF5ZAVkOWdIbonS0aqInQh3wCy4RSnMeAQAA
+    Metadata:
+      aws:cdk:path: SnsCostAllocationStack/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

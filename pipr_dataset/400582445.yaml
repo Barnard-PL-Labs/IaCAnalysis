@@ -1,0 +1,370 @@
+Resources:
+  SimpleCrudApiTableD1372E57:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: http-crud-tutorial-items
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApiTable/Resource
+  SimpleCrudApiFunctionServiceRole2B5C1639:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApiFunction/ServiceRole/Resource
+  SimpleCrudApiFunctionServiceRoleDefaultPolicy1A02E31C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SimpleCrudApiTableD1372E57
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: SimpleCrudApiFunctionServiceRoleDefaultPolicy1A02E31C
+      Roles:
+        - Ref: SimpleCrudApiFunctionServiceRole2B5C1639
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApiFunction/ServiceRole/DefaultPolicy/Resource
+  SimpleCrudApiFunction1E3DFD26:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters020aea64acff9df754862860b36ef7e4bfa85810f1ecc487c4a128bc250fcfaeS3Bucket06C08B04
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters020aea64acff9df754862860b36ef7e4bfa85810f1ecc487c4a128bc250fcfaeS3VersionKey160C18B4
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters020aea64acff9df754862860b36ef7e4bfa85810f1ecc487c4a128bc250fcfaeS3VersionKey160C18B4
+      Role:
+        Fn::GetAtt:
+          - SimpleCrudApiFunctionServiceRole2B5C1639
+          - Arn
+      FunctionName: http-crud-tutorial-function
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - SimpleCrudApiFunctionServiceRoleDefaultPolicy1A02E31C
+      - SimpleCrudApiFunctionServiceRole2B5C1639
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApiFunction/Resource
+      aws:asset:path: asset.020aea64acff9df754862860b36ef7e4bfa85810f1ecc487c4a128bc250fcfae
+      aws:asset:property: Code
+  SimpleCrudApi406D4DE7:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: http-crud-tutorial-api
+      ProtocolType: HTTP
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/Resource
+  SimpleCrudApiDefaultStage741651E8:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: SimpleCrudApi406D4DE7
+      StageName: $default
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/DefaultStage/Resource
+  SimpleCrudApiGETitemsSimpleCrudApiStackSimpleCrudApiGETitems0D8A8838PermissionAD3ABC1F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - SimpleCrudApiFunction1E3DFD26
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: SimpleCrudApi406D4DE7
+            - /*/*/items
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/GET--items/SimpleCrudApiStackSimpleCrudApiGETitems0D8A8838-Permission
+  SimpleCrudApiGETitemsHttpIntegration930237f0d044f1621c4f2ebaa09c8c23F71DC90C:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: SimpleCrudApi406D4DE7
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::GetAtt:
+          - SimpleCrudApiFunction1E3DFD26
+          - Arn
+      PayloadFormatVersion: "2.0"
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/GET--items/HttpIntegration-930237f0d044f1621c4f2ebaa09c8c23/Resource
+  SimpleCrudApiGETitems3E7F322A:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: SimpleCrudApi406D4DE7
+      RouteKey: GET /items
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: SimpleCrudApiGETitemsHttpIntegration930237f0d044f1621c4f2ebaa09c8c23F71DC90C
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/GET--items/Resource
+  SimpleCrudApiGETitemsidSimpleCrudApiStackSimpleCrudApiGETitemsidF09DE799PermissionC3BC18CF:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - SimpleCrudApiFunction1E3DFD26
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: SimpleCrudApi406D4DE7
+            - /*/*/items/{id}
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/GET--items--{id}/SimpleCrudApiStackSimpleCrudApiGETitemsidF09DE799-Permission
+  SimpleCrudApiGETitemsid637EF556:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: SimpleCrudApi406D4DE7
+      RouteKey: GET /items/{id}
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: SimpleCrudApiGETitemsHttpIntegration930237f0d044f1621c4f2ebaa09c8c23F71DC90C
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/GET--items--{id}/Resource
+  SimpleCrudApiPUTitemsSimpleCrudApiStackSimpleCrudApiPUTitems0FCFBB21Permission03D0D846:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - SimpleCrudApiFunction1E3DFD26
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: SimpleCrudApi406D4DE7
+            - /*/*/items
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/PUT--items/SimpleCrudApiStackSimpleCrudApiPUTitems0FCFBB21-Permission
+  SimpleCrudApiPUTitemsA29CC2F6:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: SimpleCrudApi406D4DE7
+      RouteKey: PUT /items
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: SimpleCrudApiGETitemsHttpIntegration930237f0d044f1621c4f2ebaa09c8c23F71DC90C
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/PUT--items/Resource
+  SimpleCrudApiDELETEitemsidSimpleCrudApiStackSimpleCrudApiDELETEitemsid3E52B80DPermission1682EA38:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - SimpleCrudApiFunction1E3DFD26
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: SimpleCrudApi406D4DE7
+            - /*/*/items/{id}
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/DELETE--items--{id}/SimpleCrudApiStackSimpleCrudApiDELETEitemsid3E52B80D-Permission
+  SimpleCrudApiDELETEitemsid761DC939:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: SimpleCrudApi406D4DE7
+      RouteKey: DELETE /items/{id}
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: SimpleCrudApiGETitemsHttpIntegration930237f0d044f1621c4f2ebaa09c8c23F71DC90C
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/SimpleCrudApi/DELETE--items--{id}/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE11Py27DIBD8ltzxJk4uPTaKVLWnWm5/YA3UIjFgsUsiC/HvNVitqp7mwcyy20J7OMFh94wPaqS67ZP0QUP6YJQ30WvyMUgtzkSaV280bhQX74hDlCwuX67DgFazDkW8R55jtX+bK1/zyrDxLovyS1KLQ+vVAOkTh6lGKsliQjsohPQSnSyF8vSXdzpYQ1RHGbSQer/1K3Z+MnKpucqyoFODZXOCeoDA2YzI+oHL/QjplXk+z6YUChRZTqwDN1Ks3kfe2JtjPQb8WeafrLmcs3BeabjS/t4+QXuEdnclY5oQHRurod/wG4RR4xx4AQAA
+    Metadata:
+      aws:cdk:path: SimpleCrudApiStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters020aea64acff9df754862860b36ef7e4bfa85810f1ecc487c4a128bc250fcfaeS3Bucket06C08B04:
+    Type: String
+    Description: S3 bucket for asset "020aea64acff9df754862860b36ef7e4bfa85810f1ecc487c4a128bc250fcfae"
+  AssetParameters020aea64acff9df754862860b36ef7e4bfa85810f1ecc487c4a128bc250fcfaeS3VersionKey160C18B4:
+    Type: String
+    Description: S3 key for asset version "020aea64acff9df754862860b36ef7e4bfa85810f1ecc487c4a128bc250fcfae"
+  AssetParameters020aea64acff9df754862860b36ef7e4bfa85810f1ecc487c4a128bc250fcfaeArtifactHashE0BC7BE5:
+    Type: String
+    Description: Artifact hash for asset "020aea64acff9df754862860b36ef7e4bfa85810f1ecc487c4a128bc250fcfae"
+Outputs:
+  APIGatewayEndpoint:
+    Description: The endpoint url of the API Gateway
+    Value:
+      Fn::GetAtt:
+        - SimpleCrudApi406D4DE7
+        - ApiEndpoint
+    Export:
+      Name: APIGatewayEndpoint
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

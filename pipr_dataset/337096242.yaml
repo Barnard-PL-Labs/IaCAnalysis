@@ -1,0 +1,637 @@
+Resources:
+  HonkVpcD376C43E:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: Honk-dev/HonkVpc
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/Resource
+  HonkVpcisolatedSubnet1Subnet136EDD46:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId:
+        Ref: HonkVpcD376C43E
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      CidrBlock: 10.0.0.0/24
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: isolated
+        - Key: aws-cdk:subnet-type
+          Value: Isolated
+        - Key: Name
+          Value: Honk-dev/HonkVpc/isolatedSubnet1
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/isolatedSubnet1/Subnet
+  HonkVpcisolatedSubnet1RouteTable9142973A:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: HonkVpcD376C43E
+      Tags:
+        - Key: Name
+          Value: Honk-dev/HonkVpc/isolatedSubnet1
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/isolatedSubnet1/RouteTable
+  HonkVpcisolatedSubnet1RouteTableAssociation099DE794:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: HonkVpcisolatedSubnet1RouteTable9142973A
+      SubnetId:
+        Ref: HonkVpcisolatedSubnet1Subnet136EDD46
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/isolatedSubnet1/RouteTableAssociation
+  HonkVpcS3EndpointE9E68EFD:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .s3
+      VpcId:
+        Ref: HonkVpcD376C43E
+      RouteTableIds:
+        - Ref: HonkVpcisolatedSubnet1RouteTable9142973A
+      VpcEndpointType: Gateway
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/S3Endpoint/Resource
+  HonkVpcEcrEndpointSecurityGroupEC5D118A:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Honk-dev/HonkVpc/EcrEndpoint/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - HonkVpcD376C43E
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - HonkVpcD376C43E
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      Tags:
+        - Key: Name
+          Value: Honk-dev/HonkVpc
+      VpcId:
+        Ref: HonkVpcD376C43E
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/EcrEndpoint/SecurityGroup/Resource
+  HonkVpcEcrEndpointF9E503B3:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .ecr.api
+      VpcId:
+        Ref: HonkVpcD376C43E
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - HonkVpcEcrEndpointSecurityGroupEC5D118A
+            - GroupId
+      SubnetIds:
+        - Ref: HonkVpcisolatedSubnet1Subnet136EDD46
+      VpcEndpointType: Interface
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/EcrEndpoint/Resource
+  HonkVpcEcrDockerEndpointSecurityGroupE6BF81E9:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Honk-dev/HonkVpc/EcrDockerEndpoint/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - HonkVpcD376C43E
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - HonkVpcD376C43E
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      Tags:
+        - Key: Name
+          Value: Honk-dev/HonkVpc
+      VpcId:
+        Ref: HonkVpcD376C43E
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/EcrDockerEndpoint/SecurityGroup/Resource
+  HonkVpcEcrDockerEndpointC9C153F1:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .ecr.dkr
+      VpcId:
+        Ref: HonkVpcD376C43E
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - HonkVpcEcrDockerEndpointSecurityGroupE6BF81E9
+            - GroupId
+      SubnetIds:
+        - Ref: HonkVpcisolatedSubnet1Subnet136EDD46
+      VpcEndpointType: Interface
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/EcrDockerEndpoint/Resource
+  HonkVpcLogsEndpointSecurityGroup75E839C3:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Honk-dev/HonkVpc/LogsEndpoint/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - HonkVpcD376C43E
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - HonkVpcD376C43E
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      Tags:
+        - Key: Name
+          Value: Honk-dev/HonkVpc
+      VpcId:
+        Ref: HonkVpcD376C43E
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/LogsEndpoint/SecurityGroup/Resource
+  HonkVpcLogsEndpoint93D1BDC2:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .logs
+      VpcId:
+        Ref: HonkVpcD376C43E
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - HonkVpcLogsEndpointSecurityGroup75E839C3
+            - GroupId
+      SubnetIds:
+        - Ref: HonkVpcisolatedSubnet1Subnet136EDD46
+      VpcEndpointType: Interface
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/LogsEndpoint/Resource
+  HonkVpcApiGatewayEndpointSecurityGroup8B42561D:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Honk-dev/HonkVpc/ApiGatewayEndpoint/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - HonkVpcD376C43E
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - HonkVpcD376C43E
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      Tags:
+        - Key: Name
+          Value: Honk-dev/HonkVpc
+      VpcId:
+        Ref: HonkVpcD376C43E
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/ApiGatewayEndpoint/SecurityGroup/Resource
+  HonkVpcApiGatewayEndpoint9F70AFE0:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .execute-api
+      VpcId:
+        Ref: HonkVpcD376C43E
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - HonkVpcApiGatewayEndpointSecurityGroup8B42561D
+            - GroupId
+      SubnetIds:
+        - Ref: HonkVpcisolatedSubnet1Subnet136EDD46
+      VpcEndpointType: Interface
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpc/ApiGatewayEndpoint/Resource
+  HonkVpcLink1E20D3F5:
+    Type: AWS::ApiGatewayV2::VpcLink
+    Properties:
+      Name: HonkdevHonkVpcLinkE6E02146
+      SubnetIds:
+        - Ref: HonkVpcisolatedSubnet1Subnet136EDD46
+      SecurityGroupIds: []
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkVpcLink/Resource
+  HonkDnsNamespaceFAE6A099:
+    Type: AWS::ServiceDiscovery::PrivateDnsNamespace
+    Properties:
+      Name: honk.local
+      Vpc:
+        Ref: HonkVpcD376C43E
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkDnsNamespace/Resource
+  HonkCluster2F84F48A:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkCluster/Resource
+  HonkCluster2976C006:
+    Type: AWS::ECS::ClusterCapacityProviderAssociations
+    Properties:
+      CapacityProviders:
+        - FARGATE
+        - FARGATE_SPOT
+      Cluster:
+        Ref: HonkCluster2F84F48A
+      DefaultCapacityProviderStrategy: []
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkCluster/HonkCluster
+  HonkTaskDefinitionTaskRole091835B6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkTaskDefinition/TaskRole/Resource
+  HonkTaskDefinitionD75F5611:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Essential: true
+          Image:
+            Fn::Sub: ${AWS::AccountId}.dkr.ecr.${AWS::Region}.${AWS::URLSuffix}/cdk-hnb659fds-container-assets-${AWS::AccountId}-${AWS::Region}:617e7ac2e29da8b58f2b950947fc267dee76de403183fe21e9e3ffe2298ff628
+          Name: HonkContainer
+          PortMappings:
+            - ContainerPort: 8080
+              Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - HonkTaskDefinitionExecutionRoleD5BE0128
+          - Arn
+      Family: HonkdevHonkTaskDefinition0E4D23EE
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - HonkTaskDefinitionTaskRole091835B6
+          - Arn
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkTaskDefinition/Resource
+  HonkTaskDefinitionExecutionRoleD5BE0128:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkTaskDefinition/ExecutionRole/Resource
+  HonkTaskDefinitionExecutionRoleDefaultPolicyB6B2A74F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ecr:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :repository/
+                  - Fn::Sub: cdk-hnb659fds-container-assets-${AWS::AccountId}-${AWS::Region}
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: HonkTaskDefinitionExecutionRoleDefaultPolicyB6B2A74F
+      Roles:
+        - Ref: HonkTaskDefinitionExecutionRoleD5BE0128
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkTaskDefinition/ExecutionRole/DefaultPolicy/Resource
+  HonkServiceSecurityGroupE7D11BF8:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow traffic to Fargate HTTP API service.
+      GroupName: HonkServiceSecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - HonkVpcD376C43E
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - HonkVpcD376C43E
+                    - CidrBlock
+                - :8080
+          FromPort: 8080
+          IpProtocol: tcp
+          ToPort: 8080
+      VpcId:
+        Ref: HonkVpcD376C43E
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkServiceSecurityGroup/Resource
+  HonkServiceE05456A1:
+    Type: AWS::ECS::Service
+    Properties:
+      CapacityProviderStrategy:
+        - CapacityProvider: FARGATE_SPOT
+          Weight: 1
+        - CapacityProvider: FARGATE
+          Weight: 0
+      Cluster:
+        Ref: HonkCluster2F84F48A
+      DeploymentConfiguration:
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DeploymentController:
+        Type: ECS
+      DesiredCount: 1
+      EnableECSManagedTags: false
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::GetAtt:
+                - HonkServiceSecurityGroupE7D11BF8
+                - GroupId
+          Subnets:
+            - Ref: HonkVpcisolatedSubnet1Subnet136EDD46
+      PlatformVersion: 1.4.0
+      ServiceRegistries:
+        - ContainerName: HonkContainer
+          ContainerPort: 8080
+          RegistryArn:
+            Fn::GetAtt:
+              - HonkServiceCloudmapService7F34DD23
+              - Arn
+      TaskDefinition:
+        Ref: HonkTaskDefinitionD75F5611
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkService/Service
+  HonkServiceCloudmapService7F34DD23:
+    Type: AWS::ServiceDiscovery::Service
+    Properties:
+      DnsConfig:
+        DnsRecords:
+          - TTL: 60
+            Type: SRV
+        NamespaceId:
+          Fn::GetAtt:
+            - HonkDnsNamespaceFAE6A099
+            - Id
+        RoutingPolicy: MULTIVALUE
+      HealthCheckCustomConfig:
+        FailureThreshold: 1
+      Name: service
+      NamespaceId:
+        Fn::GetAtt:
+          - HonkDnsNamespaceFAE6A099
+          - Id
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkService/CloudmapService/Resource
+  HonkAPID51E51C0:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: HonkAPI
+      ProtocolType: HTTP
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkAPI/Resource
+  HonkAPIDefaultRouteHonkServiceDiscoveryIntegrationB5481B85:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: HonkAPID51E51C0
+      IntegrationType: HTTP_PROXY
+      ConnectionId:
+        Ref: HonkVpcLink1E20D3F5
+      ConnectionType: VPC_LINK
+      IntegrationMethod: ANY
+      IntegrationUri:
+        Fn::GetAtt:
+          - HonkServiceCloudmapService7F34DD23
+          - Arn
+      PayloadFormatVersion: "1.0"
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkAPI/DefaultRoute/HonkServiceDiscoveryIntegration/Resource
+  HonkAPIDefaultRoute4D60516B:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: HonkAPID51E51C0
+      RouteKey: $default
+      AuthorizationType: NONE
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: HonkAPIDefaultRouteHonkServiceDiscoveryIntegrationB5481B85
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkAPI/DefaultRoute/Resource
+  HonkAPIDefaultStage3263CAD2:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: HonkAPID51E51C0
+      StageName: $default
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: Honk-dev/HonkAPI/DefaultStage/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21SwW7bMAz9lt4VNQkGbMdlydYVGLbAKXotGJnJWDuSIEouDMP/PtF2FmPridQT9fTIx7XuPiz18g7eeGHKalHTUXeHCKZSGXrp0Kx19+yN2p7s836r9oEaiHhIR4tRwFtWuBTxCY413vAbtmF2hiCSs+ohM7xBm2m/2tI7snGi/3t8tBHDCQzOaw5oUqDYPgSX/PDHHOgVeDqPzE0WLYze/CBbSenGkwThPYdRxVXywBThjL1iDA0ZLImNazC0upv63Vn+CRdknyVJ/XvwYXw8ChvSXqHhrKROnNuRi//TLeTHuYd9cA2VGGZzYvUNgnT0BFzt8ESWrsL/RZyNQBbDDJvevqeK4KK7wo1GDXHvajLt0NmQifLwAswYWe+cqTA8XvKINoLInS7QO6boQvsFOHMWyC6F/NFQIvMkexbCXyn6NC7ItUS6d7YcdPZq9VEvF1D735D38PO0iPcS54ZOFd3V0+8xejFV4mijZHN/5Tz62ivrStSvfN+sPunVWq/uXploEZKNdEFdjPEPT4C34gwDAAA=
+    Metadata:
+      aws:cdk:path: Honk-dev/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  Url:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: HonkAPID51E51C0
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

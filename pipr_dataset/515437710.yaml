@@ -1,0 +1,2728 @@
+Description: Distributed Load Testing for Pulse-ALP. Version CODE_VERSION
+AWSTemplateFormatVersion: "2010-09-09"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: Console access
+        Parameters:
+          - AdminName
+          - AdminEmail
+      - Label:
+          default: Enter values here to use your own existing VPC
+        Parameters:
+          - ExistingVPCId
+          - ExistingSubnetA
+          - ExistingSubnetB
+      - Label:
+          default: Or have the solution create a new AWS Fargate VPC
+        Parameters:
+          - VpcCidrBlock
+          - SubnetACidrBlock
+          - SubnetBCidrBlock
+          - EgressCidr
+    ParameterLabels:
+      AdminName:
+        default: "* Console Administrator Name"
+      AdminEmail:
+        default: "* Console Administrator Email"
+      ExistingVPCId:
+        default: "The ID of an existing VPC in this region. Ex: `vpc-1a2b3c4d5e6f`"
+      ExistingSubnetA:
+        default: "The ID of a subnet within the existing VPC. Ex: `subnet-7h8i9j0k`"
+      ExistingSubnetB:
+        default: "The ID of a subnet within the existing VPC. Ex: `subnet-1x2y3z`"
+      VpcCidrBlock:
+        default: AWS Fargate VPC CIDR Block
+      SubnetACidrBlock:
+        default: AWS Fargate Subnet A CIDR Block
+      SubnetBCidrBlock:
+        default: AWS Fargate Subnet A CIDR Block
+      EgressCidr:
+        default: AWS Fargate SecurityGroup CIDR Block
+Parameters:
+  AdminName:
+    Type: String
+    AllowedPattern: "[a-zA-Z0-9-]+"
+    ConstraintDescription: Admin username must be a minimum of 4 characters and cannot include spaces
+    Description: Admin user name to access the Distributed Load Testing console
+    MaxLength: 20
+    MinLength: 4
+  AdminEmail:
+    Type: String
+    AllowedPattern: ^[_A-Za-z0-9-\+]+(\.[_A-Za-z0-9-]+)*@[A-Za-z0-9-]+(\.[A-Za-z0-9]+)*(\.[A-Za-z]{2,})$
+    ConstraintDescription: Admin email must be a valid email address
+    Description: Admin user email address to access the Distributed Load Testing Console
+    MinLength: 5
+  ExistingVPCId:
+    Type: String
+    AllowedPattern: (?:^$|^vpc-[a-zA-Z0-9-]+)
+    Description: Existing VPC ID
+  ExistingSubnetA:
+    Type: String
+    AllowedPattern: (?:^$|^subnet-[a-zA-Z0-9-]+)
+    Description: First existing subnet
+  ExistingSubnetB:
+    Type: String
+    AllowedPattern: (?:^$|^subnet-[a-zA-Z0-9-]+)
+    Description: Second existing subnet
+  VpcCidrBlock:
+    Type: String
+    Default: 192.168.0.0/16
+    AllowedPattern: (?:^$|(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2}))
+    ConstraintDescription: The VPC CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.
+    Description: CIDR block of the new VPC where AWS Fargate will be placed
+    MaxLength: 18
+    MinLength: 9
+  SubnetACidrBlock:
+    Type: String
+    Default: 192.168.0.0/20
+    AllowedPattern: (?:^$|(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2}))
+    ConstraintDescription: The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.
+    Description: CIDR block for subnet A of the AWS Fargate VPC
+    MaxLength: 18
+    MinLength: 9
+  SubnetBCidrBlock:
+    Type: String
+    Default: 192.168.16.0/20
+    AllowedPattern: (?:^$|(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2}))
+    ConstraintDescription: The subnet CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.
+    Description: CIDR block for subnet B of the AWS Fargate VPC
+  EgressCidr:
+    Type: String
+    Default: 0.0.0.0/0
+    AllowedPattern: (?:^$|(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2}))
+    ConstraintDescription: The Egress CIDR block must be a valid IP CIDR range of the form x.x.x.x/x.
+    Description: CIDR Block to restrict the ECS container outbound access
+    MaxLength: 18
+    MinLength: 9
+Mappings:
+  Solution:
+    Config:
+      CodeVersion: CODE_VERSION
+      KeyPrefix: SOLUTION_NAME/CODE_VERSION
+      S3Bucket: CODE_BUCKET
+      SendAnonymousUsage: "Yes"
+      SolutionId: SO0062
+      URL: https://metrics.awssolutionsbuilder.com/generic
+Conditions:
+  SendAnonymousUsage:
+    Fn::Equals:
+      - Fn::FindInMap:
+          - Solution
+          - Config
+          - SendAnonymousUsage
+      - "Yes"
+  CreateFargateVPCResources:
+    Fn::Equals:
+      - Ref: ExistingVPCId
+      - ""
+  BoolExistingVPC:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: ExistingVPCId
+          - ""
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Resources:
+  DLTVpcDLTFargateVpc0E6FEAB7:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: VpcCidrBlock
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value:
+            Ref: AWS::StackName
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    Metadata:
+      aws:cdk:path: DLTStack/DLTVpc/DLTFargateVpc
+      cfn_nag:
+        rules_to_suppress:
+          - id: W60
+            reason: This VPC is used for the test runner Fargate tasks only, it does not require VPC flow logs.
+    Condition: CreateFargateVPCResources
+  DLTVpcDLTSubnetAAE7DDEE8:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock:
+        Ref: SubnetACidrBlock
+      VpcId:
+        Ref: DLTVpcDLTFargateVpc0E6FEAB7
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    Metadata:
+      aws:cdk:path: DLTStack/DLTVpc/DLTSubnetA
+    Condition: CreateFargateVPCResources
+  DLTVpcDLTSubnetB294F4ED2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock:
+        Ref: SubnetBCidrBlock
+      VpcId:
+        Ref: DLTVpcDLTFargateVpc0E6FEAB7
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    Metadata:
+      aws:cdk:path: DLTStack/DLTVpc/DLTSubnetB
+    Condition: CreateFargateVPCResources
+  DLTVpcDLTFargateIG0E71BA5C:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    Metadata:
+      aws:cdk:path: DLTStack/DLTVpc/DLTFargateIG
+    Condition: CreateFargateVPCResources
+  DLTVpcDLTFargateRT86406464:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: DLTVpcDLTFargateVpc0E6FEAB7
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    Metadata:
+      aws:cdk:path: DLTStack/DLTVpc/DLTFargateRT
+    Condition: CreateFargateVPCResources
+  DLTVpcDLTGatewayattachment220D400F:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: DLTVpcDLTFargateVpc0E6FEAB7
+      InternetGatewayId:
+        Ref: DLTVpcDLTFargateIG0E71BA5C
+    Metadata:
+      aws:cdk:path: DLTStack/DLTVpc/DLTGatewayattachment
+    Condition: CreateFargateVPCResources
+  DLTVpcDLTRouteF8F2A836:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: DLTVpcDLTFargateRT86406464
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: DLTVpcDLTFargateIG0E71BA5C
+    DependsOn:
+      - DLTVpcDLTGatewayattachment220D400F
+    Metadata:
+      aws:cdk:path: DLTStack/DLTVpc/DLTRoute
+    Condition: CreateFargateVPCResources
+  DLTVpcDLTRouteTableAssociationAE94A08EA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: DLTVpcDLTFargateRT86406464
+      SubnetId:
+        Ref: DLTVpcDLTSubnetAAE7DDEE8
+    Metadata:
+      aws:cdk:path: DLTStack/DLTVpc/DLTRouteTableAssociationA
+    Condition: CreateFargateVPCResources
+  DLTVpcDLTRouteTableAssociationBBED3E4B3:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: DLTVpcDLTFargateRT86406464
+      SubnetId:
+        Ref: DLTVpcDLTSubnetB294F4ED2
+    Metadata:
+      aws:cdk:path: DLTStack/DLTVpc/DLTRouteTableAssociationB
+    Condition: CreateFargateVPCResources
+  DLTEcsDLTECR2419F66F:
+    Type: AWS::ECR::Repository
+    Properties:
+      ImageScanningConfiguration:
+        ScanOnPush: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DLTStack/DLTEcs/DLTECR/Resource
+  DLTEcsDLTEcsClusterBC5CE23B:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName:
+        Ref: AWS::StackName
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+      Tags:
+        - Key: CloudFormation Stack
+          Value:
+            Ref: AWS::StackName
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    Metadata:
+      aws:cdk:path: DLTStack/DLTEcs/DLTEcsCluster
+  DLTEcsDLTTaskExecutionRoleDE668717:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+    Metadata:
+      aws:cdk:path: DLTStack/DLTEcs/DLTTaskExecutionRole/Resource
+  DLTEcsDLTCloudWatchLogsGroupFE9EC144:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 365
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DLTStack/DLTEcs/DLTCloudWatchLogsGroup/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: KMS encryption unnecessary for log group
+  DLTEcsDLTTaskDefinition6BFC2400:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Essential: true
+          Image: PUBLIC_ECR_REGISTRY:PUBLIC_ECR_TAG
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: DLTEcsDLTCloudWatchLogsGroupFE9EC144
+              awslogs-stream-prefix: load-testing
+              awslogs-region:
+                Ref: AWS::Region
+          Memory: 4096
+          Name:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -load-tester
+      Cpu: "2048"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - DLTEcsDLTTaskExecutionRoleDE668717
+          - Arn
+      Memory: "4096"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - DLTEcsDLTTaskExecutionRoleDE668717
+          - Arn
+    Metadata:
+      aws:cdk:path: DLTStack/DLTEcs/DLTTaskDefinition
+  DLTEcsDLTEcsSecurityGroup69E6743C:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DLTS Tasks Security Group
+      VpcId:
+        Fn::If:
+          - CreateFargateVPCResources
+          - Ref: DLTVpcDLTFargateVpc0E6FEAB7
+          - Ref: ExistingVPCId
+    Metadata:
+      aws:cdk:path: DLTStack/DLTEcs/DLTEcsSecurityGroup
+      cfn_nag:
+        rules_to_suppress:
+          - id: W40
+            reason: IpProtocol set to -1 (any) as ports are not known prior to running tests
+  DLTEcsDLTSecGroupEgressE1DA93E8:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId:
+        Ref: DLTEcsDLTEcsSecurityGroup69E6743C
+      IpProtocol: "-1"
+      CidrIp:
+        Ref: EgressCidr
+      Description: Allow tasks to call out to external resources
+    Metadata:
+      aws:cdk:path: DLTStack/DLTEcs/DLTSecGroupEgress
+  DLTEcsDLTSecGroupIngressFA958E66:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: Allow tasks to communicate
+      FromPort: 50000
+      GroupId:
+        Ref: DLTEcsDLTEcsSecurityGroup69E6743C
+      SourceSecurityGroupId:
+        Ref: DLTEcsDLTEcsSecurityGroup69E6743C
+      ToPort: 50000
+    Metadata:
+      aws:cdk:path: DLTStack/DLTEcs/DLTSecGroupIngress
+  DLTCommonResourcesCloudWatchLogsPolicyB29337B0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/*
+        Version: "2012-10-17"
+      PolicyName: DLTCommonResourcesCloudWatchLogsPolicyB29337B0
+      Roles:
+        - Ref: DLTEcsDLTTaskExecutionRoleDE668717
+        - Ref: DLTCommonResourcesCustomResourceLambdaRole0608CAD2
+        - Ref: DLTLambdaFunctionLambdaResultsRole2CF2D707
+        - Ref: DLTLambdaFunctionDLTTestLambdaTaskRole1FDBCEDD
+        - Ref: DLTLambdaFunctionLambdaTaskCancelerRoleAE2C84CF
+        - Ref: DLTLambdaFunctionTaskStatusRole9288E645
+        - Ref: DLTApiDLTAPIServicesLambdaRole4465EAA4
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCommonResources/CloudWatchLogsPolicy/Resource
+  DLTCommonResourcesLogsBucket48A2774D:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCommonResources/LogsBucket/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: This is the logging bucket, it does not require logging.
+  DLTCommonResourcesLogsBucketPolicyAA7FFB37:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: DLTCommonResourcesLogsBucket48A2774D
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - DLTCommonResourcesLogsBucket48A2774D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - DLTCommonResourcesLogsBucket48A2774D
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCommonResources/LogsBucket/Policy/Resource
+  DLTCommonResourcesCustomResourceLambdaRole0608CAD2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: s3:GetObject
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":s3:::"
+                      - Fn::Join:
+                          - "-"
+                          - - Fn::FindInMap:
+                                - Solution
+                                - Config
+                                - S3Bucket
+                            - Ref: AWS::Region
+                      - /*
+            Version: "2012-10-17"
+          PolicyName: CustomResourcePolicy
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCommonResources/CustomResourceLambdaRole/Resource
+  DLTCommonResourcesCustomResourceLambdaRoleDefaultPolicy7828F0D2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: DLTCommonResourcesCustomResourceLambdaRoleDefaultPolicy7828F0D2
+      Roles:
+        - Ref: DLTCommonResourcesCustomResourceLambdaRole0608CAD2
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCommonResources/CustomResourceLambdaRole/DefaultPolicy/Resource
+  DLTCommonResourcesCustomResourceLambda0D529C66:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Join:
+            - "-"
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - S3Bucket
+              - Ref: AWS::Region
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - KeyPrefix
+              - /custom-resource.zip
+      Role:
+        Fn::GetAtt:
+          - DLTCommonResourcesCustomResourceLambdaRole0608CAD2
+          - Arn
+      Description: CFN Lambda backed custom resource to deploy assets to s3
+      Environment:
+        Variables:
+          METRIC_URL:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - URL
+          SOLUTION_ID:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+          VERSION:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - CodeVersion
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+      Timeout: 120
+    DependsOn:
+      - DLTCommonResourcesCustomResourceLambdaRoleDefaultPolicy7828F0D2
+      - DLTCommonResourcesCustomResourceLambdaRole0608CAD2
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCommonResources/CustomResourceLambda/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
+          - id: W89
+            reason: VPC not needed for lambda
+          - id: W92
+            reason: Does not run concurrent executions
+  DLTCommonResourcesUUID2FD025A2:
+    Type: Custom::UUID
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - DLTCommonResourcesCustomResourceLambda0D529C66
+          - Arn
+      Resource: UUID
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCommonResources/UUID/Default
+  DLTCommonResourcesAnonymousMetric33685222:
+    Type: Custom::AnonymousMetric
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - DLTCommonResourcesCustomResourceLambda0D529C66
+          - Arn
+      Resource: AnonymousMetric
+      Region:
+        Ref: AWS::Region
+      SolutionId:
+        Fn::FindInMap:
+          - Solution
+          - Config
+          - SolutionId
+      UUID:
+        Fn::GetAtt:
+          - DLTCommonResourcesUUID2FD025A2
+          - UUID
+      VERSION:
+        Fn::FindInMap:
+          - Solution
+          - Config
+          - CodeVersion
+      existingVPC:
+        Fn::If:
+          - BoolExistingVPC
+          - true
+          - false
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCommonResources/AnonymousMetric/Default
+    Condition: SendAnonymousUsage
+  DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - NoncurrentVersionTransitions:
+              - StorageClass: GLACIER
+                TransitionInDays: 90
+            Status: Enabled
+      LoggingConfiguration:
+        DestinationBucketName:
+          Ref: DLTCommonResourcesLogsBucket48A2774D
+        LogFilePrefix: console-bucket-access/
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DLTStack/DLTConsoleResources/DLTCloudFrontToS3/S3Bucket/Resource
+  DLTConsoleResourcesDLTCloudFrontToS3S3BucketPolicyF90397AC:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63
+      PolicyDocument:
+        Statement:
+          - Action: "*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63
+                        - Arn
+                    - /*
+              - Fn::GetAtt:
+                  - DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63
+                  - Arn
+            Sid: HttpsOnly
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3Origin5080EA34
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DLTStack/DLTConsoleResources/DLTCloudFrontToS3/S3Bucket/Policy/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: F16
+            reason: Public website bucket policy requires a wildcard principal
+  DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3Origin5080EA34:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Identity for DLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1022BE4E8
+    Metadata:
+      aws:cdk:path: DLTStack/DLTConsoleResources/DLTCloudFrontToS3/CloudFrontDistribution/Origin1/S3Origin/Resource
+  DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: Website distribution for the Distributed Load Testing solution
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: DLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1022BE4E8
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Logging:
+          Bucket:
+            Fn::GetAtt:
+              - DLTCommonResourcesLogsBucket48A2774D
+              - RegionalDomainName
+          Prefix: cloudfront-logs/
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63
+                - RegionalDomainName
+            Id: DLTStackDLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1022BE4E8
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistributionOrigin1S3Origin5080EA34
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    Metadata:
+      aws:cdk:path: DLTStack/DLTConsoleResources/DLTCloudFrontToS3/CloudFrontDistribution/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W70
+            reason: Since the distribution uses the CloudFront domain name, CloudFront automatically sets the security policy to TLSv1 regardless of the value of MinimumProtocolVersion
+  DLTTestRunnerStorageDLTScenariosBucketA9290D21:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - "*"
+            AllowedMethods:
+              - GET
+              - POST
+              - PUT
+            AllowedOrigins:
+              - Fn::Join:
+                  - ""
+                  - - https://
+                    - Fn::GetAtt:
+                        - DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4
+                        - DomainName
+            ExposedHeaders:
+              - ETag
+      LoggingConfiguration:
+        DestinationBucketName:
+          Ref: DLTCommonResourcesLogsBucket48A2774D
+        LogFilePrefix: scenarios-bucket-access/
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DLTStack/DLTTestRunnerStorage/DLTScenariosBucket/Resource
+  DLTTestRunnerStorageDLTScenariosBucketPolicy96221788:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: DLTTestRunnerStorageDLTScenariosBucketA9290D21
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - DLTTestRunnerStorageDLTScenariosBucketA9290D21
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - DLTTestRunnerStorageDLTScenariosBucketA9290D21
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DLTStack/DLTTestRunnerStorage/DLTScenariosBucket/Policy/Resource
+  DLTTestRunnerStorageScenariosS3PolicyD20D3673:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:HeadObject
+              - s3:PutObject
+              - s3:GetObject
+              - s3:ListBucket
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - DLTTestRunnerStorageDLTScenariosBucketA9290D21
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - DLTTestRunnerStorageDLTScenariosBucketA9290D21
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: DLTTestRunnerStorageScenariosS3PolicyD20D3673
+      Roles:
+        - Ref: DLTEcsDLTTaskExecutionRoleDE668717
+        - Ref: DLTLambdaFunctionLambdaResultsRole2CF2D707
+        - Ref: DLTApiDLTAPIServicesLambdaRole4465EAA4
+    Metadata:
+      aws:cdk:path: DLTStack/DLTTestRunnerStorage/ScenariosS3Policy/Resource
+  DLTTestRunnerStorageDLTScenariosTableAB6F5C2A:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: testId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: testId
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DLTStack/DLTTestRunnerStorage/DLTScenariosTable/Resource
+  DLTTestRunnerStorageDynamoDbPolicyC83287AF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:DeleteItem
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DLTTestRunnerStorageDLTScenariosTableAB6F5C2A
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DLTTestRunnerStorageDynamoDbPolicyC83287AF
+      Roles:
+        - Ref: DLTLambdaFunctionLambdaResultsRole2CF2D707
+        - Ref: DLTLambdaFunctionDLTTestLambdaTaskRole1FDBCEDD
+        - Ref: DLTLambdaFunctionTaskStatusRole9288E645
+        - Ref: DLTApiDLTAPIServicesLambdaRole4465EAA4
+    Metadata:
+      aws:cdk:path: DLTStack/DLTTestRunnerStorage/DynamoDbPolicy/Resource
+  DLTLambdaFunctionLambdaResultsRole2CF2D707:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DLTStack/DLTLambdaFunction/LambdaResultsRole/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: The action does not support resource level permissions.
+  DLTLambdaFunctionLambdaResultsPolicyB191FC35:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cloudwatch:GetMetricWidgetImage
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: DLTLambdaFunctionLambdaResultsPolicyB191FC35
+      Roles:
+        - Ref: DLTLambdaFunctionLambdaResultsRole2CF2D707
+    Metadata:
+      aws:cdk:path: DLTStack/DLTLambdaFunction/LambdaResultsPolicy/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: The action does not support resource level permissions.
+  DLTLambdaFunctionResultsParserFF5CC920:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Join:
+            - "-"
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - S3Bucket
+              - Ref: AWS::Region
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - KeyPrefix
+              - /results-parser.zip
+      Role:
+        Fn::GetAtt:
+          - DLTLambdaFunctionLambdaResultsRole2CF2D707
+          - Arn
+      Description: Result parser for indexing xml test results to DynamoDB
+      Environment:
+        Variables:
+          SCENARIOS_BUCKET:
+            Ref: DLTTestRunnerStorageDLTScenariosBucketA9290D21
+          SCENARIOS_TABLE:
+            Ref: DLTTestRunnerStorageDLTScenariosTableAB6F5C2A
+          SOLUTION_ID:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+          UUID:
+            Fn::GetAtt:
+              - DLTCommonResourcesUUID2FD025A2
+              - UUID
+          VERSION:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - CodeVersion
+          SEND_METRIC:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SendAnonymousUsage
+          METRIC_URL:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - URL
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+      Timeout: 120
+    DependsOn:
+      - DLTLambdaFunctionLambdaResultsRole2CF2D707
+    Metadata:
+      aws:cdk:path: DLTStack/DLTLambdaFunction/ResultsParser/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
+          - id: W89
+            reason: This Lambda function does not require a VPC
+          - id: W92
+            reason: Does not run concurrent executions
+  DLTLambdaFunctionDLTTestLambdaTaskRole1FDBCEDD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: ecs:ListTasks
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - ecs:RunTask
+                  - ecs:DescribeTasks
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - ":ecs:"
+                        - Ref: AWS::Region
+                        - ":"
+                        - Ref: AWS::AccountId
+                        - :task/*
+                  - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - ":ecs:"
+                        - Ref: AWS::Region
+                        - ":"
+                        - Ref: AWS::AccountId
+                        - :task-definition/*:*
+              - Action: iam:PassRole
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - DLTEcsDLTTaskExecutionRoleDE668717
+                    - Arn
+              - Action: logs:PutMetricFilter
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - DLTEcsDLTCloudWatchLogsGroupFE9EC144
+                    - Arn
+              - Action: cloudwatch:PutDashboard
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":cloudwatch::"
+                      - Ref: AWS::AccountId
+                      - :dashboard/EcsLoadTesting*
+            Version: "2012-10-17"
+          PolicyName: TaskLambdaPolicy
+    Metadata:
+      aws:cdk:path: DLTStack/DLTLambdaFunction/DLTTestLambdaTaskRole/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: ecs:ListTasks does not support resource level permissions
+  DLTLambdaFunctionTaskRunnerAAAD9171:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Join:
+            - "-"
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - S3Bucket
+              - Ref: AWS::Region
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - KeyPrefix
+              - /task-runner.zip
+      Role:
+        Fn::GetAtt:
+          - DLTLambdaFunctionDLTTestLambdaTaskRole1FDBCEDD
+          - Arn
+      Description: Task runner for ECS task definitions
+      Environment:
+        Variables:
+          SCENARIOS_BUCKET:
+            Ref: DLTTestRunnerStorageDLTScenariosBucketA9290D21
+          SCENARIOS_TABLE:
+            Ref: DLTTestRunnerStorageDLTScenariosTableAB6F5C2A
+          TASK_CLUSTER:
+            Ref: DLTEcsDLTEcsClusterBC5CE23B
+          TASK_DEFINITION:
+            Ref: DLTEcsDLTTaskDefinition6BFC2400
+          TASK_SECURITY_GROUP:
+            Ref: DLTEcsDLTEcsSecurityGroup69E6743C
+          TASK_IMAGE:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -load-tester
+          SUBNET_A:
+            Fn::If:
+              - CreateFargateVPCResources
+              - Ref: DLTVpcDLTSubnetAAE7DDEE8
+              - Ref: ExistingSubnetA
+          SUBNET_B:
+            Fn::If:
+              - CreateFargateVPCResources
+              - Ref: DLTVpcDLTSubnetB294F4ED2
+              - Ref: ExistingSubnetB
+          API_INTERVAL: "10"
+          ECS_LOG_GROUP:
+            Ref: DLTEcsDLTCloudWatchLogsGroupFE9EC144
+          SOLUTION_ID:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+          VERSION:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - CodeVersion
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+      Timeout: 900
+    DependsOn:
+      - DLTLambdaFunctionDLTTestLambdaTaskRole1FDBCEDD
+    Metadata:
+      aws:cdk:path: DLTStack/DLTLambdaFunction/TaskRunner/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
+          - id: W89
+            reason: This Lambda function does not require a VPC
+          - id: W92
+            reason: Does not run concurrent executions
+  DLTLambdaFunctionLambdaTaskCancelerRoleAE2C84CF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: ecs:ListTasks
+                Effect: Allow
+                Resource: "*"
+              - Action: ecs:StopTask
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - ":ecs:"
+                        - Ref: AWS::Region
+                        - ":"
+                        - Ref: AWS::AccountId
+                        - :task/*
+                  - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - ":ecs:"
+                        - Ref: AWS::Region
+                        - ":"
+                        - Ref: AWS::AccountId
+                        - :task-definition/*:*
+              - Action: dynamodb:UpdateItem
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - DLTTestRunnerStorageDLTScenariosTableAB6F5C2A
+                    - Arn
+            Version: "2012-10-17"
+          PolicyName: TaskCancelerPolicy
+    Metadata:
+      aws:cdk:path: DLTStack/DLTLambdaFunction/LambdaTaskCancelerRole/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: ecs:ListTasks does not support resource level permissions
+  DLTLambdaFunctionTaskCanceler4E12BDA6:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Join:
+            - "-"
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - S3Bucket
+              - Ref: AWS::Region
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - KeyPrefix
+              - /task-canceler.zip
+      Role:
+        Fn::GetAtt:
+          - DLTLambdaFunctionLambdaTaskCancelerRoleAE2C84CF
+          - Arn
+      Description: Stops ECS task
+      Environment:
+        Variables:
+          METRIC_URL:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - URL
+          SOLUTION_ID:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+          VERSION:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - CodeVersion
+          SCENARIOS_TABLE:
+            Ref: DLTTestRunnerStorageDLTScenariosTableAB6F5C2A
+          TASK_CLUSTER:
+            Ref: DLTEcsDLTEcsClusterBC5CE23B
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+      Timeout: 300
+    DependsOn:
+      - DLTLambdaFunctionLambdaTaskCancelerRoleAE2C84CF
+    Metadata:
+      aws:cdk:path: DLTStack/DLTLambdaFunction/TaskCanceler/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
+          - id: W89
+            reason: This Lambda function does not require a VPC
+          - id: W92
+            reason: Does not run concurrent executions
+  DLTLambdaFunctionTaskCancelerInvokePolicyA1C7562A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DLTLambdaFunctionTaskCanceler4E12BDA6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DLTLambdaFunctionTaskCancelerInvokePolicyA1C7562A
+      Roles:
+        - Ref: DLTLambdaFunctionTaskStatusRole9288E645
+        - Ref: DLTApiDLTAPIServicesLambdaRole4465EAA4
+    Metadata:
+      aws:cdk:path: DLTStack/DLTLambdaFunction/TaskCancelerInvokePolicy/Resource
+  DLTLambdaFunctionTaskStatusRole9288E645:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: ecs:ListTasks
+                Effect: Allow
+                Resource: "*"
+              - Action: ecs:DescribeTasks
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":ecs:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :task/*
+            Version: "2012-10-17"
+          PolicyName: TaskStatusPolicy
+    Metadata:
+      aws:cdk:path: DLTStack/DLTLambdaFunction/TaskStatusRole/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: ecs:ListTasks does not support resource level permissions
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
+  DLTLambdaFunctionTaskStatusChecker1AA63EC9:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Join:
+            - "-"
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - S3Bucket
+              - Ref: AWS::Region
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - KeyPrefix
+              - /task-status-checker.zip
+      Role:
+        Fn::GetAtt:
+          - DLTLambdaFunctionTaskStatusRole9288E645
+          - Arn
+      Description: Task status checker
+      Environment:
+        Variables:
+          TASK_CLUSTER:
+            Ref: DLTEcsDLTEcsClusterBC5CE23B
+          SCENARIOS_TABLE:
+            Ref: DLTTestRunnerStorageDLTScenariosTableAB6F5C2A
+          TASK_CANCELER_ARN:
+            Fn::GetAtt:
+              - DLTLambdaFunctionTaskCanceler4E12BDA6
+              - Arn
+          SOLUTION_ID:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+          VERSION:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - CodeVersion
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+      Timeout: 180
+    DependsOn:
+      - DLTLambdaFunctionTaskStatusRole9288E645
+    Metadata:
+      aws:cdk:path: DLTStack/DLTLambdaFunction/TaskStatusChecker/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
+          - id: W89
+            reason: This Lambda function does not require a VPC
+          - id: W92
+            reason: Does not run concurrent executions
+  DLTStepFunctionStepFunctionsLogGroup8DABDAB7:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 365
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DLTStack/DLTStepFunction/StepFunctionsLogGroup/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: KMS encryption unnecessary for log group
+  DLTStepFunctionTaskRunnerStepFunctionsRoleC2237F06:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    Metadata:
+      aws:cdk:path: DLTStack/DLTStepFunction/TaskRunnerStepFunctions/Role/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: CloudWatch logs actions do not support resource level permissions
+          - id: W12
+            reason: CloudWatch logs actions do not support resource level permissions
+  DLTStepFunctionTaskRunnerStepFunctionsRoleDefaultPolicy8F17B49F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogDelivery
+              - logs:GetLogDelivery
+              - logs:UpdateLogDelivery
+              - logs:DeleteLogDelivery
+              - logs:ListLogDeliveries
+              - logs:PutResourcePolicy
+              - logs:DescribeResourcePolicies
+              - logs:DescribeLogGroups
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DLTLambdaFunctionTaskStatusChecker1AA63EC9
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DLTLambdaFunctionTaskRunnerAAAD9171
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DLTLambdaFunctionTaskCanceler4E12BDA6
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DLTLambdaFunctionResultsParserFF5CC920
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DLTStepFunctionTaskRunnerStepFunctionsRoleDefaultPolicy8F17B49F
+      Roles:
+        - Ref: DLTStepFunctionTaskRunnerStepFunctionsRoleC2237F06
+    Metadata:
+      aws:cdk:path: DLTStack/DLTStepFunction/TaskRunnerStepFunctions/Role/DefaultPolicy/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: CloudWatch logs actions do not support resource level permissions
+  DLTStepFunctionTaskRunnerStepFunctionsC295A535:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - DLTStepFunctionTaskRunnerStepFunctionsRoleC2237F06
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Check running tests","States":{"Check running tests":{"Next":"No running tests","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - DLTLambdaFunctionTaskStatusChecker1AA63EC9
+                - Arn
+            - '","Payload.$":"$"}},"No running tests":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Run workers"}],"Default":"Test is still running"},"Test is still running":{"Type":"Fail","Error":"TestAlreadyRunning","Cause":"The same test is already running."},"Run workers":{"Next":"Are all workers launched?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - DLTLambdaFunctionTaskRunnerAAAD9171
+                - Arn
+            - '","Payload.$":"$"}},"Are all workers launched?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Cancel Test"},{"Variable":"$.taskRunner.runTaskCount","NumericEquals":1,"Next":"Wait 1 minute - worker status"},{"Variable":"$.taskRunner.runTaskCount","NumericEquals":0,"Next":"Wait 1 minute - task status"}],"Default":"Run workers"},"Cancel Test":{"Next":"Parse result","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","ResultPath":null,"Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - DLTLambdaFunctionTaskCanceler4E12BDA6
+                - Arn
+            - '","Payload.$":"$"}},"Parse result":{"Next":"Done","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - DLTLambdaFunctionResultsParserFF5CC920
+                - Arn
+            - '","Payload.$":"$"}},"Are all tasks done?":{"Type":"Choice","Choices":[{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Parse result"}],"Default":"Wait 1 minute - task status"},"Check task status":{"Next":"Are all tasks done?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - DLTLambdaFunctionTaskStatusChecker1AA63EC9
+                - Arn
+            - '","Payload.$":"$"}},"Wait 1 minute - task status":{"Type":"Wait","Comment":"Wait 1 minute to check task status again","Seconds":60,"Next":"Check task status"},"Run leader task":{"Next":"Wait 1 minute - task status","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - DLTLambdaFunctionTaskRunnerAAAD9171
+                - Arn
+            - '","Payload.$":"$"}},"Are all workers running?":{"Type":"Choice","Choices":[{"Variable":"$.numTasksRunning","NumericEqualsPath":"$.scenario.taskCount","Next":"Run leader task"},{"Variable":"$.isRunning","BooleanEquals":false,"Next":"Parse result"}],"Default":"Wait 1 minute - worker status"},"Check worker status":{"Next":"Are all workers running?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - DLTLambdaFunctionTaskStatusChecker1AA63EC9
+                - Arn
+            - '","Payload.$":"$"}},"Wait 1 minute - worker status":{"Type":"Wait","Comment":"Wait 1 minute to check task status again","Seconds":60,"Next":"Check worker status"},"Done":{"Type":"Succeed"}}}'
+      LoggingConfiguration:
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn:
+                Fn::GetAtt:
+                  - DLTStepFunctionStepFunctionsLogGroup8DABDAB7
+                  - Arn
+        IncludeExecutionData: false
+        Level: ALL
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+    DependsOn:
+      - DLTStepFunctionTaskRunnerStepFunctionsRoleDefaultPolicy8F17B49F
+      - DLTStepFunctionTaskRunnerStepFunctionsRoleC2237F06
+    Metadata:
+      aws:cdk:path: DLTStack/DLTStepFunction/TaskRunnerStepFunctions/Resource
+  DLTApiDLTAPIServicesLambdaRole4465EAA4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: ecs:ListTasks
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - ecs:RunTask
+                  - ecs:DescribeTasks
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - ":ecs:"
+                        - Ref: AWS::Region
+                        - ":"
+                        - Ref: AWS::AccountId
+                        - :task/*
+                  - Fn::Join:
+                      - ""
+                      - - "arn:"
+                        - Ref: AWS::Partition
+                        - ":ecs:"
+                        - Ref: AWS::Region
+                        - ":"
+                        - Ref: AWS::AccountId
+                        - :task-definition/
+              - Action: iam:PassRole
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - DLTEcsDLTTaskExecutionRoleDE668717
+                    - Arn
+              - Action: states:StartExecution
+                Effect: Allow
+                Resource:
+                  Ref: DLTStepFunctionTaskRunnerStepFunctionsC295A535
+              - Action: logs:DeleteMetricFilter
+                Effect: Allow
+                Resource:
+                  Fn::GetAtt:
+                    - DLTEcsDLTCloudWatchLogsGroupFE9EC144
+                    - Arn
+              - Action: cloudwatch:DeleteDashboards
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":cloudwatch::"
+                      - Ref: AWS::AccountId
+                      - :dashboard/EcsLoadTesting*
+            Version: "2012-10-17"
+          PolicyName: DLTAPIServicesLambdaPolicy
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTAPIServicesLambdaRole/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W11
+            reason: ecs:ListTasks does not support resource level permissions
+  DLTApiLambdaApiEventsPolicy63BB60C8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - events:PutTargets
+              - events:PutRule
+              - events:DeleteRule
+              - events:RemoveTargets
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":events:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :rule/*Scheduled
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":events:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :rule/*Create
+          - Action: events:ListRules
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":events:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :rule/*
+        Version: "2012-10-17"
+      PolicyName: DLTApiLambdaApiEventsPolicy63BB60C8
+      Roles:
+        - Ref: DLTApiDLTAPIServicesLambdaRole4465EAA4
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/LambdaApiEventsPolicy/Resource
+  DLTApiDLTAPIServicesLambda9D76BA5C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Join:
+            - "-"
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - S3Bucket
+              - Ref: AWS::Region
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::FindInMap:
+                  - Solution
+                  - Config
+                  - KeyPrefix
+              - /api-services.zip
+      Role:
+        Fn::GetAtt:
+          - DLTApiDLTAPIServicesLambdaRole4465EAA4
+          - Arn
+      Description: API microservices for creating, updating, listing and deleting test scenarios
+      Environment:
+        Variables:
+          SCENARIOS_BUCKET:
+            Ref: DLTTestRunnerStorageDLTScenariosBucketA9290D21
+          SCENARIOS_TABLE:
+            Ref: DLTTestRunnerStorageDLTScenariosTableAB6F5C2A
+          TASK_CLUSTER:
+            Ref: DLTEcsDLTEcsClusterBC5CE23B
+          STATE_MACHINE_ARN:
+            Ref: DLTStepFunctionTaskRunnerStepFunctionsC295A535
+          SOLUTION_ID:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+          UUID:
+            Fn::GetAtt:
+              - DLTCommonResourcesUUID2FD025A2
+              - UUID
+          VERSION:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - CodeVersion
+          SEND_METRIC:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SendAnonymousUsage
+          METRIC_URL:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - URL
+          ECS_LOG_GROUP:
+            Ref: DLTEcsDLTCloudWatchLogsGroupFE9EC144
+          TASK_CANCELER_ARN:
+            Fn::GetAtt:
+              - DLTLambdaFunctionTaskCanceler4E12BDA6
+              - Arn
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: SolutionId
+          Value:
+            Fn::FindInMap:
+              - Solution
+              - Config
+              - SolutionId
+      Timeout: 120
+    DependsOn:
+      - DLTApiDLTAPIServicesLambdaRole4465EAA4
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTAPIServicesLambda/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: CloudWatchLogsPolicy covers a permission to write CloudWatch logs.
+          - id: W89
+            reason: VPC not needed for lambda
+          - id: W92
+            reason: Does not run concurrent executions
+  DLTApiDLTAPIServicesLambdaDLTApiInvokePermissionC6CBE43A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - DLTApiDLTAPIServicesLambda9D76BA5C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: DLTApi0C903EB5
+            - /*
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTAPIServicesLambda/DLTApiInvokePermission
+  DLTApiLambdaApiPermissionPolicyE12EEC7D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - lambda:AddPermission
+              - lambda:RemovePermission
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DLTApiDLTAPIServicesLambda9D76BA5C
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DLTApiLambdaApiPermissionPolicyE12EEC7D
+      Roles:
+        - Ref: DLTApiDLTAPIServicesLambdaRole4465EAA4
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/LambdaApiPermissionPolicy/Resource
+  DLTApiAPILogsF7751EF3:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 365
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/APILogs/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: KMS encryption unnecessary for log group
+  DLTApiAPILoggingRole119E64B1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                  - logs:GetLogEvents
+                  - logs:FilterLogEvent
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":logs:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - :*
+            Version: "2012-10-17"
+          PolicyName: apiLoggingPolicy
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/APILoggingRole/Resource
+  DLTApi0C903EB5:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description:
+        Fn::Join:
+          - ""
+          - - "Distributed Load Testing API - version "
+            - Fn::FindInMap:
+                - Solution
+                - Config
+                - CodeVersion
+      EndpointConfiguration:
+        Types:
+          - EDGE
+      Name: DLTApi
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Resource
+  DLTApiCloudWatchRoleD45E4DD6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/CloudWatchRole/Resource
+  DLTApiAccount80CB63FF:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - DLTApiCloudWatchRoleD45E4DD6
+          - Arn
+    DependsOn:
+      - DLTApi0C903EB5
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Account
+  DLTApiDeployment098FF8885ac9e071868e8627d3b7fc31b7689b8a:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: DLTApi0C903EB5
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - DLTApiAPIAllRequestValidator02C9D47F
+      - DLTApiOPTIONS823B5F09
+      - DLTApiscenariostestIdANY993028D3
+      - DLTApiscenariostestIdOPTIONS0B339CE6
+      - DLTApiscenariostestId4C170989
+      - DLTApiscenariosANYDEF83622
+      - DLTApiscenariosOPTIONS6F514DA3
+      - DLTApiscenariosB6B76329
+      - DLTApitasksANY60403A44
+      - DLTApitasksOPTIONSDABED809
+      - DLTApitasks0A512C83
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Deployment/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W68
+            reason: The solution does not require the usage plan.
+  DLTApiDeploymentStageprodC81F8DCB:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: DLTApi0C903EB5
+      AccessLogSetting:
+        DestinationArn:
+          Fn::GetAtt:
+            - DLTApiAPILogsF7751EF3
+            - Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","user":"$context.identity.user","caller":"$context.identity.caller","requestTime":"$context.requestTime","httpMethod":"$context.httpMethod","resourcePath":"$context.resourcePath","status":"$context.status","protocol":"$context.protocol","responseLength":"$context.responseLength"}'
+      DeploymentId:
+        Ref: DLTApiDeployment098FF8885ac9e071868e8627d3b7fc31b7689b8a
+      MethodSettings:
+        - HttpMethod: "*"
+          LoggingLevel: INFO
+          ResourcePath: /*
+      StageName: prod
+      TracingEnabled: true
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/DeploymentStage.prod/Resource
+      cfn_nag:
+        rules_to_suppress:
+          - id: W64
+            reason: The solution does not require the usage plan.
+  DLTApiOPTIONS823B5F09:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - DLTApi0C903EB5
+          - RootResourceId
+      RestApiId:
+        Ref: DLTApi0C903EB5
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+            StatusCode: "200"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Default/OPTIONS/Resource
+  DLTApiscenariosB6B76329:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - DLTApi0C903EB5
+          - RootResourceId
+      PathPart: scenarios
+      RestApiId:
+        Ref: DLTApi0C903EB5
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Default/scenarios/Resource
+  DLTApiscenariosOPTIONS6F514DA3:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: DLTApiscenariosB6B76329
+      RestApiId:
+        Ref: DLTApi0C903EB5
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+            StatusCode: "200"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Default/scenarios/OPTIONS/Resource
+  DLTApiscenariosANYDEF83622:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: DLTApiscenariosB6B76329
+      RestApiId:
+        Ref: DLTApi0C903EB5
+      AuthorizationType: AWS_IAM
+      Integration:
+        ContentHandling: CONVERT_TO_TEXT
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - StatusCode: "200"
+        PassthroughBehavior: WHEN_NO_MATCH
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - DLTApiDLTAPIServicesLambda9D76BA5C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json: Empty
+          StatusCode: "200"
+      RequestValidatorId:
+        Ref: DLTApiAPIAllRequestValidator02C9D47F
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Default/scenarios/ANY/Resource
+  DLTApiscenariostestId4C170989:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: DLTApiscenariosB6B76329
+      PathPart: "{testId}"
+      RestApiId:
+        Ref: DLTApi0C903EB5
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Default/scenarios/{testId}/Resource
+  DLTApiscenariostestIdOPTIONS0B339CE6:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: DLTApiscenariostestId4C170989
+      RestApiId:
+        Ref: DLTApi0C903EB5
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+            StatusCode: "200"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Default/scenarios/{testId}/OPTIONS/Resource
+  DLTApiscenariostestIdANY993028D3:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: DLTApiscenariostestId4C170989
+      RestApiId:
+        Ref: DLTApi0C903EB5
+      AuthorizationType: AWS_IAM
+      Integration:
+        ContentHandling: CONVERT_TO_TEXT
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - StatusCode: "200"
+        PassthroughBehavior: WHEN_NO_MATCH
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - DLTApiDLTAPIServicesLambda9D76BA5C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json: Empty
+          StatusCode: "200"
+      RequestValidatorId:
+        Ref: DLTApiAPIAllRequestValidator02C9D47F
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Default/scenarios/{testId}/ANY/Resource
+  DLTApitasks0A512C83:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - DLTApi0C903EB5
+          - RootResourceId
+      PathPart: tasks
+      RestApiId:
+        Ref: DLTApi0C903EB5
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Default/tasks/Resource
+  DLTApitasksOPTIONSDABED809:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: DLTApitasks0A512C83
+      RestApiId:
+        Ref: DLTApi0C903EB5
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Authorization,Content-Type,X-Amz-Date,X-Amz-Security-Token,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'DELETE,GET,HEAD,OPTIONS,PATCH,POST,PUT'"
+            StatusCode: "200"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Default/tasks/OPTIONS/Resource
+  DLTApitasksANY60403A44:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: DLTApitasks0A512C83
+      RestApiId:
+        Ref: DLTApi0C903EB5
+      AuthorizationType: AWS_IAM
+      Integration:
+        ContentHandling: CONVERT_TO_TEXT
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - StatusCode: "200"
+        PassthroughBehavior: WHEN_NO_MATCH
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - DLTApiDLTAPIServicesLambda9D76BA5C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json: Empty
+          StatusCode: "200"
+      RequestValidatorId:
+        Ref: DLTApiAPIAllRequestValidator02C9D47F
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/DLTApi/Default/tasks/ANY/Resource
+  DLTApiApiAccountConfigBF306CC3:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - DLTApiAPILoggingRole119E64B1
+          - Arn
+    DependsOn:
+      - DLTApi0C903EB5
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/ApiAccountConfig
+  DLTApiAPIAllRequestValidator02C9D47F:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: DLTApi0C903EB5
+      ValidateRequestBody: true
+      ValidateRequestParameters: true
+    Metadata:
+      aws:cdk:path: DLTStack/DLTApi/APIAllRequestValidator/Resource
+  DLTCognitoAuthDLTUserPoolFA41A712:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+        InviteMessageTemplate:
+          EmailMessage:
+            Fn::Join:
+              - ""
+              - - |-2
+                  
+                                  <p>
+                                     Please use the credentials below to login to the Distributed Load Testing console.
+                                  </p>
+                                  <p>
+                                      Username: <strong>{username}</strong>
+                                  </p>
+                                  <p>
+                                      Password: <strong>{####}</strong>
+                                  </p>
+                                  <p>
+                                      Console: <strong>https://
+                - Fn::GetAtt:
+                    - DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4
+                    - DomainName
+                - "/</strong>
+
+                  \                </p>
+
+                  \              "
+          EmailSubject: Welcome to Distributed Load Testing
+          SMSMessage: Your username is {username} and temporary password is {####}.
+      AliasAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+      Schema:
+        - Mutable: true
+          Name: email
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UserPoolAddOns:
+        AdvancedSecurityMode: ENFORCED
+      UserPoolName:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -user-pool
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCognitoAuth/DLTUserPool/Resource
+  DLTCognitoAuthDLTUserPoolClientA2F8B2DB:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: DLTCognitoAuthDLTUserPoolFA41A712
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ClientName:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - -userpool-client
+      GenerateSecret: false
+      RefreshTokenValidity: 1440
+      SupportedIdentityProviders:
+        - COGNITO
+      TokenValidityUnits:
+        RefreshToken: minutes
+      WriteAttributes:
+        - address
+        - email
+        - phone_number
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCognitoAuth/DLTUserPoolClient/Resource
+  DLTCognitoAuthDLTIdentityPoolE110578F:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: DLTCognitoAuthDLTUserPoolClientA2F8B2DB
+          ProviderName:
+            Fn::GetAtt:
+              - DLTCognitoAuthDLTUserPoolFA41A712
+              - ProviderName
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCognitoAuth/DLTIdentityPool
+  DLTCognitoAuthDLTCognitoAuthorizedRole9977D4DC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: DLTCognitoAuthDLTIdentityPoolE110578F
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      Description:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::StackName
+            - " Identity Pool authenticated role"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: execute-api:Invoke
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":execute-api:"
+                      - Ref: AWS::Region
+                      - ":"
+                      - Ref: AWS::AccountId
+                      - ":"
+                      - Ref: DLTApi0C903EB5
+                      - /prod/*
+              - Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - DLTTestRunnerStorageDLTScenariosBucketA9290D21
+                            - Arn
+                        - /public/*
+                  - Fn::Join:
+                      - ""
+                      - - Fn::GetAtt:
+                            - DLTTestRunnerStorageDLTScenariosBucketA9290D21
+                            - Arn
+                        - /cloudWatchImages/*
+            Version: "2012-10-17"
+          PolicyName: InvokeApiPolicy
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCognitoAuth/DLTCognitoAuthorizedRole/Resource
+  DLTCognitoAuthDLTCognitoUnauthorizedRole6FC43D42:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: DLTCognitoAuthDLTIdentityPoolE110578F
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: unauthenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCognitoAuth/DLTCognitoUnauthorizedRole/Resource
+  DLTCognitoAuthCognitoAttachRole8337C7A4:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: DLTCognitoAuthDLTIdentityPoolE110578F
+      Roles:
+        unauthenticated:
+          Fn::GetAtt:
+            - DLTCognitoAuthDLTCognitoUnauthorizedRole6FC43D42
+            - Arn
+        authenticated:
+          Fn::GetAtt:
+            - DLTCognitoAuthDLTCognitoAuthorizedRole9977D4DC
+            - Arn
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCognitoAuth/CognitoAttachRole
+  DLTCognitoAuthCognitoUser8FAEDC59:
+    Type: AWS::Cognito::UserPoolUser
+    Properties:
+      UserPoolId:
+        Ref: DLTCognitoAuthDLTUserPoolFA41A712
+      DesiredDeliveryMediums:
+        - EMAIL
+      ForceAliasCreation: true
+      UserAttributes:
+        - Name: email
+          Value:
+            Ref: AdminEmail
+        - Name: nickname
+          Value:
+            Ref: AdminName
+        - Name: email_verified
+          Value: "true"
+      Username:
+        Ref: AdminName
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCognitoAuth/CognitoUser
+  DLTCustomResourcesCopyConsoleFiles2EBD447E:
+    Type: Custom::CopyConsoleFiles
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - DLTCommonResourcesCustomResourceLambda0D529C66
+          - Arn
+      Resource: CopyAssets
+      SrcBucket:
+        Fn::Join:
+          - "-"
+          - - Fn::FindInMap:
+                - Solution
+                - Config
+                - S3Bucket
+            - Ref: AWS::Region
+      SrcPath:
+        Fn::Join:
+          - ""
+          - - Fn::FindInMap:
+                - Solution
+                - Config
+                - KeyPrefix
+            - /console
+      ManifestFile: console-manifest.json
+      DestBucket:
+        Ref: DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCustomResources/CopyConsoleFiles/Default
+  DLTCustomResourcesConsoleConfig9F494EAB:
+    Type: Custom::CopyConfigFiles
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - DLTCommonResourcesCustomResourceLambda0D529C66
+          - Arn
+      Resource: ConfigFile
+      DestBucket:
+        Ref: DLTConsoleResourcesDLTCloudFrontToS3S3Bucket4FED8B63
+      AwsExports:
+        Fn::Join:
+          - ""
+          - - |-
+              const awsConfig = {
+                          cw_dashboard: 'https://console.aws.amazon.com/cloudwatch/home?region=
+            - Ref: AWS::Region
+            - |-
+              #dashboards:name=',
+                          ecs_dashboard: 'https://
+            - Ref: AWS::Region
+            - .console.aws.amazon.com/ecs/home?region=
+            - Ref: AWS::Region
+            - "#/clusters/"
+            - Ref: AWS::StackName
+            - |-
+              /tasks',
+                          aws_project_region: '
+            - Ref: AWS::Region
+            - |-
+              ',
+                          aws_cognito_region: '
+            - Ref: AWS::Region
+            - |-
+              ',
+                          aws_cognito_identity_pool_id: '
+            - Ref: DLTCognitoAuthDLTIdentityPoolE110578F
+            - |-
+              ',
+                          aws_user_pools_id: '
+            - Ref: DLTCognitoAuthDLTUserPoolFA41A712
+            - |-
+              ',
+                          aws_user_pools_web_client_id: '
+            - Ref: DLTCognitoAuthDLTUserPoolClientA2F8B2DB
+            - |-
+              ',
+                          oauth: {},
+                          aws_cloud_logic_custom: [
+                              {
+                                  name: 'dlts',
+                                  endpoint: 'https://
+            - Ref: DLTApi0C903EB5
+            - .execute-api.
+            - Ref: AWS::Region
+            - "."
+            - Ref: AWS::URLSuffix
+            - /
+            - Ref: DLTApiDeploymentStageprodC81F8DCB
+            - |-
+              ',
+                                  region: '
+            - Ref: AWS::Region
+            - |-
+              '
+                              }
+                          ],
+                          aws_user_files_s3_bucket: '
+            - Ref: DLTTestRunnerStorageDLTScenariosBucketA9290D21
+            - |-
+              ',
+                          aws_user_files_s3_bucket_region: '
+            - Ref: AWS::Region
+            - |-
+              '
+                      }
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DLTStack/DLTCustomResources/ConsoleConfig/Default
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/3VUTXPaMBD9LbkLUZIeeiyBkmEmTBhI07OQF7PB1rr6SIbx+L93JWE+yuTktyvt0+rtk0dydP9dfrv7qT7doNXFfthqsiDbtVd6LyZbs1RW1eDBxmChmgZNGeGETIEeyQhGztugvZgE56legaNgNcRdJ3yZfAm+Cb4T6UzQ97Ll5NtyEtfWYWPARzQ3fCjjJ+XhUx0SGwUPr2pTJRquOK6NPXe7q8H4064z17lo7BxpVLlpXgYdLPrDk6XQ3CR+lRacu0nPTcp3ArSV7QoacujJ5vZOUVx26VqTijXJ4r0qt5/CFk2SrROoamagfJn0XVKFOlFl1ImKSuZ5pvLUZI874R5k+xj0Pst1RPlzJrqKc/CoHDCzqjeFku0sGN0rcomXYGt0LnWqKwrF1pLxsp0iDxs3Ie17sViiGWvNkswL1p9lSuaIBbNY8NWOS5pOFAejaio2sj1NNwG+pIdme2yLlVgHZoJC/FHIt94RsqNmCivBfvWwYBegybO/iP9jGXgehJPPSYC5+aA9CNVgmb0Uh+r8uMGjfXvIV6DABptCU9Gh99pFxCeW/dHl2fBRbbEAv6MivaCMvngjfwMf+KYqLBTbKC9e53gYVLKDSLa/HdglURW3nXAPJhUeW7zN9HPoiy/j6MPr59TXx2/XsZZUhayj7h++G8anfHbJgK15tsArrR86YagA+e6GH6Mf/M+Ro7t3hziwLCnWIFf5+w+J29vUjwQAAA==
+    Metadata:
+      aws:cdk:path: DLTStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  DLTApiEndpointD98B09AC:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: DLTApi0C903EB5
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: DLTApiDeploymentStageprodC81F8DCB
+          - /
+  Console:
+    Description: Console URL
+    Value:
+      Fn::GetAtt:
+        - DLTConsoleResourcesDLTCloudFrontToS3CloudFrontDistribution3EF384B4
+        - DomainName
+  SolutionUUID:
+    Description: Solution UUID
+    Value:
+      Fn::GetAtt:
+        - DLTCommonResourcesUUID2FD025A2
+        - UUID
+

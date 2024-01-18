@@ -1,0 +1,377 @@
+Resources:
+  PingServiceServiceRoleE7C4672F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/PingService/ServiceRole/Resource
+  PingService16CCE270:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: ebec3cc7653634b78d95363a53b5acb01aa1c3134e05959dd0c9e504c6b0aea8.zip
+      Role:
+        Fn::GetAtt:
+          - PingServiceServiceRoleE7C4672F
+          - Arn
+      Handler: handler.lambda_handler
+      Layers:
+        - Fn::Join:
+            - ""
+            - - "arn:aws:lambda:"
+              - Ref: AWS::Region
+              - ":"
+              - Ref: AWS::AccountId
+              - :layer:aws-flask:1
+      Runtime: python3.8
+    DependsOn:
+      - PingServiceServiceRoleE7C4672F
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/PingService/Resource
+      aws:asset:path: asset.ebec3cc7653634b78d95363a53b5acb01aa1c3134e05959dd0c9e504c6b0aea8
+      aws:asset:property: Code
+  RestAPI1CC12F26:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: RestAPI
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/Resource
+  RestAPICloudWatchRole025FE33D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/CloudWatchRole/Resource
+  RestAPIAccountB5481627:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - RestAPICloudWatchRole025FE33D
+          - Arn
+    DependsOn:
+      - RestAPI1CC12F26
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/Account
+  RestAPIDeploymentD35A53802b0946064737493a4bf7ed11d0615a4b:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: RestAPI1CC12F26
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - RestAPIproxyANYFF0AF03D
+      - RestAPIproxy75878BA9
+      - RestAPIANY46E22CAE
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/Deployment/Resource
+  RestAPIDeploymentStageprod21CF62B9:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: RestAPI1CC12F26
+      DeploymentId:
+        Ref: RestAPIDeploymentD35A53802b0946064737493a4bf7ed11d0615a4b
+      StageName: prod
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/DeploymentStage.prod/Resource
+  RestAPIproxy75878BA9:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - RestAPI1CC12F26
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: RestAPI1CC12F26
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/Default/{proxy+}/Resource
+  RestAPIproxyANYApiPermissionCdkBackendServerlessDeployerStackRestAPID3CD3CAFANYproxy91BBDD92:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PingService16CCE270
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: RestAPI1CC12F26
+            - /
+            - Ref: RestAPIDeploymentStageprod21CF62B9
+            - /*/*
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/Default/{proxy+}/ANY/ApiPermission.CdkBackendServerlessDeployerStackRestAPID3CD3CAF.ANY..{proxy+}
+  RestAPIproxyANYApiPermissionTestCdkBackendServerlessDeployerStackRestAPID3CD3CAFANYproxy425B7218:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PingService16CCE270
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: RestAPI1CC12F26
+            - /test-invoke-stage/*/*
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/Default/{proxy+}/ANY/ApiPermission.Test.CdkBackendServerlessDeployerStackRestAPID3CD3CAF.ANY..{proxy+}
+  RestAPIproxyANYFF0AF03D:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: RestAPIproxy75878BA9
+      RestApiId:
+        Ref: RestAPI1CC12F26
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - PingService16CCE270
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/Default/{proxy+}/ANY/Resource
+  RestAPIANYApiPermissionCdkBackendServerlessDeployerStackRestAPID3CD3CAFANYD358E836:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PingService16CCE270
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: RestAPI1CC12F26
+            - /
+            - Ref: RestAPIDeploymentStageprod21CF62B9
+            - /*/
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/Default/ANY/ApiPermission.CdkBackendServerlessDeployerStackRestAPID3CD3CAF.ANY..
+  RestAPIANYApiPermissionTestCdkBackendServerlessDeployerStackRestAPID3CD3CAFANY0DC66AAE:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - PingService16CCE270
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: RestAPI1CC12F26
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/Default/ANY/ApiPermission.Test.CdkBackendServerlessDeployerStackRestAPID3CD3CAF.ANY..
+  RestAPIANY46E22CAE:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - RestAPI1CC12F26
+          - RootResourceId
+      RestApiId:
+        Ref: RestAPI1CC12F26
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - PingService16CCE270
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/RestAPI/Default/ANY/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE1WP0U7DMAxFv2XvqVk3CfHaDe0JtKl8wJSlpnhtk6p2GFXVfydJBYwnn2vLvr4bWMM6Gwzkjyt948xUTdbSBaY30aZRJbLzg0EVZuep1d2l0jAdvDVCzqr9u73nEw4dMQc1K9IdTKVrMQ5inRVvz5oZhaGIJWjYedOg7DQHh55qLXjTI0wvySiYS9FTOvCHhTHOW1HP2Ldu7DBg6N6p8HmdXBf4iZBMToP7Gn9DLYcXfkX5cFVsLTTPKn0Zj5Ct4+Dopffybyvw3tmKJGW2rkK48sNn/gT5BvLVlYmyIXxLHUK51G+2BrW3cgEAAA==
+    Metadata:
+      aws:cdk:path: CdkBackendServerlessDeployerStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  RestAPIEndpointB14C3C54:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: RestAPI1CC12F26
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: RestAPIDeploymentStageprod21CF62B9
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store.
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

@@ -1,0 +1,181 @@
+Resources:
+  MyLambdaServiceRole4539ECB6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: CdkStack/MyLambda/ServiceRole/Resource
+  MyLambdaCCE802FB:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersae87feea6ccbe38211138566c06108aa632e71b7cbc68bd6b2eeae01d562ed98S3BucketF40F0421
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersae87feea6ccbe38211138566c06108aa632e71b7cbc68bd6b2eeae01d562ed98S3VersionKeyF095C0CF
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersae87feea6ccbe38211138566c06108aa632e71b7cbc68bd6b2eeae01d562ed98S3VersionKeyF095C0CF
+      Handler: build/lambda.handler
+      Role:
+        Fn::GetAtt:
+          - MyLambdaServiceRole4539ECB6
+          - Arn
+      Runtime: nodejs12.x
+    DependsOn:
+      - MyLambdaServiceRole4539ECB6
+    Metadata:
+      aws:cdk:path: CdkStack/MyLambda/Resource
+      aws:asset:path: asset.ae87feea6ccbe38211138566c06108aa632e71b7cbc68bd6b2eeae01d562ed98
+      aws:asset:property: Code
+  MyApi49610EDF:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: MyApi
+      ProtocolType: HTTP
+    Metadata:
+      aws:cdk:path: CdkStack/MyApi/Resource
+  MyApiDefaultStageB2EF93C6:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: MyApi49610EDF
+      StageName: $default
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: CdkStack/MyApi/DefaultStage/Resource
+  MyApiANYCdkStackMyApiANY6CA7FAAEPermissionD92F6ADD:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - MyLambdaCCE802FB
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:eu-central-1:"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: MyApi49610EDF
+            - /*/*/
+    Metadata:
+      aws:cdk:path: CdkStack/MyApi/ANY--/CdkStackMyApiANY6CA7FAAE-Permission
+  MyApiANYANYIntegration6AD03225:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: MyApi49610EDF
+      IntegrationType: AWS_PROXY
+      IntegrationUri:
+        Fn::GetAtt:
+          - MyLambdaCCE802FB
+          - Arn
+      PayloadFormatVersion: "2.0"
+    Metadata:
+      aws:cdk:path: CdkStack/MyApi/ANY--/ANY---Integration/Resource
+  MyApiANYFDD5758B:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: MyApi49610EDF
+      RouteKey: ANY /
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: MyApiANYANYIntegration6AD03225
+    Metadata:
+      aws:cdk:path: CdkStack/MyApi/ANY--/Resource
+  MyCfCFDistributionD97466FB:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: /
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            CustomOriginConfig:
+              HTTPPort: 80
+              HTTPSPort: 443
+              OriginKeepaliveTimeout: 5
+              OriginProtocolPolicy: https-only
+              OriginReadTimeout: 30
+              OriginSSLProtocols:
+                - TLSv1.2
+            DomainName:
+              Fn::Join:
+                - ""
+                - - Ref: MyApi49610EDF
+                  - .execute-api.eu-central-1.
+                  - Ref: AWS::URLSuffix
+            Id: origin1
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+    Metadata:
+      aws:cdk:path: CdkStack/MyCf/CFDistribution
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.74.0,@aws-cdk/aws-apigatewayv2=1.74.0,@aws-cdk/aws-apigatewayv2-integrations=1.74.0,@aws-cdk/aws-applicationautoscaling=1.74.0,@aws-cdk/aws-autoscaling-common=1.74.0,@aws-cdk/aws-certificatemanager=1.74.0,@aws-cdk/aws-cloudfront=1.74.0,@aws-cdk/aws-cloudwatch=1.74.0,@aws-cdk/aws-codeguruprofiler=1.74.0,@aws-cdk/aws-ec2=1.74.0,@aws-cdk/aws-events=1.74.0,@aws-cdk/aws-iam=1.74.0,@aws-cdk/aws-kms=1.74.0,@aws-cdk/aws-lambda=1.74.0,@aws-cdk/aws-logs=1.74.0,@aws-cdk/aws-s3=1.74.0,@aws-cdk/aws-s3-assets=1.74.0,@aws-cdk/aws-sqs=1.74.0,@aws-cdk/aws-ssm=1.74.0,@aws-cdk/cloud-assembly-schema=1.74.0,@aws-cdk/core=1.74.0,@aws-cdk/cx-api=1.74.0,@aws-cdk/region-info=1.74.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: CdkStack/CDKMetadata/Default
+Parameters:
+  AssetParametersae87feea6ccbe38211138566c06108aa632e71b7cbc68bd6b2eeae01d562ed98S3BucketF40F0421:
+    Type: String
+    Description: S3 bucket for asset "ae87feea6ccbe38211138566c06108aa632e71b7cbc68bd6b2eeae01d562ed98"
+  AssetParametersae87feea6ccbe38211138566c06108aa632e71b7cbc68bd6b2eeae01d562ed98S3VersionKeyF095C0CF:
+    Type: String
+    Description: S3 key for asset version "ae87feea6ccbe38211138566c06108aa632e71b7cbc68bd6b2eeae01d562ed98"
+  AssetParametersae87feea6ccbe38211138566c06108aa632e71b7cbc68bd6b2eeae01d562ed98ArtifactHash3DE07831:
+    Type: String
+    Description: Artifact hash for asset "ae87feea6ccbe38211138566c06108aa632e71b7cbc68bd6b2eeae01d562ed98"
+Outputs:
+  myOut:
+    Value:
+      Fn::GetAtt:
+        - MyCfCFDistributionD97466FB
+        - DomainName
+

@@ -1,0 +1,1140 @@
+Resources:
+  CustomerRecordsNotifications4A1BE966:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: CustomerRecords680A308D
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - ImportCustomersS3ACA888A7
+                - Arn
+      Managed: true
+    DependsOn:
+      - CustomerRecordsAllowBucketNotificationsToHoneycodeLabImportCustomersS3191FB4B83F31431C
+    Metadata:
+      aws:cdk:path: HoneycodeLab/CustomerRecords/Notifications/Resource
+  CustomerRecords680A308D:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: HoneycodeLab/CustomerRecords/Resource
+  CustomerRecordsPolicyBDE79FB0:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: CustomerRecords680A308D
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - CustomerRecords680A308D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CustomerRecords680A308D
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: HoneycodeLab/CustomerRecords/Policy/Resource
+  CustomerRecordsAutoDeleteObjectsCustomResourceA666F72F:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: CustomerRecords680A308D
+    DependsOn:
+      - CustomerRecordsPolicyBDE79FB0
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: HoneycodeLab/CustomerRecords/AutoDeleteObjectsCustomResource/Default
+  CustomerRecordsAllowBucketNotificationsToHoneycodeLabImportCustomersS3191FB4B83F31431C:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ImportCustomersS3ACA888A7
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - CustomerRecords680A308D
+          - Arn
+    Metadata:
+      aws:cdk:path: HoneycodeLab/CustomerRecords/AllowBucketNotificationsToHoneycodeLabImportCustomersS3191FB4B8
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: HoneycodeLab/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters8232f53b1494e586db8f965674400246af9ebad94a92aacc2ab86d7165bcc29cS3Bucket47179D9A
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8232f53b1494e586db8f965674400246af9ebad94a92aacc2ab86d7165bcc29cS3VersionKey655897AA
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8232f53b1494e586db8f965674400246af9ebad94a92aacc2ab86d7165bcc29cS3VersionKey655897AA
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: CustomerRecords680A308D
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: HoneycodeLab/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+  ImportCustomersS3ServiceRole4AB9A331:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ImportCustomersS3/ServiceRole/Resource
+  ImportCustomersS3ServiceRoleDefaultPolicy65CACC6C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CustomerRecords680A308D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CustomerRecords680A308D
+                        - Arn
+                    - /*
+          - Action:
+              - honeycode:ListTables
+              - honeycode:StartTableDataImportJob
+            Effect: Allow
+            Resource:
+              - arn:aws:honeycode:*:*:workbook:workbook/
+              - arn:aws:honeycode:*:*:table:workbook//table/*
+        Version: "2012-10-17"
+      PolicyName: ImportCustomersS3ServiceRoleDefaultPolicy65CACC6C
+      Roles:
+        - Ref: ImportCustomersS3ServiceRole4AB9A331
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ImportCustomersS3/ServiceRole/DefaultPolicy/Resource
+  ImportCustomersS3ACA888A7:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersd0a2ae886af27392dde193d24d9f7759dbbcb451bb4f90f19cf59ad9c84265c5S3Bucket5B56DEB9
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd0a2ae886af27392dde193d24d9f7759dbbcb451bb4f90f19cf59ad9c84265c5S3VersionKey9BF85E68
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersd0a2ae886af27392dde193d24d9f7759dbbcb451bb4f90f19cf59ad9c84265c5S3VersionKey9BF85E68
+      Role:
+        Fn::GetAtt:
+          - ImportCustomersS3ServiceRole4AB9A331
+          - Arn
+      Description: Reads customer records from S3 and updates or inserts them in Amazon Honeycode
+      Environment:
+        Variables:
+          workbookId: ""
+          crossAcountHoneycodeRoleArn: ""
+          customersTableName: A_Customers
+          contactHistoryTableName: D_History
+          countryTableName: M_Country
+          statusTableName: M_Status
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 60
+    DependsOn:
+      - ImportCustomersS3ServiceRoleDefaultPolicy65CACC6C
+      - ImportCustomersS3ServiceRole4AB9A331
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ImportCustomersS3/Resource
+      aws:asset:path: asset.d0a2ae886af27392dde193d24d9f7759dbbcb451bb4f90f19cf59ad9c84265c5
+      aws:asset:property: Code
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: HoneycodeLab/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: HoneycodeLab/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |
+          import boto3  # type: ignore
+          import json
+          import logging
+          import urllib.request
+
+          s3 = boto3.client("s3")
+
+          CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+          def handler(event: dict, context):
+              response_status = "SUCCESS"
+              error_message = ""
+              try:
+                  props = event["ResourceProperties"]
+                  bucket = props["BucketName"]
+                  notification_configuration = props["NotificationConfiguration"]
+                  request_type = event["RequestType"]
+                  managed = props.get('Managed', 'true').lower() == 'true'
+                  stack_id = event['StackId']
+
+                  if managed:
+                    config = handle_managed(request_type, notification_configuration)
+                  else:
+                    config = handle_unmanaged(bucket, stack_id, request_type, notification_configuration)
+
+                  put_bucket_notification_configuration(bucket, config)
+              except Exception as e:
+                  logging.exception("Failed to put bucket notification configuration")
+                  response_status = "FAILED"
+                  error_message = f"Error: {str(e)}. "
+              finally:
+                  submit_response(event, context, response_status, error_message)
+
+
+          def handle_managed(request_type, notification_configuration):
+            if request_type == 'Delete':
+              return {}
+            return notification_configuration
+
+
+          def handle_unmanaged(bucket, stack_id, request_type, notification_configuration):
+
+            # find external notifications
+            external_notifications = find_external_notifications(bucket, stack_id)
+
+            # if delete, that's all we need
+            if request_type == 'Delete':
+              return external_notifications
+
+            def with_id(notification):
+              notification['Id'] = f"{stack_id}-{hash(json.dumps(notification, sort_keys=True))}"
+              return notification
+
+            # otherwise, merge external with incoming config and augment with id
+            notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external = external_notifications.get(t, [])
+              incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+              notifications[t] = external + incoming
+            return notifications
+
+
+          def find_external_notifications(bucket, stack_id):
+            existing_notifications = get_bucket_notification_configuration(bucket)
+            external_notifications = {}
+            for t in CONFIGURATION_TYPES:
+              # if the notification was created by us, we know what id to expect
+              # so we can filter by it.
+              external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+
+            return external_notifications
+
+
+          def get_bucket_notification_configuration(bucket):
+            return s3.get_bucket_notification_configuration(Bucket=bucket)
+
+
+          def put_bucket_notification_configuration(bucket, notification_configuration):
+            s3.put_bucket_notification_configuration(Bucket=bucket, NotificationConfiguration=notification_configuration)
+
+
+          def submit_response(event: dict, context, response_status: str, error_message: str):
+              response_body = json.dumps(
+                  {
+                      "Status": response_status,
+                      "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                      "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                      "StackId": event["StackId"],
+                      "RequestId": event["RequestId"],
+                      "LogicalResourceId": event["LogicalResourceId"],
+                      "NoEcho": False,
+                  }
+              ).encode("utf-8")
+              headers = {"content-type": "", "content-length": str(len(response_body))}
+              try:
+                  req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+                  with urllib.request.urlopen(req) as response:
+                      print(response.read().decode("utf-8"))
+                  print("Status code: " + response.reason)
+              except Exception as e:
+                  print("send(..) failed executing request.urlopen(..): " + str(e))
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: python3.7
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: HoneycodeLab/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  CustomerRecordsBucketDeployAwsCliLayer1DE2027B:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: HoneycodeLab/CustomerRecordsBucketDeploy/AwsCliLayer/Resource
+      aws:asset:path: asset.e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68.zip
+      aws:asset:property: Content
+  CustomerRecordsBucketDeployCustomResource1B9C9C85:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameters568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366cS3Bucket62DFDF28
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366cS3VersionKey26F8357E
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366cS3VersionKey26F8357E
+      DestinationBucketName:
+        Ref: CustomerRecords680A308D
+      Prune: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: HoneycodeLab/CustomerRecordsBucketDeploy/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: HoneycodeLab/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366cS3Bucket62DFDF28
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366cS3Bucket62DFDF28
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CustomerRecords680A308D
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CustomerRecords680A308D
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: HoneycodeLab/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3BucketD1AD544E
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: CustomerRecordsBucketDeployAwsCliLayer1DE2027B
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: HoneycodeLab/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8
+      aws:asset:property: Code
+  Customers6955EA0A:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: Company
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: Company
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: HoneycodeLab/Customers/Resource
+  ImportCustomersDynamoDBServiceRole26412BF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ImportCustomersDynamoDB/ServiceRole/Resource
+  ImportCustomersDynamoDBServiceRoleDefaultPolicyDBA468A0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:ListStreams
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:DescribeStream
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Customers6955EA0A
+                - StreamArn
+          - Action:
+              - honeycode:ListTables
+              - honeycode:ListTableColumns
+              - honeycode:BatchCreateTableRows
+              - honeycode:BatchUpdateTableRows
+              - honeycode:BatchDeleteTableRows
+              - honeycode:QueryTableRows
+            Effect: Allow
+            Resource:
+              - arn:aws:honeycode:*:*:workbook:workbook/
+              - arn:aws:honeycode:*:*:table:workbook//table/*
+        Version: "2012-10-17"
+      PolicyName: ImportCustomersDynamoDBServiceRoleDefaultPolicyDBA468A0
+      Roles:
+        - Ref: ImportCustomersDynamoDBServiceRole26412BF2
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ImportCustomersDynamoDB/ServiceRole/DefaultPolicy/Resource
+  ImportCustomersDynamoDBD916E843:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameterse892b969090a0939d203b5baf82bcdc57744a9e3614dafb477c50f7f5a806762S3BucketE681AC4D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse892b969090a0939d203b5baf82bcdc57744a9e3614dafb477c50f7f5a806762S3VersionKey82275C42
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse892b969090a0939d203b5baf82bcdc57744a9e3614dafb477c50f7f5a806762S3VersionKey82275C42
+      Role:
+        Fn::GetAtt:
+          - ImportCustomersDynamoDBServiceRole26412BF2
+          - Arn
+      Description: Invoked on changes to customer records in Dynamodb and updates or inserts them into Amazon Honeycode
+      Environment:
+        Variables:
+          workbookId: ""
+          crossAcountHoneycodeRoleArn: ""
+          customersTableName: A_Customers
+          contactHistoryTableName: D_History
+          countryTableName: M_Country
+          statusTableName: M_Status
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 60
+    DependsOn:
+      - ImportCustomersDynamoDBServiceRoleDefaultPolicyDBA468A0
+      - ImportCustomersDynamoDBServiceRole26412BF2
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ImportCustomersDynamoDB/Resource
+      aws:asset:path: asset.e892b969090a0939d203b5baf82bcdc57744a9e3614dafb477c50f7f5a806762
+      aws:asset:property: Code
+  ImportCustomersDynamoDBDynamoDBEventSourceHoneycodeLabCustomers641BFAF236A9A5B9:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: ImportCustomersDynamoDBD916E843
+      BatchSize: 100
+      EventSourceArn:
+        Fn::GetAtt:
+          - Customers6955EA0A
+          - StreamArn
+      MaximumRetryAttempts: 1
+      StartingPosition: TRIM_HORIZON
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ImportCustomersDynamoDB/DynamoDBEventSource:HoneycodeLabCustomers641BFAF2/Resource
+  CustomerRecordsTableInitCustomResourcePolicyA35EA3FD:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:PutItem
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Customers6955EA0A
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CustomerRecordsTableInitCustomResourcePolicyA35EA3FD
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: HoneycodeLab/CustomerRecordsTableInit/CustomResourcePolicy/Resource
+  CustomerRecordsTableInit6450AA3E:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"DynamoDB","action":"putItem","parameters":{"TableName":"'
+            - Ref: Customers6955EA0A
+            - '","Item":{"Company":{"S":"AnyCompany Water"},"Valuation":{"N":"10"},"Revenue Opportunity":{"N":"5"},"Opportunity":{"N":"5"},"Country":{"S":" US"},"Status":{"S":"New"},"Contact":{"S":"John Doe (ceo@example.com)"},"Account Manager":{"S":"name@example.com"}}},"physicalResourceId":"CustomerRecordsTableInitializer"}'
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - CustomerRecordsTableInitCustomResourcePolicyA35EA3FD
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: HoneycodeLab/CustomerRecordsTableInit/Resource/Default
+  AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: HoneycodeLab/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource
+  AWS679f53fac002430cb0da5b7982bd22872D164C4C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3Bucket02FC0B28
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3VersionKey547E84F8
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3VersionKey547E84F8
+      Role:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 120
+    DependsOn:
+      - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: HoneycodeLab/AWS679f53fac002430cb0da5b7982bd2287/Resource
+      aws:asset:path: asset.4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbc
+      aws:asset:property: Code
+  ContactHistoryBucket685942A5:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ContactHistoryBucket/Resource
+  ContactHistoryBucketPolicy0FBF4E19:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: ContactHistoryBucket685942A5
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - ContactHistoryBucket685942A5
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ContactHistoryBucket685942A5
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ContactHistoryBucket/Policy/Resource
+  ContactHistoryBucketAutoDeleteObjectsCustomResource15510098:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: ContactHistoryBucket685942A5
+    DependsOn:
+      - ContactHistoryBucketPolicy0FBF4E19
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ContactHistoryBucket/AutoDeleteObjectsCustomResource/Default
+  ExportContactHistoryS3ServiceRoleBFF97405:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ExportContactHistoryS3/ServiceRole/Resource
+  ExportContactHistoryS3ServiceRoleDefaultPolicyE0C86FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ContactHistoryBucket685942A5
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ContactHistoryBucket685942A5
+                        - Arn
+                    - /*
+          - Action:
+              - honeycode:ListTables
+              - honeycode:ListTableColumns
+              - honeycode:BatchUpdateTableRows
+              - honeycode:QueryTableRows
+            Effect: Allow
+            Resource:
+              - arn:aws:honeycode:*:*:workbook:workbook/
+              - arn:aws:honeycode:*:*:table:workbook//table/*
+        Version: "2012-10-17"
+      PolicyName: ExportContactHistoryS3ServiceRoleDefaultPolicyE0C86FDF
+      Roles:
+        - Ref: ExportContactHistoryS3ServiceRoleBFF97405
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ExportContactHistoryS3/ServiceRole/DefaultPolicy/Resource
+  ExportContactHistoryS3093A7942:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameterse8f3ebf7cdb5eec059c7389f24354725a939ab07b30c0922849108b39550082bS3BucketFC753EF0
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse8f3ebf7cdb5eec059c7389f24354725a939ab07b30c0922849108b39550082bS3VersionKey0D94333F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse8f3ebf7cdb5eec059c7389f24354725a939ab07b30c0922849108b39550082bS3VersionKey0D94333F
+      Role:
+        Fn::GetAtt:
+          - ExportContactHistoryS3ServiceRoleBFF97405
+          - Arn
+      Description: Reads contact history from Honeycode and saves it to S3
+      Environment:
+        Variables:
+          workbookId: ""
+          crossAcountHoneycodeRoleArn: ""
+          customersTableName: A_Customers
+          contactHistoryTableName: D_History
+          countryTableName: M_Country
+          statusTableName: M_Status
+          s3bucket:
+            Ref: ContactHistoryBucket685942A5
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 60
+    DependsOn:
+      - ExportContactHistoryS3ServiceRoleDefaultPolicyE0C86FDF
+      - ExportContactHistoryS3ServiceRoleBFF97405
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ExportContactHistoryS3/Resource
+      aws:asset:path: asset.e8f3ebf7cdb5eec059c7389f24354725a939ab07b30c0922849108b39550082b
+      aws:asset:property: Code
+  ExportContactHistoryRuleA56CCCB1:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(1 minute)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - ExportContactHistoryS3093A7942
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ExportContactHistoryRule/Resource
+  ExportContactHistoryRuleAllowEventRuleHoneycodeLabExportContactHistoryS363580AF5FD3C6E81:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ExportContactHistoryS3093A7942
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - ExportContactHistoryRuleA56CCCB1
+          - Arn
+    Metadata:
+      aws:cdk:path: HoneycodeLab/ExportContactHistoryRule/AllowEventRuleHoneycodeLabExportContactHistoryS363580AF5
+  S3ManifestCustomResourcePolicyF0DCE670:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - ContactHistoryBucket685942A5
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: S3ManifestCustomResourcePolicyF0DCE670
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: HoneycodeLab/S3Manifest/CustomResourcePolicy/Resource
+  S3Manifest81E2D036:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        Fn::Join:
+          - ""
+          - - '{"service":"S3","action":"putObject","parameters":{"Bucket":"'
+            - Ref: ContactHistoryBucket685942A5
+            - '","Key":"manifest.json","Body":"{\n  \"fileLocations\": [\n    {\n      \"URIPrefixes\": [\n        \"s3://'
+            - Ref: ContactHistoryBucket685942A5
+            - /csv/\"\n      ]\n    }\n  ]\n}"},"physicalResourceId":"S3ManifestFile"}
+      InstallLatestAwsSdk: true
+    DependsOn:
+      - S3ManifestCustomResourcePolicyF0DCE670
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: HoneycodeLab/S3Manifest/Resource/Default
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/3VSTU8DIRD9Lb2z1LWJ8Wi76klj0xrvFKYNLR8bBto0hP8usKurMZ7mi3lv3gwtbW/v6M3sgV2w4eI0j9w6oHHrGT+Rzhr0LnBPur3ZANrgOJAuoLf6n3Dt7FkKcGSJCD7DHKQ5lPY1c0yDz5Wpc2/egu9Dhc9cQnppTSJllogLGleBn6BWR28wa6skv07pMR6CFUNIRDG9E4zGQgxOS8SMTJ6D4YWitP70X9gV3Ae4+mibB1bg7fTi6QzGb+vMr6zvR0F/s4lIpmncWFW1VTvNOniJ4KKJrCwHad0REdAre9UZjQ4SHr8TiYirYdqKHY3vbDfgVicRKPyY6cJIl236Ut6oIqnJm+RK0uUFOyWrSsLruRo3HgFr8dcJEzFWAD3i/Nze5/9B29kRpWxcMF5qoJvBfgK92ADlOwIAAA==
+    Metadata:
+      aws:cdk:path: HoneycodeLab/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters8232f53b1494e586db8f965674400246af9ebad94a92aacc2ab86d7165bcc29cS3Bucket47179D9A:
+    Type: String
+    Description: S3 bucket for asset "8232f53b1494e586db8f965674400246af9ebad94a92aacc2ab86d7165bcc29c"
+  AssetParameters8232f53b1494e586db8f965674400246af9ebad94a92aacc2ab86d7165bcc29cS3VersionKey655897AA:
+    Type: String
+    Description: S3 key for asset version "8232f53b1494e586db8f965674400246af9ebad94a92aacc2ab86d7165bcc29c"
+  AssetParameters8232f53b1494e586db8f965674400246af9ebad94a92aacc2ab86d7165bcc29cArtifactHashEB9BDB6B:
+    Type: String
+    Description: Artifact hash for asset "8232f53b1494e586db8f965674400246af9ebad94a92aacc2ab86d7165bcc29c"
+  AssetParametersd0a2ae886af27392dde193d24d9f7759dbbcb451bb4f90f19cf59ad9c84265c5S3Bucket5B56DEB9:
+    Type: String
+    Description: S3 bucket for asset "d0a2ae886af27392dde193d24d9f7759dbbcb451bb4f90f19cf59ad9c84265c5"
+  AssetParametersd0a2ae886af27392dde193d24d9f7759dbbcb451bb4f90f19cf59ad9c84265c5S3VersionKey9BF85E68:
+    Type: String
+    Description: S3 key for asset version "d0a2ae886af27392dde193d24d9f7759dbbcb451bb4f90f19cf59ad9c84265c5"
+  AssetParametersd0a2ae886af27392dde193d24d9f7759dbbcb451bb4f90f19cf59ad9c84265c5ArtifactHashCEBEF012:
+    Type: String
+    Description: Artifact hash for asset "d0a2ae886af27392dde193d24d9f7759dbbcb451bb4f90f19cf59ad9c84265c5"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3BucketAEADE8C7:
+    Type: String
+    Description: S3 bucket for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68S3VersionKeyE415415F:
+    Type: String
+    Description: S3 key for asset version "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParameterse9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68ArtifactHashD9A515C3:
+    Type: String
+    Description: Artifact hash for asset "e9882ab123687399f934da0d45effe675ecc8ce13b40cb946f3e1d6141fe8d68"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3BucketD1AD544E:
+    Type: String
+    Description: S3 bucket for asset "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8S3VersionKey93A19D70:
+    Type: String
+    Description: S3 key for asset version "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParametersa3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8ArtifactHash238275D6:
+    Type: String
+    Description: Artifact hash for asset "a3058ccb468d757ebb89df5363a1c20f5307c6911136f29d00e1a68c9b2aa7e8"
+  AssetParameters568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366cS3Bucket62DFDF28:
+    Type: String
+    Description: S3 bucket for asset "568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366c"
+  AssetParameters568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366cS3VersionKey26F8357E:
+    Type: String
+    Description: S3 key for asset version "568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366c"
+  AssetParameters568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366cArtifactHashC6879DF3:
+    Type: String
+    Description: Artifact hash for asset "568b195cca58872e2ee296b584f3e42ad0e11603b02668e211a668bb4ae5366c"
+  AssetParameterse892b969090a0939d203b5baf82bcdc57744a9e3614dafb477c50f7f5a806762S3BucketE681AC4D:
+    Type: String
+    Description: S3 bucket for asset "e892b969090a0939d203b5baf82bcdc57744a9e3614dafb477c50f7f5a806762"
+  AssetParameterse892b969090a0939d203b5baf82bcdc57744a9e3614dafb477c50f7f5a806762S3VersionKey82275C42:
+    Type: String
+    Description: S3 key for asset version "e892b969090a0939d203b5baf82bcdc57744a9e3614dafb477c50f7f5a806762"
+  AssetParameterse892b969090a0939d203b5baf82bcdc57744a9e3614dafb477c50f7f5a806762ArtifactHash06E34AEF:
+    Type: String
+    Description: Artifact hash for asset "e892b969090a0939d203b5baf82bcdc57744a9e3614dafb477c50f7f5a806762"
+  AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3Bucket02FC0B28:
+    Type: String
+    Description: S3 bucket for asset "4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbc"
+  AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcS3VersionKey547E84F8:
+    Type: String
+    Description: S3 key for asset version "4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbc"
+  AssetParameters4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbcArtifactHashF236251A:
+    Type: String
+    Description: Artifact hash for asset "4074092ab8b435c90a773e082601fa36def54c91cadfae59451bd0beda547cbc"
+  AssetParameterse8f3ebf7cdb5eec059c7389f24354725a939ab07b30c0922849108b39550082bS3BucketFC753EF0:
+    Type: String
+    Description: S3 bucket for asset "e8f3ebf7cdb5eec059c7389f24354725a939ab07b30c0922849108b39550082b"
+  AssetParameterse8f3ebf7cdb5eec059c7389f24354725a939ab07b30c0922849108b39550082bS3VersionKey0D94333F:
+    Type: String
+    Description: S3 key for asset version "e8f3ebf7cdb5eec059c7389f24354725a939ab07b30c0922849108b39550082b"
+  AssetParameterse8f3ebf7cdb5eec059c7389f24354725a939ab07b30c0922849108b39550082bArtifactHashE43BB011:
+    Type: String
+    Description: Artifact hash for asset "e8f3ebf7cdb5eec059c7389f24354725a939ab07b30c0922849108b39550082b"
+Outputs:
+  S3manifestfileURL:
+    Value:
+      Fn::Join:
+        - ""
+        - - s3://
+          - Ref: ContactHistoryBucket685942A5
+          - /manifest.json
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

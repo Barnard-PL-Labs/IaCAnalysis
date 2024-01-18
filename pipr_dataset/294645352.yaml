@@ -1,0 +1,1255 @@
+Resources:
+  DynamoDbunicornclientstableA51A365D:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: deviceid
+          KeyType: HASH
+        - AttributeName: transactionid
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: deviceid
+          AttributeType: S
+        - AttributeName: transactionid
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/DynamoDb/unicorn-clients-table/Resource
+  SQSqueryqueueF3E182C6:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 15
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/SQS/query-queue/Resource
+  SQScommandqueue7E0C822A:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 15
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/SQS/command-queue/Resource
+  IoTSampleIoTClientPolicyD2C5D968:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: iot:Connect
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :client/SampleReadClient
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :client/SampleWriteClient
+          - Effect: Allow
+            Action: iot:Subscribe
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:iot:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :topicfilter/cqrs/*/response
+          - Effect: Allow
+            Action:
+              - iot:Publish
+              - iot:Receive
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topic/cqrs/request
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topic/cqrs/command
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :topic/cqrs/*/response
+      PolicyName: sample-cqrs-iot-policy
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/IoT/SampleIoTClientPolicy
+  IoTiotsqsroleF5189881:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/IoT/iot-sqs-role/Resource
+  IoTiotsqsroleDefaultPolicyA33F107B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SQSqueryqueueF3E182C6
+                  - Arn
+              - Fn::GetAtt:
+                  - SQScommandqueue7E0C822A
+                  - Arn
+        Version: "2012-10-17"
+      PolicyName: IoTiotsqsroleDefaultPolicyA33F107B
+      Roles:
+        - Ref: IoTiotsqsroleF5189881
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/IoT/iot-sqs-role/DefaultPolicy/Resource
+  IoTIotSqsQueryRuleEA2C622D:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        Actions:
+          - Sqs:
+              QueueUrl:
+                Ref: SQSqueryqueueF3E182C6
+              RoleArn:
+                Fn::GetAtt:
+                  - IoTiotsqsroleF5189881
+                  - Arn
+        AwsIotSqlVersion: "2016-03-23"
+        RuleDisabled: false
+        Sql: SELECT * FROM 'cqrs/request'
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/IoT/IotSqsQueryRule
+  IoTIotSqsCommandRuleD90432ED:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        Actions:
+          - Sqs:
+              QueueUrl:
+                Ref: SQScommandqueue7E0C822A
+              RoleArn:
+                Fn::GetAtt:
+                  - IoTiotsqsroleF5189881
+                  - Arn
+        AwsIotSqlVersion: "2016-03-23"
+        RuleDisabled: false
+        Sql: SELECT * FROM 'cqrs/command'
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/IoT/IotSqsCommandRule
+  ECSIoTEndpoint97426262:
+    Type: Custom::AWS
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd22872D164C4C
+          - Arn
+      Create:
+        service: Iot
+        action: describeEndpoint
+        physicalResourceId:
+          responsePath: endpointAddress
+        parameters:
+          endpointType: iot:Data-ATS
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/IoTEndpoint/Resource/Default
+  ECSCommandServiceQueueProcessingTaskDefTaskRoleBF1C0B64:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingTaskDef/TaskRole/Resource
+  ECSCommandServiceQueueProcessingTaskDefTaskRoleDefaultPolicy1A080599:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SQScommandqueue7E0C822A
+                - Arn
+          - Action: dynamodb:PutItem
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DynamoDbunicornclientstableA51A365D
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ECSCommandServiceQueueProcessingTaskDefTaskRoleDefaultPolicy1A080599
+      Roles:
+        - Ref: ECSCommandServiceQueueProcessingTaskDefTaskRoleBF1C0B64
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingTaskDef/TaskRole/DefaultPolicy/Resource
+  ECSCommandServiceQueueProcessingTaskDefA9753F05:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: QUEUE_URL
+              Value:
+                Ref: SQScommandqueue7E0C822A
+            - Name: AWS_REGION
+              Value:
+                Ref: AWS::Region
+            - Name: DYNAMODB_TABLE
+              Value:
+                Ref: DynamoDbunicornclientstableA51A365D
+            - Name: QUEUE_NAME
+              Value:
+                Fn::GetAtt:
+                  - SQScommandqueue7E0C822A
+                  - QueueName
+          Essential: true
+          Image:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::AccountId
+                - .dkr.ecr.
+                - Ref: AWS::Region
+                - "."
+                - Ref: AWS::URLSuffix
+                - /aws-cdk/assets:c20185716b243132f8901f2664a0c7fe8ce3cc539875a84918248256957f6be7
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: ECSCommandServiceQueueProcessingTaskDefQueueProcessingContainerLogGroupD04A3BC9
+              awslogs-stream-prefix: CommandService
+              awslogs-region:
+                Ref: AWS::Region
+          Name: QueueProcessingContainer
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - ECSCommandServiceQueueProcessingTaskDefExecutionRole7027707A
+          - Arn
+      Family: AwsIotCqrsStackECSCommandServiceQueueProcessingTaskDef088D780C
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - ECSCommandServiceQueueProcessingTaskDefTaskRoleBF1C0B64
+          - Arn
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingTaskDef/Resource
+  ECSCommandServiceQueueProcessingTaskDefQueueProcessingContainerLogGroupD04A3BC9:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingTaskDef/QueueProcessingContainer/LogGroup/Resource
+  ECSCommandServiceQueueProcessingTaskDefExecutionRole7027707A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingTaskDef/ExecutionRole/Resource
+  ECSCommandServiceQueueProcessingTaskDefExecutionRoleDefaultPolicyB4836AC9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ecr:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :repository/aws-cdk/assets
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ECSCommandServiceQueueProcessingTaskDefQueueProcessingContainerLogGroupD04A3BC9
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ECSCommandServiceQueueProcessingTaskDefExecutionRoleDefaultPolicyB4836AC9
+      Roles:
+        - Ref: ECSCommandServiceQueueProcessingTaskDefExecutionRole7027707A
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingTaskDef/ExecutionRole/DefaultPolicy/Resource
+  ECSCommandServiceQueueProcessingFargateService5416FE3F:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Ref: EcsDefaultClusterMnL3mNNYN926A5246
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 2
+      EnableECSManagedTags: false
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::GetAtt:
+                - ECSCommandServiceQueueProcessingFargateServiceSecurityGroupCEE35FFB
+                - GroupId
+          Subnets:
+            - Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1Subnet075EFF4C
+            - Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2SubnetE4CEDF73
+      TaskDefinition:
+        Ref: ECSCommandServiceQueueProcessingTaskDefA9753F05
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingFargateService/Service
+  ECSCommandServiceQueueProcessingFargateServiceSecurityGroupCEE35FFB:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: AwsIotCqrsStack/ECS/CommandService/QueueProcessingFargateService/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingFargateService/SecurityGroup/Resource
+  ECSCommandServiceQueueProcessingFargateServiceTaskCountTarget1AE50EDE:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 5
+      MinCapacity: 2
+      ResourceId:
+        Fn::Join:
+          - ""
+          - - service/
+            - Ref: EcsDefaultClusterMnL3mNNYN926A5246
+            - /
+            - Fn::GetAtt:
+                - ECSCommandServiceQueueProcessingFargateService5416FE3F
+                - Name
+      RoleARN:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":iam::"
+            - Ref: AWS::AccountId
+            - :role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingFargateService/TaskCount/Target/Resource
+  ECSCommandServiceQueueProcessingFargateServiceTaskCountTargetCpuScaling41AF4819:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AwsIotCqrsStackECSCommandServiceQueueProcessingFargateServiceTaskCountTargetCpuScaling5AC36502
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId:
+        Ref: ECSCommandServiceQueueProcessingFargateServiceTaskCountTarget1AE50EDE
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 50
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingFargateService/TaskCount/Target/CpuScaling/Resource
+  ECSCommandServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerPolicy94B69750:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AwsIotCqrsStackECSCommandServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerPolicy28C085EC
+      PolicyType: StepScaling
+      ScalingTargetId:
+        Ref: ECSCommandServiceQueueProcessingFargateServiceTaskCountTarget1AE50EDE
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        MetricAggregationType: Maximum
+        StepAdjustments:
+          - MetricIntervalUpperBound: 0
+            ScalingAdjustment: -1
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/LowerPolicy/Resource
+  ECSCommandServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerAlarm485D8897:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: LessThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: ECSCommandServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerPolicy94B69750
+      AlarmDescription: Lower threshold scaling alarm
+      Dimensions:
+        - Name: QueueName
+          Value:
+            Fn::GetAtt:
+              - SQScommandqueue7E0C822A
+              - QueueName
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 0
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/LowerAlarm/Resource
+  ECSCommandServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperPolicy4A6DD231:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AwsIotCqrsStackECSCommandServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperPolicyCC1F287D
+      PolicyType: StepScaling
+      ScalingTargetId:
+        Ref: ECSCommandServiceQueueProcessingFargateServiceTaskCountTarget1AE50EDE
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        MetricAggregationType: Maximum
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            MetricIntervalUpperBound: 400
+            ScalingAdjustment: 1
+          - MetricIntervalLowerBound: 400
+            ScalingAdjustment: 5
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/UpperPolicy/Resource
+  ECSCommandServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperAlarm235F1BBC:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: ECSCommandServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperPolicy4A6DD231
+      AlarmDescription: Upper threshold scaling alarm
+      Dimensions:
+        - Name: QueueName
+          Value:
+            Fn::GetAtt:
+              - SQScommandqueue7E0C822A
+              - QueueName
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 100
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/CommandService/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/UpperAlarm/Resource
+  ECSQueryServiceQueueProcessingTaskDefTaskRole40E46CDE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingTaskDef/TaskRole/Resource
+  ECSQueryServiceQueueProcessingTaskDefTaskRoleDefaultPolicy06A8E30E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SQSqueryqueueF3E182C6
+                - Arn
+          - Action: dynamodb:Query
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DynamoDbunicornclientstableA51A365D
+                - Arn
+          - Action: iot:Publish
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:iot:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :topic/cqrs/*/response
+        Version: "2012-10-17"
+      PolicyName: ECSQueryServiceQueueProcessingTaskDefTaskRoleDefaultPolicy06A8E30E
+      Roles:
+        - Ref: ECSQueryServiceQueueProcessingTaskDefTaskRole40E46CDE
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingTaskDef/TaskRole/DefaultPolicy/Resource
+  ECSQueryServiceQueueProcessingTaskDefB86A5450:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: QUEUE_URL
+              Value:
+                Ref: SQSqueryqueueF3E182C6
+            - Name: AWS_REGION
+              Value:
+                Ref: AWS::Region
+            - Name: DYNAMODB_TABLE
+              Value:
+                Ref: DynamoDbunicornclientstableA51A365D
+            - Name: IOT_ENDPOINT
+              Value:
+                Fn::GetAtt:
+                  - ECSIoTEndpoint97426262
+                  - endpointAddress
+            - Name: QUEUE_NAME
+              Value:
+                Fn::GetAtt:
+                  - SQSqueryqueueF3E182C6
+                  - QueueName
+          Essential: true
+          Image:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::AccountId
+                - .dkr.ecr.
+                - Ref: AWS::Region
+                - "."
+                - Ref: AWS::URLSuffix
+                - /aws-cdk/assets:e9acf66ed200c619d6ed47046905c155d91a03533d6758d547c957a3441aed61
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: ECSQueryServiceQueueProcessingTaskDefQueueProcessingContainerLogGroup64A86FC1
+              awslogs-stream-prefix: QueryService
+              awslogs-region:
+                Ref: AWS::Region
+          Name: QueueProcessingContainer
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - ECSQueryServiceQueueProcessingTaskDefExecutionRoleF34B8A3A
+          - Arn
+      Family: AwsIotCqrsStackECSQueryServiceQueueProcessingTaskDef391AC95F
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - ECSQueryServiceQueueProcessingTaskDefTaskRole40E46CDE
+          - Arn
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingTaskDef/Resource
+  ECSQueryServiceQueueProcessingTaskDefQueueProcessingContainerLogGroup64A86FC1:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingTaskDef/QueueProcessingContainer/LogGroup/Resource
+  ECSQueryServiceQueueProcessingTaskDefExecutionRoleF34B8A3A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingTaskDef/ExecutionRole/Resource
+  ECSQueryServiceQueueProcessingTaskDefExecutionRoleDefaultPolicyE12952D4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ecr:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :repository/aws-cdk/assets
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ECSQueryServiceQueueProcessingTaskDefQueueProcessingContainerLogGroup64A86FC1
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ECSQueryServiceQueueProcessingTaskDefExecutionRoleDefaultPolicyE12952D4
+      Roles:
+        - Ref: ECSQueryServiceQueueProcessingTaskDefExecutionRoleF34B8A3A
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingTaskDef/ExecutionRole/DefaultPolicy/Resource
+  ECSQueryServiceQueueProcessingFargateServiceA8FD6E0C:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Ref: EcsDefaultClusterMnL3mNNYN926A5246
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 2
+      EnableECSManagedTags: false
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::GetAtt:
+                - ECSQueryServiceQueueProcessingFargateServiceSecurityGroup83081D36
+                - GroupId
+          Subnets:
+            - Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1Subnet075EFF4C
+            - Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2SubnetE4CEDF73
+      TaskDefinition:
+        Ref: ECSQueryServiceQueueProcessingTaskDefB86A5450
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingFargateService/Service
+  ECSQueryServiceQueueProcessingFargateServiceSecurityGroup83081D36:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: AwsIotCqrsStack/ECS/QueryService/QueueProcessingFargateService/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingFargateService/SecurityGroup/Resource
+  ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetF44C4AD7:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Properties:
+      MaxCapacity: 5
+      MinCapacity: 2
+      ResourceId:
+        Fn::Join:
+          - ""
+          - - service/
+            - Ref: EcsDefaultClusterMnL3mNNYN926A5246
+            - /
+            - Fn::GetAtt:
+                - ECSQueryServiceQueueProcessingFargateServiceA8FD6E0C
+                - Name
+      RoleARN:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":iam::"
+            - Ref: AWS::AccountId
+            - :role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService
+      ScalableDimension: ecs:service:DesiredCount
+      ServiceNamespace: ecs
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingFargateService/TaskCount/Target/Resource
+  ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetCpuScaling15397808:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AwsIotCqrsStackECSQueryServiceQueueProcessingFargateServiceTaskCountTargetCpuScaling2F31A138
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId:
+        Ref: ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetF44C4AD7
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+        TargetValue: 50
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingFargateService/TaskCount/Target/CpuScaling/Resource
+  ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerPolicy9203CAD3:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AwsIotCqrsStackECSQueryServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerPolicy0A27C925
+      PolicyType: StepScaling
+      ScalingTargetId:
+        Ref: ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetF44C4AD7
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        MetricAggregationType: Maximum
+        StepAdjustments:
+          - MetricIntervalUpperBound: 0
+            ScalingAdjustment: -1
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/LowerPolicy/Resource
+  ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerAlarmACF6A43C:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: LessThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingLowerPolicy9203CAD3
+      AlarmDescription: Lower threshold scaling alarm
+      Dimensions:
+        - Name: QueueName
+          Value:
+            Fn::GetAtt:
+              - SQSqueryqueueF3E182C6
+              - QueueName
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 0
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/LowerAlarm/Resource
+  ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperPolicy1CC1421F:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Properties:
+      PolicyName: AwsIotCqrsStackECSQueryServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperPolicy65FFFB75
+      PolicyType: StepScaling
+      ScalingTargetId:
+        Ref: ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetF44C4AD7
+      StepScalingPolicyConfiguration:
+        AdjustmentType: ChangeInCapacity
+        MetricAggregationType: Maximum
+        StepAdjustments:
+          - MetricIntervalLowerBound: 0
+            MetricIntervalUpperBound: 400
+            ScalingAdjustment: 1
+          - MetricIntervalLowerBound: 400
+            ScalingAdjustment: 5
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/UpperPolicy/Resource
+  ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperAlarm149D4304:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      AlarmActions:
+        - Ref: ECSQueryServiceQueueProcessingFargateServiceTaskCountTargetQueueMessagesVisibleScalingUpperPolicy1CC1421F
+      AlarmDescription: Upper threshold scaling alarm
+      Dimensions:
+        - Name: QueueName
+          Value:
+            Fn::GetAtt:
+              - SQSqueryqueueF3E182C6
+              - QueueName
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 100
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/ECS/QueryService/QueueProcessingFargateService/TaskCount/Target/QueueMessagesVisibleScaling/UpperAlarm/Resource
+  AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/Resource
+  AWS679f53fac002430cb0da5b7982bd2287ServiceRoleDefaultPolicyD28E1A5E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: iot:DescribeEndpoint
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleDefaultPolicyD28E1A5E
+      Roles:
+        - Ref: AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/AWS679f53fac002430cb0da5b7982bd2287/ServiceRole/DefaultPolicy/Resource
+  AWS679f53fac002430cb0da5b7982bd22872D164C4C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersf35d0a3ea655835ce2bf399c19e80a38397cebc9cff491b04a9312c92d338669S3Bucket536257BA
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf35d0a3ea655835ce2bf399c19e80a38397cebc9cff491b04a9312c92d338669S3VersionKeyC1EF3D23
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf35d0a3ea655835ce2bf399c19e80a38397cebc9cff491b04a9312c92d338669S3VersionKeyC1EF3D23
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+          - Arn
+      Runtime: nodejs12.x
+      Timeout: 120
+    DependsOn:
+      - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleDefaultPolicyD28E1A5E
+      - AWS679f53fac002430cb0da5b7982bd2287ServiceRoleC1EA0FF2
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/AWS679f53fac002430cb0da5b7982bd2287/Resource
+      aws:asset:path: asset.f35d0a3ea655835ce2bf399c19e80a38397cebc9cff491b04a9312c92d338669
+      aws:asset:property: Code
+  EcsDefaultClusterMnL3mNNYN926A5246:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Resource
+  EcsDefaultClusterMnL3mNNYNVpc7788A521:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/Resource
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableA1FD6ACC:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableAssociation8B583A17:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableA1FD6ACC
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1DefaultRouteFF4E2178:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1RouteTableA1FD6ACC
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F
+    DependsOn:
+      - EcsDefaultClusterMnL3mNNYNVpcVPCGW2447264E
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1EIP8704DB2F:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/EIP
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1NATGateway5E3732C1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1EIP8704DB2F
+          - AllocationId
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1Subnet3C273B99
+      Tags:
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet1/NATGateway
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.64.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTable263DEAA5:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTableAssociation43E5803C:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTable263DEAA5
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2DefaultRouteB1375520:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2RouteTable263DEAA5
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F
+    DependsOn:
+      - EcsDefaultClusterMnL3mNNYNVpcVPCGW2447264E
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2EIPF0764873:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/EIP
+  EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2NATGateway4C855E00:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2EIPF0764873
+          - AllocationId
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2Subnet95FF715A
+      Tags:
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PublicSubnet2/NATGateway
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1Subnet075EFF4C:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTable4F1D2E36:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTableAssociation34B92275:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTable4F1D2E36
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1Subnet075EFF4C
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1DefaultRouteA5ADF694:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet1RouteTable4F1D2E36
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet1NATGateway5E3732C1
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet1/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2SubnetE4CEDF73:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.192.0/18
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/Subnet
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableDCE46591:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      Tags:
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/RouteTable
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableAssociation111C622F:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableDCE46591
+      SubnetId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2SubnetE4CEDF73
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/RouteTableAssociation
+  EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2DefaultRoute20CE2D89:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPrivateSubnet2RouteTableDCE46591
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcPublicSubnet2NATGateway4C855E00
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/PrivateSubnet2/DefaultRoute
+  EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/IGW
+  EcsDefaultClusterMnL3mNNYNVpcVPCGW2447264E:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpc7788A521
+      InternetGatewayId:
+        Ref: EcsDefaultClusterMnL3mNNYNVpcIGW9C2C2B8F
+    Metadata:
+      aws:cdk:path: AwsIotCqrsStack/EcsDefaultClusterMnL3mNNYN/Vpc/VPCGW
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.45.0,@aws-cdk/aws-applicationautoscaling=1.45.0,@aws-cdk/aws-autoscaling=1.45.0,@aws-cdk/aws-autoscaling-common=1.45.0,@aws-cdk/aws-autoscaling-hooktargets=1.45.0,@aws-cdk/aws-certificatemanager=1.45.0,@aws-cdk/aws-cloudwatch=1.45.0,@aws-cdk/aws-dynamodb=1.45.0,@aws-cdk/aws-ec2=1.45.0,@aws-cdk/aws-ecr=1.45.0,@aws-cdk/aws-ecr-assets=1.45.0,@aws-cdk/aws-ecs=1.45.0,@aws-cdk/aws-ecs-patterns=1.45.0,@aws-cdk/aws-elasticloadbalancingv2=1.45.0,@aws-cdk/aws-events=1.45.0,@aws-cdk/aws-events-targets=1.45.0,@aws-cdk/aws-iam=1.45.0,@aws-cdk/aws-iot=1.45.0,@aws-cdk/aws-kms=1.45.0,@aws-cdk/aws-lambda=1.45.0,@aws-cdk/aws-logs=1.45.0,@aws-cdk/aws-route53=1.45.0,@aws-cdk/aws-route53-targets=1.45.0,@aws-cdk/aws-s3=1.45.0,@aws-cdk/aws-s3-assets=1.45.0,@aws-cdk/aws-servicediscovery=1.45.0,@aws-cdk/aws-sns=1.45.0,@aws-cdk/aws-sns-subscriptions=1.45.0,@aws-cdk/aws-sqs=1.45.0,@aws-cdk/aws-ssm=1.45.0,@aws-cdk/cdk-assets-schema=1.45.0,@aws-cdk/cloud-assembly-schema=1.45.0,@aws-cdk/core=1.45.0,@aws-cdk/custom-resources=1.45.0,@aws-cdk/cx-api=1.45.0,@aws-cdk/region-info=1.45.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Outputs:
+  ECSCommandServiceSQSQueueB3DBF44E:
+    Value:
+      Fn::GetAtt:
+        - SQScommandqueue7E0C822A
+        - QueueName
+  ECSCommandServiceSQSQueueArn625A655C:
+    Value:
+      Fn::GetAtt:
+        - SQScommandqueue7E0C822A
+        - Arn
+  ECSQueryServiceSQSQueueD5176A7C:
+    Value:
+      Fn::GetAtt:
+        - SQSqueryqueueF3E182C6
+        - QueueName
+  ECSQueryServiceSQSQueueArn59BC4453:
+    Value:
+      Fn::GetAtt:
+        - SQSqueryqueueF3E182C6
+        - Arn
+Parameters:
+  AssetParametersf35d0a3ea655835ce2bf399c19e80a38397cebc9cff491b04a9312c92d338669S3Bucket536257BA:
+    Type: String
+    Description: S3 bucket for asset "f35d0a3ea655835ce2bf399c19e80a38397cebc9cff491b04a9312c92d338669"
+  AssetParametersf35d0a3ea655835ce2bf399c19e80a38397cebc9cff491b04a9312c92d338669S3VersionKeyC1EF3D23:
+    Type: String
+    Description: S3 key for asset version "f35d0a3ea655835ce2bf399c19e80a38397cebc9cff491b04a9312c92d338669"
+  AssetParametersf35d0a3ea655835ce2bf399c19e80a38397cebc9cff491b04a9312c92d338669ArtifactHash2C09C7CA:
+    Type: String
+    Description: Artifact hash for asset "f35d0a3ea655835ce2bf399c19e80a38397cebc9cff491b04a9312c92d338669"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

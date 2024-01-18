@@ -1,0 +1,486 @@
+Resources:
+  blexMobileAppUserPool4E2BC5C8:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlexstackStack/blexMobileAppUserPool/Resource
+  blexMobileAppPoolClient47EDF1E2:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: blexMobileAppUserPool4E2BC5C8
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ClientName: blexMobileApp
+      GenerateSecret: false
+      SupportedIdentityProviders:
+        - COGNITO
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlexstackStack/blexMobileAppPoolClient/Resource
+  blexMobileAppIdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders:
+        - ClientId:
+            Ref: blexMobileAppPoolClient47EDF1E2
+          ProviderName:
+            Fn::GetAtt:
+              - blexMobileAppUserPool4E2BC5C8
+              - ProviderName
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlexstackStack/blexMobileAppIdentityPool
+  blexMobileAppAuthenticatedRoleB34E922B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: blexMobileAppIdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+      RoleName: blexMobileAppAccessRole
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlexstackStack/blexMobileAppAuthenticatedRole/Resource
+  blexMobileAppAuthenticatedRoleDefaultPolicyC35614C9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: mobileanalytics:PutEvents
+            Effect: Allow
+            Resource: "*"
+          - Action: iot:Connect
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:iot:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :client/${cognito-identity.amazonaws.com:sub}
+          - Action:
+              - iot:Subscribe
+              - iot:Receive
+              - iot:Publish
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:iot:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action:
+              - iot:AttachPolicy
+              - iot:ListAttachedPolicies
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: blexMobileAppAuthenticatedRoleDefaultPolicyC35614C9
+      Roles:
+        - Ref: blexMobileAppAuthenticatedRoleB34E922B
+    Metadata:
+      aws:cdk:path: BlexstackStack/blexMobileAppAuthenticatedRole/DefaultPolicy/Resource
+  DefaultValid:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: blexMobileAppIdentityPool
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - blexMobileAppAuthenticatedRoleB34E922B
+            - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlexstackStack/DefaultValid
+  blexIoTPolicy:
+    Type: AWS::IoT::Policy
+    Properties:
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - iot:Connect
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :client/${cognito-identity.amazonaws.com:sub}
+          - Effect: Allow
+            Action:
+              - iot:Publish
+              - iot:Subscribe
+              - iot:Receive
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:iot:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :*
+      PolicyName: blexMobileAppIoTPermissionsPolicy
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlexstackStack/blexIoTPolicy
+  blexDataIoTRuleRoleDFFBB2F6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+        Version: "2012-10-17"
+      RoleName: blexDataIoTRuleRole
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlexstackStack/blexDataIoTRuleRole/Resource
+  blexDataIoTRuleRoleDefaultPolicy63C5967F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: iot:Publish
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:iot:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action: s3:*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: DemoIoTBucketCBC5029E
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: blexDataIoTRuleRoleDefaultPolicy63C5967F
+      Roles:
+        - Ref: blexDataIoTRuleRoleDFFBB2F6
+    Metadata:
+      aws:cdk:path: BlexstackStack/blexDataIoTRuleRole/DefaultPolicy/Resource
+  blexIoTRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        Actions:
+          - Republish:
+              RoleArn:
+                Fn::GetAtt:
+                  - blexDataIoTRuleRoleDFFBB2F6
+                  - Arn
+              Topic: data/${clientid()}
+        AwsIotSqlVersion: "2016-03-23"
+        RuleDisabled: false
+        Sql: SELECT *, clientid() as cid, principal() as userid FROM 'blex'
+      RuleName: blexIoTActionRule
+    Metadata:
+      aws:cdk:path: BlexstackStack/blexIoTRule
+  DemoIoTBucketCBC5029E:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: blexbucket-demoiotmessages
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlexstackStack/DemoIoTBucket/Resource
+  DemoIoTBucketPolicyB600F7D4:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: DemoIoTBucketCBC5029E
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - DemoIoTBucketCBC5029E
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - DemoIoTBucketCBC5029E
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: BlexstackStack/DemoIoTBucket/Policy/Resource
+  DemoIoTBucketAutoDeleteObjectsCustomResource3AA4A8C6:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: DemoIoTBucketCBC5029E
+    DependsOn:
+      - DemoIoTBucketPolicyB600F7D4
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: BlexstackStack/DemoIoTBucket/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: BlexstackStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392S3BucketBF7A7F3F
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392S3VersionKeyFAF93626
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392S3VersionKeyFAF93626
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: DemoIoTBucketCBC5029E
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: BlexstackStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+  blexIoTDataStoreRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        Actions:
+          - Republish:
+              RoleArn:
+                Fn::GetAtt:
+                  - blexDataIoTRuleRoleDFFBB2F6
+                  - Arn
+              Topic: datastore
+          - S3:
+              BucketName:
+                Ref: DemoIoTBucketCBC5029E
+              Key: ${get(*,"cid")}/${nanoData.DeviceId}/${get(*,"timestamp")}.json
+              RoleArn:
+                Fn::GetAtt:
+                  - blexDataIoTRuleRoleDFFBB2F6
+                  - Arn
+        AwsIotSqlVersion: "2016-03-23"
+        RuleDisabled: false
+        Sql: SELECT timestamp, cid, regexp_replace(nanoData.DeviceId, ":", "") as deviceId, nanoData.temperature, nanoData.humidity, nanoData.pressure FROM 'data/+'
+      RuleName: blexIoTRuleToStoreData
+    Metadata:
+      aws:cdk:path: BlexstackStack/blexIoTDataStoreRule
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE1WPwW7CMAyGn4V7MHTTpB3HeuK0qmMPUKVeZ9rGKHFAKMq7LymDdid/v/8/sV1AsX2B7eqtubi1bvtN0GwRwqc0ulclGyfWa1Gld8JjjY691ajKbzPzP6uyfKYWrdo5h5K+6ch0OV81thlRkpPEh5eTl0xpREtCbKLKK6TxnSFhCF8ObcU85NCD71AOhEaW1tzZtwlIrvfHS13zgDtJt/2MqRkVNSOE3JwuyrXigfR1WniilGGB8NDZOfCJdO0HjMo9Q3j3usdp9B/dypxf6hijMtwiHN3mXLxC8QTF6uiI1tanNUeE+lZ/AZjVYseaAQAA
+    Metadata:
+      aws:cdk:path: BlexstackStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392S3BucketBF7A7F3F:
+    Type: String
+    Description: S3 bucket for asset "4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392"
+  AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392S3VersionKeyFAF93626:
+    Type: String
+    Description: S3 key for asset version "4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392"
+  AssetParameters4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392ArtifactHashE56CD69A:
+    Type: String
+    Description: Artifact hash for asset "4cd61014b71160e8c66fe167e43710d5ba068b80b134e9bd84508cf9238b2392"
+Outputs:
+  AwsProjectRegion:
+    Value:
+      Ref: AWS::Region
+  AwsCognitoPoolId:
+    Value:
+      Ref: blexMobileAppIdentityPool
+  AwsCognitoRegion:
+    Value:
+      Ref: AWS::Region
+  AwsUserPoolId:
+    Value:
+      Ref: blexMobileAppUserPool4E2BC5C8
+  AwsUserPoolClientID:
+    Value:
+      Ref: blexMobileAppPoolClient47EDF1E2
+  AwsIoTPolicy:
+    Value: blexMobileAppIoTPermissionsPolicy
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

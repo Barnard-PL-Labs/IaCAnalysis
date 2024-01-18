@@ -1,0 +1,525 @@
+Resources:
+  ApiF70053CD:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: cdk-rates-appsync-api
+      XrayEnabled: true
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/Resource
+  ApiSchema510EECD7:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Definition: |
+        type Note {
+          id: ID!
+          name: String!
+          completed: Boolean!
+        }
+
+        input NoteInput {
+          id: ID!
+          name: String!
+          completed: Boolean!
+        }
+
+        input UpdateNoteInput {
+          id: ID!
+          name: String
+          completed: Boolean
+        }
+
+        enum Granularity {
+          DAY
+          HOUR
+          TEN_MINUTE
+        }
+
+        type Rate {
+          ticker: String!
+          timeUpdated: Float!
+          name: String!
+          rank: Int!
+          volume: Float!
+          volumeChange: Float!
+          price: Float!
+          priceCad: Float!
+        }
+
+        type Query {
+          listNotes: [Note]
+          getTickers: [String]
+          getCryptoByTicker(ticker: String!, granularity: Granularity!): [Rate]
+        }
+
+        type Mutation {
+          updateNote(note: UpdateNoteInput!): Note
+          deleteNote(noteId: String!): String
+        }
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/Schema
+  ApiDefaultApiKeyF991C37B:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Expires: 1737131315
+    DependsOn:
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/DefaultApiKey
+  ApilambdaDatasourceServiceRole2CA75790:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/lambdaDatasource/ServiceRole/Resource
+  ApilambdaDatasourceServiceRoleDefaultPolicy3A97E34D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - AppSyncRatesHandlerCE4EF0F4
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ApilambdaDatasourceServiceRoleDefaultPolicy3A97E34D
+      Roles:
+        - Ref: ApilambdaDatasourceServiceRole2CA75790
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/lambdaDatasource/ServiceRole/DefaultPolicy/Resource
+  ApilambdaDatasource2C776EE2:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Name: lambdaDatasource
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - AppSyncRatesHandlerCE4EF0F4
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ApilambdaDatasourceServiceRole2CA75790
+          - Arn
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/lambdaDatasource/Resource
+  ApilambdaDatasourceQuerylistNotesResolverA04323FA:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: listNotes
+      TypeName: Query
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApilambdaDatasource2C776EE2
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/lambdaDatasource/QuerylistNotesResolver/Resource
+  ApilambdaDatasourceQuerygetCryptoByTickerResolver5C33E4FB:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: getCryptoByTicker
+      TypeName: Query
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApilambdaDatasource2C776EE2
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/lambdaDatasource/QuerygetCryptoByTickerResolver/Resource
+  ApilambdaDatasourceQuerygetTickersResolverA1E35E3C:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: getTickers
+      TypeName: Query
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApilambdaDatasource2C776EE2
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/lambdaDatasource/QuerygetTickersResolver/Resource
+  ApilambdaDatasourceMutationdeleteNoteResolver16050EFC:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: deleteNote
+      TypeName: Mutation
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApilambdaDatasource2C776EE2
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/lambdaDatasource/MutationdeleteNoteResolver/Resource
+  ApilambdaDatasourceMutationupdateNoteResolverA2113FA0:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      FieldName: updateNote
+      TypeName: Mutation
+      DataSourceName: lambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApilambdaDatasource2C776EE2
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Api/lambdaDatasource/MutationupdateNoteResolver/Resource
+  AppSyncRatesHandlerServiceRole34FCE911:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/AppSyncRatesHandler/ServiceRole/Resource
+  AppSyncRatesHandlerServiceRoleDefaultPolicy70EC420D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CDKNotesTable254A7FD1
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CDKRatesTableB14933EE
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: AppSyncRatesHandlerServiceRoleDefaultPolicy70EC420D
+      Roles:
+        - Ref: AppSyncRatesHandlerServiceRole34FCE911
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/AppSyncRatesHandler/ServiceRole/DefaultPolicy/Resource
+  AppSyncRatesHandlerCE4EF0F4:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16cS3Bucket5D5AB6EB
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16cS3VersionKey2A1B5B9D
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16cS3VersionKey2A1B5B9D
+      Role:
+        Fn::GetAtt:
+          - AppSyncRatesHandlerServiceRole34FCE911
+          - Arn
+      Environment:
+        Variables:
+          NOTES_TABLE:
+            Ref: CDKNotesTable254A7FD1
+          RATES_TABLE:
+            Ref: CDKRatesTableB14933EE
+      Handler: main.handler
+      MemorySize: 1024
+      Runtime: nodejs12.x
+    DependsOn:
+      - AppSyncRatesHandlerServiceRoleDefaultPolicy70EC420D
+      - AppSyncRatesHandlerServiceRole34FCE911
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/AppSyncRatesHandler/Resource
+      aws:asset:path: asset.069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16c
+      aws:asset:property: Code
+  CDKNotesTable254A7FD1:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/CDKNotesTable/Resource
+  CDKRatesTableB14933EE:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: ticker
+          KeyType: HASH
+        - AttributeName: timeUpdated
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: ticker
+          AttributeType: S
+        - AttributeName: timeUpdated
+          AttributeType: "N"
+      BillingMode: PAY_PER_REQUEST
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/CDKRatesTable/Resource
+  SingletonServiceRoleDDD815CD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Singleton/ServiceRole/Resource
+  SingletonServiceRoleDefaultPolicy7525C238:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CDKRatesTableB14933EE
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: SingletonServiceRoleDefaultPolicy7525C238
+      Roles:
+        - Ref: SingletonServiceRoleDDD815CD
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Singleton/ServiceRole/DefaultPolicy/Resource
+  Singleton8C7B99F3:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16cS3Bucket5D5AB6EB
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16cS3VersionKey2A1B5B9D
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16cS3VersionKey2A1B5B9D
+      Role:
+        Fn::GetAtt:
+          - SingletonServiceRoleDDD815CD
+          - Arn
+      Environment:
+        Variables:
+          CRYPTO_API_KEY: ""
+          RATES_TABLE:
+            Ref: CDKRatesTableB14933EE
+      Handler: cron.handler
+      Runtime: nodejs14.x
+      Timeout: 30
+    DependsOn:
+      - SingletonServiceRoleDefaultPolicy7525C238
+      - SingletonServiceRoleDDD815CD
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/Singleton/Resource
+      aws:asset:path: asset.069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16c
+      aws:asset:property: Code
+  RatesCronRule2924329A:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(10 minutes)
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - Singleton8C7B99F3
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/RatesCronRule/Resource
+  RatesCronRuleAllowEventRuleRatesCdkAppStackSingletonADAD4272A9CB7F11:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - Singleton8C7B99F3
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - RatesCronRule2924329A
+          - Arn
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/RatesCronRule/AllowEventRuleRatesCdkAppStackSingletonADAD4272
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VQQXICIRB8i3cc3XjJMWoqOcSqmDUfGNmJogtsGDC1RfH3AFopc5rupqGbaaBZzGE+ecIfnsruPIvSOoK48yjPYv1l3oMfghdLZvJZPChzEGtr2LsgfTFs0aEmT060xDY4SUW9x9neKa+sSaKkRBwGHo2E+OpwOH73y0EVW2Ufm/9sJ4+ksQhZf6NRbFDvO3xGj7u/gDtWcvtLLnPrUHASCjXE1vbXamVuba/kWPtXlERfH4b4EowsZcvZPd6S04q5foMXUywLYah7yRxWQZ7Jr5BJdKNBbbs9xE/cXzMrSIIuZPKl2IZblTxTSsLYjuDEs0vzCM0DNJMTKzV1wXilCdrr/AWGAMcIqwEAAA==
+    Metadata:
+      aws:cdk:path: RatesCdkAppStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  GraphQLAPIURL:
+    Value:
+      Fn::GetAtt:
+        - ApiF70053CD
+        - GraphQLUrl
+  GraphQLAPIKey:
+    Value:
+      Fn::GetAtt:
+        - ApiDefaultApiKeyF991C37B
+        - ApiKey
+  StackRegion:
+    Value:
+      Ref: AWS::Region
+Parameters:
+  AssetParameters069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16cS3Bucket5D5AB6EB:
+    Type: String
+    Description: S3 bucket for asset "069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16c"
+  AssetParameters069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16cS3VersionKey2A1B5B9D:
+    Type: String
+    Description: S3 key for asset version "069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16c"
+  AssetParameters069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16cArtifactHash3DA37B9C:
+    Type: String
+    Description: Artifact hash for asset "069c33a32aae438b5eb08aa31ebd66a6511eb68b5a7264274be71b380901a16c"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

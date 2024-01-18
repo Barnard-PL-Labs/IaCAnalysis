@@ -1,0 +1,1657 @@
+Resources:
+  AmazonQldbKVSqldbledgerkvs3B101BA2:
+    Type: AWS::QLDB::Ledger
+    Properties:
+      PermissionsMode: STANDARD
+      DeletionProtection: false
+      Name: keyvaluestore
+      Tags:
+        - Key: QLDBRESTAPI
+          Value: QLDBLEDGER
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-ledger-kvs
+  AmazonQldbKVSqldblambdakvsServiceRoleF5F94F94:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-lambda-kvs/ServiceRole/Resource
+  AmazonQldbKVSqldblambdakvsServiceRoleDefaultPolicy378D6DF5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - qldb:GetBlock
+              - qldb:ListLedgers
+              - qldb:GetRevision
+              - qldb:DescribeLedger
+              - qldb:SendCommand
+              - qldb:GetDigest
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - arn:aws:qldb:us-east-1:036406153779:ledger/
+                  - Ref: AmazonQldbKVSqldbledgerkvs3B101BA2
+          - Action:
+              - qldb:PartiQLCreateTable
+              - qldb:PartiQLCreateIndex
+              - qldb:PartiQLInsert
+              - qldb:PartiQLUpdate
+              - qldb:PartiQLSelect
+              - qldb:PartiQLHistoryFunction
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - arn:aws:qldb:us-east-1:036406153779:ledger/
+                  - Ref: AmazonQldbKVSqldbledgerkvs3B101BA2
+                  - /table/*
+          - Action: qldb:PartiQLSelect
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - arn:aws:qldb:us-east-1:036406153779:ledger/
+                  - Ref: AmazonQldbKVSqldbledgerkvs3B101BA2
+                  - /information_schema/user_tables
+        Version: "2012-10-17"
+      PolicyName: AmazonQldbKVSqldblambdakvsServiceRoleDefaultPolicy378D6DF5
+      Roles:
+        - Ref: AmazonQldbKVSqldblambdakvsServiceRoleF5F94F94
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-lambda-kvs/ServiceRole/DefaultPolicy/Resource
+  AmazonQldbKVSqldblambdakvs71CD4B0C:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: fe4b1bff02d59db1fdcb6da60e9279f1f8056f79c29195e145f79103a0224f0d.zip
+      Role:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvsServiceRoleF5F94F94
+          - Arn
+      Environment:
+        Variables:
+          LEDGER_NAME:
+            Ref: AmazonQldbKVSqldbledgerkvs3B101BA2
+          TABLE_NAME: keyvaluedata
+      Handler: index.main
+      Runtime: nodejs14.x
+      Timeout: 10
+    DependsOn:
+      - AmazonQldbKVSqldblambdakvsServiceRoleDefaultPolicy378D6DF5
+      - AmazonQldbKVSqldblambdakvsServiceRoleF5F94F94
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-lambda-kvs/Resource
+      aws:asset:path: asset.fe4b1bff02d59db1fdcb6da60e9279f1f8056f79c29195e145f79103a0224f0d
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  AmazonQldbKVSqldbrestapikvsFE5290E7:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: This service exposes a key-value store interface API for Amazon QLDB through REST pattern.
+      EndpointConfiguration:
+        Types:
+          - REGIONAL
+      Name: Amazon QLDB key value store Service
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Resource
+  AmazonQldbKVSqldbrestapikvsCloudWatchRole1E5E0759:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/CloudWatchRole/Resource
+  AmazonQldbKVSqldbrestapikvsAccount3AA218BA:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldbrestapikvsCloudWatchRole1E5E0759
+          - Arn
+    DependsOn:
+      - AmazonQldbKVSqldbrestapikvsFE5290E7
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Account
+  AmazonQldbKVSqldbrestapikvsDeploymentFEB3CFB4d02ba8fb435cd08d4bdbd22bb4273f01:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - AmazonQldbKVSqldbrestapikvsGET517BDCE5
+      - AmazonQldbKVSqldbrestapikvshistoryGET66D47E3F
+      - AmazonQldbKVSqldbrestapikvshistory1CF26C53
+      - AmazonQldbKVSqldbrestapikvsPOSTB00BD080
+      - AmazonQldbKVSqldbrestapikvsreceiptbydocGET611E1B61
+      - AmazonQldbKVSqldbrestapikvsreceiptbydoc04716B4B
+      - AmazonQldbKVSqldbrestapikvsreceiptbykeyGET03339786
+      - AmazonQldbKVSqldbrestapikvsreceiptbykey13A8ACD9
+      - AmazonQldbKVSqldbrestapikvsretrievedocrevisionPOST3275262C
+      - AmazonQldbKVSqldbrestapikvsretrievedocrevisionF144E033
+      - AmazonQldbKVSqldbrestapikvsverifydocrevisionPOST9582881A
+      - AmazonQldbKVSqldbrestapikvsverifydocrevisionF78153A8
+      - AmazonQldbKVSqldbrestapikvsverifyreceiptPOST140D9B76
+      - AmazonQldbKVSqldbrestapikvsverifyreceiptD8E590B6
+      - AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+      - AmazonQldbKVSqldbrestapikvsGetRevisionByMetadataModel1069338C
+      - AmazonQldbKVSqldbrestapikvsSetValueModelCDF4BC68
+      - AmazonQldbKVSqldbrestapikvsSuccessResponseModel28349595
+      - AmazonQldbKVSqldbrestapikvsverifyDocumentRevisionHashModel3605772B
+      - AmazonQldbKVSqldbrestapikvsverifyLedgerMetadataModel7CAB3D87
+      - AmazonQldbKVSvalidateBodyQueryStringAndHeaderF2849841
+      - AmazonQldbKVSvalidateQueryStringAndHeaderE59979C1
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Deployment/Resource
+  AmazonQldbKVSqldbrestapikvsDeploymentStageprod83265D75:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      DeploymentId:
+        Ref: AmazonQldbKVSqldbrestapikvsDeploymentFEB3CFB4d02ba8fb435cd08d4bdbd22bb4273f01
+      MethodSettings:
+        - DataTraceEnabled: false
+          HttpMethod: "*"
+          ResourcePath: /*
+          ThrottlingBurstLimit: 50
+          ThrottlingRateLimit: 10
+      StageName: prod
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/DeploymentStage.prod/Resource
+  AmazonQldbKVSqldbrestapikvsPOSTApiPermissionAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0POST59C97810:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /
+            - Ref: AmazonQldbKVSqldbrestapikvsDeploymentStageprod83265D75
+            - /POST/
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/POST/ApiPermission.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.POST..
+  AmazonQldbKVSqldbrestapikvsPOSTApiPermissionTestAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0POST00A39B60:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /test-invoke-stage/POST/
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/POST/ApiPermission.Test.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.POST..
+  AmazonQldbKVSqldbrestapikvsPOSTB00BD080:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldbrestapikvsFE5290E7
+          - RootResourceId
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates: {}
+            StatusCode: "200"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: .*Client Error.*
+            StatusCode: "400"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: |-
+              (
+              |.)+
+            StatusCode: "500"
+        PassthroughBehavior: NEVER
+        RequestParameters: {}
+        RequestTemplates:
+          application/json: '{"ops":"setValue","payload":$input.json("$")}'
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - AmazonQldbKVSqldblambdakvs71CD4B0C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsSuccessResponseModel28349595
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "200"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "500"
+      RequestModels:
+        application/json:
+          Ref: AmazonQldbKVSqldbrestapikvsSetValueModelCDF4BC68
+      RequestParameters:
+        method.request.header.Content-Type: true
+      RequestValidatorId:
+        Ref: AmazonQldbKVSvalidateBodyQueryStringAndHeaderF2849841
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/POST/Resource
+  AmazonQldbKVSqldbrestapikvsGETApiPermissionAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0GET803EEAF2:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /
+            - Ref: AmazonQldbKVSqldbrestapikvsDeploymentStageprod83265D75
+            - /GET/
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/GET/ApiPermission.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.GET..
+  AmazonQldbKVSqldbrestapikvsGETApiPermissionTestAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0GETBBA132D0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /test-invoke-stage/GET/
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/GET/ApiPermission.Test.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.GET..
+  AmazonQldbKVSqldbrestapikvsGET517BDCE5:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldbrestapikvsFE5290E7
+          - RootResourceId
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates: {}
+            StatusCode: "200"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: .*Client Error.*
+            StatusCode: "400"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: |-
+              (
+              |.)+
+            StatusCode: "500"
+        PassthroughBehavior: NEVER
+        RequestParameters: {}
+        RequestTemplates:
+          application/json: |-2
+            
+                #set($v = $util.escapeJavaScript($input.params("keys")))
+                #set($valueArray = $v.split(","))
+                {
+                   "ops": "getValue",
+                   "payload": [#foreach($item in $valueArray)
+                    "$item"#if($foreach.hasNext),#end
+                    #end
+                   ]
+                }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - AmazonQldbKVSqldblambdakvs71CD4B0C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsSuccessResponseModel28349595
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "200"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "500"
+      RequestParameters:
+        method.request.querystring.keys: true
+      RequestValidatorId:
+        Ref: AmazonQldbKVSvalidateQueryStringAndHeaderE59979C1
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/GET/Resource
+  AmazonQldbKVSqldbrestapikvsreceiptbykey13A8ACD9:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldbrestapikvsFE5290E7
+          - RootResourceId
+      PathPart: receipt-by-key
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/receipt-by-key/Resource
+  AmazonQldbKVSqldbrestapikvsreceiptbykeyGETApiPermissionAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0GETreceiptbykeyFD1BAFDB:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /
+            - Ref: AmazonQldbKVSqldbrestapikvsDeploymentStageprod83265D75
+            - /GET/receipt-by-key
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/receipt-by-key/GET/ApiPermission.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.GET..receipt-by-key
+  AmazonQldbKVSqldbrestapikvsreceiptbykeyGETApiPermissionTestAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0GETreceiptbykeyAA417835:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /test-invoke-stage/GET/receipt-by-key
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/receipt-by-key/GET/ApiPermission.Test.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.GET..receipt-by-key
+  AmazonQldbKVSqldbrestapikvsreceiptbykeyGET03339786:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: AmazonQldbKVSqldbrestapikvsreceiptbykey13A8ACD9
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates: {}
+            StatusCode: "200"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: .*Client Error.*
+            StatusCode: "400"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: |-
+              (
+              |.)+
+            StatusCode: "500"
+        PassthroughBehavior: NEVER
+        RequestParameters: {}
+        RequestTemplates:
+          application/json: |-2
+            
+                #set($v = $util.escapeJavaScript($input.params("key")))
+                {
+                    "ops": "getMetadataByKey",
+                    "payload": "$v"
+                }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - AmazonQldbKVSqldblambdakvs71CD4B0C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsSuccessResponseModel28349595
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "200"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "500"
+      RequestParameters:
+        method.request.querystring.key: true
+      RequestValidatorId:
+        Ref: AmazonQldbKVSvalidateQueryStringAndHeaderE59979C1
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/receipt-by-key/GET/Resource
+  AmazonQldbKVSqldbrestapikvsreceiptbydoc04716B4B:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldbrestapikvsFE5290E7
+          - RootResourceId
+      PathPart: receipt-by-doc
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/receipt-by-doc/Resource
+  AmazonQldbKVSqldbrestapikvsreceiptbydocGETApiPermissionAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0GETreceiptbydoc8426C033:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /
+            - Ref: AmazonQldbKVSqldbrestapikvsDeploymentStageprod83265D75
+            - /GET/receipt-by-doc
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/receipt-by-doc/GET/ApiPermission.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.GET..receipt-by-doc
+  AmazonQldbKVSqldbrestapikvsreceiptbydocGETApiPermissionTestAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0GETreceiptbydocA68B764C:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /test-invoke-stage/GET/receipt-by-doc
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/receipt-by-doc/GET/ApiPermission.Test.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.GET..receipt-by-doc
+  AmazonQldbKVSqldbrestapikvsreceiptbydocGET611E1B61:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: AmazonQldbKVSqldbrestapikvsreceiptbydoc04716B4B
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates: {}
+            StatusCode: "200"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: .*Client Error.*
+            StatusCode: "400"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: |-
+              (
+              |.)+
+            StatusCode: "500"
+        PassthroughBehavior: NEVER
+        RequestParameters: {}
+        RequestTemplates:
+          application/json: |-2
+            
+                #set($d = $util.escapeJavaScript($input.params("documentId")))
+                #set($t = $util.escapeJavaScript($input.params("txId")))
+                {
+                    "ops": "getMetadataByDoc",
+                    "payload": {
+                      "documentId": "$d",
+                      "txId": "$t"
+                    }
+                }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - AmazonQldbKVSqldblambdakvs71CD4B0C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsSuccessResponseModel28349595
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "200"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "500"
+      RequestParameters:
+        method.request.querystring.documentId: true
+        method.request.querystring.txId: true
+      RequestValidatorId:
+        Ref: AmazonQldbKVSvalidateQueryStringAndHeaderE59979C1
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/receipt-by-doc/GET/Resource
+  AmazonQldbKVSqldbrestapikvsverifyreceiptD8E590B6:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldbrestapikvsFE5290E7
+          - RootResourceId
+      PathPart: verify-receipt
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/verify-receipt/Resource
+  AmazonQldbKVSqldbrestapikvsverifyreceiptPOSTApiPermissionAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0POSTverifyreceipt3DF8D143:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /
+            - Ref: AmazonQldbKVSqldbrestapikvsDeploymentStageprod83265D75
+            - /POST/verify-receipt
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/verify-receipt/POST/ApiPermission.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.POST..verify-receipt
+  AmazonQldbKVSqldbrestapikvsverifyreceiptPOSTApiPermissionTestAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0POSTverifyreceipt0518836A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /test-invoke-stage/POST/verify-receipt
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/verify-receipt/POST/ApiPermission.Test.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.POST..verify-receipt
+  AmazonQldbKVSqldbrestapikvsverifyreceiptPOST140D9B76:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: AmazonQldbKVSqldbrestapikvsverifyreceiptD8E590B6
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates: {}
+            StatusCode: "200"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: .*Client Error.*
+            StatusCode: "400"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: |-
+              (
+              |.)+
+            StatusCode: "500"
+        PassthroughBehavior: NEVER
+        RequestParameters: {}
+        RequestTemplates:
+          application/json: '{"ops":"verifyLedgerMetadata","payload":$input.json("$")}'
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - AmazonQldbKVSqldblambdakvs71CD4B0C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsSuccessResponseModel28349595
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "200"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "500"
+      RequestModels:
+        application/json:
+          Ref: AmazonQldbKVSqldbrestapikvsverifyLedgerMetadataModel7CAB3D87
+      RequestParameters:
+        method.request.header.Content-Type: true
+      RequestValidatorId:
+        Ref: AmazonQldbKVSvalidateBodyQueryStringAndHeaderF2849841
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/verify-receipt/POST/Resource
+  AmazonQldbKVSqldbrestapikvsretrievedocrevisionF144E033:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldbrestapikvsFE5290E7
+          - RootResourceId
+      PathPart: retrieve-doc-revision
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/retrieve-doc-revision/Resource
+  AmazonQldbKVSqldbrestapikvsretrievedocrevisionPOSTApiPermissionAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0POSTretrievedocrevision50F3DA71:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /
+            - Ref: AmazonQldbKVSqldbrestapikvsDeploymentStageprod83265D75
+            - /POST/retrieve-doc-revision
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/retrieve-doc-revision/POST/ApiPermission.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.POST..retrieve-doc-revision
+  AmazonQldbKVSqldbrestapikvsretrievedocrevisionPOSTApiPermissionTestAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0POSTretrievedocrevision670B255F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /test-invoke-stage/POST/retrieve-doc-revision
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/retrieve-doc-revision/POST/ApiPermission.Test.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.POST..retrieve-doc-revision
+  AmazonQldbKVSqldbrestapikvsretrievedocrevisionPOST3275262C:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: AmazonQldbKVSqldbrestapikvsretrievedocrevisionF144E033
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates: {}
+            StatusCode: "200"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: .*Client Error.*
+            StatusCode: "400"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: |-
+              (
+              |.)+
+            StatusCode: "500"
+        PassthroughBehavior: NEVER
+        RequestParameters: {}
+        RequestTemplates:
+          application/json: '{"ops":"getDocumentRevisionByLedgerMetadata","payload":$input.json("$")}'
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - AmazonQldbKVSqldblambdakvs71CD4B0C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsSuccessResponseModel28349595
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "200"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "500"
+      RequestModels:
+        application/json:
+          Ref: AmazonQldbKVSqldbrestapikvsGetRevisionByMetadataModel1069338C
+      RequestParameters:
+        method.request.header.Content-Type: true
+      RequestValidatorId:
+        Ref: AmazonQldbKVSvalidateBodyQueryStringAndHeaderF2849841
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/retrieve-doc-revision/POST/Resource
+  AmazonQldbKVSqldbrestapikvshistory1CF26C53:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldbrestapikvsFE5290E7
+          - RootResourceId
+      PathPart: history
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/history/Resource
+  AmazonQldbKVSqldbrestapikvshistoryGETApiPermissionAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0GEThistory53EE1930:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /
+            - Ref: AmazonQldbKVSqldbrestapikvsDeploymentStageprod83265D75
+            - /GET/history
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/history/GET/ApiPermission.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.GET..history
+  AmazonQldbKVSqldbrestapikvshistoryGETApiPermissionTestAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0GEThistory2767270A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /test-invoke-stage/GET/history
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/history/GET/ApiPermission.Test.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.GET..history
+  AmazonQldbKVSqldbrestapikvshistoryGET66D47E3F:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: AmazonQldbKVSqldbrestapikvshistory1CF26C53
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates: {}
+            StatusCode: "200"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: .*Client Error.*
+            StatusCode: "400"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: |-
+              (
+              |.)+
+            StatusCode: "500"
+        PassthroughBehavior: NEVER
+        RequestParameters: {}
+        RequestTemplates:
+          application/json: |-2
+            
+                #set($k = $util.escapeJavaScript($input.params("key")))
+                #set($f = $util.escapeJavaScript($input.params("from")))
+                #set($t = $util.escapeJavaScript($input.params("to")))
+                {
+                    "ops": "getHistory",
+                    "payload": {
+                      "key": "$k",
+                      "from": "$f",
+                      "to": "$t"
+                    }
+                }
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - AmazonQldbKVSqldblambdakvs71CD4B0C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsSuccessResponseModel28349595
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "200"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "500"
+      RequestParameters:
+        method.request.querystring.key: true
+        method.request.querystring.from: false
+        method.request.querystring.to: false
+      RequestValidatorId:
+        Ref: AmazonQldbKVSvalidateQueryStringAndHeaderE59979C1
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/history/GET/Resource
+  AmazonQldbKVSqldbrestapikvsverifydocrevisionF78153A8:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldbrestapikvsFE5290E7
+          - RootResourceId
+      PathPart: verify-doc-revision
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/verify-doc-revision/Resource
+  AmazonQldbKVSqldbrestapikvsverifydocrevisionPOSTApiPermissionAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0POSTverifydocrevision6547A363:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /
+            - Ref: AmazonQldbKVSqldbrestapikvsDeploymentStageprod83265D75
+            - /POST/verify-doc-revision
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/verify-doc-revision/POST/ApiPermission.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.POST..verify-doc-revision
+  AmazonQldbKVSqldbrestapikvsverifydocrevisionPOSTApiPermissionTestAmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0POSTverifydocrevision740BD25B:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - AmazonQldbKVSqldblambdakvs71CD4B0C
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+            - /test-invoke-stage/POST/verify-doc-revision
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/verify-doc-revision/POST/ApiPermission.Test.AmazonQldbRestApiStackAmazonQldbKVSqldbrestapikvs639332A0.POST..verify-doc-revision
+  AmazonQldbKVSqldbrestapikvsverifydocrevisionPOST9582881A:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: AmazonQldbKVSqldbrestapikvsverifydocrevisionF78153A8
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates: {}
+            StatusCode: "200"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: .*Client Error.*
+            StatusCode: "400"
+          - ResponseParameters:
+              method.response.header.Content-Type: "'application/json'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+            ResponseTemplates:
+              application/json: "{\"message\":\"$util.escapeJavaScript($input.path('$.errorMessage'))\"}"
+            SelectionPattern: |-
+              (
+              |.)+
+            StatusCode: "500"
+        PassthroughBehavior: NEVER
+        RequestParameters: {}
+        RequestTemplates:
+          application/json: '{"ops":"verifyDocumentRevisionHash","payload":$input.json("$")}'
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - AmazonQldbKVSqldblambdakvs71CD4B0C
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsSuccessResponseModel28349595
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "200"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "400"
+        - ResponseModels:
+            application/json:
+              Ref: AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1
+          ResponseParameters:
+            method.response.header.Content-Type: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Credentials: true
+          StatusCode: "500"
+      RequestModels:
+        application/json:
+          Ref: AmazonQldbKVSqldbrestapikvsverifyDocumentRevisionHashModel3605772B
+      RequestParameters:
+        method.request.header.Content-Type: true
+      RequestValidatorId:
+        Ref: AmazonQldbKVSvalidateBodyQueryStringAndHeaderF2849841
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/Default/verify-doc-revision/POST/Resource
+  AmazonQldbKVSqldbrestapikvsSuccessResponseModel28349595:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      ContentType: application/json
+      Name: SuccessResponseModel
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: SuccessResponseModel
+        type: object
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/SuccessResponseModel/Resource
+  AmazonQldbKVSqldbrestapikvsErrorResponseModel97A4A9B1:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      ContentType: application/json
+      Name: ErrorResponseModel
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: ErrorResponseModel
+        type: object
+        properties:
+          message:
+            type: string
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/ErrorResponseModel/Resource
+  AmazonQldbKVSqldbrestapikvsSetValueModelCDF4BC68:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      ContentType: application/json
+      Name: SetValueModel
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: SetValueModel
+        type: array
+        minItems: 1
+        maxItems: 10
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - key
+            - value
+          properties:
+            key:
+              type: string
+            value:
+              type: object
+              additionalProperties: false
+              required:
+                - date
+                - billTo
+                - paymentStatus
+                - quantity
+                - carInfo
+              properties:
+                date:
+                  type: string
+                billTo:
+                  type: string
+                paymentStatus:
+                  type: string
+                  enum:
+                    - PENDING
+                    - TRANSFERRED
+                    - CONFIRMED
+                quantity:
+                  type: integer
+                carInfo:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - model
+                    - make
+                    - year
+                    - unitPrice
+                  properties:
+                    model:
+                      type: string
+                    make:
+                      type: string
+                    year:
+                      type: integer
+                    unitPrice:
+                      type: number
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/SetValueModel/Resource
+  AmazonQldbKVSqldbrestapikvsverifyLedgerMetadataModel7CAB3D87:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      ContentType: application/json
+      Name: verifyLedgerMetadataModel
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: verifyLedgerMetadataModel
+        type: object
+        additionalProperties: false
+        required:
+          - BlockAddress
+          - DocumentId
+          - RevisionHash
+          - LedgerDigest
+        properties:
+          LedgerName:
+            type: string
+          TableName:
+            type: string
+          BlockAddress:
+            type: object
+            additionalProperties: false
+            required:
+              - IonText
+            properties:
+              IonText:
+                type: string
+          DocumentId:
+            type: string
+            minLength: 22
+            maxLength: 22
+          RevisionHash:
+            type: string
+          Proof:
+            type: object
+            additionalProperties: false
+            required:
+              - IonText
+            properties:
+              IonText:
+                type: string
+          LedgerDigest:
+            type: object
+            additionalProperties: false
+            required:
+              - Digest
+              - DigestTipAddress
+            properties:
+              Digest:
+                type: string
+              DigestTipAddress:
+                type: object
+                additionalProperties: false
+                required:
+                  - IonText
+                properties:
+                  IonText:
+                    type: string
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/verifyLedgerMetadataModel/Resource
+  AmazonQldbKVSqldbrestapikvsGetRevisionByMetadataModel1069338C:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      ContentType: application/json
+      Name: GetRevisionByMetadataModel
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: GetRevisionByMetadataModel
+        type: object
+        additionalProperties: false
+        required:
+          - BlockAddress
+          - DocumentId
+          - LedgerDigest
+        properties:
+          LedgerName:
+            type: string
+          TableName:
+            type: string
+          BlockAddress:
+            type: object
+            additionalProperties: false
+            required:
+              - IonText
+            properties:
+              IonText:
+                type: string
+          DocumentId:
+            type: string
+            minLength: 22
+            maxLength: 22
+          RevisionHash:
+            type: string
+          Proof:
+            type: object
+            additionalProperties: false
+            required:
+              - IonText
+            properties:
+              IonText:
+                type: string
+          LedgerDigest:
+            type: object
+            additionalProperties: false
+            required:
+              - DigestTipAddress
+            properties:
+              Digest:
+                type: string
+              DigestTipAddress:
+                type: object
+                additionalProperties: false
+                required:
+                  - IonText
+                properties:
+                  IonText:
+                    type: string
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/GetRevisionByMetadataModel/Resource
+  AmazonQldbKVSqldbrestapikvsverifyDocumentRevisionHashModel3605772B:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      ContentType: application/json
+      Name: verifyDocumentRevisionHashModel
+      Schema:
+        $schema: http://json-schema.org/draft-04/schema#
+        title: verifyDocumentRevisionHashModel
+        type: object
+        additionalProperties: false
+        required:
+          - hash
+          - data
+          - metadata
+        properties:
+          blockAddress:
+            type: object
+            additionalProperties: false
+            required:
+              - strandId
+              - sequenceNo
+            properties:
+              strandId:
+                type: string
+              sequenceNo:
+                type: integer
+          hash:
+            type: string
+          data:
+            type: object
+            additionalProperties: false
+            required:
+              - _k
+              - date
+              - billTo
+              - paymentStatus
+              - quantity
+              - carInfo
+            properties:
+              _k:
+                type: string
+              date:
+                type: string
+              billTo:
+                type: string
+              paymentStatus:
+                type: string
+                enum:
+                  - PENDING
+                  - TRANSFERRED
+                  - CONFIRMED
+              quantity:
+                type: integer
+              carInfo:
+                type: object
+                additionalProperties: false
+                required:
+                  - model
+                  - make
+                  - year
+                  - unitPrice
+                properties:
+                  model:
+                    type: string
+                  make:
+                    type: string
+                  year:
+                    type: integer
+                  unitPrice:
+                    type: number
+          metadata:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - version
+              - txTime
+              - txId
+            properties:
+              id:
+                type: string
+              version:
+                type: integer
+              txTime:
+                type: string
+              txId:
+                type: string
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/qldb-rest-api-kvs/verifyDocumentRevisionHashModel/Resource
+  AmazonQldbKVSvalidateBodyQueryStringAndHeaderF2849841:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      Name: Validate body, query string parameters, and headers
+      ValidateRequestBody: true
+      ValidateRequestParameters: true
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/validateBodyQueryStringAndHeader/Resource
+  AmazonQldbKVSvalidateQueryStringAndHeaderE59979C1:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+      Name: Validate query string parameters and headers
+      ValidateRequestBody: false
+      ValidateRequestParameters: true
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/AmazonQldbKVS/validateQueryStringAndHeader/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WPQU/DMAyFf8vuqaHlwrUDcWJiKhLXKU1M8ZomXZMwVVX/O246RDn5s9/Lc1xAAfc7efWZ0m1mqIbpPUjVCh6dpovRNTx92lfUDQ7CyK7WEqaXaFUgZwVLWz7i0JH33M2CZAdT5QwuQqpHZ0iNyZdoFv7hJL3H4KFcCvewj6rFsJceheypkQGvcuQg9KHsKWX9YamUizaIZ+yNGztk5Omm41Oa9IEV+KmLg8IUf8Dw5fQi3uhXvS1Z+eA0mmRKUOEl8v4PaUjL4IbV+382zyKds+wk2yyWtxj6GLbBs7AcCGd/950/Ql5Avjt7omzge6hDqNb6A/KoZR+fAQAA
+    Metadata:
+      aws:cdk:path: AmazonQldbRestApiStack/CDKMetadata/Default
+Outputs:
+  AmazonQldbKVSqldbrestapikvsEndpointFF1BBC57:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: AmazonQldbKVSqldbrestapikvsFE5290E7
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: AmazonQldbKVSqldbrestapikvsDeploymentStageprod83265D75
+          - /
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

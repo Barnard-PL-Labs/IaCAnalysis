@@ -1,0 +1,76 @@
+Resources:
+  devopsdeploymentbucket9D0464FB:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName: prod-ready-cdk-devops-deployment
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays: 90
+            Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: devops-deployments-stack/devops-deployment-bucket/Resource
+  devopsdeploymentbucketPolicyC8391132:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: devopsdeploymentbucket9D0464FB
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - devopsdeploymentbucket9D0464FB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - devopsdeploymentbucket9D0464FB
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: devops-deployments-stack/devops-deployment-bucket/Policy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/zPSs9AzUEwsL9ZNTsnWzclM0qsOLklMztYBCsUXG+tVO5UmZ6eW6Din5UFZECogPyczuRIhDOHXggSCUovzS4uSU2t18vJTUvWyivXLDC30DI30DBWzijMzdYtK80oyc1P1giA0AMQolpWCAAAA
+    Metadata:
+      aws:cdk:path: devops-deployments-stack/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

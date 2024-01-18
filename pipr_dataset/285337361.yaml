@@ -1,0 +1,187 @@
+# Unable to find git repository name. Set the repository_url context value or configure a git remote
+Parameters:
+  Stage:
+    Type: String
+    Default: CODE
+    AllowedValues:
+      - CODE
+      - PROD
+    Description: Stage name
+Mappings:
+  brazecomponents:
+    PROD:
+      certificateId: eca82256-dff4-4b0a-80d6-7f884a1ee92d
+      customDomainName: braze-components.gutools.co.uk
+      domainName: braze-components.gutools.co.uk
+    CODE:
+      certificateId: 1df4da51-49e5-4dd4-b136-3c5e1cac9d64
+      customDomainName: braze-components.code.dev-gutools.co.uk
+      domainName: braze-components.code.dev-gutools.co.uk
+Resources:
+  CDN:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - Fn::FindInMap:
+              - brazecomponents
+              - Ref: Stage
+              - customDomainName
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::Join:
+                - ""
+                - - braze-components-storybook.s3.
+                  - Ref: AWS::Region
+                  - "."
+                  - Ref: AWS::URLSuffix
+            Id: origin1
+            OriginPath:
+              Fn::Join:
+                - ""
+                - - /
+                  - Ref: Stage
+                  - /braze-components-storybook-static
+            S3OriginConfig:
+              OriginAccessIdentity: origin-access-identity/cloudfront/E3EA9DC41190PP
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Fn::Join:
+              - ""
+              - - "arn:aws:acm:us-east-1:"
+                - Ref: AWS::AccountId
+                - :certificate/
+                - Fn::FindInMap:
+                    - brazecomponents
+                    - Ref: Stage
+                    - certificateId
+          SslSupportMethod: sni-only
+      Tags:
+        - Key: gu:cdk:version
+          Value: 31.4.0
+        - Key: Stack
+          Value: targeting
+        - Key: Stage
+          Value:
+            Ref: Stage
+    Metadata:
+      aws:cdk:path: BrazeComponents/braze-components-cloudfront/CFDistribution
+  DNSentry:
+    Type: Guardian::DNS::RecordSet
+    Properties:
+      Name:
+        Fn::FindInMap:
+          - brazecomponents
+          - Ref: Stage
+          - domainName
+      ResourceRecords:
+        - Fn::GetAtt:
+            - CDN
+            - DomainName
+      RecordType: CNAME
+      TTL: 3600
+      Stage:
+        Ref: Stage
+    Metadata:
+      aws:cdk:path: BrazeComponents/DNS entry
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02NMQ+CMBCFfwt7PSwsjgaMm4nBwbmUwxxIS9qrDk3/uzQuTO+7d3fvSZB1BcfirL7+oIe5jNo6hPhgpWfRjuaunFqQ0YnWGs8uaBYdehucxry/qXUl88q4t7fjgZisSSInR19DE/SM3CiPQr9tGEZnDUNsM18zP7G/0FZBfcifOWY/p5SEsQPC5MuPPIGsQBaTJzq4YJgWhO6vP/uy0d7UAAAA
+    Metadata:
+      aws:cdk:path: BrazeComponents/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

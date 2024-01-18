@@ -1,0 +1,206 @@
+Description: Multi-function packager tool for Amazon CloudFront Edge Functions (uksb-1t9uc46mc)
+Resources:
+  mfpartifacts98431216:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: MFPStack/mfp-artifacts/Resource
+  LambdaFunctionPackagerServiceRole6232B6E7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: MFPStack/LambdaFunctionPackager/ServiceRole/Resource
+  LambdaFunctionPackagerA930B251:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 5b79a03b84c7a6ca45b225055bfa6c6b869664542a357865e5c13bf31a0e45f4.zip
+      Role:
+        Fn::GetAtt:
+          - LambdaFunctionPackagerServiceRole6232B6E7
+          - Arn
+      Handler: lambda_handler
+      MemorySize: 128
+      Runtime: nodejs16.x
+      Timeout: 4
+    DependsOn:
+      - LambdaFunctionPackagerServiceRole6232B6E7
+    Metadata:
+      aws:cdk:path: MFPStack/LambdaFunctionPackager/Resource
+      aws:asset:path: asset.5b79a03b84c7a6ca45b225055bfa6c6b869664542a357865e5c13bf31a0e45f4
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  Role1ABCC5F0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/IAMReadOnlyAccess
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AWSLambda_ReadOnlyAccess
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - cloudfront:CreateFunction
+                  - cloudfront:GetFunction
+                  - iam:AttachRolePolicy
+                  - iam:CreateRole
+                  - iam:ListAttachedRolePolicies
+                  - lambda:AddPermission
+                  - lambda:CreateFunction
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+                Effect: Allow
+                Resource: "*"
+              - Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - Fn::GetAtt:
+                          - mfpartifacts98431216
+                          - Arn
+                      - /*
+              - Action: iam:PassRole
+                Condition:
+                  StringEquals:
+                    iam:PassedToService: lambda.amazonaws.com
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: customPolicy
+    Metadata:
+      aws:cdk:path: MFPStack/Role/Resource
+  LambdaFunctionAssembly780DB8BC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: f9b0c56b056776cd596cce307d59f664ef7166c26205b5a278b6da56fed11fa1.zip
+      Role:
+        Fn::GetAtt:
+          - Role1ABCC5F0
+          - Arn
+      Environment:
+        Variables:
+          LAMBDA_CHAINER_ARN:
+            Fn::Join:
+              - ""
+              - - Fn::GetAtt:
+                    - LambdaFunctionPackagerA930B251
+                    - Arn
+                - :$LATEST
+          S3_BUCKET:
+            Ref: mfpartifacts98431216
+          STACK_NAME: MFPStack
+      Handler: lambda_function.lambda_handler
+      MemorySize: 1024
+      Runtime: python3.9
+      Timeout: 120
+    DependsOn:
+      - Role1ABCC5F0
+    Metadata:
+      aws:cdk:path: MFPStack/LambdaFunctionAssembly/Resource
+      aws:asset:path: asset.f9b0c56b056776cd596cce307d59f664ef7166c26205b5a278b6da56fed11fa1
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CloudFrontFunctionAssembly456D6239:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 7aa8c8e46ab33661a696fa27c34c134304a7d5080b9107935df6023a79a0357e.zip
+      Role:
+        Fn::GetAtt:
+          - Role1ABCC5F0
+          - Arn
+      Environment:
+        Variables:
+          S3_BUCKET:
+            Ref: mfpartifacts98431216
+          STACK_NAME: MFPStack
+      Handler: lambda_function.lambda_handler
+      MemorySize: 512
+      Runtime: python3.9
+      Timeout: 120
+    DependsOn:
+      - Role1ABCC5F0
+    Metadata:
+      aws:cdk:path: MFPStack/CloudFrontFunctionAssembly/Resource
+      aws:asset:path: asset.7aa8c8e46ab33661a696fa27c34c134304a7d5080b9107935df6023a79a0357e
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/zWNzQ6CMBCEn4V7WQVi4lVMvJrUByBLqWT5aQ3b6qHpu0tBT99k8k2mhOoExww/nKtuzCdqITwcqlGsVRO4glB7NWonrk/zSztqZB3FhHPbIYSbN8qRNUn75ygIZwjSTjrViVFw1SCzdgyXhCg2rJc9mT5pd+9efruTmq1f1DoyttMw8OFdnKEoocgGJsoXbxzNGuTOLxsEzKHLAAAA
+    Metadata:
+      aws:cdk:path: MFPStack/CDKMetadata/Default
+Outputs:
+  MFPStackLambdaFunctionPackagerName:
+    Description: Lambda Function Packager
+    Value:
+      Ref: LambdaFunctionPackagerA930B251
+  MFPStackLambdaFunctionAssemblyName:
+    Description: Lambda Function assembly
+    Value:
+      Ref: LambdaFunctionAssembly780DB8BC
+  MFPStackCloudFrontFunctionAssemblyName:
+    Description: CloudFront Function assembly
+    Value:
+      Ref: CloudFrontFunctionAssembly456D6239
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

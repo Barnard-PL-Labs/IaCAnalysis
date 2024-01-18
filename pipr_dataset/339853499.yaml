@@ -1,0 +1,2219 @@
+Description: "(SO0108) - The AWS CloudFormation template for deployment of the undefined, Version: undefined"
+AWSTemplateFormatVersion: "2010-09-09"
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: VPC Configuration
+        Parameters:
+          - cidrBlock
+      - Label:
+          default: Transit Gateway Configuration
+        Parameters:
+          - ExistingTransitGateway
+          - TransitGatewayRouteTableIdForAssociation
+          - TransitGatewayRTIdForDefaultRoute
+      - Label:
+          default: Firewall Logging Configuration
+        Parameters:
+          - logDestinationType
+          - logType
+          - LogRetentionPeriod
+    ParameterLabels:
+      cidrBlock:
+        default: Provide the CIDR block for the Inspection VPC
+      ExistingTransitGateway:
+        default: Provide the existing AWS Transit Gateway ID you wish to attach to the Inspection VPC
+      TransitGatewayRouteTableIdForAssociation:
+        default: Provide AWS Transit Gateway Route Table to be associated with the Inspection VPC TGW Attachment.
+      TransitGatewayRTIdForDefaultRoute:
+        default: Provide the AWS Transit Gateway Route Table to receive 0.0.0.0/0 route to the Inspection VPC TGW Attachment.
+      logType:
+        default: Select the type of log to send to the defined log destination.
+      logDestinationType:
+        default: Select the type of log destination for the Network Firewall
+      LogRetentionPeriod:
+        default: Select the log retention period for Network Firewall Logs.
+Parameters:
+  cidrBlock:
+    Type: String
+    Default: 192.168.1.0/26
+    AllowedPattern: ^(?:[0-9]{1,3}.){3}[0-9]{1,3}[/]([0-9]?[0-6]?|[1][7-9])$
+    Description: CIDR Block for VPC. Must be /26 or larger CIDR block.
+  LogRetentionPeriod:
+    Type: Number
+    Default: 90
+    AllowedValues:
+      - "1"
+      - "3"
+      - "5"
+      - "7"
+      - "14"
+      - "30"
+      - "60"
+      - "90"
+      - "120"
+      - "150"
+      - "180"
+      - "365"
+      - "400"
+      - "545"
+      - "731"
+      - "1827"
+      - "3653"
+    Description: Log retention period in days.
+  ExistingTransitGateway:
+    Type: String
+    Default: ""
+    Description: Existing AWS Transit Gateway id.
+  TransitGatewayRouteTableIdForAssociation:
+    Type: String
+    Default: ""
+    Description: "Existing AWS Transit Gateway route table id. Example: Firewall Route Table. Format: tgw-rtb-0a1b2c3d"
+  TransitGatewayRTIdForDefaultRoute:
+    Type: String
+    Default: ""
+    Description: "Existing AWS Transit Gateway route table id. Example: Spoke VPC Route Table. Format: tgw-rtb-4e5f6g7h"
+  logType:
+    Type: String
+    Default: FLOW
+    AllowedValues:
+      - ALERT
+      - FLOW
+      - EnableBoth
+    Description: The type of log to send. Alert logs report traffic that matches a StatefulRule with an action setting that sends an alert log message. Flow logs are standard network traffic flow logs.
+  logDestinationType:
+    Type: String
+    Default: CloudWatchLogs
+    AllowedValues:
+      - S3
+      - CloudWatchLogs
+      - ConfigureManually
+    Description: The type of storage destination to send these logs to. You can send logs to an Amazon S3 bucket or a CloudWatch log group.
+Mappings:
+  SolutionMapping:
+    Version:
+      Latest: latest
+    Route:
+      QuadZero: 0.0.0.0/0
+    Log:
+      Level: info
+    CodeCommitRepo:
+      Name: network-firewall-config-repo-
+    Metrics:
+      URL: https://metrics.awssolutionsbuilder.com/generic
+    Solution:
+      Identifier: SO0108
+    TransitGatewayAttachment:
+      ApplianceMode: enable
+  Send:
+    AnonymousUsage:
+      Data: "Yes"
+    ParameterKey:
+      UniqueId: /Solutions/undefined/UUID
+Conditions:
+  LoggingInS3:
+    Fn::Equals:
+      - Ref: logDestinationType
+      - S3
+  LoggingInCloudWatch:
+    Fn::Equals:
+      - Ref: logDestinationType
+      - CloudWatchLogs
+  NotLoggingConfigureManually:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: logDestinationType
+          - ConfigureManually
+  CreateTransitGatewayAttachment:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: ExistingTransitGateway
+          - ""
+  CreateTransitGatewayRTAssociation:
+    Fn::And:
+      - Fn::Not:
+          - Fn::Equals:
+              - Ref: TransitGatewayRouteTableIdForAssociation
+              - ""
+      - Condition: CreateTransitGatewayAttachment
+  CreateDefaultRouteFirewallRT:
+    Fn::And:
+      - Fn::Not:
+          - Fn::Equals:
+              - Ref: TransitGatewayRTIdForDefaultRoute
+              - ""
+      - Condition: CreateTransitGatewayAttachment
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock:
+        Ref: cidrBlock
+      Tags:
+        - Key: created-by
+          Value: undefined
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -Inspection-VPC
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/VPC
+  KMSKeyForNetworkFirewallLogDestinations70A79322:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:GenerateDataKey
+              - kms:TagResource
+              - kms:UntagResource
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action: kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              Service: delivery.logs.amazonaws.com
+            Resource: "*"
+          - Action:
+              - kms:Encrypt*
+              - kms:Decrypt*
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+              - kms:Describe*
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - logs.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+            Resource: "*"
+        Version: "2012-10-17"
+      Description: This key will be used for encrypting the vpc flow logs and firewall logs.
+      EnableKeyRotation: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/KMSKeyForNetworkFirewallLogDestinations/Resource
+  CloudWatchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId:
+        Fn::GetAtt:
+          - KMSKeyForNetworkFirewallLogDestinations70A79322
+          - Arn
+      RetentionInDays:
+        Ref: LogRetentionPeriod
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/CloudWatchLogGroup
+    Condition: LoggingInCloudWatch
+  Logs6819BB44:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - KMSKeyForNetworkFirewallLogDestinations70A79322
+                  - Arn
+              SSEAlgorithm: aws:kms
+      LifecycleConfiguration:
+        Rules:
+          - ExpirationInDays:
+              Ref: LogRetentionPeriod
+            Status: Enabled
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Logs bucket does not require logging configuration
+          - id: W51
+            reason: Logs bucket is private and does not require a bucket policy
+    Condition: LoggingInS3
+  NetworkFirewallSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock:
+        Fn::Select:
+          - 0
+          - Fn::Cidr:
+              - Fn::GetAtt:
+                  - VPC
+                  - CidrBlock
+              - 4
+              - "4"
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        Fn::Select:
+          - "0"
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -FirewallSubnet1
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallSubnet1
+  NetworkFirewallSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock:
+        Fn::Select:
+          - 1
+          - Fn::Cidr:
+              - Fn::GetAtt:
+                  - VPC
+                  - CidrBlock
+              - 4
+              - "4"
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        Fn::Select:
+          - "1"
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -FirewallSubnet2
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallSubnet2
+  FirewallSubnetRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -FirewallSubnetRouteTable
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/FirewallSubnetRouteTable
+  NetworkFirewallSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: FirewallSubnetRouteTable
+      SubnetId:
+        Ref: NetworkFirewallSubnet1
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallSubnet1RouteTableAssociation
+  NetworkFirewallSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: FirewallSubnetRouteTable
+      SubnetId:
+        Ref: NetworkFirewallSubnet2
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallSubnet2RouteTableAssociation
+  VPCTGWSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock:
+        Fn::Select:
+          - 2
+          - Fn::Cidr:
+              - Fn::GetAtt:
+                  - VPC
+                  - CidrBlock
+              - 4
+              - "4"
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        Fn::Select:
+          - "0"
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -VPCTGWSubnet1
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/VPCTGWSubnet1
+  VPCTGWSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock:
+        Fn::Select:
+          - 3
+          - Fn::Cidr:
+              - Fn::GetAtt:
+                  - VPC
+                  - CidrBlock
+              - 4
+              - "4"
+      VpcId:
+        Ref: VPC
+      AvailabilityZone:
+        Fn::Select:
+          - "1"
+          - Fn::GetAZs: ""
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -VPCTGWSubnet2
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/VPCTGWSubnet2
+  VPCTGWRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -TGWSubnetRouteTable1
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/VPCTGWRouteTable1
+  VPCTGWRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -TGWSubnetRouteTable2
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/VPCTGWRouteTable2
+  VPCTGWSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCTGWRouteTable1
+      SubnetId:
+        Ref: VPCTGWSubnet1
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/VPCTGWSubnet1RouteTableAssociation
+  VPCTGWSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCTGWRouteTable2
+      SubnetId:
+        Ref: VPCTGWSubnet2
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/VPCTGWSubnet2RouteTableAssociation
+  LogGroupFlowLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      KmsKeyId:
+        Fn::GetAtt:
+          - KMSKeyForNetworkFirewallLogDestinations70A79322
+          - Arn
+      LogGroupName:
+        Ref: AWS::StackName
+      RetentionInDays:
+        Ref: LogRetentionPeriod
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/LogGroupFlowLogs
+  RoleFlowLogsCA794118:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: vpc-flow-logs.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/RoleFlowLogs/Resource
+  RoleFlowLogsDefaultPolicyD1F03EF4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:DescribeLogStreams
+              - logs:PutLogEvents
+              - logs:CreateLogGroup
+              - logs:DescribeLogGroups
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - LogGroupFlowLogs
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: RoleFlowLogsDefaultPolicyD1F03EF4
+      Roles:
+        - Ref: RoleFlowLogsCA794118
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/RoleFlowLogs/DefaultPolicy/Resource
+  FlowLog:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      ResourceId:
+        Ref: VPC
+      ResourceType: VPC
+      TrafficType: ALL
+      DeliverLogsPermissionArn:
+        Fn::GetAtt:
+          - RoleFlowLogsCA794118
+          - Arn
+      LogGroupName:
+        Ref: AWS::StackName
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/FlowLog
+  VPCTGWATTACHMENT:
+    Type: AWS::EC2::TransitGatewayAttachment
+    Properties:
+      SubnetIds:
+        - Ref: VPCTGWSubnet1
+        - Ref: VPCTGWSubnet2
+      TransitGatewayId:
+        Ref: ExistingTransitGateway
+      VpcId:
+        Ref: VPC
+      Tags:
+        - Key: Name
+          Value:
+            Fn::Join:
+              - ""
+              - - Ref: AWS::StackName
+                - -Inspection-VPC-Attachment
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/VPC_TGW_ATTACHMENT
+    Condition: CreateTransitGatewayAttachment
+  TGWRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: FirewallSubnetRouteTable
+      DestinationCidrBlock:
+        Fn::FindInMap:
+          - SolutionMapping
+          - Route
+          - QuadZero
+      TransitGatewayId:
+        Ref: ExistingTransitGateway
+    DependsOn:
+      - VPCTGWATTACHMENT
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/TGWRoute
+    Condition: CreateTransitGatewayAttachment
+  VPCTGWRouteTableAssociation:
+    Type: AWS::EC2::TransitGatewayRouteTableAssociation
+    Properties:
+      TransitGatewayAttachmentId:
+        Ref: VPCTGWATTACHMENT
+      TransitGatewayRouteTableId:
+        Ref: TransitGatewayRouteTableIdForAssociation
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/VPCTGWRouteTableAssociation
+    Condition: CreateTransitGatewayRTAssociation
+    DeletionPolicy: Retain
+  DefaultRouteSpokeVPCTGWRouteTable:
+    Type: AWS::EC2::TransitGatewayRoute
+    Properties:
+      TransitGatewayRouteTableId:
+        Ref: TransitGatewayRTIdForDefaultRoute
+      DestinationCidrBlock:
+        Fn::FindInMap:
+          - SolutionMapping
+          - Route
+          - QuadZero
+      TransitGatewayAttachmentId:
+        Ref: VPCTGWATTACHMENT
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/DefaultRouteSpokeVPCTGWRouteTable
+    Condition: CreateDefaultRouteFirewallRT
+    DeletionPolicy: Retain
+  NetworkFirewallCodeRepositoryF7BA0495:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName:
+        Fn::Join:
+          - ""
+          - - Fn::FindInMap:
+                - SolutionMapping
+                - CodeCommitRepo
+                - Name
+            - Ref: AWS::StackName
+      Code:
+        S3:
+          Bucket:
+            Fn::Join:
+              - ""
+              - - undefined-
+                - Ref: AWS::Region
+          Key:
+            Fn::Join:
+              - ""
+              - - undefined/
+                - Fn::FindInMap:
+                    - SolutionMapping
+                    - Version
+                    - Latest
+                - /network-firewall-configuration.zip
+      RepositoryDescription: This repository is created by the AWS Network Firewall solution for AWS Transit Gateway, to store and trigger changes to the network firewall rules and configurations.
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodeRepository/Resource
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+  NetworkFirewallCodeRepositoryawsnetworkfirewalldeploymentautomationsforawstransitgatewayNetworkFirewallCodePipelineEAE65F3EmainEventRule221C08CF:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::GetAtt:
+              - NetworkFirewallCodeRepositoryF7BA0495
+              - Arn
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - main
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":"
+                - Ref: NetworkFirewallCodePipelineA72E3ADD
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - NetworkFirewallCodePipelineEventsRole94323A48
+              - Arn
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodeRepository/awsnetworkfirewalldeploymentautomationsforawstransitgatewayNetworkFirewallCodePipelineEAE65F3E-main-EventRule/Resource
+  CodeBuildStagesSourceCodeBucketFA98E7C7:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: Source Code bucket bucket does not require logging configuration
+          - id: W51
+            reason: Source Code bucket is private and does not require a bucket policy
+  BuildProjectRoleAA92C755:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/BuildProject/Role/Resource
+  BuildProjectRoleDefaultPolicy3E9F248C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: BuildProject097C5DB7
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: BuildProject097C5DB7
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: BuildProject097C5DB7
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: BuildProjectRoleDefaultPolicy3E9F248C
+      Roles:
+        - Ref: BuildProjectRoleAA92C755
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/BuildProject/Role/DefaultPolicy/Resource
+  BuildProject097C5DB7:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: LOG_LEVEL
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - SolutionMapping
+                - Log
+                - Level
+          - Name: VPC_ID
+            Type: PLAINTEXT
+            Value:
+              Ref: VPC
+          - Name: SUBNET_IDS
+            Type: PLAINTEXT
+            Value:
+              Fn::Join:
+                - ""
+                - - Ref: NetworkFirewallSubnet1
+                  - ","
+                  - Ref: NetworkFirewallSubnet2
+          - Name: LOG_TYPE
+            Type: PLAINTEXT
+            Value:
+              Ref: logType
+          - Name: LOG_DESTINATION_TYPE
+            Type: PLAINTEXT
+            Value:
+              Ref: logDestinationType
+          - Name: S3_LOG_BUCKET_NAME
+            Type: PLAINTEXT
+            Value:
+              Fn::If:
+                - LoggingInS3
+                - Ref: Logs6819BB44
+                - NotConfigured
+          - Name: CLOUDWATCH_LOG_GROUP_NAME
+            Type: PLAINTEXT
+            Value:
+              Fn::If:
+                - LoggingInCloudWatch
+                - Ref: CloudWatchLogGroup
+                - NotConfigured
+          - Name: VPC_TGW_ATTACHMENT_AZ_1
+            Type: PLAINTEXT
+            Value:
+              Fn::GetAtt:
+                - NetworkFirewallSubnet1
+                - AvailabilityZone
+          - Name: VPC_TGW_ATTACHMENT_AZ_2
+            Type: PLAINTEXT
+            Value:
+              Fn::GetAtt:
+                - NetworkFirewallSubnet2
+                - AvailabilityZone
+          - Name: VPC_TGW_ATTACHMENT_ROUTE_TABLE_ID_1
+            Type: PLAINTEXT
+            Value:
+              Ref: VPCTGWRouteTable1
+          - Name: VPC_TGW_ATTACHMENT_ROUTE_TABLE_ID_2
+            Type: PLAINTEXT
+            Value:
+              Ref: VPCTGWRouteTable2
+          - Name: CODE_BUILD_SOURCE_CODE_S3_KEY
+            Type: PLAINTEXT
+            Value: undefined/undefined
+          - Name: STACK_ID
+            Type: PLAINTEXT
+            Value:
+              Ref: AWS::StackId
+          - Name: SSM_PARAM_FOR_UUID
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - Send
+                - ParameterKey
+                - UniqueId
+          - Name: SEND_ANONYMOUS_METRICS
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - Send
+                - AnonymousUsage
+                - Data
+          - Name: SOLUTION_ID
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - SolutionMapping
+                - Solution
+                - Identifier
+          - Name: METRICS_URL
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - SolutionMapping
+                - Metrics
+                - URL
+          - Name: TRANSIT_GATEWAY_ATTACHMENT_ID
+            Type: PLAINTEXT
+            Value:
+              Fn::If:
+                - CreateTransitGatewayAttachment
+                - Ref: VPCTGWATTACHMENT
+                - ""
+          - Name: TRANSIT_GATEWAY_ATTACHMENT_APPLIANCE_MODE
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - SolutionMapping
+                - TransitGatewayAttachment
+                - ApplianceMode
+        Image: aws/codebuild/standard:4.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - BuildProjectRoleAA92C755
+          - Arn
+      Source:
+        BuildSpec:
+          Fn::Join:
+            - ""
+            - - |-
+                {
+                  "version": "0.2",
+                  "phases": {
+                    "install": {
+                      "runtime-versions": {
+                        "nodejs": "12"
+                      },
+                      "commands": [
+                        "export current=$(pwd)",
+                        "export sourceCodeKey=$CODE_BUILD_SOURCE_CODE_S3_KEY"
+                      ]
+                    },
+                    "pre_build": {
+                      "commands": [
+                        "cd $current",
+                        "pwd; ls -ltr",
+                        "echo 'Download Network Firewall Solution Package'",
+                        "aws s3 cp s3://
+              - Ref: CodeBuildStagesSourceCodeBucketFA98E7C7
+              - |-
+                /$sourceCodeKey/network-firewall-automation.zip $current || true",
+                        "if [ -f $current/network-firewall-automation.zip ];then exit 0;else echo \"Copy file to s3 bucket\"; aws s3 cp s3://undefined-
+              - Ref: AWS::Region
+              - /$sourceCodeKey/network-firewall-automation.zip s3://
+              - Ref: CodeBuildStagesSourceCodeBucketFA98E7C7
+              - /$sourceCodeKey/network-firewall-automation.zip; aws s3 cp s3://
+              - Ref: CodeBuildStagesSourceCodeBucketFA98E7C7
+              - |-
+                /$sourceCodeKey/network-firewall-automation.zip $current; fi;",
+                        "unzip -o $current/network-firewall-automation.zip -d $current",
+                        "pwd; ls -ltr"
+                      ]
+                    },
+                    "build": {
+                      "commands": [
+                        "echo \"Validating the firewall config\"",
+                        "node build.js"
+                      ]
+                    }
+                  },
+                  "artifacts": {
+                    "files": "**/*"
+                  }
+                }
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+          - Arn
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/BuildProject/Resource
+  buildStageIAMPolicyB31D4B98:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - network-firewall:CreateFirewallPolicy
+              - network-firewall:CreateRuleGroup
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:${AWS::Partition}:network-firewall:${AWS::Region}:${AWS::AccountId}:stateful-rulegroup/*
+              - Fn::Sub: arn:${AWS::Partition}:network-firewall:${AWS::Region}:${AWS::AccountId}:firewall-policy/*
+              - Fn::Sub: arn:${AWS::Partition}:network-firewall:${AWS::Region}:${AWS::AccountId}:stateless-rulegroup/*
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                  - arn:${AWS::Partition}:s3:::${CodeBucketName}/${KeyName}/*
+                  - CodeBucketName:
+                      Fn::Join:
+                        - ""
+                        - - undefined-
+                          - Ref: AWS::Region
+                    KeyName: undefined
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: CodeBuildStagesSourceCodeBucketFA98E7C7
+                    - /*
+          - Action: s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":s3:::"
+                  - Ref: CodeBuildStagesSourceCodeBucketFA98E7C7
+                  - /*
+          - Action:
+              - ssm:PutParameter
+              - ssm:GetParameter
+            Effect: Allow
+            Resource:
+              Fn::Sub:
+                - arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${ParameterKey}
+                - ParameterKey:
+                    Fn::FindInMap:
+                      - Send
+                      - ParameterKey
+                      - UniqueId
+        Version: "2012-10-17"
+      PolicyName: buildStageIAMPolicyB31D4B98
+      Roles:
+        - Ref: BuildProjectRoleAA92C755
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/buildStageIAMPolicy/Resource
+  deployStageFirewallPolicy72BE60BE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - network-firewall:CreateFirewall
+              - network-firewall:UpdateFirewallDeleteProtection
+              - network-firewall:DeleteRuleGroup
+              - network-firewall:DescribeLoggingConfiguration
+              - network-firewall:UpdateFirewallDescription
+              - network-firewall:CreateRuleGroup
+              - network-firewall:DescribeFirewall
+              - network-firewall:DeleteFirewallPolicy
+              - network-firewall:UpdateRuleGroup
+              - network-firewall:DescribeRuleGroup
+              - network-firewall:ListRuleGroups
+              - network-firewall:UpdateSubnetChangeProtection
+              - network-firewall:UpdateFirewallPolicyChangeProtection
+              - network-firewall:AssociateFirewallPolicy
+              - network-firewall:DescribeFirewallPolicy
+              - network-firewall:UpdateFirewallPolicy
+              - network-firewall:DescribeResourcePolicy
+              - network-firewall:CreateFirewallPolicy
+              - network-firewall:UpdateLoggingConfiguration
+              - network-firewall:TagResource
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:${AWS::Partition}:network-firewall:${AWS::Region}:${AWS::AccountId}:stateful-rulegroup/*
+              - Fn::Sub: arn:${AWS::Partition}:network-firewall:${AWS::Region}:${AWS::AccountId}:firewall-policy/*
+              - Fn::Sub: arn:${AWS::Partition}:network-firewall:${AWS::Region}:${AWS::AccountId}:firewall/*
+              - Fn::Sub: arn:${AWS::Partition}:network-firewall:${AWS::Region}:${AWS::AccountId}:stateless-rulegroup/*
+          - Action: s3:GetObject
+            Effect: Allow
+            Resource:
+              - Fn::Sub:
+                  - arn:${AWS::Partition}:s3:::${CodeBucketName}/${KeyName}/*
+                  - CodeBucketName:
+                      Fn::Join:
+                        - ""
+                        - - undefined-
+                          - Ref: AWS::Region
+                    KeyName: undefined
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: CodeBuildStagesSourceCodeBucketFA98E7C7
+                    - /*
+          - Action:
+              - ec2:DescribeVpcs
+              - ec2:DescribeSubnets
+              - ec2:DescribeRouteTables
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - ec2:CreateRoute
+              - ec2:DeleteRoute
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":ec2:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :route-table/
+                    - Ref: VPCTGWRouteTable1
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":ec2:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :route-table/
+                    - Ref: VPCTGWRouteTable2
+          - Action: iam:CreateServiceLinkedRole
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/aws-service-role/network-firewall.amazonaws.com/AWSServiceRoleForNetworkFirewall
+        Version: "2012-10-17"
+      PolicyName: deployStageFirewallPolicy72BE60BE
+      Roles:
+        - Ref: DeployProjectRole588C8C1D
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: Resource * is required for describe APIs
+  deployStageModifyTransitGatewayAttachmentPolicy993566C2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: ec2:ModifyTransitGatewayVpcAttachment
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ec2:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :transit-gateway-attachment/
+                  - Ref: VPCTGWATTACHMENT
+        Version: "2012-10-17"
+      PolicyName: deployStageModifyTransitGatewayAttachmentPolicy993566C2
+      Roles:
+        - Ref: DeployProjectRole588C8C1D
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/deployStageModifyTransitGatewayAttachmentPolicy/Resource
+    Condition: CreateTransitGatewayAttachment
+  deployStageFirewallLoggingPolicy15AD5CD5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogDelivery
+              - logs:GetLogDelivery
+              - logs:UpdateLogDelivery
+              - logs:DeleteLogDelivery
+              - logs:ListLogDeliveries
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: deployStageFirewallLoggingPolicy15AD5CD5
+      Roles:
+        - Ref: DeployProjectRole588C8C1D
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: Resource * is required for these actions.
+    Condition: NotLoggingConfigureManually
+  deployStageFirewallLoggingS3Policy8F79BDD2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:PutBucketPolicy
+              - s3:GetBucketPolicy
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Logs6819BB44
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: deployStageFirewallLoggingS3Policy8F79BDD2
+      Roles:
+        - Ref: DeployProjectRole588C8C1D
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/deployStageFirewallLoggingS3Policy/Resource
+    Condition: LoggingInS3
+  deployStageFirewallLoggingCWPolicyD4098456:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutResourcePolicy
+              - logs:DescribeResourcePolicies
+            Effect: Allow
+            Resource: "*"
+          - Action: logs:DescribeLogGroups
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:${AWS::Partition}:logs:*:${AWS::AccountId}:log-group:*
+        Version: "2012-10-17"
+      PolicyName: deployStageFirewallLoggingCWPolicyD4098456
+      Roles:
+        - Ref: DeployProjectRole588C8C1D
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: Resource * is required for describe APIs
+    Condition: LoggingInCloudWatch
+  DeployProjectRole588C8C1D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/DeployProject/Role/Resource
+  DeployProjectRoleDefaultPolicy52AEA98B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: DeployProject1CF7CB79
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: DeployProject1CF7CB79
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: DeployProject1CF7CB79
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DeployProjectRoleDefaultPolicy52AEA98B
+      Roles:
+        - Ref: DeployProjectRole588C8C1D
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/DeployProject/Role/DefaultPolicy/Resource
+  DeployProject1CF7CB79:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: LOG_LEVEL
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - SolutionMapping
+                - Log
+                - Level
+          - Name: VPC_ID
+            Type: PLAINTEXT
+            Value:
+              Ref: VPC
+          - Name: SUBNET_IDS
+            Type: PLAINTEXT
+            Value:
+              Fn::Join:
+                - ""
+                - - Ref: NetworkFirewallSubnet1
+                  - ","
+                  - Ref: NetworkFirewallSubnet2
+          - Name: LOG_TYPE
+            Type: PLAINTEXT
+            Value:
+              Ref: logType
+          - Name: LOG_DESTINATION_TYPE
+            Type: PLAINTEXT
+            Value:
+              Ref: logDestinationType
+          - Name: S3_LOG_BUCKET_NAME
+            Type: PLAINTEXT
+            Value:
+              Fn::If:
+                - LoggingInS3
+                - Ref: Logs6819BB44
+                - NotConfigured
+          - Name: CLOUDWATCH_LOG_GROUP_NAME
+            Type: PLAINTEXT
+            Value:
+              Fn::If:
+                - LoggingInCloudWatch
+                - Ref: CloudWatchLogGroup
+                - NotConfigured
+          - Name: VPC_TGW_ATTACHMENT_AZ_1
+            Type: PLAINTEXT
+            Value:
+              Fn::GetAtt:
+                - NetworkFirewallSubnet1
+                - AvailabilityZone
+          - Name: VPC_TGW_ATTACHMENT_AZ_2
+            Type: PLAINTEXT
+            Value:
+              Fn::GetAtt:
+                - NetworkFirewallSubnet2
+                - AvailabilityZone
+          - Name: VPC_TGW_ATTACHMENT_ROUTE_TABLE_ID_1
+            Type: PLAINTEXT
+            Value:
+              Ref: VPCTGWRouteTable1
+          - Name: VPC_TGW_ATTACHMENT_ROUTE_TABLE_ID_2
+            Type: PLAINTEXT
+            Value:
+              Ref: VPCTGWRouteTable2
+          - Name: CODE_BUILD_SOURCE_CODE_S3_KEY
+            Type: PLAINTEXT
+            Value: undefined/undefined
+          - Name: STACK_ID
+            Type: PLAINTEXT
+            Value:
+              Ref: AWS::StackId
+          - Name: SSM_PARAM_FOR_UUID
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - Send
+                - ParameterKey
+                - UniqueId
+          - Name: SEND_ANONYMOUS_METRICS
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - Send
+                - AnonymousUsage
+                - Data
+          - Name: SOLUTION_ID
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - SolutionMapping
+                - Solution
+                - Identifier
+          - Name: METRICS_URL
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - SolutionMapping
+                - Metrics
+                - URL
+          - Name: TRANSIT_GATEWAY_ATTACHMENT_ID
+            Type: PLAINTEXT
+            Value:
+              Fn::If:
+                - CreateTransitGatewayAttachment
+                - Ref: VPCTGWATTACHMENT
+                - ""
+          - Name: TRANSIT_GATEWAY_ATTACHMENT_APPLIANCE_MODE
+            Type: PLAINTEXT
+            Value:
+              Fn::FindInMap:
+                - SolutionMapping
+                - TransitGatewayAttachment
+                - ApplianceMode
+        Image: aws/codebuild/standard:4.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - DeployProjectRole588C8C1D
+          - Arn
+      Source:
+        BuildSpec:
+          Fn::Join:
+            - ""
+            - - |-
+                {
+                  "version": "0.2",
+                  "phases": {
+                    "install": {
+                      "runtime-versions": {
+                        "nodejs": "12"
+                      },
+                      "commands": [
+                        "export current=$(pwd)",
+                        "export sourceCodeKey=$CODE_BUILD_SOURCE_CODE_S3_KEY"
+                      ]
+                    },
+                    "pre_build": {
+                      "commands": [
+                        "cd $current",
+                        "pwd; ls -ltr",
+                        "echo 'Download Network Firewall Solution Package'",
+                        "aws s3 cp s3://
+              - Ref: CodeBuildStagesSourceCodeBucketFA98E7C7
+              - |-
+                /$sourceCodeKey/network-firewall-automation.zip $current",
+                        "unzip -o $current/network-firewall-automation.zip -d $current",
+                        "pwd; ls -ltr"
+                      ]
+                    },
+                    "build": {
+                      "commands": [
+                        "echo \"Initiating Network Firewall Automation\"",
+                        "node index.js"
+                      ]
+                    },
+                    "post_build": {
+                      "commands": []
+                    }
+                  },
+                  "artifacts": {
+                    "files": "**/*"
+                  }
+                }
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+          - Arn
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/DeployProject/Resource
+  NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:GenerateDataKey
+              - kms:TagResource
+              - kms:UntagResource
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - NetworkFirewallCodePipelineRoleDDD28B15
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - NetworkFirewallCodePipelineSourceCodePipelineActionRole67C89750
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - BuildProjectRoleAA92C755
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - BuildProjectRoleAA92C755
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - DeployProjectRole588C8C1D
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - DeployProjectRole588C8C1D
+                  - Arn
+            Resource: "*"
+        Version: "2012-10-17"
+      EnableKeyRotation: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/ArtifactsBucketEncryptionKey/Resource
+  NetworkFirewallCodePipelineArtifactsBucketEncryptionKeyAlias1704A536:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName:
+        Fn::Join:
+          - ""
+          - - alias/
+            - Ref: AWS::StackName
+            - -artifactBucket-EncryptionKeyAlias
+      TargetKeyId:
+        Fn::GetAtt:
+          - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  NetworkFirewallCodePipelineArtifactsBucketF2569455:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: This S3 bucket is used as the destination for 'NetworkFirewallCodePipelineArtifactsBucket'
+  NetworkFirewallCodePipelineRoleDDD28B15:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/Role/Resource
+  NetworkFirewallCodePipelineRoleDefaultPolicyF0142ABD:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodePipelineSourceCodePipelineActionRole67C89750
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodePipelineValidationCodeBuildCodePipelineActionRole2A3E8726
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodePipelineDeploymentCodeDeployCodePipelineActionRole6EA7639D
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: NetworkFirewallCodePipelineRoleDefaultPolicyF0142ABD
+      Roles:
+        - Ref: NetworkFirewallCodePipelineRoleDDD28B15
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/Role/DefaultPolicy/Resource
+  NetworkFirewallCodePipelineA72E3ADD:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - NetworkFirewallCodePipelineRoleDDD28B15
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::GetAtt:
+                    - NetworkFirewallCodeRepositoryF7BA0495
+                    - Name
+                BranchName: main
+                PollForSourceChanges: false
+              Name: Source
+              OutputArtifacts:
+                - Name: SourceArtifact
+              RoleArn:
+                Fn::GetAtt:
+                  - NetworkFirewallCodePipelineSourceCodePipelineActionRole67C89750
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: BuildProject097C5DB7
+              InputArtifacts:
+                - Name: SourceArtifact
+              Name: CodeBuild
+              OutputArtifacts:
+                - Name: BuildArtifact
+              RoleArn:
+                Fn::GetAtt:
+                  - NetworkFirewallCodePipelineValidationCodeBuildCodePipelineActionRole2A3E8726
+                  - Arn
+              RunOrder: 1
+          Name: Validation
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: DeployProject1CF7CB79
+              InputArtifacts:
+                - Name: BuildArtifact
+              Name: CodeDeploy
+              RoleArn:
+                Fn::GetAtt:
+                  - NetworkFirewallCodePipelineDeploymentCodeDeployCodePipelineActionRole6EA7639D
+                  - Arn
+              RunOrder: 1
+          Name: Deployment
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+              - Arn
+          Type: KMS
+        Location:
+          Ref: NetworkFirewallCodePipelineArtifactsBucketF2569455
+        Type: S3
+    DependsOn:
+      - NetworkFirewallCodePipelineRoleDefaultPolicyF0142ABD
+      - NetworkFirewallCodePipelineRoleDDD28B15
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/Resource
+  NetworkFirewallCodePipelineSourceCodePipelineActionRole67C89750:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/Source/Source/CodePipelineActionRole/Resource
+  NetworkFirewallCodePipelineSourceCodePipelineActionRoleDefaultPolicyB01603D9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodePipelineArtifactsBucketEncryptionKey086ED060
+                - Arn
+          - Action:
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:UploadArchive
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:CancelUploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodeRepositoryF7BA0495
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: NetworkFirewallCodePipelineSourceCodePipelineActionRoleDefaultPolicyB01603D9
+      Roles:
+        - Ref: NetworkFirewallCodePipelineSourceCodePipelineActionRole67C89750
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/Source/Source/CodePipelineActionRole/DefaultPolicy/Resource
+  NetworkFirewallCodePipelineEventsRole94323A48:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/EventsRole/Resource
+  NetworkFirewallCodePipelineEventsRoleDefaultPolicy5835E037:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codepipeline:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: NetworkFirewallCodePipelineA72E3ADD
+        Version: "2012-10-17"
+      PolicyName: NetworkFirewallCodePipelineEventsRoleDefaultPolicy5835E037
+      Roles:
+        - Ref: NetworkFirewallCodePipelineEventsRole94323A48
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/EventsRole/DefaultPolicy/Resource
+  NetworkFirewallCodePipelineValidationCodeBuildCodePipelineActionRole2A3E8726:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/Validation/CodeBuild/CodePipelineActionRole/Resource
+  NetworkFirewallCodePipelineValidationCodeBuildCodePipelineActionRoleDefaultPolicyA4A71A44:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - BuildProject097C5DB7
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: NetworkFirewallCodePipelineValidationCodeBuildCodePipelineActionRoleDefaultPolicyA4A71A44
+      Roles:
+        - Ref: NetworkFirewallCodePipelineValidationCodeBuildCodePipelineActionRole2A3E8726
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/Validation/CodeBuild/CodePipelineActionRole/DefaultPolicy/Resource
+  NetworkFirewallCodePipelineDeploymentCodeDeployCodePipelineActionRole6EA7639D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/Deployment/CodeDeploy/CodePipelineActionRole/Resource
+  NetworkFirewallCodePipelineDeploymentCodeDeployCodePipelineActionRoleDefaultPolicyAB6FC4F9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DeployProject1CF7CB79
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: NetworkFirewallCodePipelineDeploymentCodeDeployCodePipelineActionRoleDefaultPolicyAB6FC4F9
+      Roles:
+        - Ref: NetworkFirewallCodePipelineDeploymentCodeDeployCodePipelineActionRole6EA7639D
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/NetworkFirewallCodePipeline/Deployment/CodeDeploy/CodePipelineActionRole/DefaultPolicy/Resource
+  CodePipelineArtifactS3BucketPolicy6FFF9EE9:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: NetworkFirewallCodePipelineArtifactsBucketF2569455
+      PolicyDocument:
+        Statement:
+          - Action: s3:DeleteBucket
+            Effect: Allow
+            Principal:
+              Service: cloudformation.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                - Arn
+          - Action: s3:GetObject
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+            Effect: Deny
+            Principal: "*"
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                        - Arn
+                    - /*
+              - Fn::GetAtt:
+                  - NetworkFirewallCodePipelineArtifactsBucketF2569455
+                  - Arn
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/CodePipelineArtifactS3BucketPolicy/Resource
+  CloudWatchLogsForNetworkFirewallBucketPolicy611AC31C:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: Logs6819BB44
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+            Effect: Deny
+            Principal: "*"
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - Logs6819BB44
+                        - Arn
+                    - /*
+              - Fn::GetAtt:
+                  - Logs6819BB44
+                  - Arn
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/CloudWatchLogsForNetworkFirewallBucketPolicy/Resource
+    Condition: LoggingInS3
+  CodeBuildStageSourceCodeBucketPolicyF19BA2A0:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: CodeBuildStagesSourceCodeBucketFA98E7C7
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+            Effect: Deny
+            Principal: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - CodeBuildStagesSourceCodeBucketFA98E7C7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CodeBuildStagesSourceCodeBucketFA98E7C7
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/CodeBuildStageSourceCodeBucketPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.77.0,@aws-cdk/aws-applicationautoscaling=1.77.0,@aws-cdk/aws-autoscaling=1.77.0,@aws-cdk/aws-autoscaling-common=1.77.0,@aws-cdk/aws-autoscaling-hooktargets=1.77.0,@aws-cdk/aws-cloudformation=1.77.0,@aws-cdk/aws-cloudwatch=1.77.0,@aws-cdk/aws-codebuild=1.77.0,@aws-cdk/aws-codecommit=1.77.0,@aws-cdk/aws-codeguruprofiler=1.77.0,@aws-cdk/aws-codepipeline=1.77.0,@aws-cdk/aws-codepipeline-actions=1.77.0,@aws-cdk/aws-ec2=1.77.0,@aws-cdk/aws-ecr=1.77.0,@aws-cdk/aws-ecr-assets=1.77.0,@aws-cdk/aws-ecs=1.77.0,@aws-cdk/aws-elasticloadbalancingv2=1.77.0,@aws-cdk/aws-events=1.77.0,@aws-cdk/aws-events-targets=1.77.0,@aws-cdk/aws-iam=1.77.0,@aws-cdk/aws-kms=1.77.0,@aws-cdk/aws-lambda=1.77.0,@aws-cdk/aws-logs=1.77.0,@aws-cdk/aws-s3=1.77.0,@aws-cdk/aws-s3-assets=1.77.0,@aws-cdk/aws-servicediscovery=1.77.0,@aws-cdk/aws-sns=1.77.0,@aws-cdk/aws-sns-subscriptions=1.77.0,@aws-cdk/aws-sqs=1.77.0,@aws-cdk/aws-ssm=1.77.0,@aws-cdk/cloud-assembly-schema=1.77.0,@aws-cdk/core=1.77.0,@aws-cdk/custom-resources=1.77.0,@aws-cdk/cx-api=1.77.0,@aws-cdk/region-info=1.77.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: aws-network-firewall-deployment-automations-for-aws-transit-gateway/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  InspectionVPCID:
+    Description: Inspection VPC ID to create Network Firewall.
+    Value:
+      Ref: VPC
+  FirewallSubnet1ID:
+    Description: Subnet 1 associated with Network Firewall.
+    Value:
+      Ref: NetworkFirewallSubnet1
+  FirewallSubnet2ID:
+    Description: Subnet 2 associated with Network Firewall.
+    Value:
+      Ref: NetworkFirewallSubnet2
+  TransitGatewaySubnet1ID:
+    Description: Subnet 1 associated with Transit Gateway.
+    Value:
+      Ref: VPCTGWSubnet1
+  TransitGatewaySubnet2ID:
+    Description: Subnet 1 associated with Transit Gateway.
+    Value:
+      Ref: VPCTGWSubnet2
+  NetworkFirewallAvailabilityZone1:
+    Description: Availability Zone configured for Network Firewall subnet 1
+    Value:
+      Fn::GetAtt:
+        - NetworkFirewallSubnet1
+        - AvailabilityZone
+  NetworkFirewallAvailabilityZone2:
+    Description: Availability Zone configured for Network Firewall subnet 2
+    Value:
+      Fn::GetAtt:
+        - NetworkFirewallSubnet2
+        - AvailabilityZone
+  ArtifactBucketforCodePipeline:
+    Description: Artifact bucket name configured for the CodePipeline.
+    Value:
+      Ref: NetworkFirewallCodePipelineArtifactsBucketF2569455
+  CodeBuildsourcecodebucket:
+    Description: Code Build source code bucket
+    Value:
+      Ref: CodeBuildStagesSourceCodeBucketFA98E7C7
+  S3BucketforFirewallLogs:
+    Description: S3 Bucket used as the log destination for Firewall Logs.
+    Value:
+      Fn::If:
+        - LoggingInS3
+        - Ref: Logs6819BB44
+        - NotConfigured
+  CloudWatchLogGroupforFirewallLogs:
+    Description: CloudWatch Log Group used as the log destination for Firewall Logs.
+    Value:
+      Fn::If:
+        - LoggingInCloudWatch
+        - Ref: CloudWatchLogGroup
+        - NotConfigured
+

@@ -1,0 +1,173 @@
+Resources:
+  CognitoSetupUserPoolsmsRoleBA52773D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                sts:ExternalId: GatewayCognitoAuthCognitoSetupUserPool8DBD1F45
+            Effect: Allow
+            Principal:
+              Service: cognito-idp.amazonaws.com
+        Version: "2012-10-17"
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action: sns:Publish
+                Effect: Allow
+                Resource: "*"
+            Version: "2012-10-17"
+          PolicyName: sns-publish
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/CognitoSetup/UserPool/smsRole/Resource
+  CognitoSetupUserPoolF71EA6B6:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AliasAttributes:
+        - email
+        - preferred_username
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      SmsConfiguration:
+        ExternalId: GatewayCognitoAuthCognitoSetupUserPool8DBD1F45
+        SnsCallerArn:
+          Fn::GetAtt:
+            - CognitoSetupUserPoolsmsRoleBA52773D
+            - Arn
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UserPoolName: gateway-user-pool
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/CognitoSetup/UserPool/Resource
+  CognitoSetupUserPoolUserPoolDomain9FEE414A:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: gateway
+      UserPoolId:
+        Ref: CognitoSetupUserPoolF71EA6B6
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/CognitoSetup/UserPool/UserPoolDomain/Resource
+  CognitoSetupResourceServerECE2489A:
+    Type: AWS::Cognito::UserPoolResourceServer
+    Properties:
+      Identifier: hello
+      Name: gateway-user-pool-resource-server
+      UserPoolId:
+        Ref: CognitoSetupUserPoolF71EA6B6
+      Scopes:
+        - ScopeDescription: Basic scope for say hello
+          ScopeName: say-hello
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/CognitoSetup/ResourceServer
+  CognitoSetupAppClientED8F84E8:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: CognitoSetupUserPoolF71EA6B6
+      AllowedOAuthFlows:
+        - client_credentials
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - hello/say-hello
+      ClientName: client
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_CUSTOM_AUTH
+      GenerateSecret: true
+      SupportedIdentityProviders:
+        - COGNITO
+    DependsOn:
+      - CognitoSetupResourceServerECE2489A
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/CognitoSetup/AppClient
+  GatewaySetupHttpApiF6A84D64:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: hello-api
+      ProtocolType: HTTP
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/GatewaySetup/HttpApi/Resource
+  GatewaySetupHttpApiDefaultStageEAFDC2F6:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: GatewaySetupHttpApiF6A84D64
+      StageName: $default
+      AutoDeploy: true
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/GatewaySetup/HttpApi/DefaultStage/Resource
+  GatewaySetupProxyHttpIntegration1CC48224:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: GatewaySetupHttpApiF6A84D64
+      IntegrationType: HTTP_PROXY
+      IntegrationMethod: ANY
+      IntegrationUri: http://google.com
+      PayloadFormatVersion: "1.0"
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/GatewaySetup/ProxyHttpIntegration/Resource
+  GatewaySetupAPIGatewayCognitoAuthorizer9AA3F342:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId:
+        Ref: GatewaySetupHttpApiF6A84D64
+      AuthorizerType: JWT
+      IdentitySource:
+        - $request.header.Authorization
+      Name: cognito-authorizer
+      JwtConfiguration:
+        Audience:
+          - Ref: CognitoSetupAppClientED8F84E8
+        Issuer:
+          Fn::Join:
+            - ""
+            - - https://cognito-idp.eu-west-2.amazonaws.com/
+              - Ref: CognitoSetupUserPoolF71EA6B6
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/GatewaySetup/APIGatewayCognitoAuthorizer
+  GatewaySetupBillingRoute2D8DC750:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: GatewaySetupHttpApiF6A84D64
+      RouteKey: GET /hello
+      AuthorizationScopes:
+        - hello/say-hello
+      AuthorizationType: JWT
+      AuthorizerId:
+        Ref: GatewaySetupAPIGatewayCognitoAuthorizer9AA3F342
+      OperationName: say-hello
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: GatewaySetupProxyHttpIntegration1CC48224
+    DependsOn:
+      - GatewaySetupAPIGatewayCognitoAuthorizer9AA3F342
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/GatewaySetup/BillingRoute
+  GatewaySetupHttpStageD1355FB4:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: GatewaySetupHttpApiF6A84D64
+      StageName: test
+    Metadata:
+      aws:cdk:path: GatewayCognitoAuth/GatewaySetup/HttpStage/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.42.1,@aws-cdk/aws-apigatewayv2=1.42.1,@aws-cdk/aws-cloudwatch=1.42.1,@aws-cdk/aws-cognito=1.42.1,@aws-cdk/aws-ec2=1.42.1,@aws-cdk/aws-events=1.42.1,@aws-cdk/aws-iam=1.42.1,@aws-cdk/aws-kms=1.42.1,@aws-cdk/aws-lambda=1.42.1,@aws-cdk/aws-logs=1.42.1,@aws-cdk/aws-s3=1.42.1,@aws-cdk/aws-s3-assets=1.42.1,@aws-cdk/aws-sqs=1.42.1,@aws-cdk/aws-ssm=1.42.1,@aws-cdk/cdk-assets-schema=1.42.1,@aws-cdk/cloud-assembly-schema=1.42.1,@aws-cdk/core=1.42.1,@aws-cdk/custom-resources=1.42.1,@aws-cdk/cx-api=1.42.1,@aws-cdk/region-info=1.42.1,jsii-runtime=node.js/v18.12.1
+

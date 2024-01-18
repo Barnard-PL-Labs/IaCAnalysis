@@ -1,0 +1,703 @@
+Resources:
+  myapi4C7BF186:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: my-api
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/Resource
+  myapiCloudWatchRole095452E5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/CloudWatchRole/Resource
+  myapiAccountEC421A0A:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - myapiCloudWatchRole095452E5
+          - Arn
+    DependsOn:
+      - myapi4C7BF186
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/Account
+  myapiDeployment92F2CB49aec5442f455d3e1997869545b96bcd8d:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: myapi4C7BF186
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - myapibookPOST45FB1928
+      - myapibookF2A92464
+      - myapiqueryproxyANY704F7A84
+      - myapiqueryproxy30D448FC
+      - myapiqueryE5D40654
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/Deployment/Resource
+  myapiDeploymentStageprod298F01AF:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: myapi4C7BF186
+      DeploymentId:
+        Ref: myapiDeployment92F2CB49aec5442f455d3e1997869545b96bcd8d
+      StageName: prod
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/DeploymentStage.prod/Resource
+  myapibookF2A92464:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - myapi4C7BF186
+          - RootResourceId
+      PathPart: book
+      RestApiId:
+        Ref: myapi4C7BF186
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/Default/book/Resource
+  myapibookPOST45FB1928:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: myapibookF2A92464
+      RestApiId:
+        Ref: myapi4C7BF186
+      AuthorizationType: NONE
+      Integration:
+        Credentials:
+          Fn::GetAtt:
+            - IntegApig2SnsRole2162DB27
+            - Arn
+        IntegrationHttpMethod: POST
+        IntegrationResponses:
+          - ResponseTemplates:
+              application/json: $input.json("$")
+            StatusCode: "200"
+          - ResponseTemplates:
+              application/json: '{"success":false,"message":"Invalid Request"}'
+            SelectionPattern: Invalid
+            StatusCode: "503"
+        PassthroughBehavior: NEVER
+        RequestParameters:
+          integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
+        RequestTemplates:
+          application/json:
+            Fn::Join:
+              - ""
+              - - Action=Publish&TopicArn=$util.urlEncode('
+                - Ref: TopicBFC7AF6E
+                - "')&Message=$util.urlEncode($input.body)"
+        Type: AWS
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:sns:path//publish
+      MethodResponses:
+        - ResponseModels: {}
+          StatusCode: "200"
+        - ResponseModels: {}
+          StatusCode: "400"
+        - ResponseModels: {}
+          StatusCode: "401"
+        - ResponseModels: {}
+          StatusCode: "403"
+        - ResponseModels: {}
+          StatusCode: "404"
+        - ResponseModels: {}
+          StatusCode: "422"
+        - ResponseModels: {}
+          StatusCode: "500"
+        - ResponseModels: {}
+          StatusCode: "502"
+        - ResponseModels: {}
+          StatusCode: "504"
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/Default/book/POST/Resource
+  myapiqueryE5D40654:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - myapi4C7BF186
+          - RootResourceId
+      PathPart: query
+      RestApiId:
+        Ref: myapi4C7BF186
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/Default/query/Resource
+  myapiqueryproxy30D448FC:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: myapiqueryE5D40654
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: myapi4C7BF186
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/Default/query/{proxy+}/Resource
+  myapiqueryproxyANYApiPermissionmystackdevmyapiB71E1D8DANYqueryproxyB4E42910:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - fnQueryBooking97A8A2D9
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: myapi4C7BF186
+            - /
+            - Ref: myapiDeploymentStageprod298F01AF
+            - /*/query/*
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/Default/query/{proxy+}/ANY/ApiPermission.mystackdevmyapiB71E1D8D.ANY..query.{proxy+}
+  myapiqueryproxyANYApiPermissionTestmystackdevmyapiB71E1D8DANYqueryproxy36EF7CAB:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - fnQueryBooking97A8A2D9
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:us-east-1:036406153779:"
+            - Ref: myapi4C7BF186
+            - /test-invoke-stage/*/query/*
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/Default/query/{proxy+}/ANY/ApiPermission.Test.mystackdevmyapiB71E1D8D.ANY..query.{proxy+}
+  myapiqueryproxyANY704F7A84:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: myapiqueryproxy30D448FC
+      RestApiId:
+        Ref: myapi4C7BF186
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :apigateway:us-east-1:lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - fnQueryBooking97A8A2D9
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: my-stack-dev/my-api/Default/query/{proxy+}/ANY/Resource
+  IntegApig2SnsRole2162DB27:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: my-stack-dev/IntegApig2SnsRole/Resource
+  IntegApig2SnsRoleDefaultPolicy48F714C2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: TopicBFC7AF6E
+        Version: "2012-10-17"
+      PolicyName: IntegApig2SnsRoleDefaultPolicy48F714C2
+      Roles:
+        - Ref: IntegApig2SnsRole2162DB27
+    Metadata:
+      aws:cdk:path: my-stack-dev/IntegApig2SnsRole/DefaultPolicy/Resource
+  TopicBFC7AF6E:
+    Type: AWS::SNS::Topic
+    Metadata:
+      aws:cdk:path: my-stack-dev/Topic/Resource
+  Queue4A7E3555:
+    Type: AWS::SQS::Queue
+    Metadata:
+      aws:cdk:path: my-stack-dev/Queue/Resource
+  QueuePolicy25439813:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Ref: TopicBFC7AF6E
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - Queue4A7E3555
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: Queue4A7E3555
+    Metadata:
+      aws:cdk:path: my-stack-dev/Queue/Policy/Resource
+  QueuemystackdevTopic5F0562E22CC47F8B:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      TopicArn:
+        Ref: TopicBFC7AF6E
+      Endpoint:
+        Fn::GetAtt:
+          - Queue4A7E3555
+          - Arn
+    Metadata:
+      aws:cdk:path: my-stack-dev/Queue/mystackdevTopic5F0562E2/Resource
+  TableCD117FA1:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: message_id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: message_id
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: my-stack-dev/Table/Resource
+  fnQueueProcessorServiceRole9FBA7E23:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnQueueProcessor/ServiceRole/Resource
+  fnQueueProcessorServiceRoleDefaultPolicyE974DADA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:ReceiveMessage
+              - sqs:ChangeMessageVisibility
+              - sqs:GetQueueUrl
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Queue4A7E3555
+                - Arn
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TableCD117FA1
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TableCD117FA1
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: fnQueueProcessorServiceRoleDefaultPolicyE974DADA
+      Roles:
+        - Ref: fnQueueProcessorServiceRole9FBA7E23
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnQueueProcessor/ServiceRole/DefaultPolicy/Resource
+  fnQueueProcessor384528BB:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameterse66d717345f8eec38dce1de56390cffd67bad4bd1a09a3057b2d622b415e5e15S3BucketA6690661
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse66d717345f8eec38dce1de56390cffd67bad4bd1a09a3057b2d622b415e5e15S3VersionKeyEF693589
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse66d717345f8eec38dce1de56390cffd67bad4bd1a09a3057b2d622b415e5e15S3VersionKeyEF693589
+      Handler: app.lambda_handler
+      Role:
+        Fn::GetAtt:
+          - fnQueueProcessorServiceRole9FBA7E23
+          - Arn
+      Runtime: python3.7
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TableCD117FA1
+    DependsOn:
+      - fnQueueProcessorServiceRoleDefaultPolicyE974DADA
+      - fnQueueProcessorServiceRole9FBA7E23
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnQueueProcessor/Resource
+      aws:asset:path: asset.e66d717345f8eec38dce1de56390cffd67bad4bd1a09a3057b2d622b415e5e15
+      aws:asset:property: Code
+  fnQueueProcessorSqsEventSourcemystackdevQueue096D2B5F40DC7391:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::GetAtt:
+          - Queue4A7E3555
+          - Arn
+      FunctionName:
+        Ref: fnQueueProcessor384528BB
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnQueueProcessor/SqsEventSource:mystackdevQueue096D2B5F/Resource
+  fnFullfillmentServiceRoleC7AB5E72:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnFullfillment/ServiceRole/Resource
+  fnFullfillmentServiceRoleDefaultPolicy8F0894E8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:ListStreams
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - dynamodb:DescribeStream
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TableCD117FA1
+                - StreamArn
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TableCD117FA1
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: fnFullfillmentServiceRoleDefaultPolicy8F0894E8
+      Roles:
+        - Ref: fnFullfillmentServiceRoleC7AB5E72
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnFullfillment/ServiceRole/DefaultPolicy/Resource
+  fnFullfillmentA5D93376:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameterse1f6ad5284c89fbf26d085bb6747d17f1ef552530cb6bf182d892c31f4508597S3Bucket215306D9
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse1f6ad5284c89fbf26d085bb6747d17f1ef552530cb6bf182d892c31f4508597S3VersionKey3E59716F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterse1f6ad5284c89fbf26d085bb6747d17f1ef552530cb6bf182d892c31f4508597S3VersionKey3E59716F
+      Handler: app.lambda_handler
+      Role:
+        Fn::GetAtt:
+          - fnFullfillmentServiceRoleC7AB5E72
+          - Arn
+      Runtime: python3.7
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TableCD117FA1
+    DependsOn:
+      - fnFullfillmentServiceRoleDefaultPolicy8F0894E8
+      - fnFullfillmentServiceRoleC7AB5E72
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnFullfillment/Resource
+      aws:asset:path: asset.e1f6ad5284c89fbf26d085bb6747d17f1ef552530cb6bf182d892c31f4508597
+      aws:asset:property: Code
+  fnFullfillmentDynamoDBEventSourcemystackdevTableA00DD02A1E163C8E:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      EventSourceArn:
+        Fn::GetAtt:
+          - TableCD117FA1
+          - StreamArn
+      FunctionName:
+        Ref: fnFullfillmentA5D93376
+      BatchSize: 100
+      StartingPosition: LATEST
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnFullfillment/DynamoDBEventSource:mystackdevTableA00DD02A/Resource
+  fnQueryBookingServiceRole25B6DAF1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnQueryBooking/ServiceRole/Resource
+  fnQueryBookingServiceRoleDefaultPolicyE9711E46:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TableCD117FA1
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: fnQueryBookingServiceRoleDefaultPolicyE9711E46
+      Roles:
+        - Ref: fnQueryBookingServiceRole25B6DAF1
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnQueryBooking/ServiceRole/DefaultPolicy/Resource
+  fnQueryBooking97A8A2D9:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters8dacb419c3044fb003ae57f04adb5e723395379f1395c77ea2720f4797629b11S3Bucket8D0B86FF
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8dacb419c3044fb003ae57f04adb5e723395379f1395c77ea2720f4797629b11S3VersionKeyF43BBB5D
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8dacb419c3044fb003ae57f04adb5e723395379f1395c77ea2720f4797629b11S3VersionKeyF43BBB5D
+      Handler: app.lambda_handler
+      Role:
+        Fn::GetAtt:
+          - fnQueryBookingServiceRole25B6DAF1
+          - Arn
+      Runtime: python3.7
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TableCD117FA1
+    DependsOn:
+      - fnQueryBookingServiceRoleDefaultPolicyE9711E46
+      - fnQueryBookingServiceRole25B6DAF1
+    Metadata:
+      aws:cdk:path: my-stack-dev/fnQueryBooking/Resource
+      aws:asset:path: asset.8dacb419c3044fb003ae57f04adb5e723395379f1395c77ea2720f4797629b11
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.79.0,@aws-cdk/aws-apigateway=1.79.0,@aws-cdk/aws-applicationautoscaling=1.79.0,@aws-cdk/aws-autoscaling-common=1.79.0,@aws-cdk/aws-cloudwatch=1.79.0,@aws-cdk/aws-codeguruprofiler=1.79.0,@aws-cdk/aws-dynamodb=1.79.0,@aws-cdk/aws-ec2=1.79.0,@aws-cdk/aws-ecr=1.79.0,@aws-cdk/aws-ecr-assets=1.79.0,@aws-cdk/aws-events=1.79.0,@aws-cdk/aws-iam=1.79.0,@aws-cdk/aws-kms=1.79.0,@aws-cdk/aws-lambda=1.79.0,@aws-cdk/aws-lambda-event-sources=1.79.0,@aws-cdk/aws-logs=1.79.0,@aws-cdk/aws-s3=1.79.0,@aws-cdk/aws-s3-assets=1.79.0,@aws-cdk/aws-s3-notifications=1.79.0,@aws-cdk/aws-sns=1.79.0,@aws-cdk/aws-sns-subscriptions=1.79.0,@aws-cdk/aws-sqs=1.79.0,@aws-cdk/aws-ssm=1.79.0,@aws-cdk/cloud-assembly-schema=1.79.0,@aws-cdk/core=1.79.0,@aws-cdk/custom-resources=1.79.0,@aws-cdk/cx-api=1.79.0,@aws-cdk/region-info=1.79.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: my-stack-dev/CDKMetadata/Default
+Outputs:
+  myapiEndpoint3628AFE3:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: myapi4C7BF186
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: myapiDeploymentStageprod298F01AF
+          - /
+  TopicArn:
+    Value:
+      Ref: TopicBFC7AF6E
+  QueueName:
+    Value:
+      Fn::GetAtt:
+        - Queue4A7E3555
+        - QueueName
+  BookingAPIEndpoint:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: myapi4C7BF186
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: myapiDeploymentStageprod298F01AF
+          - /book
+  BookCommand:
+    Value:
+      Fn::Join:
+        - ""
+        - - "curl -XPOST -H 'content-type: application/json' https://"
+          - Ref: myapi4C7BF186
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: myapiDeploymentStageprod298F01AF
+          - /book
+  TableName:
+    Value:
+      Ref: TableCD117FA1
+  QueryAPIEndpoint:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: myapi4C7BF186
+          - .execute-api.us-east-1.
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: myapiDeploymentStageprod298F01AF
+          - /query/{message_id}
+Parameters:
+  AssetParameterse66d717345f8eec38dce1de56390cffd67bad4bd1a09a3057b2d622b415e5e15S3BucketA6690661:
+    Type: String
+    Description: S3 bucket for asset "e66d717345f8eec38dce1de56390cffd67bad4bd1a09a3057b2d622b415e5e15"
+  AssetParameterse66d717345f8eec38dce1de56390cffd67bad4bd1a09a3057b2d622b415e5e15S3VersionKeyEF693589:
+    Type: String
+    Description: S3 key for asset version "e66d717345f8eec38dce1de56390cffd67bad4bd1a09a3057b2d622b415e5e15"
+  AssetParameterse66d717345f8eec38dce1de56390cffd67bad4bd1a09a3057b2d622b415e5e15ArtifactHashEBE60F68:
+    Type: String
+    Description: Artifact hash for asset "e66d717345f8eec38dce1de56390cffd67bad4bd1a09a3057b2d622b415e5e15"
+  AssetParameterse1f6ad5284c89fbf26d085bb6747d17f1ef552530cb6bf182d892c31f4508597S3Bucket215306D9:
+    Type: String
+    Description: S3 bucket for asset "e1f6ad5284c89fbf26d085bb6747d17f1ef552530cb6bf182d892c31f4508597"
+  AssetParameterse1f6ad5284c89fbf26d085bb6747d17f1ef552530cb6bf182d892c31f4508597S3VersionKey3E59716F:
+    Type: String
+    Description: S3 key for asset version "e1f6ad5284c89fbf26d085bb6747d17f1ef552530cb6bf182d892c31f4508597"
+  AssetParameterse1f6ad5284c89fbf26d085bb6747d17f1ef552530cb6bf182d892c31f4508597ArtifactHash3CA95CB2:
+    Type: String
+    Description: Artifact hash for asset "e1f6ad5284c89fbf26d085bb6747d17f1ef552530cb6bf182d892c31f4508597"
+  AssetParameters8dacb419c3044fb003ae57f04adb5e723395379f1395c77ea2720f4797629b11S3Bucket8D0B86FF:
+    Type: String
+    Description: S3 bucket for asset "8dacb419c3044fb003ae57f04adb5e723395379f1395c77ea2720f4797629b11"
+  AssetParameters8dacb419c3044fb003ae57f04adb5e723395379f1395c77ea2720f4797629b11S3VersionKeyF43BBB5D:
+    Type: String
+    Description: S3 key for asset version "8dacb419c3044fb003ae57f04adb5e723395379f1395c77ea2720f4797629b11"
+  AssetParameters8dacb419c3044fb003ae57f04adb5e723395379f1395c77ea2720f4797629b11ArtifactHash2C66E6F4:
+    Type: String
+    Description: Artifact hash for asset "8dacb419c3044fb003ae57f04adb5e723395379f1395c77ea2720f4797629b11"
+

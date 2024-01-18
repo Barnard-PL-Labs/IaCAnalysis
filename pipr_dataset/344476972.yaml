@@ -1,0 +1,481 @@
+Resources:
+  Vpc8378EB38:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: CdkWorkshopStack/Vpc
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/Vpc/Resource
+  VpcIngressSubnet1SubnetBB860652:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId:
+        Ref: Vpc8378EB38
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Ingress
+        - Key: aws-cdk:subnet-type
+          Value: Isolated
+        - Key: Name
+          Value: CdkWorkshopStack/Vpc/IngressSubnet1
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/Vpc/IngressSubnet1/Subnet
+  VpcIngressSubnet1RouteTable4A2F04D4:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: Vpc8378EB38
+      Tags:
+        - Key: Name
+          Value: CdkWorkshopStack/Vpc/IngressSubnet1
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/Vpc/IngressSubnet1/RouteTable
+  VpcIngressSubnet1RouteTableAssociationB783F1CD:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VpcIngressSubnet1RouteTable4A2F04D4
+      SubnetId:
+        Ref: VpcIngressSubnet1SubnetBB860652
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/Vpc/IngressSubnet1/RouteTableAssociation
+  VpcIngressSubnet2Subnet0EF3AA18:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      VpcId:
+        Ref: Vpc8378EB38
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Ingress
+        - Key: aws-cdk:subnet-type
+          Value: Isolated
+        - Key: Name
+          Value: CdkWorkshopStack/Vpc/IngressSubnet2
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/Vpc/IngressSubnet2/Subnet
+  VpcIngressSubnet2RouteTableF8479FEF:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: Vpc8378EB38
+      Tags:
+        - Key: Name
+          Value: CdkWorkshopStack/Vpc/IngressSubnet2
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/Vpc/IngressSubnet2/RouteTable
+  VpcIngressSubnet2RouteTableAssociationC780BF1D:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VpcIngressSubnet2RouteTableF8479FEF
+      SubnetId:
+        Ref: VpcIngressSubnet2Subnet0EF3AA18
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/Vpc/IngressSubnet2/RouteTableAssociation
+  LambdaServiceRoleA8ED4D3B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/Lambda/ServiceRole/Resource
+  LambdaSecurityGroupE74659A1:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Automatic security group for Lambda Function CdkWorkshopStackLambdaF078F2DB
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: Vpc8378EB38
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/Lambda/SecurityGroup/Resource
+  LambdaD247545B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters8d6d53e7c93cc6f404120f58a5f8416150be3e8c556567b0c54f01c973b355d8S3Bucket818565B0
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8d6d53e7c93cc6f404120f58a5f8416150be3e8c556567b0c54f01c973b355d8S3VersionKey4BD47C10
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8d6d53e7c93cc6f404120f58a5f8416150be3e8c556567b0c54f01c973b355d8S3VersionKey4BD47C10
+      Role:
+        Fn::GetAtt:
+          - LambdaServiceRoleA8ED4D3B
+          - Arn
+      Handler: index.hello_world
+      Runtime: nodejs10.x
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::GetAtt:
+              - LambdaSecurityGroupE74659A1
+              - GroupId
+        SubnetIds:
+          - Ref: VpcIngressSubnet1SubnetBB860652
+          - Ref: VpcIngressSubnet2Subnet0EF3AA18
+    DependsOn:
+      - LambdaServiceRoleA8ED4D3B
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/Lambda/Resource
+      aws:asset:path: asset.8d6d53e7c93cc6f404120f58a5f8416150be3e8c556567b0c54f01c973b355d8
+      aws:asset:property: Code
+  apiC8550315:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: api
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/Resource
+  apiCloudWatchRoleAC81D93E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/CloudWatchRole/Resource
+  apiAccount57E28B43:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - apiCloudWatchRoleAC81D93E
+          - Arn
+    DependsOn:
+      - apiC8550315
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/Account
+  apiDeployment149F1294a0bdcbcae7ef78bee0a359781fd9d0ac:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: apiC8550315
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - apiproxyANY7F13F09C
+      - apiproxy4EA44110
+      - apiANYB3DF8C3C
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/Deployment/Resource
+  apiDeploymentStageprod896C8101:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: apiC8550315
+      DeploymentId:
+        Ref: apiDeployment149F1294a0bdcbcae7ef78bee0a359781fd9d0ac
+      StageName: prod
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/DeploymentStage.prod/Resource
+  apiproxy4EA44110:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - apiC8550315
+          - RootResourceId
+      PathPart: "{proxy+}"
+      RestApiId:
+        Ref: apiC8550315
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/Default/{proxy+}/Resource
+  apiproxyANYApiPermissionCdkWorkshopStackapi1B373F92ANYproxy563E2617:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - LambdaD247545B
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /
+            - Ref: apiDeploymentStageprod896C8101
+            - /*/*
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/Default/{proxy+}/ANY/ApiPermission.CdkWorkshopStackapi1B373F92.ANY..{proxy+}
+  apiproxyANYApiPermissionTestCdkWorkshopStackapi1B373F92ANYproxyF32008B4:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - LambdaD247545B
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /test-invoke-stage/*/*
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/Default/{proxy+}/ANY/ApiPermission.Test.CdkWorkshopStackapi1B373F92.ANY..{proxy+}
+  apiproxyANY7F13F09C:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Ref: apiproxy4EA44110
+      RestApiId:
+        Ref: apiC8550315
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - LambdaD247545B
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/Default/{proxy+}/ANY/Resource
+  apiANYApiPermissionCdkWorkshopStackapi1B373F92ANY19387023:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - LambdaD247545B
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /
+            - Ref: apiDeploymentStageprod896C8101
+            - /*/
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/Default/ANY/ApiPermission.CdkWorkshopStackapi1B373F92.ANY..
+  apiANYApiPermissionTestCdkWorkshopStackapi1B373F92ANY34F922F7:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - LambdaD247545B
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: apiC8550315
+            - /test-invoke-stage/*/
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/Default/ANY/ApiPermission.Test.CdkWorkshopStackapi1B373F92.ANY..
+  apiANYB3DF8C3C:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: ANY
+      ResourceId:
+        Fn::GetAtt:
+          - apiC8550315
+          - RootResourceId
+      RestApiId:
+        Ref: apiC8550315
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - LambdaD247545B
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/api/Default/ANY/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.91.0,@aws-cdk/aws-apigateway=1.91.0,@aws-cdk/aws-applicationautoscaling=1.91.0,@aws-cdk/aws-autoscaling-common=1.91.0,@aws-cdk/aws-cloudwatch=1.91.0,@aws-cdk/aws-codeguruprofiler=1.91.0,@aws-cdk/aws-ec2=1.91.0,@aws-cdk/aws-ecr=1.91.0,@aws-cdk/aws-ecr-assets=1.91.0,@aws-cdk/aws-events=1.91.0,@aws-cdk/aws-iam=1.91.0,@aws-cdk/aws-kms=1.91.0,@aws-cdk/aws-lambda=1.91.0,@aws-cdk/aws-logs=1.91.0,@aws-cdk/aws-s3=1.91.0,@aws-cdk/aws-s3-assets=1.91.0,@aws-cdk/aws-sqs=1.91.0,@aws-cdk/aws-ssm=1.91.0,@aws-cdk/cloud-assembly-schema=1.91.0,@aws-cdk/core=1.91.0,@aws-cdk/cx-api=1.91.0,@aws-cdk/region-info=1.91.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: CdkWorkshopStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters8d6d53e7c93cc6f404120f58a5f8416150be3e8c556567b0c54f01c973b355d8S3Bucket818565B0:
+    Type: String
+    Description: S3 bucket for asset "8d6d53e7c93cc6f404120f58a5f8416150be3e8c556567b0c54f01c973b355d8"
+  AssetParameters8d6d53e7c93cc6f404120f58a5f8416150be3e8c556567b0c54f01c973b355d8S3VersionKey4BD47C10:
+    Type: String
+    Description: S3 key for asset version "8d6d53e7c93cc6f404120f58a5f8416150be3e8c556567b0c54f01c973b355d8"
+  AssetParameters8d6d53e7c93cc6f404120f58a5f8416150be3e8c556567b0c54f01c973b355d8ArtifactHashE032CDEF:
+    Type: String
+    Description: Artifact hash for asset "8d6d53e7c93cc6f404120f58a5f8416150be3e8c556567b0c54f01c973b355d8"
+Outputs:
+  apiEndpoint9349E63C:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: apiC8550315
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: apiDeploymentStageprod896C8101
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

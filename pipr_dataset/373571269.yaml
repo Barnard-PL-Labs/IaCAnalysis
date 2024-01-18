@@ -1,0 +1,1236 @@
+Resources:
+  kmsKey3BB021CC:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+        Version: "2012-10-17"
+      EnableKeyRotation: true
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: persons-cdk/kmsKey/Resource
+  kmsKeyAlias0E08C84B:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/persons-cdk
+      TargetKeyId:
+        Fn::GetAtt:
+          - kmsKey3BB021CC
+          - Arn
+    Metadata:
+      aws:cdk:path: persons-cdk/kmsKey/Alias/Resource
+  Stream790BDEE4:
+    Type: AWS::Kinesis::Stream
+    Properties:
+      Name: persons-cdk-data-stream
+      RetentionPeriodHours: 24
+      ShardCount: 1
+      StreamEncryption:
+        EncryptionType: KMS
+        KeyId:
+          Fn::GetAtt:
+            - kmsKey3BB021CC
+            - Arn
+      StreamModeDetails:
+        StreamMode: PROVISIONED
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    Metadata:
+      aws:cdk:path: persons-cdk/Stream/Resource
+  TableCD117FA1:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KinesisStreamSpecification:
+        StreamArn:
+          Fn::GetAtt:
+            - Stream790BDEE4
+            - Arn
+      SSESpecification:
+        KMSMasterKeyId:
+          Fn::GetAtt:
+            - kmsKey3BB021CC
+            - Arn
+        SSEEnabled: true
+        SSEType: KMS
+      TableName: persons-cdk
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: persons-cdk/Table/Resource
+  lambdafunctionloaderServiceRole17E8FA97:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    Metadata:
+      aws:cdk:path: persons-cdk/lambda-function-loader/ServiceRole/Resource
+  lambdafunctionloaderServiceRoleDefaultPolicyBC0C3EEE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchGetItem
+              - dynamodb:GetRecords
+              - dynamodb:GetShardIterator
+              - dynamodb:Query
+              - dynamodb:GetItem
+              - dynamodb:Scan
+              - dynamodb:ConditionCheckItem
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+              - dynamodb:DescribeTable
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - TableCD117FA1
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - kmsKey3BB021CC
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: lambdafunctionloaderServiceRoleDefaultPolicyBC0C3EEE
+      Roles:
+        - Ref: lambdafunctionloaderServiceRole17E8FA97
+    Metadata:
+      aws:cdk:path: persons-cdk/lambda-function-loader/ServiceRole/DefaultPolicy/Resource
+  lambdafunctionloader70E2E8BC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: ca9e8bb3b4f25be39dad7a9bc0ebb23ba6770026ee02eaddcf0d285dd3c32593.zip
+      Role:
+        Fn::GetAtt:
+          - lambdafunctionloaderServiceRole17E8FA97
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: TableCD117FA1
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: persons-cdk-loader
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+      Timeout: 120
+    DependsOn:
+      - lambdafunctionloaderServiceRoleDefaultPolicyBC0C3EEE
+      - lambdafunctionloaderServiceRole17E8FA97
+    Metadata:
+      aws:cdk:path: persons-cdk/lambda-function-loader/Resource
+      aws:asset:path: asset.ca9e8bb3b4f25be39dad7a9bc0ebb23ba6770026ee02eaddcf0d285dd3c32593
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  firehoses3bucket06A6101A:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - kmsKey3BB021CC
+                  - Arn
+              SSEAlgorithm: aws:kms
+      BucketName: persons-cdk-firehose-s3-bucket
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+        - Key: aws-cdk:cr-owned:manifest:3cc8497e
+          Value: "true"
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: persons-cdk/firehose-s3-bucket/Resource
+  firehoses3bucketPolicy32E2F652:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: firehoses3bucket06A6101A
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - firehoses3bucket06A6101A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - firehoses3bucket06A6101A
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: persons-cdk/firehose-s3-bucket/Policy/Resource
+  firehoses3bucketAutoDeleteObjectsCustomResource0F7BD70D:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: firehoses3bucket06A6101A
+    DependsOn:
+      - firehoses3bucketPolicy32E2F652
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: persons-cdk/firehose-s3-bucket/AutoDeleteObjectsCustomResource/Default
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: persons-cdk/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: e57c1acaa363d7d2b81736776007a7091bc73dff4aeb8135627c4511a51e7dca.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs14.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: firehoses3bucket06A6101A
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: persons-cdk/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.e57c1acaa363d7d2b81736776007a7091bc73dff4aeb8135627c4511a51e7dca
+      aws:asset:property: Code
+  lambdafunctionprocessorServiceRole9873A555:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    Metadata:
+      aws:cdk:path: persons-cdk/lambda-function-processor/ServiceRole/Resource
+  lambdafunctionprocessor456111C5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 8f3edb1f97dc518d411afbdceef6a3d50a7ee76a69fb4a648fbe4137e90403d7.zip
+      Role:
+        Fn::GetAtt:
+          - lambdafunctionprocessorServiceRole9873A555
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: persons-cdk-firehose-converter
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+      Timeout: 120
+    DependsOn:
+      - lambdafunctionprocessorServiceRole9873A555
+    Metadata:
+      aws:cdk:path: persons-cdk/lambda-function-processor/Resource
+      aws:asset:path: asset.8f3edb1f97dc518d411afbdceef6a3d50a7ee76a69fb4a648fbe4137e90403d7
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  DeliveryStreamServiceRole964EEBCC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    Metadata:
+      aws:cdk:path: persons-cdk/Delivery Stream/Service Role/Resource
+  DeliveryStreamServiceRoleDefaultPolicyB87D9ACF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - kinesis:DescribeStreamSummary
+              - kinesis:GetRecords
+              - kinesis:GetShardIterator
+              - kinesis:ListShards
+              - kinesis:SubscribeToShard
+              - kinesis:DescribeStream
+              - kinesis:ListStreams
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - Stream790BDEE4
+                - Arn
+          - Action: kms:Decrypt
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - kmsKey3BB021CC
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DeliveryStreamServiceRoleDefaultPolicyB87D9ACF
+      Roles:
+        - Ref: DeliveryStreamServiceRole964EEBCC
+    Metadata:
+      aws:cdk:path: persons-cdk/Delivery Stream/Service Role/DefaultPolicy/Resource
+  DeliveryStreamS3DestinationRole500FC089:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: firehose.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    Metadata:
+      aws:cdk:path: persons-cdk/Delivery Stream/S3 Destination Role/Resource
+  DeliveryStreamS3DestinationRoleDefaultPolicy3015D8C7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - firehoses3bucket06A6101A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - firehoses3bucket06A6101A
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - kmsKey3BB021CC
+                - Arn
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DeliveryStreamLogGroup9D8FA3BB
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - lambdafunctionprocessor456111C5
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - lambdafunctionprocessor456111C5
+                        - Arn
+                    - :*
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - kmsKey3BB021CC
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: DeliveryStreamS3DestinationRoleDefaultPolicy3015D8C7
+      Roles:
+        - Ref: DeliveryStreamS3DestinationRole500FC089
+    Metadata:
+      aws:cdk:path: persons-cdk/Delivery Stream/S3 Destination Role/DefaultPolicy/Resource
+  DeliveryStreamLogGroup9D8FA3BB:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 731
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: persons-cdk/Delivery Stream/LogGroup/Resource
+  DeliveryStreamLogGroupS3DestinationE25573DB:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName:
+        Ref: DeliveryStreamLogGroup9D8FA3BB
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: persons-cdk/Delivery Stream/LogGroup/S3Destination/Resource
+  DeliveryStreamF6D5572D:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: persons-cdk-firehose
+      DeliveryStreamType: KinesisStreamAsSource
+      ExtendedS3DestinationConfiguration:
+        BucketARN:
+          Fn::GetAtt:
+            - firehoses3bucket06A6101A
+            - Arn
+        BufferingHints:
+          IntervalInSeconds: 60
+          SizeInMBs: 5
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName:
+            Ref: DeliveryStreamLogGroup9D8FA3BB
+          LogStreamName:
+            Ref: DeliveryStreamLogGroupS3DestinationE25573DB
+        EncryptionConfiguration:
+          KMSEncryptionConfig:
+            AWSKMSKeyARN:
+              Fn::GetAtt:
+                - kmsKey3BB021CC
+                - Arn
+        ProcessingConfiguration:
+          Enabled: true
+          Processors:
+            - Parameters:
+                - ParameterName: RoleArn
+                  ParameterValue:
+                    Fn::GetAtt:
+                      - DeliveryStreamS3DestinationRole500FC089
+                      - Arn
+                - ParameterName: LambdaArn
+                  ParameterValue:
+                    Fn::GetAtt:
+                      - lambdafunctionprocessor456111C5
+                      - Arn
+                - ParameterName: NumberOfRetries
+                  ParameterValue: "5"
+              Type: Lambda
+        RoleARN:
+          Fn::GetAtt:
+            - DeliveryStreamS3DestinationRole500FC089
+            - Arn
+      KinesisStreamSourceConfiguration:
+        KinesisStreamARN:
+          Fn::GetAtt:
+            - Stream790BDEE4
+            - Arn
+        RoleARN:
+          Fn::GetAtt:
+            - DeliveryStreamServiceRole964EEBCC
+            - Arn
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    DependsOn:
+      - DeliveryStreamS3DestinationRoleDefaultPolicy3015D8C7
+      - DeliveryStreamServiceRoleDefaultPolicyB87D9ACF
+    Metadata:
+      aws:cdk:path: persons-cdk/Delivery Stream/Resource
+  queryresultsA2A8860D:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - kmsKey3BB021CC
+                  - Arn
+              SSEAlgorithm: aws:kms
+      BucketName: persons-cdk-query-results
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: persons-cdk/query-results/Resource
+  rolecrawler137C5F29:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+        Version: "2012-10-17"
+      RoleName: persons-cdk-crawler-role
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    Metadata:
+      aws:cdk:path: persons-cdk/role crawler/Resource
+  rolecrawlerDefaultPolicy6ECED381:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: glue:GetSecurityConfiguration
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:*
+              - glue:*
+              - kms:Decrypt
+              - S3:*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws-glue/crawlers:log-stream:persons-cdk-crawler
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :table/
+                    - Ref: gluedb526846F7
+                    - /*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :catalog
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :database/
+                    - Ref: gluedb526846F7
+              - Fn::GetAtt:
+                  - kmsKey3BB021CC
+                  - Arn
+              - Fn::GetAtt:
+                  - firehoses3bucket06A6101A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - firehoses3bucket06A6101A
+                        - Arn
+                    - /*
+              - Fn::Join:
+                  - ""
+                  - - "arn:aws:glue:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :crawler/persons-cdk-crawler
+        Version: "2012-10-17"
+      PolicyName: rolecrawlerDefaultPolicy6ECED381
+      Roles:
+        - Ref: rolecrawler137C5F29
+    Metadata:
+      aws:cdk:path: persons-cdk/role crawler/DefaultPolicy/Resource
+  gluedb526846F7:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId:
+        Ref: AWS::AccountId
+      DatabaseInput:
+        Name: persons-cdk-db
+    Metadata:
+      aws:cdk:path: persons-cdk/glue db/Resource
+  gluesecurityoptionsKey574FA243:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+        Version: "2012-10-17"
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: persons-cdk/glue security options/Key/Resource
+  gluesecurityoptions386FA542:
+    Type: AWS::Glue::SecurityConfiguration
+    Properties:
+      EncryptionConfiguration:
+        S3Encryptions:
+          - KmsKeyArn:
+              Fn::GetAtt:
+                - gluesecurityoptionsKey574FA243
+                - Arn
+            S3EncryptionMode: SSE-KMS
+      Name: persons-cdk-security-options
+    Metadata:
+      aws:cdk:path: persons-cdk/glue security options/Resource
+  crawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Role:
+        Fn::GetAtt:
+          - rolecrawler137C5F29
+          - Arn
+      Targets:
+        S3Targets:
+          - Path:
+              Fn::Join:
+                - ""
+                - - s3://
+                  - Ref: firehoses3bucket06A6101A
+      Configuration: '{"Version":1,"Grouping":{"TableGroupingPolicy":"CombineCompatibleSchemas"},"CrawlerOutput":{"Partitions":{"AddOrUpdateBehavior":"InheritFromTable"}}}'
+      CrawlerSecurityConfiguration:
+        Ref: gluesecurityoptions386FA542
+      DatabaseName:
+        Ref: gluedb526846F7
+      Name: persons-cdk-crawler
+      Tags:
+        Project: test-aws-dynamodb-athena-cdk
+    Metadata:
+      aws:cdk:path: persons-cdk/crawler
+  analyticsathenaworkgroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: persons-cdk-workgroup
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+      WorkGroupConfiguration:
+        ResultConfiguration:
+          EncryptionConfiguration:
+            EncryptionOption: SSE_KMS
+            KmsKey:
+              Fn::GetAtt:
+                - kmsKey3BB021CC
+                - Arn
+          OutputLocation:
+            Fn::Join:
+              - ""
+              - - s3://
+                - Ref: queryresultsA2A8860D
+    Metadata:
+      aws:cdk:path: persons-cdk/analytics-athena-workgroup
+  savedqueriesquerycurrentddbstate8C559EF2:
+    Type: AWS::Athena::NamedQuery
+    Properties:
+      Database:
+        Ref: gluedb526846F7
+      QueryString:
+        Fn::Join:
+          - ""
+          - - |-
+              SELECT dynamodb.newimage.pk.s AS pk,
+                      dynamodb.newimage.person.M.firstname.s AS firstname,
+                      dynamodb.newimage.person.M.lastname.s AS lastname,
+                      dynamodb.approximatecreationdatetime AS ts,
+                      dynamodb.newimage,
+                      *
+              FROM "
+            - Ref: gluedb526846F7
+            - |-
+              "."persons_cdk_firehose_s3_bucket" AS persons1
+              WHERE (eventname = 'INSERT'
+                      OR eventname = 'MODIFY')
+                      AND dynamodb.approximatecreationdatetime =
+                  (SELECT MAX(dynamodb.approximatecreationdatetime)
+                  FROM "
+            - Ref: gluedb526846F7
+            - |-
+              "."persons_cdk_firehose_s3_bucket" AS persons2
+                  WHERE persons2.dynamodb.newimage.pk.s = persons1.dynamodb.newimage.pk.s);
+      Description: query the current state from the ddb person table
+      Name: current-ddb-state
+      WorkGroup: persons-cdk-workgroup
+    DependsOn:
+      - analyticsathenaworkgroup
+    Metadata:
+      aws:cdk:path: persons-cdk/saved-queries/query-current-ddb-state
+  quicksightdeploymanifestAwsCliLayer3D80A60D:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 2cbb4c8a663eb2c903e9cef3ad44c9b47d48b0a2cd35dfc270a23bf93b2ecf1f.zip
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: persons-cdk/quicksight/deploy-manifest/AwsCliLayer/Resource
+      aws:asset:path: asset.2cbb4c8a663eb2c903e9cef3ad44c9b47d48b0a2cd35dfc270a23bf93b2ecf1f.zip
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  quicksightdeploymanifestCustomResource590CCD17:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+      SourceObjectKeys:
+        - a81cc9bed665582156330b5f222653a2c0ad6567b320978e206d7373b5172ade.zip
+      SourceMarkers:
+        - <<marker:0xbaba:0>>:
+            Ref: firehoses3bucket06A6101A
+      DestinationBucketName:
+        Ref: firehoses3bucket06A6101A
+      DestinationBucketKeyPrefix: manifest
+      Prune: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: persons-cdk/quicksight/deploy-manifest/CustomResource/Default
+  quicksightdatasource38A37F78:
+    Type: AWS::QuickSight::DataSource
+    Properties:
+      AwsAccountId:
+        Ref: AWS::AccountId
+      DataSourceId: persons-cdk-data-source3
+      DataSourceParameters:
+        S3Parameters:
+          ManifestFileLocation:
+            Bucket:
+              Ref: firehoses3bucket06A6101A
+            Key: manifest/manifest.json
+      Name: persons-cdk-data-source3
+      Permissions:
+        - Actions:
+            - quicksight:DescribeDataSource
+            - quicksight:DescribeDataSourcePermissions
+            - quicksight:PassDataSource
+            - quicksight:UpdateDataSource
+            - quicksight:DeleteDataSource
+            - quicksight:UpdateDataSourcePermissions
+          Principal:
+            Fn::Join:
+              - ""
+              - - "arn:aws:quicksight:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - :user/default/undefined
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+      Type: S3
+    Metadata:
+      aws:cdk:path: persons-cdk/quicksight/data-source
+  quicksightdatasetCD6823DF:
+    Type: AWS::QuickSight::DataSet
+    Properties:
+      AwsAccountId:
+        Ref: AWS::AccountId
+      DataSetId: persons-cdk-data-set3
+      ImportMode: SPICE
+      LogicalTableMap:
+        logicalTableProperty:
+          Alias: persons-cdk-data-set3-alias
+          Source:
+            PhysicalTableId: itemChanges
+      Name: persons-cdk-data-set3
+      Permissions:
+        - Actions:
+            - quicksight:DescribeDataSet
+            - quicksight:DescribeDataSetPermissions
+            - quicksight:PassDataSet
+            - quicksight:DescribeIngestion
+            - quicksight:ListIngestions
+            - quicksight:UpdateDataSet
+            - quicksight:DeleteDataSet
+            - quicksight:CreateIngestion
+            - quicksight:CancelIngestion
+            - quicksight:UpdateDataSetPermissions
+          Principal:
+            Fn::Join:
+              - ""
+              - - "arn:aws:quicksight:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - :user/default/undefined
+      PhysicalTableMap:
+        itemChanges:
+          S3Source:
+            DataSourceArn:
+              Fn::GetAtt:
+                - quicksightdatasource38A37F78
+                - Arn
+            InputColumns:
+              - Name: awsRegion
+                Type: STRING
+              - Name: eventID
+                Type: STRING
+              - Name: eventName
+                Type: STRING
+              - Name: userIdentity
+                Type: STRING
+              - Name: recordFormat
+                Type: STRING
+              - Name: tableName
+                Type: STRING
+              - Name: dynamodb.ApproximateCreationDateTime
+                Type: STRING
+              - Name: dynamodb.Keys.pk.S
+                Type: STRING
+              - Name: dynamodb.NewImage.pk.S
+                Type: STRING
+              - Name: dynamodb.NewImage.person.M.jobArea.S
+                Type: STRING
+              - Name: dynamodb.NewImage.person.M.firstname.S
+                Type: STRING
+              - Name: dynamodb.NewImage.person.M.gender.S
+                Type: STRING
+              - Name: dynamodb.NewImage.person.M.jobType.S
+                Type: STRING
+              - Name: dynamodb.NewImage.person.M.jobDescriptor.S
+                Type: STRING
+              - Name: dynamodb.NewImage.person.M.lastname.S
+                Type: STRING
+              - Name: dynamodb.SizeBytes
+                Type: STRING
+              - Name: eventSource
+                Type: STRING
+            UploadSettings:
+              ContainsHeader: true
+              Format: JSON
+              StartFromRow: 2
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    Metadata:
+      aws:cdk:path: persons-cdk/quicksight/data-set
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+    Metadata:
+      aws:cdk:path: persons-cdk/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - firehoses3bucket06A6101A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - firehoses3bucket06A6101A
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - kmsKey3BB021CC
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: persons-cdk/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: f98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711da.zip
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: quicksightdeploymanifestAwsCliLayer3D80A60D
+      Runtime: python3.9
+      Tags:
+        - Key: Project
+          Value: test-aws-dynamodb-athena-cdk
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: persons-cdk/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.f98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711da
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  quicksightrolepersonscdkpolicyD93047D6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - kms:Decrypt
+              - s3:GetObject
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - firehoses3bucket06A6101A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - firehoses3bucket06A6101A
+                        - Arn
+                    - /*
+              - Fn::GetAtt:
+                  - kmsKey3BB021CC
+                  - Arn
+        Version: "2012-10-17"
+      PolicyName: quicksightrolepersonscdkpolicyD93047D6
+      Roles:
+        - aws-quicksight-service-role-v0
+    Metadata:
+      aws:cdk:path: persons-cdk/quicksight-role/persons-cdk-policy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21SyW7bMBD9Ft9ppkoO7bGOjPaQBaldtEdjLI3lsShS5WJDIPTv5SLLaZHTe7Ny5nHu+cNn7osFXMyyqtuloD33WwtVy4Jr59vOcP+EAysPMsJKEJhoJDKyliQaMrFGI3QxktnI6kFCp+rQ7yfsBcZQIiMT0O1r2ElV48nw1wTfnKwsKckIOu43KhckfFOCqjRBZiMzDzsPxqA1fBWB1dgLNXQoLX90VYt2PTtiNvfZ+wgGWaax3cQy3F55b1+H5T4E5hkDf4YB9S/UJtpbko1Aq24ZVxLqVRPkeVbNd61cn0qvPJCbbLMxi3ogjUdlkIfoGgWdUQ9TfiMcppHWYGEft4rCY+U02aFU8kCN03CdtdRwEahHBvaIMu/yW+l2nugVOqx/uNB/ZH8cVa2h5mjnB7bK6So9kSy048g2aLI3fUC4mCZowEpnrOrmWPzBmf8TetPqTDXqmPICfR+Lp7MQUdlduL5KEF9dTCkoiZ02UbKmrGuxBNEfgX9afJ2O9y6i/0+8KesD/aaInyX8UL8x7BoPlZ/M3bn4wot7XixOhmipnbTUId9k/AtjYxMXSgMAAA==
+    Metadata:
+      aws:cdk:path: persons-cdk/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Mappings:
+  awscdkawskinesisfirehoseCidrBlocks:
+    af-south-1:
+      FirehoseCidrBlock: 13.244.121.224/27
+    ap-east-1:
+      FirehoseCidrBlock: 18.162.221.32/27
+    ap-northeast-1:
+      FirehoseCidrBlock: 13.113.196.224/27
+    ap-northeast-2:
+      FirehoseCidrBlock: 13.209.1.64/27
+    ap-northeast-3:
+      FirehoseCidrBlock: 13.208.177.192/27
+    ap-south-1:
+      FirehoseCidrBlock: 13.232.67.32/27
+    ap-southeast-1:
+      FirehoseCidrBlock: 13.228.64.192/27
+    ap-southeast-2:
+      FirehoseCidrBlock: 13.210.67.224/27
+    ca-central-1:
+      FirehoseCidrBlock: 35.183.92.128/27
+    cn-north-1:
+      FirehoseCidrBlock: 52.81.151.32/27
+    cn-northwest-1:
+      FirehoseCidrBlock: 161.189.23.64/27
+    eu-central-1:
+      FirehoseCidrBlock: 35.158.127.160/27
+    eu-north-1:
+      FirehoseCidrBlock: 13.53.63.224/27
+    eu-south-1:
+      FirehoseCidrBlock: 15.161.135.128/27
+    eu-west-1:
+      FirehoseCidrBlock: 52.19.239.192/27
+    eu-west-2:
+      FirehoseCidrBlock: 18.130.1.96/27
+    eu-west-3:
+      FirehoseCidrBlock: 35.180.1.96/27
+    me-south-1:
+      FirehoseCidrBlock: 15.185.91.0/27
+    sa-east-1:
+      FirehoseCidrBlock: 18.228.1.128/27
+    us-east-1:
+      FirehoseCidrBlock: 52.70.63.192/27
+    us-east-2:
+      FirehoseCidrBlock: 13.58.135.96/27
+    us-gov-east-1:
+      FirehoseCidrBlock: 18.253.138.96/27
+    us-gov-west-1:
+      FirehoseCidrBlock: 52.61.204.160/27
+    us-west-1:
+      FirehoseCidrBlock: 13.57.135.192/27
+    us-west-2:
+      FirehoseCidrBlock: 52.89.255.224/27
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

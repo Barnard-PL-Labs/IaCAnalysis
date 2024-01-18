@@ -1,0 +1,256 @@
+Resources:
+  ApiF70053CD:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: cdk-appsync-lambda-api
+      XrayEnabled: true
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Api/Resource
+  ApiSchema510EECD7:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+      Definition: |+
+        # graphql/schema.graphql
+        type Note {
+          id: ID!
+          name: String!
+          completed: Boolean!
+        }
+
+        input NoteInput {
+          id: ID!
+          name: String!
+          completed: Boolean!
+        }
+
+        input UpdateNoteInput {
+          id: ID!
+          name: String
+          completed: Boolean
+        }
+
+        type Query {
+          getNoteById(noteId: String!): Note
+          listNotes: [Note]
+        }
+
+        type Mutation {
+          createNote(note: NoteInput!): Note
+          updateNote(note: UpdateNoteInput!): Note
+          deleteNote(noteId: String!): String
+        }
+
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Api/Schema
+  ApiDefaultApiKeyF991C37B:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - ApiId
+    DependsOn:
+      - ApiSchema510EECD7
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Api/DefaultApiKey
+  WebsiteBucket75C24D94:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: cdk-appsync-lambda-postgres
+      WebsiteConfiguration:
+        IndexDocument: index.html
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: InfrastructureStack/WebsiteBucket/Resource
+  WebsiteBucketPolicyE10E3262:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: WebsiteBucket75C24D94
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - OAIE1EFC67F
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - WebsiteBucket75C24D94
+                      - Arn
+                  - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - OAIE1EFC67F
+                  - S3CanonicalUserId
+            Resource:
+              - Fn::GetAtt:
+                  - WebsiteBucket75C24D94
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - WebsiteBucket75C24D94
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfrastructureStack/WebsiteBucket/Policy/Resource
+  OAIE1EFC67F:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Allows CloudFront to reach the bucket
+    Metadata:
+      aws:cdk:path: InfrastructureStack/OAI/Resource
+  CDKReactDistributionCFDistribution2D6223BF:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::GetAtt:
+                - WebsiteBucket75C24D94
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: OAIE1EFC67F
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+    Metadata:
+      aws:cdk:path: InfrastructureStack/CDKReactDistribution/CFDistribution
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE21QTU/DMAz9LbtnXgMXjowiEAJpsB04d463ee2SkA9QFfW/k7RoDImT33t+z5YtIcmqgmp223z5Oap2gcYRpE1osBX1Tq9isDGI2mgfXMRQtDV5Ex1SwbmhOLDRg5CVvByUCkiNtb7XCOnRNfbw0S0tl9jI3l7+sg0e6NQUIevP1A/CX0O6i9jSuPcHTeXVdIz9rzzxQWBnoto5owOkleM96yUief+kSAcOY6Iunofi+d9xbr/T9p7z4byN5caSveRDXlfedf5OFrRRBEe/+JQ3IK9Azo6eee5iHn0iWE/1G0Ns6Sx3AQAA
+    Metadata:
+      aws:cdk:path: InfrastructureStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  GraphQLAPIURL:
+    Value:
+      Fn::GetAtt:
+        - ApiF70053CD
+        - GraphQLUrl
+  GraphQLAPIKey:
+    Value:
+      Fn::GetAtt:
+        - ApiDefaultApiKeyF991C37B
+        - ApiKey
+  StackRegion:
+    Value:
+      Ref: AWS::Region
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

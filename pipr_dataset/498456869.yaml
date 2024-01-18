@@ -1,0 +1,1737 @@
+Description: Stack to demonstrate how to sync polly output audio and subtitles using Speech Marks
+Metadata:
+  cdk_nag:
+    rules_to_suppress:
+      - id: AwsSolutions-IAM5
+        reason: Reviewed IAM permissons manually to make sure the wild card permissions are on a specific bucket created by this stack
+      - id: AwsSolutions-IAM4
+        reason: The managed lambda execution rule is created by the CDK for the notification event created on S3 bucket, leaving it as is for now as it would require additional custom coding
+      - id: AwsSolutions-S1
+        reason: This is a demo stack, no need for server access logs to be enabled
+      - id: AwsSolutions-S10
+        reason: This is a demo stack, no need for SSL access. The public access is disabled and the contents are served via cloudfront
+      - id: AwsSolutions-CFR1
+        reason: This is a demo stack, no need for Geo restrictions
+      - id: AwsSolutions-CFR2
+        reason: This is a demo stack, no need for WAF integration
+      - id: AwsSolutions-CFR3
+        reason: This is a demo stack, no need for server access logs to be enabled
+      - id: AwsSolutions-CFR4
+        reason: This is a demo stack, using deafault cloudfront certificate(TLS_V1) without enforcing a security protocol
+      - id: AwsSolutions-SF1
+        reason: This is a demo stack, no need enabled ALL logging
+      - id: AwsSolutions-SF2
+        reason: This is a demo stack, no need for x-ray
+      - id: AwsSolutions-L1
+        reason: All the lambdas created as part of the demo use python 3.9, the error pertains to a sample html file being uploaded to S3 bucket which can be ignored
+Resources:
+  PollyBlogBucket91106725:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+        - Key: aws-cdk:cr-owned:inputVideo:baee5295
+          Value: "true"
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/PollyBlogBucket/Resource
+  PollyBlogBucketPolicy9B0AFE09:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: PollyBlogBucket91106725
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - PollyBlogBucket91106725
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PollyBlogBucket91106725
+                        - Arn
+                    - /*
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - MediaDistributionOrigin1S3Origin173ACFA0
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - PollyBlogBucket91106725
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/PollyBlogBucket/Policy/Resource
+  PollyBlogBucketAutoDeleteObjectsCustomResourceBC542051:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: PollyBlogBucket91106725
+    DependsOn:
+      - PollyBlogBucketPolicy9B0AFE09
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/PollyBlogBucket/AutoDeleteObjectsCustomResource/Default
+  PollyBlogBucketNotificationsEFA0FF9C:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: PollyBlogBucket91106725
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: suffix
+                    Value: .mp4
+                  - Name: prefix
+                    Value: inputVideo/
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - StartStateMachineExecution40CD8223
+                - Arn
+      Managed: true
+    DependsOn:
+      - PollyBlogBucketAllowBucketNotificationsToPollyBlogCdkStackStartStateMachineExecutionCF9249D13C428F49
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/PollyBlogBucket/Notifications/Resource
+  PollyBlogBucketAllowBucketNotificationsToPollyBlogCdkStackStartStateMachineExecutionCF9249D13C428F49:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - StartStateMachineExecution40CD8223
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - PollyBlogBucket91106725
+          - Arn
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/PollyBlogBucket/AllowBucketNotificationsToPollyBlogCdkStackStartStateMachineExecutionCF9249D1
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: bdb08b9984816ecf43301a0c6d8913e270ee2448940b6b95e430dd222a4d90be.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs12.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: PollyBlogBucket91106725
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.bdb08b9984816ecf43301a0c6d8913e270ee2448940b6b95e430dd222a4d90be
+      aws:asset:property: Code
+  S3BucketDeployDefaultLambdaRoleC572CEDE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/S3BucketDeployDefaultLambdaRole/Resource
+  S3BucketDeployDefaultLambdaRoleDefaultPolicy80B65313:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PollyBlogBucket91106725
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PollyBlogBucket91106725
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: S3BucketDeployDefaultLambdaRoleDefaultPolicy80B65313
+      Roles:
+        - Ref: S3BucketDeployDefaultLambdaRoleC572CEDE
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/S3BucketDeployDefaultLambdaRole/DefaultPolicy/Resource
+  DeploySampleVideoAwsCliLayer2C4BD2C0:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 391a62714930dde9689f73f04bec0cd78494b9d9b7167446e54c6c939bbbb6b4.zip
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/DeploySampleVideo/AwsCliLayer/Resource
+      aws:asset:path: asset.391a62714930dde9689f73f04bec0cd78494b9d9b7167446e54c6c939bbbb6b4.zip
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  DeploySampleVideoCustomResource5951910B:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+      SourceObjectKeys:
+        - 79f9a1905083a3944ce151b9c385da0d7852ffac1548df1ee41abee69e04d45b.zip
+      DestinationBucketName:
+        Ref: PollyBlogBucket91106725
+      DestinationBucketKeyPrefix: inputVideo
+      Prune: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/DeploySampleVideo/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: f98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711da.zip
+      Role:
+        Fn::GetAtt:
+          - S3BucketDeployDefaultLambdaRoleC572CEDE
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: DeploySampleVideoAwsCliLayer2C4BD2C0
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - S3BucketDeployDefaultLambdaRoleDefaultPolicy80B65313
+      - S3BucketDeployDefaultLambdaRoleC572CEDE
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.f98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711da
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  MediaDistributionOrigin1S3Origin173ACFA0:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Identity for PollyBlogCdkStackMediaDistributionOrigin13530716E
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/MediaDistribution/Origin1/S3Origin/Resource
+  MediaDistribution4D42B96F:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          TargetOriginId: PollyBlogCdkStackMediaDistributionOrigin13530716E
+          ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - PollyBlogBucket91106725
+                - RegionalDomainName
+            Id: PollyBlogCdkStackMediaDistributionOrigin13530716E
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: MediaDistributionOrigin1S3Origin173ACFA0
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/MediaDistribution/Resource
+  MediaConvertRole031A64A9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: mediaconvert.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/MediaConvertRole/Resource
+  MediaConvertInlinePolicy79C50B0A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: PollyBlogBucket91106725
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: MediaConvertInlinePolicy79C50B0A
+      Roles:
+        - Ref: MediaConvertRole031A64A9
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/MediaConvertInlinePolicy/Resource
+  TranscribeDefaultLambdaRole77D60330:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/TranscribeDefaultLambdaRole/Resource
+  TranscribeDefaultLambdaRoleDefaultPolicyAED7B6F2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+        Version: "2012-10-17"
+      PolicyName: TranscribeDefaultLambdaRoleDefaultPolicyAED7B6F2
+      Roles:
+        - Ref: TranscribeDefaultLambdaRole77D60330
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/TranscribeDefaultLambdaRole/DefaultPolicy/Resource
+  TranscribeAudio14C044BF:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: d8edee2e5c4b52a12f94fe97482471576bc3f180bbf54106ab94d47af8bb37a8.zip
+      Role:
+        Fn::GetAtt:
+          - TranscribeDefaultLambdaRole77D60330
+          - Arn
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: PollyBlogBucket91106725
+      Handler: transcribe.handler
+      Runtime: python3.9
+    DependsOn:
+      - TranscribeDefaultLambdaRoleDefaultPolicyAED7B6F2
+      - TranscribeDefaultLambdaRole77D60330
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/TranscribeAudio/Resource
+      aws:asset:path: asset.d8edee2e5c4b52a12f94fe97482471576bc3f180bbf54106ab94d47af8bb37a8
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  GetTranscribeAudioDefaultLambdaRole8E790025:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GetTranscribeAudioDefaultLambdaRole/Resource
+  GetTranscribeAudioDefaultLambdaRoleDefaultPolicy2BA0A3F9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+        Version: "2012-10-17"
+      PolicyName: GetTranscribeAudioDefaultLambdaRoleDefaultPolicy2BA0A3F9
+      Roles:
+        - Ref: GetTranscribeAudioDefaultLambdaRole8E790025
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GetTranscribeAudioDefaultLambdaRole/DefaultPolicy/Resource
+  GetTranscribeAudio43825611:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: d8edee2e5c4b52a12f94fe97482471576bc3f180bbf54106ab94d47af8bb37a8.zip
+      Role:
+        Fn::GetAtt:
+          - GetTranscribeAudioDefaultLambdaRole8E790025
+          - Arn
+      Handler: get_transcribe_status.handler
+      Runtime: python3.9
+    DependsOn:
+      - GetTranscribeAudioDefaultLambdaRoleDefaultPolicy2BA0A3F9
+      - GetTranscribeAudioDefaultLambdaRole8E790025
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GetTranscribeAudio/Resource
+      aws:asset:path: asset.d8edee2e5c4b52a12f94fe97482471576bc3f180bbf54106ab94d47af8bb37a8
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  TranslateTextDefaultLambdaRole4196D7D6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/TranslateTextDefaultLambdaRole/Resource
+  TranslateTextDefaultLambdaRoleDefaultPolicy21C87EE0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+        Version: "2012-10-17"
+      PolicyName: TranslateTextDefaultLambdaRoleDefaultPolicy21C87EE0
+      Roles:
+        - Ref: TranslateTextDefaultLambdaRole4196D7D6
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/TranslateTextDefaultLambdaRole/DefaultPolicy/Resource
+  TranslateText907B0087:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: a96c9242a9e06707f57715eee7198285d255e599d73d62fc7be26b6f6626dbd8.zip
+      Role:
+        Fn::GetAtt:
+          - TranslateTextDefaultLambdaRole4196D7D6
+          - Arn
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: PollyBlogBucket91106725
+          TARGET_LANG_CODE:
+            Ref: targetLanguageCode
+      Handler: translate.handler
+      Runtime: python3.9
+    DependsOn:
+      - TranslateTextDefaultLambdaRoleDefaultPolicy21C87EE0
+      - TranslateTextDefaultLambdaRole4196D7D6
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/TranslateText/Resource
+      aws:asset:path: asset.a96c9242a9e06707f57715eee7198285d255e599d73d62fc7be26b6f6626dbd8
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  GeneratePollyAudioDefaultLambdaRoleF2AF9A90:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GeneratePollyAudioDefaultLambdaRole/Resource
+  GeneratePollyAudioDefaultLambdaRoleDefaultPolicy9BEB7C3C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+        Version: "2012-10-17"
+      PolicyName: GeneratePollyAudioDefaultLambdaRoleDefaultPolicy9BEB7C3C
+      Roles:
+        - Ref: GeneratePollyAudioDefaultLambdaRoleF2AF9A90
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GeneratePollyAudioDefaultLambdaRole/DefaultPolicy/Resource
+  GeneratePollyAudio12A549E3:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 34f4f2ad5b00d537a2a9fa308a7a20b5554ff9bc6fb1c3e92e5ea8e917fdc31a.zip
+      Role:
+        Fn::GetAtt:
+          - GeneratePollyAudioDefaultLambdaRoleF2AF9A90
+          - Arn
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: PollyBlogBucket91106725
+          POLLY_LANGUAGE_CODE:
+            Ref: pollyLanguageCode
+          POLLY_VOICE_ID:
+            Ref: pollyVoiceId
+          TARGET_LANG_CODE:
+            Ref: targetLanguageCode
+          POLLY_ENGINE:
+            Ref: pollyEngine
+      Handler: generate_polly_audio.handler
+      Runtime: python3.9
+      Timeout: 30
+    DependsOn:
+      - GeneratePollyAudioDefaultLambdaRoleDefaultPolicy9BEB7C3C
+      - GeneratePollyAudioDefaultLambdaRoleF2AF9A90
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GeneratePollyAudio/Resource
+      aws:asset:path: asset.34f4f2ad5b00d537a2a9fa308a7a20b5554ff9bc6fb1c3e92e5ea8e917fdc31a
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  GenerateSpeechMarksDefaultLambdaRoleD796EB03:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GenerateSpeechMarksDefaultLambdaRole/Resource
+  GenerateSpeechMarksDefaultLambdaRoleDefaultPolicyC99BF124:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+        Version: "2012-10-17"
+      PolicyName: GenerateSpeechMarksDefaultLambdaRoleDefaultPolicyC99BF124
+      Roles:
+        - Ref: GenerateSpeechMarksDefaultLambdaRoleD796EB03
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GenerateSpeechMarksDefaultLambdaRole/DefaultPolicy/Resource
+  GenerateSpeechMarks38A7810E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 34f4f2ad5b00d537a2a9fa308a7a20b5554ff9bc6fb1c3e92e5ea8e917fdc31a.zip
+      Role:
+        Fn::GetAtt:
+          - GenerateSpeechMarksDefaultLambdaRoleD796EB03
+          - Arn
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: PollyBlogBucket91106725
+          POLLY_LANGUAGE_CODE:
+            Ref: pollyLanguageCode
+          POLLY_VOICE_ID:
+            Ref: pollyVoiceId
+          TARGET_LANG_CODE:
+            Ref: targetLanguageCode
+          POLLY_ENGINE:
+            Ref: pollyEngine
+      Handler: generate_speech_marks.handler
+      Runtime: python3.9
+      Timeout: 30
+    DependsOn:
+      - GenerateSpeechMarksDefaultLambdaRoleDefaultPolicyC99BF124
+      - GenerateSpeechMarksDefaultLambdaRoleD796EB03
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GenerateSpeechMarks/Resource
+      aws:asset:path: asset.34f4f2ad5b00d537a2a9fa308a7a20b5554ff9bc6fb1c3e92e5ea8e917fdc31a
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  GenerateSubtitlesDefaultLamdbdaRole6268B3BF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GenerateSubtitlesDefaultLamdbdaRole/Resource
+  GenerateSubtitlesDefaultLamdbdaRoleDefaultPolicyD48CA5AD:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+        Version: "2012-10-17"
+      PolicyName: GenerateSubtitlesDefaultLamdbdaRoleDefaultPolicyD48CA5AD
+      Roles:
+        - Ref: GenerateSubtitlesDefaultLamdbdaRole6268B3BF
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GenerateSubtitlesDefaultLamdbdaRole/DefaultPolicy/Resource
+  GenerateSubtitles9F907F83:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 34f4f2ad5b00d537a2a9fa308a7a20b5554ff9bc6fb1c3e92e5ea8e917fdc31a.zip
+      Role:
+        Fn::GetAtt:
+          - GenerateSubtitlesDefaultLamdbdaRole6268B3BF
+          - Arn
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: PollyBlogBucket91106725
+          POLLY_LANGUAGE_CODE:
+            Ref: pollyLanguageCode
+          POLLY_VOICE_ID:
+            Ref: pollyVoiceId
+      Handler: generate_subtitles.handler
+      Runtime: python3.9
+      Timeout: 30
+    DependsOn:
+      - GenerateSubtitlesDefaultLamdbdaRoleDefaultPolicyD48CA5AD
+      - GenerateSubtitlesDefaultLamdbdaRole6268B3BF
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GenerateSubtitles/Resource
+      aws:asset:path: asset.34f4f2ad5b00d537a2a9fa308a7a20b5554ff9bc6fb1c3e92e5ea8e917fdc31a
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  createMediaConvertJobDefaultLambdaRole14B015FD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/createMediaConvertJobDefaultLambdaRole/Resource
+  createMediaConvertJobDefaultLambdaRoleDefaultPolicy0328D7E9:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+        Version: "2012-10-17"
+      PolicyName: createMediaConvertJobDefaultLambdaRoleDefaultPolicy0328D7E9
+      Roles:
+        - Ref: createMediaConvertJobDefaultLambdaRole14B015FD
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/createMediaConvertJobDefaultLambdaRole/DefaultPolicy/Resource
+  CreateMediaConvertJob4D841D88:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: c783617117326392a8f9f50a5754cb84904266947fc7b333e62fd631b9ede995.zip
+      Role:
+        Fn::GetAtt:
+          - createMediaConvertJobDefaultLambdaRole14B015FD
+          - Arn
+      Environment:
+        Variables:
+          BUCKET_NAME:
+            Ref: PollyBlogBucket91106725
+          MC_ROLE_ARN:
+            Fn::GetAtt:
+              - MediaConvertRole031A64A9
+              - Arn
+          MC_LANG_SHORT:
+            Ref: mediaConvertLangShort
+          MC_LANG_LONG:
+            Ref: mediaConvertLangLong
+          TARGET_LANG_CODE:
+            Ref: targetLanguageCode
+          CDN_DOMAIN:
+            Fn::GetAtt:
+              - MediaDistribution4D42B96F
+              - DomainName
+          CDN_DISTRIBUTION:
+            Ref: MediaDistribution4D42B96F
+      Handler: create_mediaconvert_job.handler
+      Runtime: python3.9
+      Timeout: 30
+    DependsOn:
+      - createMediaConvertJobDefaultLambdaRoleDefaultPolicy0328D7E9
+      - createMediaConvertJobDefaultLambdaRole14B015FD
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/CreateMediaConvertJob/Resource
+      aws:asset:path: asset.c783617117326392a8f9f50a5754cb84904266947fc7b333e62fd631b9ede995
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  PollyAudioD4B4EF74:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - polly:StartSpeechSynthesisTask
+              - polly:GetSpeechSynthesisTask
+              - polly:ListSpeechSynthesisTasks
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: PollyBlogBucket91106725
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: PollyAudioD4B4EF74
+      Roles:
+        - Ref: GeneratePollyAudioDefaultLambdaRoleF2AF9A90
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/PollyAudio/Resource
+  PollySynthesisFAFD5C83:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - polly:StartSpeechSynthesisTask
+              - polly:GetSpeechSynthesisTask
+              - polly:ListSpeechSynthesisTasks
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: PollyBlogBucket91106725
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: PollySynthesisFAFD5C83
+      Roles:
+        - Ref: GenerateSpeechMarksDefaultLambdaRoleD796EB03
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/PollySynthesis/Resource
+  GetAudioJobStatusDefaultLambdaRole0A8FE828:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GetAudioJobStatusDefaultLambdaRole/Resource
+  GetAudioJobStatusDefaultLambdaRoleDefaultPolicy46474C65:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+        Version: "2012-10-17"
+      PolicyName: GetAudioJobStatusDefaultLambdaRoleDefaultPolicy46474C65
+      Roles:
+        - Ref: GetAudioJobStatusDefaultLambdaRole0A8FE828
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GetAudioJobStatusDefaultLambdaRole/DefaultPolicy/Resource
+  GetAudioJobtatusTaskF75E4D53:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 7dfb76d2850286e8f10215f0a85395f606e64c562d872dc6b6a3640cd3964756.zip
+      Role:
+        Fn::GetAtt:
+          - GetAudioJobStatusDefaultLambdaRole0A8FE828
+          - Arn
+      Handler: get_job_status.handler
+      Runtime: python3.9
+    DependsOn:
+      - GetAudioJobStatusDefaultLambdaRoleDefaultPolicy46474C65
+      - GetAudioJobStatusDefaultLambdaRole0A8FE828
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GetAudioJobtatusTask/Resource
+      aws:asset:path: asset.7dfb76d2850286e8f10215f0a85395f606e64c562d872dc6b6a3640cd3964756
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  GetSpeechmarksJobStatusDefaultLambdaRole114CC2DD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GetSpeechmarksJobStatusDefaultLambdaRole/Resource
+  GetSpeechmarksJobStatusDefaultLambdaRoleDefaultPolicy4DEE1D08:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+        Version: "2012-10-17"
+      PolicyName: GetSpeechmarksJobStatusDefaultLambdaRoleDefaultPolicy4DEE1D08
+      Roles:
+        - Ref: GetSpeechmarksJobStatusDefaultLambdaRole114CC2DD
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GetSpeechmarksJobStatusDefaultLambdaRole/DefaultPolicy/Resource
+  GetSpeechmarksJobtatusTask0F6DF875:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 7dfb76d2850286e8f10215f0a85395f606e64c562d872dc6b6a3640cd3964756.zip
+      Role:
+        Fn::GetAtt:
+          - GetSpeechmarksJobStatusDefaultLambdaRole114CC2DD
+          - Arn
+      Handler: get_job_status.handler
+      Runtime: python3.9
+    DependsOn:
+      - GetSpeechmarksJobStatusDefaultLambdaRoleDefaultPolicy4DEE1D08
+      - GetSpeechmarksJobStatusDefaultLambdaRole114CC2DD
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GetSpeechmarksJobtatusTask/Resource
+      aws:asset:path: asset.7dfb76d2850286e8f10215f0a85395f606e64c562d872dc6b6a3640cd3964756
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  TranscribeAudioRoleA551E8A0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: transcribe:StartTranscriptionJob
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: PollyBlogBucket91106725
+                  - /*
+          - Action: ssm:GetParameter
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+        Version: "2012-10-17"
+      PolicyName: TranscribeAudioRoleA551E8A0
+      Roles:
+        - Ref: TranscribeDefaultLambdaRole77D60330
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/TranscribeAudioRole/Resource
+  GetTranscribeAudioRole07B02B82:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: transcribe:GetTranscriptionJob
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: PollyBlogBucket91106725
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: GetTranscribeAudioRole07B02B82
+      Roles:
+        - Ref: GetTranscribeAudioDefaultLambdaRole8E790025
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/GetTranscribeAudioRole/Resource
+  TranslateTextRoleF931867C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: translate:TranslateText
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: PollyBlogBucket91106725
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: TranslateTextRoleF931867C
+      Roles:
+        - Ref: TranslateTextDefaultLambdaRole4196D7D6
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/TranslateTextRole/Resource
+  PollyAudioStatusA6F5A551:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - polly:StartSpeechSynthesisTask
+              - polly:GetSpeechSynthesisTask
+              - polly:ListSpeechSynthesisTasks
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: PollyAudioStatusA6F5A551
+      Roles:
+        - Ref: GetAudioJobStatusDefaultLambdaRole0A8FE828
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/PollyAudioStatus/Resource
+  PollySpeecmarksStatusFBE096B2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - polly:StartSpeechSynthesisTask
+              - polly:GetSpeechSynthesisTask
+              - polly:ListSpeechSynthesisTasks
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: PollySpeecmarksStatusFBE096B2
+      Roles:
+        - Ref: GetSpeechmarksJobStatusDefaultLambdaRole114CC2DD
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/PollySpeecmarksStatus/Resource
+  SubtitlesPolicy7146424F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: PollyBlogBucket91106725
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: SubtitlesPolicy7146424F
+      Roles:
+        - Ref: GenerateSubtitlesDefaultLamdbdaRole6268B3BF
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/SubtitlesPolicy/Resource
+  MediaConvertPolicy91CC58C0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - mediaconvert:DescribeEndpoints
+              - mediaconvert:CreateJob
+            Effect: Allow
+            Resource: "*"
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - MediaConvertRole031A64A9
+                - Arn
+          - Action: ssm:GetParameter
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :*
+          - Action:
+              - s3:GetObject
+              - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:s3:::"
+                  - Ref: PollyBlogBucket91106725
+                  - /*
+          - Action: cloudfront:CreateInvalidation
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: MediaConvertPolicy91CC58C0
+      Roles:
+        - Ref: createMediaConvertJobDefaultLambdaRole14B015FD
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/MediaConvertPolicy/Resource
+  ProcessAudioWithSubtitlesRole63733945:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/ProcessAudioWithSubtitles/Role/Resource
+  ProcessAudioWithSubtitlesRoleDefaultPolicyFDEB970A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TranscribeAudio14C044BF
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - GetTranscribeAudio43825611
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - TranslateText907B0087
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CreateMediaConvertJob4D841D88
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - GeneratePollyAudio12A549E3
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - GetAudioJobtatusTaskF75E4D53
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - GenerateSpeechMarks38A7810E
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - GetSpeechmarksJobtatusTask0F6DF875
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - GenerateSubtitles9F907F83
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ProcessAudioWithSubtitlesRoleDefaultPolicyFDEB970A
+      Roles:
+        - Ref: ProcessAudioWithSubtitlesRole63733945
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/ProcessAudioWithSubtitles/Role/DefaultPolicy/Resource
+  ProcessAudioWithSubtitlesA5AC6A15:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - ProcessAudioWithSubtitlesRole63733945
+          - Arn
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"TranascribeAudioStep","States":{"TranascribeAudioStep":{"Next":"Transcribe Job Wait 5 Seconds","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","TimeoutSeconds":300,"Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - TranscribeAudio14C044BF
+                - Arn
+            - '","Payload.$":"$"}},"Transcribe Job Wait 5 Seconds":{"Type":"Wait","Seconds":5,"Next":"Get Transcribe Job Status"},"Get Transcribe Job Status":{"Next":"TranscribeJobCompleted?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - GetTranscribeAudio43825611
+                - Arn
+            - '","Payload.$":"$"}},"TranscribeJobCompleted?":{"Type":"Choice","Choices":[{"Variable":"$.Payload.result","StringEquals":"COMPLETED","Next":"TranaslateTextStep"}],"Default":"Transcribe Job Wait 5 Seconds"},"TranaslateTextStep":{"Next":"GenerateAudioAndSpeechMarks","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","TimeoutSeconds":300,"Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - TranslateText907B0087
+                - Arn
+            - '","Payload.$":"$"}},"GenerateAudioAndSpeechMarks":{"Type":"Parallel","Next":"CreateMediaConvertJobStep","Branches":[{"StartAt":"GeneratePollyAudioStep","States":{"GeneratePollyAudioStep":{"Next":"Audio Job Wait 5 Seconds","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","TimeoutSeconds":300,"Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - GeneratePollyAudio12A549E3
+                - Arn
+            - '","Payload.$":"$"}},"Audio Job Wait 5 Seconds":{"Type":"Wait","Seconds":5,"Next":"Get Audio Job Status"},"Get Audio Job Status":{"Next":"AudioJobCompleted?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - GetAudioJobtatusTaskF75E4D53
+                - Arn
+            - '","Payload.$":"$"}},"AudioJobCompleted?":{"Type":"Choice","Choices":[{"Variable":"$.Payload.result","StringEquals":"completed","Next":"Polly Audio Job Succeeded"}],"Default":"Audio Job Wait 5 Seconds"},"Polly Audio Job Succeeded":{"Type":"Succeed"}}},{"StartAt":"GenerateSpeechMarksStep","States":{"GenerateSpeechMarksStep":{"Next":"Speechmarks Job Wait 5 Seconds","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","TimeoutSeconds":300,"Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - GenerateSpeechMarks38A7810E
+                - Arn
+            - '","Payload.$":"$"}},"Speechmarks Job Wait 5 Seconds":{"Type":"Wait","Seconds":5,"Next":"Get Speechmarks Job Status"},"Get Speechmarks Job Status":{"Next":"SpeechMarksJobCompleted?","Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - GetSpeechmarksJobtatusTask0F6DF875
+                - Arn
+            - '","Payload.$":"$"}},"SpeechMarksJobCompleted?":{"Type":"Choice","Choices":[{"Variable":"$.Payload.result","StringEquals":"completed","Next":"GenerateSubtitlesTask"}],"Default":"Speechmarks Job Wait 5 Seconds"},"GenerateSubtitlesTask":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","OutputPath":"$.Payload","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - GenerateSubtitles9F907F83
+                - Arn
+            - '","Payload.$":"$"}}}}]},"CreateMediaConvertJobStep":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","Parameters":{"FunctionName":"
+            - Fn::GetAtt:
+                - CreateMediaConvertJob4D841D88
+                - Arn
+            - '","Payload.$":"$"}}}}'
+    DependsOn:
+      - ProcessAudioWithSubtitlesRoleDefaultPolicyFDEB970A
+      - ProcessAudioWithSubtitlesRole63733945
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/ProcessAudioWithSubtitles/Resource
+  ExecuteStateMachineDefaultLambdaRoleE70D4017:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/ExecuteStateMachineDefaultLambdaRole/Resource
+  ExecuteStateMachineDefaultLambdaRoleDefaultPolicy40F69B8A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:logs:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :log-group:/aws/lambda/PollyBlogCdkStack-*
+        Version: "2012-10-17"
+      PolicyName: ExecuteStateMachineDefaultLambdaRoleDefaultPolicy40F69B8A
+      Roles:
+        - Ref: ExecuteStateMachineDefaultLambdaRoleE70D4017
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/ExecuteStateMachineDefaultLambdaRole/DefaultPolicy/Resource
+  StartStateMachineExecution40CD8223:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 03372302c83316de2c0f2df84eaf35f21c2b0b03b7cf2e2e046578a4272c537f.zip
+      Role:
+        Fn::GetAtt:
+          - ExecuteStateMachineDefaultLambdaRoleE70D4017
+          - Arn
+      Environment:
+        Variables:
+          STATE_MACHINE_ARN:
+            Ref: ProcessAudioWithSubtitlesA5AC6A15
+      Handler: state_machine.handler
+      Runtime: python3.9
+    DependsOn:
+      - ExecuteStateMachineDefaultLambdaRoleDefaultPolicy40F69B8A
+      - ExecuteStateMachineDefaultLambdaRoleE70D4017
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/StartStateMachineExecution/Resource
+      aws:asset:path: asset.03372302c83316de2c0f2df84eaf35f21c2b0b03b7cf2e2e046578a4272c537f
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  ExecuteStateMachine5FC7464B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: states:StartExecution
+            Effect: Allow
+            Resource:
+              Ref: ProcessAudioWithSubtitlesA5AC6A15
+          - Action: ssm:PutParameter
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:ssm:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :parameter/input_video_file
+        Version: "2012-10-17"
+      PolicyName: ExecuteStateMachine5FC7464B
+      Roles:
+        - Ref: ExecuteStateMachineDefaultLambdaRoleE70D4017
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/ExecuteStateMachine/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |
+          import boto3  # type: ignore
+          import json
+          import logging
+          import urllib.request
+
+          s3 = boto3.client("s3")
+
+          CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+          def handler(event: dict, context):
+              response_status = "SUCCESS"
+              error_message = ""
+              try:
+                  props = event["ResourceProperties"]
+                  bucket = props["BucketName"]
+                  notification_configuration = props["NotificationConfiguration"]
+                  request_type = event["RequestType"]
+                  managed = props.get('Managed', 'true').lower() == 'true'
+                  stack_id = event['StackId']
+
+                  if managed:
+                    config = handle_managed(request_type, notification_configuration)
+                  else:
+                    config = handle_unmanaged(bucket, stack_id, request_type, notification_configuration)
+
+                  put_bucket_notification_configuration(bucket, config)
+              except Exception as e:
+                  logging.exception("Failed to put bucket notification configuration")
+                  response_status = "FAILED"
+                  error_message = f"Error: {str(e)}. "
+              finally:
+                  submit_response(event, context, response_status, error_message)
+
+
+          def handle_managed(request_type, notification_configuration):
+            if request_type == 'Delete':
+              return {}
+            return notification_configuration
+
+
+          def handle_unmanaged(bucket, stack_id, request_type, notification_configuration):
+
+            # find external notifications
+            external_notifications = find_external_notifications(bucket, stack_id)
+
+            # if delete, that's all we need
+            if request_type == 'Delete':
+              return external_notifications
+
+            def with_id(notification):
+              notification['Id'] = f"{stack_id}-{hash(json.dumps(notification, sort_keys=True))}"
+              return notification
+
+            # otherwise, merge external with incoming config and augment with id
+            notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external = external_notifications.get(t, [])
+              incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+              notifications[t] = external + incoming
+            return notifications
+
+
+          def find_external_notifications(bucket, stack_id):
+            existing_notifications = get_bucket_notification_configuration(bucket)
+            external_notifications = {}
+            for t in CONFIGURATION_TYPES:
+              # if the notification was created by us, we know what id to expect
+              # so we can filter by it.
+              external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+
+            return external_notifications
+
+
+          def get_bucket_notification_configuration(bucket):
+            return s3.get_bucket_notification_configuration(Bucket=bucket)
+
+
+          def put_bucket_notification_configuration(bucket, notification_configuration):
+            s3.put_bucket_notification_configuration(Bucket=bucket, NotificationConfiguration=notification_configuration)
+
+
+          def submit_response(event: dict, context, response_status: str, error_message: str):
+              response_body = json.dumps(
+                  {
+                      "Status": response_status,
+                      "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                      "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                      "StackId": event["StackId"],
+                      "RequestId": event["RequestId"],
+                      "LogicalResourceId": event["LogicalResourceId"],
+                      "NoEcho": False,
+                  }
+              ).encode("utf-8")
+              headers = {"content-type": "", "content-length": str(len(response_body))}
+              try:
+                  req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+                  with urllib.request.urlopen(req) as response:
+                      print(response.read().decode("utf-8"))
+                  print("Status code: " + response.reason)
+              except Exception as e:
+                  print("send(..) failed executing request.urlopen(..): " + str(e))
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: python3.7
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/3VSwW7CMAz9Fu4hG6BJu0IREhITFUjbsQqJAdM0QXECQlX/fWnaAZu0k/1e/WL7uWM+euOvA3GloVTlUOOO11svZMkiVdQ04fUsyBI8y/amz7qQW43y9qB73IGZIGiYFtVOCV7HmhxchURoTatYiRu4T3AJb9EcNHhrFsFI3zL3JJb+5A1DUfF6YzW0dIqPEbqsYTQpagVnbW8VGM+7YeZ3ggki8MSnbWiY1DaovbOxsp4jeYe7kPquHR7QTKUEoqWKQvSpTdYKFq3gv4rnZ+I4Hs77fgHi9ZdAz7YhikCxXDihNWiWHS1KYNF1Dx9CHtGkDZ/xn5cKL6gkvkr2Ls3FlrEiC+RttQGywcnOo3v+61Pu7AUVOJZciG3iIof+VoVuL1PE20uNfHqlTGM6VjI5TlyB78A6+HNIf0VmjcJuX2MV8BO9XEbvfDTmo8GJEIcuRHsq4JsufgOL6Xs/cwIAAA==
+    Metadata:
+      aws:cdk:path: PollyBlogCdkStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  pollyLanguageCode:
+    Type: String
+    Default: es-US
+    Description: The target polly language code to convert the audio and text
+  pollyVoiceId:
+    Type: String
+    Default: Miguel
+    Description: The target polly language voice
+  pollyEngine:
+    Type: String
+    Default: standard
+    AllowedValues:
+      - standard
+      - neural
+    Description: The polly engine to use
+  mediaConvertLangShort:
+    Type: String
+    Default: SPA
+    Description: The MediaConvert short language code
+  mediaConvertLangLong:
+    Type: String
+    Default: Spanish
+    Description: The MediaConvert long language code
+  targetLanguageCode:
+    Type: String
+    Default: es
+    Description: The target language code
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Outputs:
+  ConvertedVideo:
+    Description: CDN url of the converted audio along with subtitles
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Fn::GetAtt:
+              - MediaDistribution4D42B96F
+              - DomainName
+          - /inputVideo/play_video.html
+    Export:
+      Name: ConvertedVideo
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

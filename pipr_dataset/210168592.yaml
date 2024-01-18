@@ -1,0 +1,443 @@
+Resources:
+  exampleapi2D2ED469:
+    Type: AWS::ECR::Repository
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: example-api-pipeline/example-api/Resource
+  exampleapiPipelineArtifactsBucketEncryptionKey08094B7B:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:GenerateDataKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - exampleapiPipelineRole4636570B
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - buildbuildprojectRoleA7150710
+                  - Arn
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: example-api-pipeline/example-apiPipeline/ArtifactsBucketEncryptionKey/Resource
+  exampleapiPipelineArtifactsBucketC73E8069:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - exampleapiPipelineArtifactsBucketEncryptionKey08094B7B
+                  - Arn
+              SSEAlgorithm: aws:kms
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: example-api-pipeline/example-apiPipeline/ArtifactsBucket/Resource
+  exampleapiPipelineRole4636570B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: example-api-pipeline/example-apiPipeline/Role/Resource
+  exampleapiPipelineRoleDefaultPolicy758B61BF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - exampleapiPipelineArtifactsBucketC73E8069
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - exampleapiPipelineArtifactsBucketC73E8069
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - exampleapiPipelineArtifactsBucketEncryptionKey08094B7B
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - exampleapiPipelinebuildCodePipelineActionRole5CEC74C2
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: exampleapiPipelineRoleDefaultPolicy758B61BF
+      Roles:
+        - Ref: exampleapiPipelineRole4636570B
+    Metadata:
+      aws:cdk:path: example-api-pipeline/example-apiPipeline/Role/DefaultPolicy/Resource
+  exampleapiPipelineD22A7593:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - exampleapiPipelineRole4636570B
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: brentlangston
+                Repo: example-api
+                Branch: master
+                OAuthToken: "{{resolve:secretsmanager:brents-github-token-for-ci:SecretString:::}}"
+                PollForSourceChanges: false
+              Name: GitHub_Source
+              OutputArtifacts:
+                - Name: Artifact_Source_GitHub_Source
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: buildbuildprojectA5B348C6
+              InputArtifacts:
+                - Name: Artifact_Source_GitHub_Source
+              Name: build
+              OutputArtifacts:
+                - Name: Artifact_build_build
+              RoleArn:
+                Fn::GetAtt:
+                  - exampleapiPipelinebuildCodePipelineActionRole5CEC74C2
+                  - Arn
+              RunOrder: 1
+          Name: build
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - exampleapiPipelineArtifactsBucketEncryptionKey08094B7B
+              - Arn
+          Type: KMS
+        Location:
+          Ref: exampleapiPipelineArtifactsBucketC73E8069
+        Type: S3
+    DependsOn:
+      - exampleapiPipelineRoleDefaultPolicy758B61BF
+      - exampleapiPipelineRole4636570B
+    Metadata:
+      aws:cdk:path: example-api-pipeline/example-apiPipeline/Resource
+  exampleapiPipelineSourceGitHubSourceWebhookResource647888CC:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: "{{resolve:secretsmanager:brents-github-token-for-ci:SecretString:::}}"
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetAction: GitHub_Source
+      TargetPipeline:
+        Ref: exampleapiPipelineD22A7593
+      TargetPipelineVersion: 1
+      RegisterWithThirdParty: true
+    Metadata:
+      aws:cdk:path: example-api-pipeline/example-apiPipeline/Source/GitHub_Source/WebhookResource
+  exampleapiPipelinebuildCodePipelineActionRole5CEC74C2:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: example-api-pipeline/example-apiPipeline/build/build/CodePipelineActionRole/Resource
+  exampleapiPipelinebuildCodePipelineActionRoleDefaultPolicyAD3A0449:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - buildbuildprojectA5B348C6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: exampleapiPipelinebuildCodePipelineActionRoleDefaultPolicyAD3A0449
+      Roles:
+        - Ref: exampleapiPipelinebuildCodePipelineActionRole5CEC74C2
+    Metadata:
+      aws:cdk:path: example-api-pipeline/example-apiPipeline/build/build/CodePipelineActionRole/DefaultPolicy/Resource
+  buildbuildprojectRoleA7150710:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: example-api-pipeline/build/build-project/Role/Resource
+  buildbuildprojectRoleDefaultPolicyF013A706:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: buildbuildprojectA5B348C6
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: buildbuildprojectA5B348C6
+                    - :*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - exampleapiPipelineArtifactsBucketC73E8069
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - exampleapiPipelineArtifactsBucketC73E8069
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - exampleapiPipelineArtifactsBucketEncryptionKey08094B7B
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: buildbuildprojectRoleDefaultPolicyF013A706
+      Roles:
+        - Ref: buildbuildprojectRoleA7150710
+    Metadata:
+      aws:cdk:path: example-api-pipeline/build/build-project/Role/DefaultPolicy/Resource
+  buildbuildprojectA5B348C6:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:1.0
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - buildbuildprojectRoleA7150710
+          - Arn
+      Source:
+        BuildSpec: build-buildspec.yaml
+        Type: CODEPIPELINE
+      Cache:
+        Modes:
+          - LOCAL_DOCKER_LAYER_CACHE
+        Type: LOCAL
+      TimeoutInMinutes: 10
+    Metadata:
+      aws:cdk:path: example-api-pipeline/build/build-project/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.7.0,@aws-cdk/aws-applicationautoscaling=1.7.0,@aws-cdk/aws-autoscaling=1.7.0,@aws-cdk/aws-autoscaling-common=1.7.0,@aws-cdk/aws-autoscaling-hooktargets=1.7.0,@aws-cdk/aws-cloudformation=1.7.0,@aws-cdk/aws-cloudwatch=1.7.0,@aws-cdk/aws-codebuild=1.7.0,@aws-cdk/aws-codepipeline=1.7.0,@aws-cdk/aws-codepipeline-actions=1.7.0,@aws-cdk/aws-ec2=1.7.0,@aws-cdk/aws-ecr=1.7.0,@aws-cdk/aws-ecr-assets=1.7.0,@aws-cdk/aws-ecs=1.7.0,@aws-cdk/aws-elasticloadbalancingv2=1.7.0,@aws-cdk/aws-events=1.7.0,@aws-cdk/aws-events-targets=1.7.0,@aws-cdk/aws-iam=1.7.0,@aws-cdk/aws-kms=1.7.0,@aws-cdk/aws-lambda=1.7.0,@aws-cdk/aws-logs=1.7.0,@aws-cdk/aws-s3=1.7.0,@aws-cdk/aws-s3-assets=1.7.0,@aws-cdk/aws-servicediscovery=1.7.0,@aws-cdk/aws-sns=1.7.0,@aws-cdk/aws-sns-subscriptions=1.7.0,@aws-cdk/aws-sqs=1.7.0,@aws-cdk/aws-ssm=1.7.0,@aws-cdk/core=1.7.0,@aws-cdk/custom-resources=1.7.0,@aws-cdk/cx-api=1.7.0,@aws-cdk/region-info=1.7.0,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

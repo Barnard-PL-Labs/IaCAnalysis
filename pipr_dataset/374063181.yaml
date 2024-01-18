@@ -1,0 +1,284 @@
+Resources:
+  Application:
+    Type: AWS::ElasticBeanstalk::Application
+    Properties:
+      ApplicationName: NexScore
+    Metadata:
+      aws:cdk:path: NexScoreStack/Application
+  CustomEBRoleCA0874C6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - ec2.
+                    - Ref: AWS::URLSuffix
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: NexScoreStack/CustomEBRole/Resource
+  CustomEBRoleDefaultPolicyCF2A927E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: elasticbeanstalk:PutInstanceStatistics
+            Effect: Allow
+            Resource: "*"
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PlayerBCE11709
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - MatchE2EA7BB6
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - Player2MatchD1D576AF
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: CustomEBRoleDefaultPolicyCF2A927E
+      Roles:
+        - Ref: CustomEBRoleCA0874C6
+    Metadata:
+      aws:cdk:path: NexScoreStack/CustomEBRole/DefaultPolicy/Resource
+  CustomInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: CustomEBRoleCA0874C6
+    Metadata:
+      aws:cdk:path: NexScoreStack/CustomInstanceProfile
+  Certificate4E7ABB08:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: api.ploinky.de
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: NexScoreStack/Certificate/Resource
+  Environment:
+    Type: AWS::ElasticBeanstalk::Environment
+    Properties:
+      ApplicationName: NexScore
+      EnvironmentName: NexScore-env
+      OptionSettings:
+        - Namespace: aws:autoscaling:launchconfiguration
+          OptionName: IamInstanceProfile
+          Value:
+            Fn::GetAtt:
+              - CustomInstanceProfile
+              - Arn
+        - Namespace: aws:autoscaling:launchconfiguration
+          OptionName: InstanceType
+          Value: t2.micro
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: SERVER_PORT
+          Value: "5000"
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: DYNAMODB_ENDPOINT
+          Value: https://dynamodb.eu-central-1.amazonaws.com
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: ACCESS_KEY_ID
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: SECRET_ACCESS_KEY
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: RIOT_API_KEY
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: DYNAMODB_REGION
+        - Namespace: aws:elasticbeanstalk:environment
+          OptionName: LoadBalancerType
+          Value: application
+        - Namespace: aws:elbv2:listener:443
+          OptionName: ListenerEnabled
+          Value: "true"
+        - Namespace: aws:elbv2:listener:default
+          OptionName: ListenerEnabled
+          Value: "false"
+        - Namespace: aws:elbv2:listener:443
+          OptionName: SSLCertificateArns
+          Value:
+            Ref: Certificate4E7ABB08
+        - Namespace: aws:elbv2:listener:443
+          OptionName: Protocol
+          Value: HTTPS
+      SolutionStackName: 64bit Amazon Linux 2 v3.2.12 running Corretto 11
+    DependsOn:
+      - Application
+    Metadata:
+      aws:cdk:path: NexScoreStack/Environment
+  PlayerBCE11709:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: puuid
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: puuid
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: Player
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: NexScoreStack/Player/Resource
+  MatchE2EA7BB6:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: matchid
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: matchid
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: Match
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: NexScoreStack/Match/Resource
+  Player2MatchD1D576AF:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: puuid
+          KeyType: HASH
+        - AttributeName: matchid
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: puuid
+          AttributeType: S
+        - AttributeName: matchid
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+      TableName: Player2Match
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: NexScoreStack/Player2Match/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01OMW7DMAx8S3ZZrbOkaxB0yJTA7V7QEl0wlkhDkhMEhv4eyRmSiXdH8u62ut3pzw3cYmPs2Djq9fKTwIyqSH8LOoiJTI/AMYEb9XIYeD9NjgwkElaFfvOVgrBHTlkReL104rBu1nmWcnyv9IWO1Y0NnoMM5DArgyHRUE3RA8M/hpL00urPG83K3hm82FL2F/pn2ApyVh1GmYNZtdOcpjmtVd7Ug7Cl2j4rFov6Ej+u7Zdut7rdXCJRE2ZO5FF3z/kAWZVMZiQBAAA=
+    Metadata:
+      aws:cdk:path: NexScoreStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  elbDns:
+    Description: DNS name of the created Elastic LoadBalancer
+    Value:
+      Fn::GetAtt:
+        - Environment
+        - EndpointURL
+    Export:
+      Name: elbDns
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

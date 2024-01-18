@@ -1,0 +1,2219 @@
+Parameters:
+  CodeStarConnectionArnParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /sbam/codestar-connection-arn
+  HostedZoneIdParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /sbam/hosted-zone-id
+  HostedZoneNameParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /sbam/hosted-zone-name
+  ApiSubdomainParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /sbam/notes/api-domain-name
+  FrontendSubdomainParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /sbam/notes/frontend-domain-name
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Resources:
+  EncryptorEventBus75DFC091:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: SbamNotesEncryptorEventBus1455E9F3
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/EventBus/Resource
+  EncryptorEncryptedMessagesTable24A778B5:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      TableClass: STANDARD_INFREQUENT_ACCESS
+      TimeToLiveSpecification:
+        AttributeName: TTL
+        Enabled: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/EncryptedMessagesTable/Resource
+  EncryptorMessageCleanerQueueD68E22B7:
+    Type: AWS::SQS::Queue
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/MessageCleaner/Queue/Resource
+  EncryptorMessageCleanerQueuePolicyD5360457:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+              - sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Fn::GetAtt:
+                    - EncryptorMessageCleanerMessageDecrypted22C3FEB8
+                    - Arn
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - EncryptorMessageCleanerQueueD68E22B7
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: EncryptorMessageCleanerQueueD68E22B7
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/MessageCleaner/Queue/Policy/Resource
+  EncryptorMessageCleanerMessageDecrypted22C3FEB8:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Delete message on decryption
+      EventBusName:
+        Ref: EncryptorEventBus75DFC091
+      EventPattern:
+        source:
+          - sbam.notes
+        detail-type:
+          - message decrypted
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - EncryptorMessageCleanerQueueD68E22B7
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/MessageCleaner/MessageDecrypted/Resource
+  EncryptorMessageCleanerLambdaServiceRole39F3D6C5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/MessageCleaner/Lambda/ServiceRole/Resource
+  EncryptorMessageCleanerLambdaServiceRoleDefaultPolicy484571FF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - EncryptorEncryptedMessagesTable24A778B5
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - sqs:ChangeMessageVisibility
+              - sqs:DeleteMessage
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+              - sqs:ReceiveMessage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - EncryptorMessageCleanerQueueD68E22B7
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: EncryptorMessageCleanerLambdaServiceRoleDefaultPolicy484571FF
+      Roles:
+        - Ref: EncryptorMessageCleanerLambdaServiceRole39F3D6C5
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/MessageCleaner/Lambda/ServiceRole/DefaultPolicy/Resource
+  EncryptorMessageCleanerLambda84199827:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: a604db29d34902f29be6691fa62332aa3b7980d6623f7957c6e21a9b7794edd3.zip
+      Role:
+        Fn::GetAtt:
+          - EncryptorMessageCleanerLambdaServiceRole39F3D6C5
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: EncryptorEncryptedMessagesTable24A778B5
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - EncryptorMessageCleanerLambdaServiceRoleDefaultPolicy484571FF
+      - EncryptorMessageCleanerLambdaServiceRole39F3D6C5
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/MessageCleaner/Lambda/Resource
+      aws:asset:path: asset.a604db29d34902f29be6691fa62332aa3b7980d6623f7957c6e21a9b7794edd3
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  EncryptorMessageCleanerLambdaLogRetention510B314E:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: EncryptorMessageCleanerLambda84199827
+      RetentionInDays: 7
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/MessageCleaner/Lambda/LogRetention/Resource
+  EncryptorMessageCleanerLambdaSqsEventSourceSbamNotesEncryptorMessageCleanerQueue232DFC11EA2B0551:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      FunctionName:
+        Ref: EncryptorMessageCleanerLambda84199827
+      EventSourceArn:
+        Fn::GetAtt:
+          - EncryptorMessageCleanerQueueD68E22B7
+          - Arn
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/MessageCleaner/Lambda/SqsEventSource:SbamNotesEncryptorMessageCleanerQueue232DFC11/Resource
+  EncryptorRESTEncryptHandlerServiceRole5490246A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/EncryptHandler/ServiceRole/Resource
+  EncryptorRESTEncryptHandlerServiceRoleDefaultPolicyC8FE61F0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:PutItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - EncryptorEncryptedMessagesTable24A778B5
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - EncryptorEventBus75DFC091
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: EncryptorRESTEncryptHandlerServiceRoleDefaultPolicyC8FE61F0
+      Roles:
+        - Ref: EncryptorRESTEncryptHandlerServiceRole5490246A
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/EncryptHandler/ServiceRole/DefaultPolicy/Resource
+  EncryptorRESTEncryptHandlerFB4C1A56:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 2baa6bf1379d25d0617cdb8423ec2509e2eae95bbfe0696885432dd5f6b160d7.zip
+      Role:
+        Fn::GetAtt:
+          - EncryptorRESTEncryptHandlerServiceRole5490246A
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: EncryptorEncryptedMessagesTable24A778B5
+          EVENT_BUS_NAME:
+            Ref: EncryptorEventBus75DFC091
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.encryptHandler
+      Runtime: nodejs14.x
+    DependsOn:
+      - EncryptorRESTEncryptHandlerServiceRoleDefaultPolicyC8FE61F0
+      - EncryptorRESTEncryptHandlerServiceRole5490246A
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/EncryptHandler/Resource
+      aws:asset:path: asset.2baa6bf1379d25d0617cdb8423ec2509e2eae95bbfe0696885432dd5f6b160d7
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  EncryptorRESTEncryptHandlerLogRetentionDC7EDBB1:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: EncryptorRESTEncryptHandlerFB4C1A56
+      RetentionInDays: 7
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/EncryptHandler/LogRetention/Resource
+  EncryptorRESTDecryptHandlerServiceRoleD37139AE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/DecryptHandler/ServiceRole/Resource
+  EncryptorRESTDecryptHandlerServiceRoleDefaultPolicy63F3D40E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:GetItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - EncryptorEncryptedMessagesTable24A778B5
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: events:PutEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - EncryptorEventBus75DFC091
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: EncryptorRESTDecryptHandlerServiceRoleDefaultPolicy63F3D40E
+      Roles:
+        - Ref: EncryptorRESTDecryptHandlerServiceRoleD37139AE
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/DecryptHandler/ServiceRole/DefaultPolicy/Resource
+  EncryptorRESTDecryptHandlerBFE9404B:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 2baa6bf1379d25d0617cdb8423ec2509e2eae95bbfe0696885432dd5f6b160d7.zip
+      Role:
+        Fn::GetAtt:
+          - EncryptorRESTDecryptHandlerServiceRoleD37139AE
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: EncryptorEncryptedMessagesTable24A778B5
+          EVENT_BUS_NAME:
+            Ref: EncryptorEventBus75DFC091
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.decryptHandler
+      Runtime: nodejs14.x
+    DependsOn:
+      - EncryptorRESTDecryptHandlerServiceRoleDefaultPolicy63F3D40E
+      - EncryptorRESTDecryptHandlerServiceRoleD37139AE
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/DecryptHandler/Resource
+      aws:asset:path: asset.2baa6bf1379d25d0617cdb8423ec2509e2eae95bbfe0696885432dd5f6b160d7
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  EncryptorRESTDecryptHandlerLogRetentionD602A984:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: EncryptorRESTDecryptHandlerBFE9404B
+      RetentionInDays: 7
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/DecryptHandler/LogRetention/Resource
+  EncryptorRESTCheckExistenceHandlerServiceRoleB027F401:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/CheckExistenceHandler/ServiceRole/Resource
+  EncryptorRESTCheckExistenceHandlerServiceRoleDefaultPolicy7C73EA3F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:GetItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - EncryptorEncryptedMessagesTable24A778B5
+                  - Arn
+              - Ref: AWS::NoValue
+        Version: "2012-10-17"
+      PolicyName: EncryptorRESTCheckExistenceHandlerServiceRoleDefaultPolicy7C73EA3F
+      Roles:
+        - Ref: EncryptorRESTCheckExistenceHandlerServiceRoleB027F401
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/CheckExistenceHandler/ServiceRole/DefaultPolicy/Resource
+  EncryptorRESTCheckExistenceHandler421E70DF:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 2baa6bf1379d25d0617cdb8423ec2509e2eae95bbfe0696885432dd5f6b160d7.zip
+      Role:
+        Fn::GetAtt:
+          - EncryptorRESTCheckExistenceHandlerServiceRoleB027F401
+          - Arn
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Ref: EncryptorEncryptedMessagesTable24A778B5
+          EVENT_BUS_NAME:
+            Ref: EncryptorEventBus75DFC091
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.checkExistenceHandler
+      Runtime: nodejs14.x
+    DependsOn:
+      - EncryptorRESTCheckExistenceHandlerServiceRoleDefaultPolicy7C73EA3F
+      - EncryptorRESTCheckExistenceHandlerServiceRoleB027F401
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/CheckExistenceHandler/Resource
+      aws:asset:path: asset.2baa6bf1379d25d0617cdb8423ec2509e2eae95bbfe0696885432dd5f6b160d7
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  EncryptorRESTCheckExistenceHandlerLogRetention8800C0B6:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: EncryptorRESTCheckExistenceHandler421E70DF
+      RetentionInDays: 7
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/CheckExistenceHandler/LogRetention/Resource
+  EncryptorRESTAPIF12D9A97:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: SBAM Notes Encryptor API
+      Name: SbamNotesEncryptorREST97808A74
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Resource
+  EncryptorRESTAPICloudWatchRole8119087C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/CloudWatchRole/Resource
+  EncryptorRESTAPIAccount32993986:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - EncryptorRESTAPICloudWatchRole8119087C
+          - Arn
+    DependsOn:
+      - EncryptorRESTAPIF12D9A97
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Account
+  EncryptorRESTAPIDeploymentC96DA707c83deb47f5e7cd09119d68ad3d18c14c:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: EncryptorRESTAPIF12D9A97
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - EncryptorRESTAPIidHEADB5981BB2
+      - EncryptorRESTAPIidOPTIONSB5941E0E
+      - EncryptorRESTAPIidPOST1ABBAE29
+      - EncryptorRESTAPIidC0D445F0
+      - EncryptorRESTAPIOPTIONSA19F0404
+      - EncryptorRESTAPIPOSTA3B07F16
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Deployment/Resource
+  EncryptorRESTAPIDeploymentStageapiA5DA1D22:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: EncryptorRESTAPIF12D9A97
+      DeploymentId:
+        Ref: EncryptorRESTAPIDeploymentC96DA707c83deb47f5e7cd09119d68ad3d18c14c
+      MethodSettings:
+        - DataTraceEnabled: false
+          HttpMethod: "*"
+          ResourcePath: /*
+          ThrottlingBurstLimit: 1000
+          ThrottlingRateLimit: 100
+      StageName: api
+    DependsOn:
+      - EncryptorRESTAPIAccount32993986
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/DeploymentStage.api/Resource
+  EncryptorRESTAPIOPTIONSA19F0404:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - EncryptorRESTAPIF12D9A97
+          - RootResourceId
+      RestApiId:
+        Ref: EncryptorRESTAPIF12D9A97
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/OPTIONS/Resource
+  EncryptorRESTAPIPOSTApiPermissionSbamNotesEncryptorRESTAPID56E0170POST5A244D60:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - EncryptorRESTEncryptHandlerFB4C1A56
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: EncryptorRESTAPIF12D9A97
+            - /
+            - Ref: EncryptorRESTAPIDeploymentStageapiA5DA1D22
+            - /POST/
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/POST/ApiPermission.SbamNotesEncryptorRESTAPID56E0170.POST..
+  EncryptorRESTAPIPOSTApiPermissionTestSbamNotesEncryptorRESTAPID56E0170POST577FC70F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - EncryptorRESTEncryptHandlerFB4C1A56
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: EncryptorRESTAPIF12D9A97
+            - /test-invoke-stage/POST/
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/POST/ApiPermission.Test.SbamNotesEncryptorRESTAPID56E0170.POST..
+  EncryptorRESTAPIPOSTA3B07F16:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Fn::GetAtt:
+          - EncryptorRESTAPIF12D9A97
+          - RootResourceId
+      RestApiId:
+        Ref: EncryptorRESTAPIF12D9A97
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - EncryptorRESTEncryptHandlerFB4C1A56
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/POST/Resource
+  EncryptorRESTAPIidC0D445F0:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - EncryptorRESTAPIF12D9A97
+          - RootResourceId
+      PathPart: "{id}"
+      RestApiId:
+        Ref: EncryptorRESTAPIF12D9A97
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/{id}/Resource
+  EncryptorRESTAPIidOPTIONSB5941E0E:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: EncryptorRESTAPIidC0D445F0
+      RestApiId:
+        Ref: EncryptorRESTAPIF12D9A97
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,POST,HEAD'"
+            StatusCode: "204"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "204"
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/{id}/OPTIONS/Resource
+  EncryptorRESTAPIidHEADApiPermissionSbamNotesEncryptorRESTAPID56E0170HEADidD2235BA6:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - EncryptorRESTCheckExistenceHandler421E70DF
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: EncryptorRESTAPIF12D9A97
+            - /
+            - Ref: EncryptorRESTAPIDeploymentStageapiA5DA1D22
+            - /HEAD/*
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/{id}/HEAD/ApiPermission.SbamNotesEncryptorRESTAPID56E0170.HEAD..{id}
+  EncryptorRESTAPIidHEADApiPermissionTestSbamNotesEncryptorRESTAPID56E0170HEADid7D2D0DF6:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - EncryptorRESTCheckExistenceHandler421E70DF
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: EncryptorRESTAPIF12D9A97
+            - /test-invoke-stage/HEAD/*
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/{id}/HEAD/ApiPermission.Test.SbamNotesEncryptorRESTAPID56E0170.HEAD..{id}
+  EncryptorRESTAPIidHEADB5981BB2:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: HEAD
+      ResourceId:
+        Ref: EncryptorRESTAPIidC0D445F0
+      RestApiId:
+        Ref: EncryptorRESTAPIF12D9A97
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - EncryptorRESTCheckExistenceHandler421E70DF
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/{id}/HEAD/Resource
+  EncryptorRESTAPIidPOSTApiPermissionSbamNotesEncryptorRESTAPID56E0170POSTid2A8C13BC:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - EncryptorRESTDecryptHandlerBFE9404B
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: EncryptorRESTAPIF12D9A97
+            - /
+            - Ref: EncryptorRESTAPIDeploymentStageapiA5DA1D22
+            - /POST/*
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/{id}/POST/ApiPermission.SbamNotesEncryptorRESTAPID56E0170.POST..{id}
+  EncryptorRESTAPIidPOSTApiPermissionTestSbamNotesEncryptorRESTAPID56E0170POSTidBC812B23:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - EncryptorRESTDecryptHandlerBFE9404B
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: EncryptorRESTAPIF12D9A97
+            - /test-invoke-stage/POST/*
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/{id}/POST/ApiPermission.Test.SbamNotesEncryptorRESTAPID56E0170.POST..{id}
+  EncryptorRESTAPIidPOST1ABBAE29:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: EncryptorRESTAPIidC0D445F0
+      RestApiId:
+        Ref: EncryptorRESTAPIF12D9A97
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - EncryptorRESTDecryptHandlerBFE9404B
+                  - Arn
+              - /invocations
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/Default/{id}/POST/Resource
+  EncryptorRESTAPICustomDomain6F939B57:
+    Type: AWS::ApiGateway::DomainName
+    Properties:
+      CertificateArn:
+        Fn::GetAtt:
+          - EncryptorRESTCustomDomainCertCertificateRequestorResource89666DF0
+          - Arn
+      DomainName:
+        Fn::Join:
+          - ""
+          - - Ref: ApiSubdomainParameter
+            - "."
+            - Ref: HostedZoneNameParameter
+      EndpointConfiguration:
+        Types:
+          - EDGE
+      SecurityPolicy: TLS_1_2
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/CustomDomain/Resource
+  EncryptorRESTAPICustomDomainMapSbamNotesEncryptorRESTAPID56E0170F80EE204:
+    Type: AWS::ApiGateway::BasePathMapping
+    Properties:
+      DomainName:
+        Ref: EncryptorRESTAPICustomDomain6F939B57
+      RestApiId:
+        Ref: EncryptorRESTAPIF12D9A97
+      Stage:
+        Ref: EncryptorRESTAPIDeploymentStageapiA5DA1D22
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/API/CustomDomain/Map:--=>SbamNotesEncryptorRESTAPID56E0170/Resource
+  EncryptorRESTCustomDomainCertCertificateRequestorFunctionServiceRole91552538:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/CustomDomainCert/CertificateRequestorFunction/ServiceRole/Resource
+  EncryptorRESTCustomDomainCertCertificateRequestorFunctionServiceRoleDefaultPolicy11416037:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - acm:AddTagsToCertificate
+              - acm:DeleteCertificate
+              - acm:DescribeCertificate
+              - acm:RequestCertificate
+              - route53:GetChange
+            Effect: Allow
+            Resource: "*"
+          - Action: route53:changeResourceRecordSets
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :route53:::hostedzone/
+                  - Ref: HostedZoneIdParameter
+        Version: "2012-10-17"
+      PolicyName: EncryptorRESTCustomDomainCertCertificateRequestorFunctionServiceRoleDefaultPolicy11416037
+      Roles:
+        - Ref: EncryptorRESTCustomDomainCertCertificateRequestorFunctionServiceRole91552538
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/CustomDomainCert/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource
+  EncryptorRESTCustomDomainCertCertificateRequestorFunction191C43D0:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 8ddf29ab619460567d3cda58de2ff1bf0f6e95d8822ff630ec58a4d52ed1fa67.zip
+      Role:
+        Fn::GetAtt:
+          - EncryptorRESTCustomDomainCertCertificateRequestorFunctionServiceRole91552538
+          - Arn
+      Handler: index.certificateRequestHandler
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - EncryptorRESTCustomDomainCertCertificateRequestorFunctionServiceRoleDefaultPolicy11416037
+      - EncryptorRESTCustomDomainCertCertificateRequestorFunctionServiceRole91552538
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/CustomDomainCert/CertificateRequestorFunction/Resource
+      aws:asset:path: asset.8ddf29ab619460567d3cda58de2ff1bf0f6e95d8822ff630ec58a4d52ed1fa67
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  EncryptorRESTCustomDomainCertCertificateRequestorResource89666DF0:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - EncryptorRESTCustomDomainCertCertificateRequestorFunction191C43D0
+          - Arn
+      DomainName:
+        Fn::Join:
+          - ""
+          - - Ref: ApiSubdomainParameter
+            - "."
+            - Ref: HostedZoneNameParameter
+      HostedZoneId:
+        Ref: HostedZoneIdParameter
+      Region: us-east-1
+      CleanupRecords: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/CustomDomainCert/CertificateRequestorResource/Default
+  EncryptorRESTCustomDomainARecordFADDCF94:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: ApiSubdomainParameter
+            - "."
+            - Ref: HostedZoneNameParameter
+            - "."
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - EncryptorRESTAPICustomDomain6F939B57
+            - DistributionDomainName
+        HostedZoneId:
+          Fn::GetAtt:
+            - EncryptorRESTAPICustomDomain6F939B57
+            - DistributionHostedZoneId
+      HostedZoneId:
+        Ref: HostedZoneIdParameter
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/CustomDomainARecord/Resource
+  EncryptorRESTCustomDomainAaaaRecord41A7F80D:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: ApiSubdomainParameter
+            - "."
+            - Ref: HostedZoneNameParameter
+            - "."
+      Type: AAAA
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - EncryptorRESTAPICustomDomain6F939B57
+            - DistributionDomainName
+        HostedZoneId:
+          Fn::GetAtt:
+            - EncryptorRESTAPICustomDomain6F939B57
+            - DistributionHostedZoneId
+      HostedZoneId:
+        Ref: HostedZoneIdParameter
+    Metadata:
+      aws:cdk:path: SbamNotes/Encryptor/REST/CustomDomainAaaaRecord/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SbamNotes/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:DeleteRetentionPolicy
+              - logs:PutRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: SbamNotes/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 4cd567bf52e0f31674ae9e960efae8855b8b1249fa9997799ae47dc9f80e9ff8.zip
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: SbamNotes/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+      aws:asset:path: asset.4cd567bf52e0f31674ae9e960efae8855b8b1249fa9997799ae47dc9f80e9ff8
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  FrontendWebsiteBucket77B0E915:
+    Type: AWS::S3::Bucket
+    Properties:
+      Tags:
+        - Key: aws-cdk:auto-delete-objects
+          Value: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/WebsiteBucket/Resource
+  FrontendWebsiteBucketPolicyD30AB861:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: FrontendWebsiteBucket77B0E915
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+                  - Arn
+            Resource:
+              - Fn::GetAtt:
+                  - FrontendWebsiteBucket77B0E915
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - FrontendWebsiteBucket77B0E915
+                        - Arn
+                    - /*
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - FrontendCDNOrigin1S3Origin15189BE9
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - FrontendWebsiteBucket77B0E915
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/WebsiteBucket/Policy/Resource
+  FrontendWebsiteBucketAutoDeleteObjectsCustomResource45772E97:
+    Type: Custom::S3AutoDeleteObjects
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F
+          - Arn
+      BucketName:
+        Ref: FrontendWebsiteBucket77B0E915
+    DependsOn:
+      - FrontendWebsiteBucketPolicyD30AB861
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/WebsiteBucket/AutoDeleteObjectsCustomResource/Default
+  FrontendCustomDomainCertCertificateRequestorFunctionServiceRole08514BAE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/CustomDomainCert/CertificateRequestorFunction/ServiceRole/Resource
+  FrontendCustomDomainCertCertificateRequestorFunctionServiceRoleDefaultPolicy2F1EEF9D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - acm:AddTagsToCertificate
+              - acm:DeleteCertificate
+              - acm:DescribeCertificate
+              - acm:RequestCertificate
+              - route53:GetChange
+            Effect: Allow
+            Resource: "*"
+          - Action: route53:changeResourceRecordSets
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :route53:::hostedzone/
+                  - Ref: HostedZoneIdParameter
+        Version: "2012-10-17"
+      PolicyName: FrontendCustomDomainCertCertificateRequestorFunctionServiceRoleDefaultPolicy2F1EEF9D
+      Roles:
+        - Ref: FrontendCustomDomainCertCertificateRequestorFunctionServiceRole08514BAE
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/CustomDomainCert/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource
+  FrontendCustomDomainCertCertificateRequestorFunctionE1D0CA48:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 8ddf29ab619460567d3cda58de2ff1bf0f6e95d8822ff630ec58a4d52ed1fa67.zip
+      Role:
+        Fn::GetAtt:
+          - FrontendCustomDomainCertCertificateRequestorFunctionServiceRole08514BAE
+          - Arn
+      Handler: index.certificateRequestHandler
+      Runtime: nodejs14.x
+      Timeout: 900
+    DependsOn:
+      - FrontendCustomDomainCertCertificateRequestorFunctionServiceRoleDefaultPolicy2F1EEF9D
+      - FrontendCustomDomainCertCertificateRequestorFunctionServiceRole08514BAE
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/CustomDomainCert/CertificateRequestorFunction/Resource
+      aws:asset:path: asset.8ddf29ab619460567d3cda58de2ff1bf0f6e95d8822ff630ec58a4d52ed1fa67
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  FrontendCustomDomainCertCertificateRequestorResource8493CCD1:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - FrontendCustomDomainCertCertificateRequestorFunctionE1D0CA48
+          - Arn
+      DomainName:
+        Fn::Join:
+          - ""
+          - - Ref: FrontendSubdomainParameter
+            - "."
+            - Ref: HostedZoneNameParameter
+      HostedZoneId:
+        Ref: HostedZoneIdParameter
+      Region: us-east-1
+      CleanupRecords: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/CustomDomainCert/CertificateRequestorResource/Default
+  FrontendRoutingFunction946960D5:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: AWS::Region
+            - SbamNotesFrontendRoutingFunction5CB01339
+      AutoPublish: true
+      FunctionCode: |-
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+
+          // Check whether the URI is missing a file name.
+          if (uri.endsWith('/') || !uri.includes('.')) {
+            request.uri = '/index.html';
+          }
+
+          return request;
+        }
+      FunctionConfig:
+        Comment:
+          Fn::Join:
+            - ""
+            - - Ref: AWS::Region
+              - SbamNotesFrontendRoutingFunction5CB01339
+        Runtime: cloudfront-js-1.0
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/RoutingFunction/Resource
+  FrontendCDNOrigin1S3Origin15189BE9:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Identity for SbamNotesFrontendCDNOrigin1BE8ED991
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/CDN/Origin1/S3Origin/Resource
+  FrontendCDN1AC82F09:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - Fn::Join:
+              - ""
+              - - Ref: FrontendSubdomainParameter
+                - "."
+                - Ref: HostedZoneNameParameter
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN:
+                Fn::GetAtt:
+                  - FrontendRoutingFunction946960D5
+                  - FunctionARN
+          TargetOriginId: SbamNotesFrontendCDNOrigin1BE8ED991
+          ViewerProtocolPolicy: allow-all
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - FrontendWebsiteBucket77B0E915
+                - RegionalDomainName
+            Id: SbamNotesFrontendCDNOrigin1BE8ED991
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: FrontendCDNOrigin1S3Origin15189BE9
+        ViewerCertificate:
+          AcmCertificateArn:
+            Fn::GetAtt:
+              - FrontendCustomDomainCertCertificateRequestorResource8493CCD1
+              - Arn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/CDN/Resource
+  FrontendCustomDomainARecordE2D7DD91:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: FrontendSubdomainParameter
+            - "."
+            - Ref: HostedZoneNameParameter
+            - "."
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - FrontendCDN1AC82F09
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId:
+        Ref: HostedZoneIdParameter
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/CustomDomainARecord/Resource
+  FrontendCustomDomainAaaaRecord84E59881:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name:
+        Fn::Join:
+          - ""
+          - - Ref: FrontendSubdomainParameter
+            - "."
+            - Ref: HostedZoneNameParameter
+            - "."
+      Type: AAAA
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - FrontendCDN1AC82F09
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId:
+        Ref: HostedZoneIdParameter
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/CustomDomainAaaaRecord/Resource
+  FrontendPipelineArtifactsBucketEncryptionKeyAE9C4FE1:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/ArtifactsBucketEncryptionKey/Resource
+  FrontendPipelineArtifactsBucketEncryptionKeyAliasEEDE7A0F:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-sbamnotesfrontendpipeline014655c4
+      TargetKeyId:
+        Fn::GetAtt:
+          - FrontendPipelineArtifactsBucketEncryptionKeyAE9C4FE1
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  FrontendPipelineArtifactsBucketC8A77485:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - FrontendPipelineArtifactsBucketEncryptionKeyAE9C4FE1
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/ArtifactsBucket/Resource
+  FrontendPipelineArtifactsBucketPolicy749A63D1:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: FrontendPipelineArtifactsBucketC8A77485
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - FrontendPipelineArtifactsBucketC8A77485
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - FrontendPipelineArtifactsBucketC8A77485
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/ArtifactsBucket/Policy/Resource
+  FrontendPipelineRole79FC651B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Role/Resource
+  FrontendPipelineRoleDefaultPolicyDFC179F4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - FrontendPipelineArtifactsBucketC8A77485
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - FrontendPipelineArtifactsBucketC8A77485
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - FrontendPipelineArtifactsBucketEncryptionKeyAE9C4FE1
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - FrontendPipelineBuildCodePipelineActionRole6ABC7411
+                  - Arn
+              - Fn::GetAtt:
+                  - FrontendPipelineCleanupInvalidateCloudfrontCodePipelineActionRole5B1C1509
+                  - Arn
+              - Fn::GetAtt:
+                  - FrontendPipelineDeployCodePipelineActionRole10C75770
+                  - Arn
+              - Fn::GetAtt:
+                  - FrontendPipelineSourceCodePipelineActionRole0A1D05DA
+                  - Arn
+        Version: "2012-10-17"
+      PolicyName: FrontendPipelineRoleDefaultPolicyDFC179F4
+      Roles:
+        - Ref: FrontendPipelineRole79FC651B
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Role/DefaultPolicy/Resource
+  FrontendPipeline32571E9B:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - FrontendPipelineRole79FC651B
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: "1"
+              Configuration:
+                ConnectionArn:
+                  Ref: CodeStarConnectionArnParameter
+                FullRepositoryId: sbam-tools/notes-frontend
+                BranchName: master
+              Name: Source
+              OutputArtifacts:
+                - Name: Source
+              RoleArn:
+                Fn::GetAtt:
+                  - FrontendPipelineSourceCodePipelineActionRole0A1D05DA
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: FrontendPipelineBuildProject42E94E5E
+              InputArtifacts:
+                - Name: Source
+              Name: Build
+              OutputArtifacts:
+                - Name: Build
+              RoleArn:
+                Fn::GetAtt:
+                  - FrontendPipelineBuildCodePipelineActionRole6ABC7411
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              Configuration:
+                BucketName:
+                  Ref: FrontendWebsiteBucket77B0E915
+                Extract: "true"
+                CacheControl: max-age=31536000
+              InputArtifacts:
+                - Name: Build
+              Name: Deploy
+              RoleArn:
+                Fn::GetAtt:
+                  - FrontendPipelineDeployCodePipelineActionRole10C75770
+                  - Arn
+              RunOrder: 1
+          Name: Deploy
+        - Actions:
+            - ActionTypeId:
+                Category: Invoke
+                Owner: AWS
+                Provider: Lambda
+                Version: "1"
+              Configuration:
+                FunctionName:
+                  Ref: InvalidateCloudfrontCodePipelineHandler43863D2E
+                UserParameters:
+                  Fn::Join:
+                    - ""
+                    - - '{"distributionId":"'
+                      - Ref: FrontendCDN1AC82F09
+                      - '","objectPaths":["/*"]}'
+              Name: InvalidateCloudfront
+              RoleArn:
+                Fn::GetAtt:
+                  - FrontendPipelineCleanupInvalidateCloudfrontCodePipelineActionRole5B1C1509
+                  - Arn
+              RunOrder: 1
+          Name: Cleanup
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - FrontendPipelineArtifactsBucketEncryptionKeyAE9C4FE1
+              - Arn
+          Type: KMS
+        Location:
+          Ref: FrontendPipelineArtifactsBucketC8A77485
+        Type: S3
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - FrontendPipelineRoleDefaultPolicyDFC179F4
+      - FrontendPipelineRole79FC651B
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Resource
+  FrontendPipelineSourceCodePipelineActionRole0A1D05DA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Source/Source/CodePipelineActionRole/Resource
+  FrontendPipelineSourceCodePipelineActionRoleDefaultPolicy389F0B66:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codestar-connections:UseConnection
+            Effect: Allow
+            Resource:
+              Ref: CodeStarConnectionArnParameter
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - FrontendPipelineArtifactsBucketC8A77485
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - FrontendPipelineArtifactsBucketC8A77485
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - FrontendPipelineArtifactsBucketEncryptionKeyAE9C4FE1
+                - Arn
+          - Action:
+              - s3:PutObjectAcl
+              - s3:PutObjectVersionAcl
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - FrontendPipelineArtifactsBucketC8A77485
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PolicyName: FrontendPipelineSourceCodePipelineActionRoleDefaultPolicy389F0B66
+      Roles:
+        - Ref: FrontendPipelineSourceCodePipelineActionRole0A1D05DA
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Source/Source/CodePipelineActionRole/DefaultPolicy/Resource
+  FrontendPipelineBuildCodePipelineActionRole6ABC7411:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Build/Build/CodePipelineActionRole/Resource
+  FrontendPipelineBuildCodePipelineActionRoleDefaultPolicy42A567DF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - FrontendPipelineBuildProject42E94E5E
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: FrontendPipelineBuildCodePipelineActionRoleDefaultPolicy42A567DF
+      Roles:
+        - Ref: FrontendPipelineBuildCodePipelineActionRole6ABC7411
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Build/Build/CodePipelineActionRole/DefaultPolicy/Resource
+  FrontendPipelineDeployCodePipelineActionRole10C75770:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Deploy/Deploy/CodePipelineActionRole/Resource
+  FrontendPipelineDeployCodePipelineActionRoleDefaultPolicy3B28E0A1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - FrontendWebsiteBucket77B0E915
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - FrontendWebsiteBucket77B0E915
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - FrontendPipelineArtifactsBucketC8A77485
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - FrontendPipelineArtifactsBucketC8A77485
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - FrontendPipelineArtifactsBucketEncryptionKeyAE9C4FE1
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: FrontendPipelineDeployCodePipelineActionRoleDefaultPolicy3B28E0A1
+      Roles:
+        - Ref: FrontendPipelineDeployCodePipelineActionRole10C75770
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Deploy/Deploy/CodePipelineActionRole/DefaultPolicy/Resource
+  FrontendPipelineCleanupInvalidateCloudfrontCodePipelineActionRole5B1C1509:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Cleanup/InvalidateCloudfront/CodePipelineActionRole/Resource
+  FrontendPipelineCleanupInvalidateCloudfrontCodePipelineActionRoleDefaultPolicyBFE6829A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:ListFunctions
+            Effect: Allow
+            Resource: "*"
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - InvalidateCloudfrontCodePipelineHandler43863D2E
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - InvalidateCloudfrontCodePipelineHandler43863D2E
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: FrontendPipelineCleanupInvalidateCloudfrontCodePipelineActionRoleDefaultPolicyBFE6829A
+      Roles:
+        - Ref: FrontendPipelineCleanupInvalidateCloudfrontCodePipelineActionRole5B1C1509
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/Cleanup/InvalidateCloudfront/CodePipelineActionRole/DefaultPolicy/Resource
+  FrontendPipelineBuildProjectRoleF052E7C9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/BuildProject/Role/Resource
+  FrontendPipelineBuildProjectRoleDefaultPolicyCC741919:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: FrontendPipelineBuildProject42E94E5E
+                    - :*
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: FrontendPipelineBuildProject42E94E5E
+          - Action:
+              - codebuild:BatchPutCodeCoverages
+              - codebuild:BatchPutTestCases
+              - codebuild:CreateReport
+              - codebuild:CreateReportGroup
+              - codebuild:UpdateReport
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: FrontendPipelineBuildProject42E94E5E
+                  - -*
+          - Action:
+              - s3:Abort*
+              - s3:DeleteObject*
+              - s3:GetBucket*
+              - s3:GetObject*
+              - s3:List*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - FrontendPipelineArtifactsBucketC8A77485
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - FrontendPipelineArtifactsBucketC8A77485
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:GenerateDataKey*
+              - kms:ReEncrypt*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - FrontendPipelineArtifactsBucketEncryptionKeyAE9C4FE1
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: FrontendPipelineBuildProjectRoleDefaultPolicyCC741919
+      Roles:
+        - Ref: FrontendPipelineBuildProjectRoleF052E7C9
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/BuildProject/Role/DefaultPolicy/Resource
+  FrontendPipelineBuildProject42E94E5E:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: VITE_API_ENDPOINT
+            Type: PLAINTEXT
+            Value:
+              Fn::Join:
+                - ""
+                - - https://
+                  - Ref: ApiSubdomainParameter
+                  - "."
+                  - Ref: HostedZoneNameParameter
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - FrontendPipelineBuildProjectRoleF052E7C9
+          - Arn
+      Source:
+        BuildSpec: |
+          version: "0.2"
+          phases:
+            install:
+              runtime-versions:
+                nodejs: "14"
+              commands:
+                - npm ci
+            build:
+              commands:
+                - npm run build
+          artifacts:
+            files:
+              - "**/*"
+            base-directory: dist
+          cache:
+            paths:
+              - node_modules/**/*
+        Type: CODEPIPELINE
+      Cache:
+        Modes:
+          - LOCAL_SOURCE_CACHE
+          - LOCAL_CUSTOM_CACHE
+        Type: LOCAL
+      EncryptionKey:
+        Fn::GetAtt:
+          - FrontendPipelineArtifactsBucketEncryptionKeyAE9C4FE1
+          - Arn
+    Metadata:
+      aws:cdk:path: SbamNotes/Frontend/Pipeline/BuildProject/Resource
+  CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SbamNotes/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role
+  CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 990410bab4a39b07c4495c3b8fae2f3f8847daabc9e3fc1debf3fa050c25e302.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+          - Arn
+      Runtime: nodejs14.x
+      Description:
+        Fn::Join:
+          - ""
+          - - "Lambda function for auto-deleting objects in "
+            - Ref: FrontendWebsiteBucket77B0E915
+            - " S3 bucket."
+    DependsOn:
+      - CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092
+    Metadata:
+      aws:cdk:path: SbamNotes/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler
+      aws:asset:path: asset.990410bab4a39b07c4495c3b8fae2f3f8847daabc9e3fc1debf3fa050c25e302
+      aws:asset:property: Code
+  InvalidateCloudfrontCodePipelineHandlerServiceRole71BDECCC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SbamNotes/InvalidateCloudfrontCodePipelineHandler/ServiceRole/Resource
+  InvalidateCloudfrontCodePipelineHandlerServiceRoleDefaultPolicyAD41BA33:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: cloudfront:CreateInvalidation
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":cloudfront::"
+                  - Ref: AWS::AccountId
+                  - :distribution/
+                  - Ref: FrontendCDN1AC82F09
+          - Action:
+              - codepipeline:PutJobFailureResult
+              - codepipeline:PutJobSuccessResult
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: InvalidateCloudfrontCodePipelineHandlerServiceRoleDefaultPolicyAD41BA33
+      Roles:
+        - Ref: InvalidateCloudfrontCodePipelineHandlerServiceRole71BDECCC
+    Metadata:
+      aws:cdk:path: SbamNotes/InvalidateCloudfrontCodePipelineHandler/ServiceRole/DefaultPolicy/Resource
+  InvalidateCloudfrontCodePipelineHandler43863D2E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 4538bb2e6842d5193d619af9d65d88e0df111a90325e574cddb383813f9739ec.zip
+      Role:
+        Fn::GetAtt:
+          - InvalidateCloudfrontCodePipelineHandlerServiceRole71BDECCC
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - InvalidateCloudfrontCodePipelineHandlerServiceRoleDefaultPolicyAD41BA33
+      - InvalidateCloudfrontCodePipelineHandlerServiceRole71BDECCC
+    Metadata:
+      aws:cdk:path: SbamNotes/InvalidateCloudfrontCodePipelineHandler/Resource
+      aws:asset:path: asset.4538bb2e6842d5193d619af9d65d88e0df111a90325e574cddb383813f9739ec
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/3VUTY/TMBD9LdxdoxYhwTFtWQnB7oYWca1ce5qdNrGDP7qqovx3xnaaZEFcMm9m7GfPvHFWfPWZL9+JV7eQ6rKo8ci7vRfywjYnXQorGvBg2Q6cCVYCo4WHDq6gvePdl2jXwcW1I96FGmIg2p6pmxaNUcT6UxxzIoGeud/E8CNASMEM0rc0NcrbGMxuz2rRHJU4aKPg7PhTMg9BS49GMxQN73ZmODnaieVO4D4chHNAFy+iIZ936yAv4NfCAcswbhhQNhPP3L9fh3eUGG+RerBPjXoUbYu6GjvzT7QE26Bzcdt9P5GayvHvptpR03WiFC1WwsOruFF94HzRYipxgoWUJmjPttDW5tbQvhideSRnlfqSwV3KVPQj+BejYnJAo9D5kIy3phGon2gWEvXkRY5S+JdZXX+FeibBejyhpCoaoekGlm+1+yVqVBRSmynNrAkePpIsxQ6ksSpfIqI96VEIIbJHpLUJ6mSN9rwb2z+XYovOWzyG5DxbrDA2Cpz7qmJnfVJ0E1keIsv/Vsxp6FQauhZbqFED78oBJTUH3LNLQ2P9DdLuaIoaRXogCWSOY8BaTQSlNWeQSbYB9j1LMxoVG/o6F+Y5+DbQ+uC8aabEG5eYrqjo6UZtJ3k2RivM1cSXxM/u/XX5iS9X9BM4O8SFpVnCBvgu2z+DAsTSIAQAAA==
+    Metadata:
+      aws:cdk:path: SbamNotes/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  EncryptorRESTAPIEndpoint253254D3:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: EncryptorRESTAPIF12D9A97
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: EncryptorRESTAPIDeploymentStageapiA5DA1D22
+          - /
+  EncryptorRESTCustomDomainEndpoint6603946D:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: EncryptorRESTAPICustomDomain6F939B57
+  FrontendCustomDomainEndpoint7ECEBF01:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: FrontendSubdomainParameter
+          - "."
+          - Ref: HostedZoneNameParameter
+Mappings:
+  AWSCloudFrontPartitionHostedZoneIdMap:
+    aws:
+      zoneId: Z2FDTNDATAQYW2
+    aws-cn:
+      zoneId: Z3RFFRIM2A3IF5
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

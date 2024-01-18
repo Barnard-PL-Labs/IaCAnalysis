@@ -1,0 +1,256 @@
+Resources:
+  MyTable794EDED1:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: RequestId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: RequestId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: SfnCdkStack/MyTable/Resource
+  SubmitLambdaServiceRole98C85C39:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SfnCdkStack/SubmitLambda/ServiceRole/Resource
+  SubmitLambda8054545E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |-
+          def main(event, context):
+          	return(event)
+      Handler: index.main
+      Role:
+        Fn::GetAtt:
+          - SubmitLambdaServiceRole98C85C39
+          - Arn
+      Runtime: python3.7
+    DependsOn:
+      - SubmitLambdaServiceRole98C85C39
+    Metadata:
+      aws:cdk:path: SfnCdkStack/SubmitLambda/Resource
+  StatusLambdaServiceRoleA14AB7E9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: SfnCdkStack/StatusLambda/ServiceRole/Resource
+  StatusLambdaC33D2097:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |-
+          def main(event, context):
+          	return("SUCCEEDED")
+      Handler: index.main
+      Role:
+        Fn::GetAtt:
+          - StatusLambdaServiceRoleA14AB7E9
+          - Arn
+      Runtime: python3.7
+    DependsOn:
+      - StatusLambdaServiceRoleA14AB7E9
+    Metadata:
+      aws:cdk:path: SfnCdkStack/StatusLambda/Resource
+  StateMachineRoleB840431D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - states.
+                    - Ref: AWS::Region
+                    - .amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: SfnCdkStack/StateMachine/Role/Resource
+  StateMachineRoleDefaultPolicyDF1E6607:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - SubmitLambda8054545E
+                - Arn
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - StatusLambdaC33D2097
+                - Arn
+          - Action: dynamodb:PutItem
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":dynamodb:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :table/
+                  - Ref: MyTable794EDED1
+        Version: "2012-10-17"
+      PolicyName: StateMachineRoleDefaultPolicyDF1E6607
+      Roles:
+        - Ref: StateMachineRoleB840431D
+    Metadata:
+      aws:cdk:path: SfnCdkStack/StateMachine/Role/DefaultPolicy/Resource
+  StateMachine2E01A3A5:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      DefinitionString:
+        Fn::Join:
+          - ""
+          - - '{"StartAt":"Submit Job","States":{"Submit Job":{"Next":"Wait X Seconds","Parameters":{"FunctionName":"'
+            - Ref: SubmitLambda8054545E
+            - '","Payload":{"type":0,"value.$":"$"}},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","ResultPath":"$.guid"},"Wait X Seconds":{"Type":"Wait","SecondsPath":"$.waitSeconds","Next":"Get Job Status"},"Get Job Status":{"Next":"Job Complete?","Parameters":{"FunctionName":"
+            - Ref: StatusLambdaC33D2097
+            - '","Payload":{"type":0,"value.$":"$.guid"}},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","ResultPath":"$.status"},"Job Complete?":{"Type":"Choice","Choices":[{"Variable":"$.status.Payload","StringEquals":"FAILED","Next":"Job Failed"},{"Variable":"$.status.Payload","StringEquals":"SUCCEEDED","Next":"Write to DDB"}],"Default":"Wait X Seconds"},"Job Failed":{"Type":"Fail","Error":"DescribeJob returned FAILED","Cause":"Job Failed"},"Write to DDB":{"Next":"Get Final Job Status","InputPath":"$","Parameters":{"Item":{"RequestId":{"S.$":"$.guid.SdkHttpMetadata.HttpHeaders.x-amzn-RequestId"},"TraceId":{"S.$":"$.guid.SdkHttpMetadata.HttpHeaders.X-Amzn-Trace-Id"},"Status":{"S.$":"$.status.Payload"}},"TableName":"
+            - Ref: MyTable794EDED1
+            - '"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::dynamodb:putItem","ResultPath":"$.ddb"},"Get Final Job Status":{"End":true,"InputPath":"$.guid","Parameters":{"FunctionName":"
+            - Ref: StatusLambdaC33D2097
+            - '"},"Type":"Task","Resource":"arn:'
+            - Ref: AWS::Partition
+            - :states:::lambda:invoke","ResultPath":"$.status.Payload"}},"TimeoutSeconds":300}
+      RoleArn:
+        Fn::GetAtt:
+          - StateMachineRoleB840431D
+          - Arn
+    DependsOn:
+      - StateMachineRoleDefaultPolicyDF1E6607
+      - StateMachineRoleB840431D
+    Metadata:
+      aws:cdk:path: SfnCdkStack/StateMachine/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.34.1,@aws-cdk/aws-applicationautoscaling=1.34.1,@aws-cdk/aws-autoscaling=1.34.1,@aws-cdk/aws-autoscaling-common=1.34.1,@aws-cdk/aws-autoscaling-hooktargets=1.34.1,@aws-cdk/aws-cloudformation=1.34.1,@aws-cdk/aws-cloudwatch=1.34.1,@aws-cdk/aws-dynamodb=1.34.1,@aws-cdk/aws-ec2=1.34.1,@aws-cdk/aws-ecr=1.34.1,@aws-cdk/aws-ecr-assets=1.34.1,@aws-cdk/aws-ecs=1.34.1,@aws-cdk/aws-elasticloadbalancingv2=1.34.1,@aws-cdk/aws-events=1.34.1,@aws-cdk/aws-iam=1.34.1,@aws-cdk/aws-kms=1.34.1,@aws-cdk/aws-lambda=1.34.1,@aws-cdk/aws-logs=1.34.1,@aws-cdk/aws-s3=1.34.1,@aws-cdk/aws-s3-assets=1.34.1,@aws-cdk/aws-servicediscovery=1.34.1,@aws-cdk/aws-sns=1.34.1,@aws-cdk/aws-sns-subscriptions=1.34.1,@aws-cdk/aws-sqs=1.34.1,@aws-cdk/aws-ssm=1.34.1,@aws-cdk/aws-stepfunctions=1.34.1,@aws-cdk/aws-stepfunctions-tasks=1.34.1,@aws-cdk/cloud-assembly-schema=1.34.1,@aws-cdk/core=1.34.1,@aws-cdk/custom-resources=1.34.1,@aws-cdk/cx-api=1.34.1,@aws-cdk/region-info=1.34.1,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

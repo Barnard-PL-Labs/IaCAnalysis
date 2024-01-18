@@ -1,0 +1,445 @@
+Resources:
+  LexRoleD3586196:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lex.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: BackendStack/LexRole/Resource
+  LambdaRole3A44B857:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonLexFullAccess
+    Metadata:
+      aws:cdk:path: BackendStack/LambdaRole/Resource
+  IntentFulfillmentFunc699FB68E:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 71cdd09ee8069a25d76fa3700f8f4a305f290bb9096c431556cfb49500be972f.zip
+      Role:
+        Fn::GetAtt:
+          - LambdaRole3A44B857
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - LambdaRole3A44B857
+    Metadata:
+      aws:cdk:path: BackendStack/IntentFulfillmentFunc/Resource
+      aws:asset:path: asset.71cdd09ee8069a25d76fa3700f8f4a305f290bb9096c431556cfb49500be972f
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  IntentFulfillmentFuncVersion8C58A74C:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName:
+        Ref: IntentFulfillmentFunc699FB68E
+    Metadata:
+      aws:cdk:path: BackendStack/IntentFulfillmentFuncVersion/Resource
+  IntentFulfillmentFuncAlias4501838F:
+    Type: AWS::Lambda::Alias
+    Properties:
+      FunctionName:
+        Ref: IntentFulfillmentFunc699FB68E
+      FunctionVersion:
+        Fn::GetAtt:
+          - IntentFulfillmentFuncVersion8C58A74C
+          - Version
+      Name: dev
+    Metadata:
+      aws:cdk:path: BackendStack/IntentFulfillmentFuncAlias/Resource
+  SignUpBot:
+    Type: AWS::Lex::Bot
+    Properties:
+      DataPrivacy:
+        ChildDirected: false
+      IdleSessionTTLInSeconds: 300
+      Name: SignUpBot
+      RoleArn:
+        Fn::GetAtt:
+          - LexRoleD3586196
+          - Arn
+      AutoBuildBotLocales: true
+      BotLocales:
+        - Intents:
+            - Name: SignUp
+              SampleUtterances:
+                - Utterance: 入会
+              SlotPriorities:
+                - Priority: 1
+                  SlotName: Gender
+                - Priority: 2
+                  SlotName: DateOfBirth
+              Slots:
+                - Name: Gender
+                  SlotTypeName: Gender
+                  ValueElicitationSetting:
+                    PromptSpecification:
+                      MaxRetries: 3
+                      MessageGroupsList:
+                        - Message:
+                            PlainTextMessage:
+                              Value: 性別を教えてください。
+                    SlotConstraint: Required
+                - Name: DateOfBirth
+                  SlotTypeName: AMAZON.Date
+                  ValueElicitationSetting:
+                    PromptSpecification:
+                      MaxRetries: 3
+                      MessageGroupsList:
+                        - Message:
+                            CustomPayload:
+                              Value: |-
+                                {
+
+                                                  }
+                        - Message:
+                            PlainTextMessage:
+                              Value: 生年月日を教えてください。
+                    SlotConstraint: Required
+            - Name: FallbackIntent
+              ParentIntentSignature: AMAZON.FallbackIntent
+          LocaleId: ja_JP
+          NluConfidenceThreshold: 0.4
+          SlotTypes:
+            - Name: Gender
+              SlotTypeValues:
+                - SampleValue:
+                    Value: 男性
+                - SampleValue:
+                    Value: 女性
+                - SampleValue:
+                    Value: その他
+              ValueSelectionSetting:
+                ResolutionStrategy: ORIGINAL_VALUE
+    Metadata:
+      aws:cdk:path: BackendStack/SignUpBot
+  SignUpBotVersion:
+    Type: AWS::Lex::BotVersion
+    Properties:
+      BotId:
+        Ref: SignUpBot
+      BotVersionLocaleSpecification:
+        - BotVersionLocaleDetails:
+            SourceBotVersion: DRAFT
+          LocaleId: ja_JP
+    Metadata:
+      aws:cdk:path: BackendStack/SignUpBotVersion
+  SignUpBotAlias:
+    Type: AWS::Lex::BotAlias
+    Properties:
+      BotAliasName: Beta
+      BotId:
+        Ref: SignUpBot
+      BotVersion:
+        Fn::GetAtt:
+          - SignUpBotVersion
+          - BotVersion
+    Metadata:
+      aws:cdk:path: BackendStack/SignUpBotAlias
+  LineWebhookFunc4FD0F549:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 029239ea44c8a277bd6007c70a117e9db529030991049ea1b6fb7d94c0cdd625.zip
+      Role:
+        Fn::GetAtt:
+          - LambdaRole3A44B857
+          - Arn
+      Environment:
+        Variables:
+          LEX_BOT_ID:
+            Ref: SignUpBot
+          LEX_BOT_ALIAS_ID:
+            Fn::GetAtt:
+              - SignUpBotAlias
+              - BotAliasId
+          LEX_LOCALE_ID: ja_JP
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - LambdaRole3A44B857
+    Metadata:
+      aws:cdk:path: BackendStack/LineWebhookFunc/Resource
+      aws:asset:path: asset.029239ea44c8a277bd6007c70a117e9db529030991049ea1b6fb7d94c0cdd625
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  ApiF70053CD:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: ChatBotAPI
+    Metadata:
+      aws:cdk:path: BackendStack/Api/Resource
+  ApiDeploymentB17BE62Df5afec39fe003d75238a30cafd07f3b7:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: ApiF70053CD
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - ApiOPTIONS5886EA5D
+      - ApiPOST9384DEBA
+    Metadata:
+      aws:cdk:path: BackendStack/Api/Deployment/Resource
+  ApiDeploymentStageprod3EB9684E:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: ApiF70053CD
+      DeploymentId:
+        Ref: ApiDeploymentB17BE62Df5afec39fe003d75238a30cafd07f3b7
+      StageName: prod
+    Metadata:
+      aws:cdk:path: BackendStack/Api/DeploymentStage.prod/Resource
+  ApiOPTIONS5886EA5D:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - RootResourceId
+      RestApiId:
+        Ref: ApiF70053CD
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "200"
+        RequestTemplates:
+          application/json: "{ statusCode: 200 }"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Origin: true
+            method.response.header.Access-Control-Allow-Methods: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: BackendStack/Api/Default/OPTIONS/Resource
+  ApiPOSTApiPermissionBackendStackApi99DE2BCEPOSTB88DFF5C:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - LineWebhookFunc4FD0F549
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ApiF70053CD
+            - /
+            - Ref: ApiDeploymentStageprod3EB9684E
+            - /POST/
+    Metadata:
+      aws:cdk:path: BackendStack/Api/Default/POST/ApiPermission.BackendStackApi99DE2BCE.POST..
+  ApiPOSTApiPermissionTestBackendStackApi99DE2BCEPOST0015C204:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - LineWebhookFunc4FD0F549
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ApiF70053CD
+            - /test-invoke-stage/POST/
+    Metadata:
+      aws:cdk:path: BackendStack/Api/Default/POST/ApiPermission.Test.BackendStackApi99DE2BCE.POST..
+  ApiPOST9384DEBA:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Fn::GetAtt:
+          - ApiF70053CD
+          - RootResourceId
+      RestApiId:
+        Ref: ApiF70053CD
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - LineWebhookFunc4FD0F549
+                  - Arn
+              - /invocations
+      MethodResponses:
+        - ResponseModels:
+            application/json; charset=UTF-8: Empty
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: BackendStack/Api/Default/POST/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01QTW+DMAz9Lb0Hb7SXXaHTbt2mTtoVpeAx85Eg7KyrEP99SWCop/f8bD/nZQ/pAR53+spJWbVJRxeYPkSXrfJSMZHuYTrbDtXxywScVaf7S6ULYytsGF4jvDhTClmj+FBoZhSGLICvIXdli5JrxnUVJu+1bXziyAG99k+zjjQHYSPvOPbEoenv4290yK2oBe4sfBWXZqUHqrXgVd98AGTJBooZVvqMQ2dvPZpoclf58HVMuxA/b91YYnz/CeXbVqG5sHlWMWYYJVNvw2HizcngZD25qUdrKpKYI3wgNPzwkz5Buod01zBRMjoj1COcF/wDJuncbJ8BAAA=
+    Metadata:
+      aws:cdk:path: BackendStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  ApiEndpoint4F160690:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: ApiF70053CD
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: ApiDeploymentStageprod3EB9684E
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

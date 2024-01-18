@@ -1,0 +1,364 @@
+Resources:
+  cdkreknimgagebucketABE44D40:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/cdk-rekn-imgagebucket/Resource
+  cdkreknimgagebucketNotificationsEB03BA1D:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: cdkreknimgagebucketABE44D40
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - rekognitionFunctionAC00BB5D
+                - Arn
+    DependsOn:
+      - cdkreknimgagebucketAllowBucketNotificationsToDevhrProjectStackrekognitionFunction393B94EF6A3E2382
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/cdk-rekn-imgagebucket/Notifications/Resource
+  cdkreknimgagebucketAllowBucketNotificationsToDevhrProjectStackrekognitionFunction393B94EF6A3E2382:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - rekognitionFunctionAC00BB5D
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - cdkreknimgagebucketABE44D40
+          - Arn
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/cdk-rekn-imgagebucket/AllowBucketNotificationsToDevhrProjectStackrekognitionFunction393B94EF
+  ImageLabelsE524135D:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: image
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: image
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/ImageLabels/Resource
+  rekognitionFunctionServiceRole85A1F6FD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/rekognitionFunction/ServiceRole/Resource
+  rekognitionFunctionServiceRoleDefaultPolicy92A8E60B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - cdkreknimgagebucketABE44D40
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - cdkreknimgagebucketABE44D40
+                        - Arn
+                    - /*
+          - Action:
+              - dynamodb:BatchWriteItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:DeleteItem
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ImageLabelsE524135D
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: rekognition:DetectLabels
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: rekognitionFunctionServiceRoleDefaultPolicy92A8E60B
+      Roles:
+        - Ref: rekognitionFunctionServiceRole85A1F6FD
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/rekognitionFunction/ServiceRole/DefaultPolicy/Resource
+  rekognitionFunctionAC00BB5D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters21f4555b6ae39a5e62590b4585f68ec6c251c71198993d9c112aaabc4aaf0ddbS3Bucket9B57D995
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters21f4555b6ae39a5e62590b4585f68ec6c251c71198993d9c112aaabc4aaf0ddbS3VersionKeyFDBAAD0F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters21f4555b6ae39a5e62590b4585f68ec6c251c71198993d9c112aaabc4aaf0ddbS3VersionKeyFDBAAD0F
+      Role:
+        Fn::GetAtt:
+          - rekognitionFunctionServiceRole85A1F6FD
+          - Arn
+      Environment:
+        Variables:
+          TABLE:
+            Ref: ImageLabelsE524135D
+          BUCKET:
+            Ref: cdkreknimgagebucketABE44D40
+      Handler: index.handler
+      MemorySize: 1024
+      Runtime: python3.7
+      Timeout: 30
+    DependsOn:
+      - rekognitionFunctionServiceRoleDefaultPolicy92A8E60B
+      - rekognitionFunctionServiceRole85A1F6FD
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/rekognitionFunction/Resource
+      aws:asset:path: asset.21f4555b6ae39a5e62590b4585f68ec6c251c71198993d9c112aaabc4aaf0ddb
+      aws:asset:property: Code
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |-
+          exports.handler = (event, context) => {
+              // eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-extraneous-dependencies
+              const s3 = new (require('aws-sdk').S3)();
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const https = require('https');
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const url = require('url');
+              log(JSON.stringify(event, undefined, 2));
+              const props = event.ResourceProperties;
+              if (event.RequestType === 'Delete') {
+                  props.NotificationConfiguration = {}; // this is how you clean out notifications
+              }
+              const req = {
+                  Bucket: props.BucketName,
+                  NotificationConfiguration: props.NotificationConfiguration,
+              };
+              return s3.putBucketNotificationConfiguration(req, (err, data) => {
+                  log({ err, data });
+                  if (err) {
+                      return submitResponse('FAILED', err.message + `\nMore information in CloudWatch Log Stream: ${context.logStreamName}`);
+                  }
+                  else {
+                      return submitResponse('SUCCESS');
+                  }
+              });
+              function log(obj) {
+                  console.error(event.RequestId, event.StackId, event.LogicalResourceId, obj);
+              }
+              // eslint-disable-next-line max-len
+              // adapted from https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-function-code.html#cfn-lambda-function-code-cfnresponsemodule
+              // to allow sending an error messge as a reason.
+              function submitResponse(responseStatus, reason) {
+                  const responseBody = JSON.stringify({
+                      Status: responseStatus,
+                      Reason: reason || 'See the details in CloudWatch Log Stream: ' + context.logStreamName,
+                      PhysicalResourceId: event.PhysicalResourceId || event.LogicalResourceId,
+                      StackId: event.StackId,
+                      RequestId: event.RequestId,
+                      LogicalResourceId: event.LogicalResourceId,
+                      NoEcho: false,
+                  });
+                  log({ responseBody });
+                  const parsedUrl = url.parse(event.ResponseURL);
+                  const options = {
+                      hostname: parsedUrl.hostname,
+                      port: 443,
+                      path: parsedUrl.path,
+                      method: 'PUT',
+                      headers: {
+                          'content-type': '',
+                          'content-length': responseBody.length,
+                      },
+                  };
+                  const request = https.request(options, (r) => {
+                      log({ statusCode: r.statusCode, statusMessage: r.statusMessage });
+                      context.done();
+                  });
+                  request.on('error', (error) => {
+                      log({ sendError: error });
+                      context.done();
+                  });
+                  request.write(responseBody);
+                  request.end();
+              }
+          };
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: nodejs10.x
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.87.1,@aws-cdk/aws-apigateway=1.87.1,@aws-cdk/aws-applicationautoscaling=1.87.1,@aws-cdk/aws-autoscaling-common=1.87.1,@aws-cdk/aws-cloudwatch=1.87.1,@aws-cdk/aws-codeguruprofiler=1.87.1,@aws-cdk/aws-dynamodb=1.87.1,@aws-cdk/aws-ec2=1.87.1,@aws-cdk/aws-ecr=1.87.1,@aws-cdk/aws-ecr-assets=1.87.1,@aws-cdk/aws-events=1.87.1,@aws-cdk/aws-iam=1.87.1,@aws-cdk/aws-kms=1.87.1,@aws-cdk/aws-lambda=1.87.1,@aws-cdk/aws-lambda-event-sources=1.87.1,@aws-cdk/aws-logs=1.87.1,@aws-cdk/aws-s3=1.87.1,@aws-cdk/aws-s3-assets=1.87.1,@aws-cdk/aws-s3-notifications=1.87.1,@aws-cdk/aws-sns=1.87.1,@aws-cdk/aws-sns-subscriptions=1.87.1,@aws-cdk/aws-sqs=1.87.1,@aws-cdk/aws-ssm=1.87.1,@aws-cdk/cloud-assembly-schema=1.87.1,@aws-cdk/core=1.87.1,@aws-cdk/custom-resources=1.87.1,@aws-cdk/cx-api=1.87.1,@aws-cdk/region-info=1.87.1,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: DevhrProjectStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  imageBucket:
+    Value:
+      Ref: cdkreknimgagebucketABE44D40
+  ddbTable:
+    Value:
+      Ref: ImageLabelsE524135D
+Parameters:
+  AssetParameters21f4555b6ae39a5e62590b4585f68ec6c251c71198993d9c112aaabc4aaf0ddbS3Bucket9B57D995:
+    Type: String
+    Description: S3 bucket for asset "21f4555b6ae39a5e62590b4585f68ec6c251c71198993d9c112aaabc4aaf0ddb"
+  AssetParameters21f4555b6ae39a5e62590b4585f68ec6c251c71198993d9c112aaabc4aaf0ddbS3VersionKeyFDBAAD0F:
+    Type: String
+    Description: S3 key for asset version "21f4555b6ae39a5e62590b4585f68ec6c251c71198993d9c112aaabc4aaf0ddb"
+  AssetParameters21f4555b6ae39a5e62590b4585f68ec6c251c71198993d9c112aaabc4aaf0ddbArtifactHash174F2672:
+    Type: String
+    Description: Artifact hash for asset "21f4555b6ae39a5e62590b4585f68ec6c251c71198993d9c112aaabc4aaf0ddb"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

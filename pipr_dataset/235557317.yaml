@@ -1,0 +1,530 @@
+Resources:
+  Files8E6940B8:
+    Type: AWS::S3::Bucket
+    Properties:
+      WebsiteConfiguration:
+        ErrorDocument: error.html
+        IndexDocument: index.html
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Pipeline/Files/Resource
+  FilesPolicyCFAB4773:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: Files8E6940B8
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - Files8E6940B8
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Pipeline/Files/Policy/Resource
+  PipelineArtifactsBucketEncryptionKey01D58D69:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:GenerateDataKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - PipelineRoleD68726F7
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - BuildWebsiteRoleFD9016CE
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - BuildWebsiteRoleFD9016CE
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - PipelineDeployWebsiteCodePipelineActionRoleC034E6C7
+                  - Arn
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/ArtifactsBucketEncryptionKey/Resource
+  PipelineArtifactsBucket22248F97:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - PipelineArtifactsBucketEncryptionKey01D58D69
+                  - Arn
+              SSEAlgorithm: aws:kms
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/ArtifactsBucket/Resource
+  PipelineArtifactsBucketEncryptionKeyAlias5C510EEE:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-pipelined808e361
+      TargetKeyId:
+        Fn::GetAtt:
+          - PipelineArtifactsBucketEncryptionKey01D58D69
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  PipelineRoleD68726F7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/Role/Resource
+  PipelineRoleDefaultPolicyC7A05455:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineBuildWebsiteCodePipelineActionRole074E086C
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineDeployWebsiteCodePipelineActionRoleC034E6C7
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineRoleDefaultPolicyC7A05455
+      Roles:
+        - Ref: PipelineRoleD68726F7
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/Role/DefaultPolicy/Resource
+  PipelineC660917D:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - PipelineRoleD68726F7
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: sbstjn
+                Repo: cra-pipeline
+                Branch: master
+                OAuthToken: "{{resolve:secretsmanager:GitHubToken:SecretString:::}}"
+                PollForSourceChanges: false
+              Name: Checkout
+              OutputArtifacts:
+                - Name: Artifact_Source_Checkout
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: BuildWebsite69491489
+              InputArtifacts:
+                - Name: Artifact_Source_Checkout
+              Name: Website
+              OutputArtifacts:
+                - Name: Artifact_Build_Website
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineBuildWebsiteCodePipelineActionRole074E086C
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: S3
+                Version: "1"
+              Configuration:
+                BucketName:
+                  Ref: Files8E6940B8
+                Extract: "true"
+              InputArtifacts:
+                - Name: Artifact_Build_Website
+              Name: Website
+              RoleArn:
+                Fn::GetAtt:
+                  - PipelineDeployWebsiteCodePipelineActionRoleC034E6C7
+                  - Arn
+              RunOrder: 1
+          Name: Deploy
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - PipelineArtifactsBucketEncryptionKey01D58D69
+              - Arn
+          Type: KMS
+        Location:
+          Ref: PipelineArtifactsBucket22248F97
+        Type: S3
+      Name: Website
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - PipelineRoleDefaultPolicyC7A05455
+      - PipelineRoleD68726F7
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/Resource
+  PipelineSourceCheckoutWebhookResource7D0675E0:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: "{{resolve:secretsmanager:GitHubToken:SecretString:::}}"
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetAction: Checkout
+      TargetPipeline:
+        Ref: PipelineC660917D
+      TargetPipelineVersion: 1
+      RegisterWithThirdParty: true
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/Source/Checkout/WebhookResource
+  PipelineBuildWebsiteCodePipelineActionRole074E086C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/Build/Website/CodePipelineActionRole/Resource
+  PipelineBuildWebsiteCodePipelineActionRoleDefaultPolicy516259BE:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - BuildWebsite69491489
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineBuildWebsiteCodePipelineActionRoleDefaultPolicy516259BE
+      Roles:
+        - Ref: PipelineBuildWebsiteCodePipelineActionRole074E086C
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/Build/Website/CodePipelineActionRole/DefaultPolicy/Resource
+  PipelineDeployWebsiteCodePipelineActionRoleC034E6C7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/Deploy/Website/CodePipelineActionRole/Resource
+  PipelineDeployWebsiteCodePipelineActionRoleDefaultPolicy69C9E2D6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - Files8E6940B8
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - Files8E6940B8
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PipelineDeployWebsiteCodePipelineActionRoleDefaultPolicy69C9E2D6
+      Roles:
+        - Ref: PipelineDeployWebsiteCodePipelineActionRoleC034E6C7
+    Metadata:
+      aws:cdk:path: Pipeline/Pipeline/Deploy/Website/CodePipelineActionRole/DefaultPolicy/Resource
+  BuildWebsiteRoleFD9016CE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Pipeline/BuildWebsite/Role/Resource
+  BuildWebsiteRoleDefaultPolicyF526FDD0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:us-east-1:"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: BuildWebsite69491489
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:us-east-1:"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: BuildWebsite69491489
+                    - :*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PipelineArtifactsBucket22248F97
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PipelineArtifactsBucket22248F97
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PipelineArtifactsBucketEncryptionKey01D58D69
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: BuildWebsiteRoleDefaultPolicyF526FDD0
+      Roles:
+        - Ref: BuildWebsiteRoleFD9016CE
+    Metadata:
+      aws:cdk:path: Pipeline/BuildWebsite/Role/DefaultPolicy/Resource
+  BuildWebsite69491489:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:1.0
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - BuildWebsiteRoleFD9016CE
+          - Arn
+      Source:
+        BuildSpec: ./infra/buildspec.yml
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - PipelineArtifactsBucketEncryptionKey01D58D69
+          - Arn
+      Name: Website
+    Metadata:
+      aws:cdk:path: Pipeline/BuildWebsite/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.21.1,@aws-cdk/aws-applicationautoscaling=1.21.1,@aws-cdk/aws-autoscaling=1.21.1,@aws-cdk/aws-autoscaling-common=1.21.1,@aws-cdk/aws-autoscaling-hooktargets=1.21.1,@aws-cdk/aws-cloudformation=1.21.1,@aws-cdk/aws-cloudwatch=1.21.1,@aws-cdk/aws-codebuild=1.21.1,@aws-cdk/aws-codepipeline=1.21.1,@aws-cdk/aws-codepipeline-actions=1.21.1,@aws-cdk/aws-ec2=1.21.1,@aws-cdk/aws-ecr=1.21.1,@aws-cdk/aws-ecr-assets=1.21.1,@aws-cdk/aws-ecs=1.21.1,@aws-cdk/aws-elasticloadbalancingv2=1.21.1,@aws-cdk/aws-events=1.21.1,@aws-cdk/aws-events-targets=1.21.1,@aws-cdk/aws-iam=1.21.1,@aws-cdk/aws-kms=1.21.1,@aws-cdk/aws-lambda=1.21.1,@aws-cdk/aws-logs=1.21.1,@aws-cdk/aws-s3=1.21.1,@aws-cdk/aws-s3-assets=1.21.1,@aws-cdk/aws-servicediscovery=1.21.1,@aws-cdk/aws-sns=1.21.1,@aws-cdk/aws-sns-subscriptions=1.21.1,@aws-cdk/aws-sqs=1.21.1,@aws-cdk/aws-ssm=1.21.1,@aws-cdk/core=1.21.1,@aws-cdk/cx-api=1.21.1,@aws-cdk/region-info=1.21.1,jsii-runtime=node.js/v18.12.1
+Outputs:
+  WebsiteURL:
+    Description: Website URL
+    Value:
+      Fn::GetAtt:
+        - Files8E6940B8
+        - WebsiteURL
+

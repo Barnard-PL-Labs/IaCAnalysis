@@ -1,0 +1,299 @@
+Parameters:
+  applicationPrefix:
+    Type: String
+    AllowedPattern: ^[a-z0-9]*$
+    Description: Prefix for the Amazon Cognito domain and the Amazon Elasticsearch Service domain
+    MaxLength: 20
+    MinLength: 3
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Resources:
+  UserPool6BA7E5F2:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: false
+          RequireNumbers: false
+          RequireSymbols: false
+          RequireUppercase: false
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameAttributes:
+        - email
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/UserPool/Resource
+  UserPoolDomain5479B217:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain:
+        Fn::Join:
+          - ""
+          - - Ref: applicationPrefix
+            - "-"
+            - Fn::Select:
+                - 4
+                - Fn::Split:
+                    - "-"
+                    - Fn::Select:
+                        - 2
+                        - Fn::Split:
+                            - /
+                            - Ref: AWS::StackId
+      UserPoolId:
+        Ref: UserPool6BA7E5F2
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/UserPoolDomain/Resource
+  IdentityPool:
+    Type: AWS::Cognito::IdentityPool
+    Properties:
+      AllowUnauthenticatedIdentities: false
+      CognitoIdentityProviders: []
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/IdentityPool
+  esAdminUserRole84A2026F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                cognito-identity.amazonaws.com:aud:
+                  Ref: IdentityPool
+              ForAnyValue:StringLike:
+                cognito-identity.amazonaws.com:amr: authenticated
+            Effect: Allow
+            Principal:
+              Federated: cognito-identity.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/esAdminUserRole/Resource
+  IdentityPoolRoleAttachment:
+    Type: AWS::Cognito::IdentityPoolRoleAttachment
+    Properties:
+      IdentityPoolId:
+        Ref: IdentityPool
+      Roles:
+        authenticated:
+          Fn::GetAtt:
+            - esAdminUserRole84A2026F
+            - Arn
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/IdentityPoolRoleAttachment
+  elasticsearchHttpPolicy8039AFFE:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: es:*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:aws:es:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :domain/
+                  - Ref: applicationPrefix
+                  - /*
+        Version: "2012-10-17"
+      Description: ""
+      Path: /
+      Roles:
+        - Ref: esAdminUserRole84A2026F
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/elasticsearchHttpPolicy/Resource
+  esRoleF5B460B7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: es.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonESCognitoAccess
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/esRole/Resource
+  OpenSearch587998CD:
+    Type: AWS::OpenSearchService::Domain
+    Properties:
+      ClusterConfig:
+        DedicatedMasterEnabled: false
+        InstanceCount: 1
+        InstanceType: t3.small.search
+        ZoneAwarenessEnabled: false
+      CognitoOptions:
+        Enabled: true
+        IdentityPoolId:
+          Ref: IdentityPool
+        RoleArn:
+          Fn::GetAtt:
+            - esRoleF5B460B7
+            - Arn
+        UserPoolId:
+          Ref: UserPool6BA7E5F2
+      DomainEndpointOptions:
+        EnforceHTTPS: true
+        TLSSecurityPolicy: Policy-Min-TLS-1-0-2019-07
+      DomainName:
+        Ref: applicationPrefix
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 10
+        VolumeType: gp2
+      EncryptionAtRestOptions:
+        Enabled: true
+      EngineVersion: Elasticsearch_7.10
+      LogPublishingOptions: {}
+      NodeToNodeEncryptionOptions:
+        Enabled: true
+    UpdatePolicy:
+      EnableVersionUpgrade: true
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/OpenSearch/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1WOMW8CMQyFfwt7zu3BwlrRpUPFCcSM3MQFwyVGSQ6Eovx3kkMUOvn5e7afpzCbwfsEL6HR5tj0/ANpHVEf1eLXdejRUiSvir9NWnaOo0DaBPKdSF9n/vRDfIpFdq/Wk3wZcpHj9bH82q+kp49Yove2wKwYLaQK6+BYv9HhjkwnPetrpf9AVnIiFwi93pfgM2uC9Iy+q5yrXg7xNMTxLgUZvB4zFuIMRxaXlRNDcAhv53YO7RTaySEwN34oz1qC1b3eAEM9Gsk7AQAA
+    Metadata:
+      aws:cdk:path: CdkStarterStackStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  createUserUrl:
+    Description: Create a new user in the user pool here - add it to the es-admins group if fine grained access controls should not apply.
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: AWS::Region
+          - .console.aws.amazon.com/cognito/users?region=
+          - Ref: AWS::Region
+          - "#/pool/"
+          - Ref: UserPool6BA7E5F2
+          - /users
+  kibanaUrl:
+    Description: Access Kibana via this URL.
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: OpenSearch587998CD
+          - /_plugin/kibana/
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

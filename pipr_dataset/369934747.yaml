@@ -1,0 +1,197 @@
+Resources:
+  YourKeyB0EEC1FB:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+              AWS:
+                Fn::GetAtt:
+                  - YourLambdaServiceRoleF112DF52
+                  - Arn
+            Resource: "*"
+            Sid: sns-allow
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Example/YourKey/Resource
+  YourKeyAlias7DB6FAD2:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/your/alias
+      TargetKeyId:
+        Fn::GetAtt:
+          - YourKeyB0EEC1FB
+          - Arn
+    Metadata:
+      aws:cdk:path: Example/YourKey/Alias/Resource
+  YourQueueCD233452:
+    Type: AWS::SQS::Queue
+    Properties:
+      KmsDataKeyReusePeriodSeconds: 300
+      KmsMasterKeyId:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":kms:eu-central-1:"
+            - Ref: AWS::AccountId
+            - :alias/your/alias
+      VisibilityTimeout: 300
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: Example/YourQueue/Resource
+  YourQueuePolicyE8320219:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sqs:SendMessage
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  Ref: YourTopic1EFCA4A0
+            Effect: Allow
+            Principal:
+              Service: sns.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - YourQueueCD233452
+                - Arn
+        Version: "2012-10-17"
+      Queues:
+        - Ref: YourQueueCD233452
+    Metadata:
+      aws:cdk:path: Example/YourQueue/Policy/Resource
+  YourQueueExampleYourTopic0A128DBF4978E626:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: sqs
+      TopicArn:
+        Ref: YourTopic1EFCA4A0
+      Endpoint:
+        Fn::GetAtt:
+          - YourQueueCD233452
+          - Arn
+      RawMessageDelivery: true
+    Metadata:
+      aws:cdk:path: Example/YourQueue/ExampleYourTopic0A128DBF/Resource
+  YourTopic1EFCA4A0:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":kms:eu-central-1:"
+            - Ref: AWS::AccountId
+            - :alias/your/alias
+    Metadata:
+      aws:cdk:path: Example/YourTopic/Resource
+  YourLambdaServiceRoleF112DF52:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Example/YourLambda/ServiceRole/Resource
+  YourLambdaServiceRoleDefaultPolicy7A5E2437:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: YourTopic1EFCA4A0
+        Version: "2012-10-17"
+      PolicyName: YourLambdaServiceRoleDefaultPolicy7A5E2437
+      Roles:
+        - Ref: YourLambdaServiceRoleF112DF52
+    Metadata:
+      aws:cdk:path: Example/YourLambda/ServiceRole/DefaultPolicy/Resource
+  YourLambdaBF65E071:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersfc94b6489a4a0a03412851d1b62d4772a18a06ea50a9001a1306dfee4fdf51ebS3Bucket6BF34E15
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersfc94b6489a4a0a03412851d1b62d4772a18a06ea50a9001a1306dfee4fdf51ebS3VersionKey41C7E3FA
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersfc94b6489a4a0a03412851d1b62d4772a18a06ea50a9001a1306dfee4fdf51ebS3VersionKey41C7E3FA
+      Role:
+        Fn::GetAtt:
+          - YourLambdaServiceRoleF112DF52
+          - Arn
+      Environment:
+        Variables:
+          TOPIC_ARN:
+            Ref: YourTopic1EFCA4A0
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.run
+      Runtime: nodejs14.x
+    DependsOn:
+      - YourLambdaServiceRoleDefaultPolicy7A5E2437
+      - YourLambdaServiceRoleF112DF52
+    Metadata:
+      aws:cdk:path: Example/YourLambda/Resource
+      aws:asset:path: asset.fc94b6489a4a0a03412851d1b62d4772a18a06ea50a9001a1306dfee4fdf51eb
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE1VQ0U7DMAz8Ft5TTwVNgjemSbwgoa3jB7LUTG6bZMQJaKry78QpG+LFd2ef7iS38LSG9u5Zf3Nj+nE1Gx8Q5kPUZlQbZoyFnsidVIfsUzCott5xDMlEtf1wOx20xYhBxNWSlcTNo2WYX/EiJ4HNRJpFVJIVf5b7PmFCWS6kzp2fyFxuy0UWvyv+QzqyCXSO5J04/ul3fyYj20qymrQ99rpxvseB4a3CS3KmmklbmDs/1faKf723yodGyxMY6i9+A6E4rjE5K4mHgVdf7SO09+WbAxM1IblIFqFb8Af9eUXhaQEAAA==
+    Metadata:
+      aws:cdk:path: Example/CDKMetadata/Default
+Parameters:
+  AssetParametersfc94b6489a4a0a03412851d1b62d4772a18a06ea50a9001a1306dfee4fdf51ebS3Bucket6BF34E15:
+    Type: String
+    Description: S3 bucket for asset "fc94b6489a4a0a03412851d1b62d4772a18a06ea50a9001a1306dfee4fdf51eb"
+  AssetParametersfc94b6489a4a0a03412851d1b62d4772a18a06ea50a9001a1306dfee4fdf51ebS3VersionKey41C7E3FA:
+    Type: String
+    Description: S3 key for asset version "fc94b6489a4a0a03412851d1b62d4772a18a06ea50a9001a1306dfee4fdf51eb"
+  AssetParametersfc94b6489a4a0a03412851d1b62d4772a18a06ea50a9001a1306dfee4fdf51ebArtifactHash994C48DF:
+    Type: String
+    Description: Artifact hash for asset "fc94b6489a4a0a03412851d1b62d4772a18a06ea50a9001a1306dfee4fdf51eb"
+

@@ -1,0 +1,873 @@
+Resources:
+  CiCdPipelineArtifacts5E8EF6DB:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName:
+        Fn::Join:
+          - ""
+          - - ci-cd-pipeline-artifacts-
+            - Ref: AWS::AccountId
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipelineArtifacts/Resource
+  AppArtifactsDFC1A203:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      BucketName:
+        Fn::Join:
+          - ""
+          - - aws-serverless-app-artifacts-
+            - Ref: AWS::AccountId
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/AppArtifacts/Resource
+  CiCdBuildRole1B178F31:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdBuild/Role/Resource
+  CiCdBuildRoleDefaultPolicy4D6AE79A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CiCdBuild9AE16324
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CiCdBuild9AE16324
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: CiCdBuild9AE16324
+                  - -*
+          - Action:
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - AppArtifactsDFC1A203
+                      - Arn
+                  - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CiCdPipelineArtifacts5E8EF6DB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CiCdPipelineArtifacts5E8EF6DB
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CiCdBuildRoleDefaultPolicy4D6AE79A
+      Roles:
+        - Ref: CiCdBuildRole1B178F31
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdBuild/Role/DefaultPolicy/Resource
+  CiCdBuild9AE16324:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CiCdBuildRole1B178F31
+          - Arn
+      Source:
+        BuildSpec: pipeline/buildspec.json
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+      Name: aws-serverless-app-build
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdBuild/Resource
+  CiCdTestRole261BF34D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdTest/Role/Resource
+  CiCdTestRoleDefaultPolicyD32404D8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CiCdTestADDC10F8
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CiCdTestADDC10F8
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: CiCdTestADDC10F8
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CiCdPipelineArtifacts5E8EF6DB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CiCdPipelineArtifacts5E8EF6DB
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CiCdTestRoleDefaultPolicyD32404D8
+      Roles:
+        - Ref: CiCdTestRole261BF34D
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdTest/Role/DefaultPolicy/Resource
+  CiCdTestADDC10F8:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CiCdTestRole261BF34D
+          - Arn
+      Source:
+        BuildSpec: pipeline/buildspec-test.json
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+      Name: aws-serverless-app-test
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdTest/Resource
+  CiCdDeployRole84DBA9C8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCloudFormationFullAccess
+        - arn:aws:iam::aws:policy/AmazonSQSFullAccess
+        - arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess
+        - arn:aws:iam::aws:policy/AWSLambda_FullAccess
+        - arn:aws:iam::aws:policy/IAMFullAccess
+        - arn:aws:iam::aws:policy/AWSCodeDeployFullAccess
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdDeploy/Role/Resource
+  CiCdDeployRoleDefaultPolicy3E76BFA1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CiCdDeploy9806A63D
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CiCdDeploy9806A63D
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codebuild:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :report-group/
+                  - Ref: CiCdDeploy9806A63D
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - AppArtifactsDFC1A203
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - AppArtifactsDFC1A203
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CiCdPipelineArtifacts5E8EF6DB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CiCdPipelineArtifacts5E8EF6DB
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CiCdDeployRoleDefaultPolicy3E76BFA1
+      Roles:
+        - Ref: CiCdDeployRole84DBA9C8
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdDeploy/Role/DefaultPolicy/Resource
+  CiCdDeploy9806A63D:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:3.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CiCdDeployRole84DBA9C8
+          - Arn
+      Source:
+        BuildSpec: pipeline/buildspec-deploy.json
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      EncryptionKey: alias/aws/s3
+      Name: aws-serverless-app-deploy
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdDeploy/Resource
+  CiCdPipelineRoleAA81A49B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Role/Resource
+  CiCdPipelineRoleDefaultPolicy08D0B8E4:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CiCdPipelineArtifacts5E8EF6DB
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CiCdPipelineArtifacts5E8EF6DB
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineBuildCodePipelineActionRole2777B96A
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineTestCodePipelineActionRoleBB2ADBF8
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineDeploytoStagingDeployCodePipelineActionRole1336E020
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineDeploytoProductionReviewCodePipelineActionRole2545AFFD
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineDeploytoProductionDeployCodePipelineActionRole1A5D35C1
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineRoleDefaultPolicy08D0B8E4
+      Roles:
+        - Ref: CiCdPipelineRoleAA81A49B
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Role/DefaultPolicy/Resource
+  CiCdPipelineDD00ABC7:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - CiCdPipelineRoleAA81A49B
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner:
+                  Ref: GithubUsernameParameter
+                Repo: aws-serverless-app-sam-cdk
+                Branch: master
+                OAuthToken: "{{resolve:secretsmanager:github_token:SecretString:github_token::}}"
+                PollForSourceChanges: false
+              Name: Source
+              Namespace: SourceVariables
+              OutputArtifacts:
+                - Name: Artifact_Source_Source
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CiCdBuild9AE16324
+                EnvironmentVariables:
+                  Fn::Join:
+                    - ""
+                    - - '[{"name":"S3_BUCKET","type":"PLAINTEXT","value":"'
+                      - Ref: AppArtifactsDFC1A203
+                      - '"},{"name":"GIT_BRANCH","type":"PLAINTEXT","value":"#{SourceVariables.BranchName}"}]'
+              InputArtifacts:
+                - Name: Artifact_Source_Source
+              Name: Build
+              Namespace: BuildVariables
+              OutputArtifacts:
+                - Name: Artifact_Build_Build
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineBuildCodePipelineActionRole2777B96A
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CiCdTestADDC10F8
+                EnvironmentVariables: '[{"name":"TABLE","type":"PLAINTEXT","value":"books"},{"name":"E2E_TEST","type":"PLAINTEXT","value":"true"}]'
+              InputArtifacts:
+                - Name: Artifact_Source_Source
+              Name: Test
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineTestCodePipelineActionRoleBB2ADBF8
+                  - Arn
+              RunOrder: 1
+          Name: Test
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CiCdDeploy9806A63D
+                EnvironmentVariables: '[{"name":"STACK_NAME","type":"PLAINTEXT","value":"aws-serverless-app-staging"},{"name":"ENVIRONMENT","type":"PLAINTEXT","value":"staging"},{"name":"ARTIFACTS_PATH","type":"PLAINTEXT","value":"#{BuildVariables.ARTIFACTS_PATH}"}]'
+              InputArtifacts:
+                - Name: Artifact_Source_Source
+              Name: Deploy
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineDeploytoStagingDeployCodePipelineActionRole1336E020
+                  - Arn
+              RunOrder: 1
+          Name: Deploy-to-Staging
+        - Actions:
+            - ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: "1"
+              Configuration:
+                CustomData: Ensure AWS Lambda function works correctly in Staging and release date is agreed with Product Owners
+              Name: Review
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineDeploytoProductionReviewCodePipelineActionRole2545AFFD
+                  - Arn
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CiCdDeploy9806A63D
+                EnvironmentVariables: '[{"name":"STACK_NAME","type":"PLAINTEXT","value":"aws-serverless-app-production"},{"name":"ENVIRONMENT","type":"PLAINTEXT","value":"production"},{"name":"ARTIFACTS_PATH","type":"PLAINTEXT","value":"#{BuildVariables.ARTIFACTS_PATH}"}]'
+              InputArtifacts:
+                - Name: Artifact_Source_Source
+              Name: Deploy
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineDeploytoProductionDeployCodePipelineActionRole1A5D35C1
+                  - Arn
+              RunOrder: 2
+          Name: Deploy-to-Production
+      ArtifactStore:
+        Location:
+          Ref: CiCdPipelineArtifacts5E8EF6DB
+        Type: S3
+      Name: aws-serverless-app
+    DependsOn:
+      - CiCdPipelineRoleDefaultPolicy08D0B8E4
+      - CiCdPipelineRoleAA81A49B
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Resource
+  CiCdPipelineSourceWebhookResource837E9D1A:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: "{{resolve:secretsmanager:github_token:SecretString:github_token::}}"
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetAction: Source
+      TargetPipeline:
+        Ref: CiCdPipelineDD00ABC7
+      TargetPipelineVersion: 1
+      RegisterWithThirdParty: true
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Source/Source/WebhookResource
+  CiCdPipelineBuildCodePipelineActionRole2777B96A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Build/Build/CodePipelineActionRole/Resource
+  CiCdPipelineBuildCodePipelineActionRoleDefaultPolicy7EE26DA2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdBuild9AE16324
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineBuildCodePipelineActionRoleDefaultPolicy7EE26DA2
+      Roles:
+        - Ref: CiCdPipelineBuildCodePipelineActionRole2777B96A
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Build/Build/CodePipelineActionRole/DefaultPolicy/Resource
+  CiCdPipelineTestCodePipelineActionRoleBB2ADBF8:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Test/Test/CodePipelineActionRole/Resource
+  CiCdPipelineTestCodePipelineActionRoleDefaultPolicy9FBA5276:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdTestADDC10F8
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineTestCodePipelineActionRoleDefaultPolicy9FBA5276
+      Roles:
+        - Ref: CiCdPipelineTestCodePipelineActionRoleBB2ADBF8
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Test/Test/CodePipelineActionRole/DefaultPolicy/Resource
+  CiCdPipelineDeploytoStagingDeployCodePipelineActionRole1336E020:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Deploy-to-Staging/Deploy/CodePipelineActionRole/Resource
+  CiCdPipelineDeploytoStagingDeployCodePipelineActionRoleDefaultPolicy66EF00E1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdDeploy9806A63D
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineDeploytoStagingDeployCodePipelineActionRoleDefaultPolicy66EF00E1
+      Roles:
+        - Ref: CiCdPipelineDeploytoStagingDeployCodePipelineActionRole1336E020
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Deploy-to-Staging/Deploy/CodePipelineActionRole/DefaultPolicy/Resource
+  CiCdPipelineDeploytoProductionReviewCodePipelineActionRole2545AFFD:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Deploy-to-Production/Review/CodePipelineActionRole/Resource
+  CiCdPipelineDeploytoProductionDeployCodePipelineActionRole1A5D35C1:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Deploy-to-Production/Deploy/CodePipelineActionRole/Resource
+  CiCdPipelineDeploytoProductionDeployCodePipelineActionRoleDefaultPolicy41B90031:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdDeploy9806A63D
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineDeploytoProductionDeployCodePipelineActionRoleDefaultPolicy41B90031
+      Roles:
+        - Ref: CiCdPipelineDeploytoProductionDeployCodePipelineActionRole1A5D35C1
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CiCdPipeline/Deploy-to-Production/Deploy/CodePipelineActionRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/02MSQ7CMAxFz8I+NYRBYonoBaqyYB1SI9whrjKAUJS7A2mlsvpP/t9PgtwfYLM6qZcrdNOto2aLEC9e6U6Ud1Mpqwb0aEWNjoPVKEo2ztug/a9frnfzLRryxCaJny66HcRz0B3m5URJaG7wFqhvIFY0Yk8GK8stTr4ZkyA1QKy5z+acFfek33mUaVKNs2Ox5cUfX/H2YO5SSsJ8H6B166c8gtyCXLWOqLDBeBoQ6ik/QZngJRQBAAA=
+    Metadata:
+      aws:cdk:path: aws-serverless-app-ci-cd/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  GithubUsernameParameter:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: github_username
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

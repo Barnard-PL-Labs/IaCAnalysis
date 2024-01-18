@@ -1,0 +1,196 @@
+Description: Example of how to deploy an AWS Lambda function as a container containing Puppeteer
+Resources:
+  Bucket:
+    Type: AWS::S3::Bucket
+    Metadata:
+      aws:cdk:path: puppeteer/Bucket
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Description: Allow Lambda invocation, logging and putting objects in S3
+      Policies:
+        - PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - s3:PutObject
+                Resource: "*"
+          PolicyName: root
+    Metadata:
+      aws:cdk:path: puppeteer/LambdaRole
+  PuppeteerFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ImageUri:
+          Fn::Join:
+            - ""
+            - - Ref: AWS::AccountId
+              - .dkr.ecr.
+              - Ref: AWS::Region
+              - "."
+              - Ref: AWS::URLSuffix
+              - /aws-cdk/assets:3e20e0a0132fab77127f1cf4321bd12211542a7e94a3712d826008c63ebb3bb7
+      Role:
+        Fn::GetAtt:
+          - LambdaRole
+          - Arn
+      Description: Puppeteer example
+      MemorySize: 1920
+      PackageType: Image
+      Timeout: 210
+    Metadata:
+      aws:cdk:path: puppeteer/PuppeteerFunction
+  InvokeFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        ZipFile: |-
+          const aws = require('aws-sdk');
+          const lambda = new aws.Lambda({apiVersion: '2015-03-31'});
+
+          exports.handler =  async function(event, context) {
+            const puppeteerFunctionName = process.env.puppeteerFunctionName;
+            const bucketName = process.env.bucketName;
+            console.log('Puppeteer Lambda Function Name:', puppeteerFunctionName);
+            console.log('Bucket Name:', bucketName);
+            console.log('Invoking Puppeteer Lambda function for each URL');
+            await Promise.all(event.map(async (url) => {
+              console.log('URL:', url);
+              await lambda.invoke({
+                FunctionName: puppeteerFunctionName,
+                InvocationType: 'Event',
+                LogType: 'None',
+                Payload: JSON.stringify({
+                  'url': url,
+                  'bucketName': bucketName
+                })
+              }).promise();
+            }));
+          };
+      Role:
+        Fn::GetAtt:
+          - LambdaRole
+          - Arn
+      Description: Invokes Puppeteer Lambda function multiple times to run in parallel
+      Environment:
+        Variables:
+          puppeteerFunctionName:
+            Ref: PuppeteerFunction
+          bucketName:
+            Ref: Bucket
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Timeout: 300
+    Metadata:
+      aws:cdk:path: puppeteer/InvokeFunction
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAEyWPQQ+CMAyFf4v3UZxePCoYE08m+AvmqGQgK1k7jSH8dzc89fV76XupBq23oDdH8+HCtkM5WwoI812MHdSJGSXJzvlO1U9/izJFUTV5lhCtZNYgUwwWs05G68SRX1TOm3kPiVbRDigKbShMDmQ4UyLhOpoO14rsQYMTsRMK38owKmfGfNzQC9XLjI/W5PUSvV0LFuWpRei5fOsD6F36oWfnihC9uBGh+c8fjcYD5OAAAAA=
+    Metadata:
+      aws:cdk:path: puppeteer/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  ECRImageURI:
+    Value:
+      Fn::Join:
+        - ""
+        - - Ref: AWS::AccountId
+          - .dkr.ecr.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /aws-cdk/assets:3e20e0a0132fab77127f1cf4321bd12211542a7e94a3712d826008c63ebb3bb7
+  InvokeLambdaFunctionName:
+    Value:
+      Ref: InvokeFunction
+  BucketName:
+    Value:
+      Ref: Bucket
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

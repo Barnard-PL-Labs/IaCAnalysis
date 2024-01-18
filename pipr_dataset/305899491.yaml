@@ -1,0 +1,354 @@
+Resources:
+  Certificate4E7ABB08:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: demo-test.dev.platform.linuxfoundation.org
+      DomainValidationOptions:
+        - DomainName: demo-test.dev.platform.linuxfoundation.org
+          HostedZoneId: Z2WMPS94V5T2UC
+      ValidationMethod: DNS
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Certificate/Resource
+  SiteBucket397A1860:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: demo-test.dev.platform.linuxfoundation.org
+      WebsiteConfiguration:
+        ErrorDocument: index.html
+        IndexDocument: index.html
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: InfrastructureStack/SiteBucket/Resource
+  SiteBucketPolicy3AC1D0F8:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: SiteBucket397A1860
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - SiteBucket397A1860
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: InfrastructureStack/SiteBucket/Policy/Resource
+  SiteDistributionCFDistribution209CF7F5:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - demo-test.dev.platform.linuxfoundation.org
+        CustomErrorResponses:
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+          - ErrorCachingMinTTL: 1
+            ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            Cookies:
+              Forward: none
+            QueryString: false
+          TargetOriginId: origin1
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - ConnectionAttempts: 3
+            ConnectionTimeout: 10
+            DomainName:
+              Fn::GetAtt:
+                - SiteBucket397A1860
+                - RegionalDomainName
+            Id: origin1
+            S3OriginConfig: {}
+        PriceClass: PriceClass_100
+        ViewerCertificate:
+          AcmCertificateArn:
+            Ref: Certificate4E7ABB08
+          MinimumProtocolVersion: TLSv1.1_2016
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: InfrastructureStack/SiteDistribution/CFDistribution
+  SiteAliasRecord3C0AF5BF:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: demo-test.dev.platform.linuxfoundation.org.
+      Type: A
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - SiteDistributionCFDistribution209CF7F5
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId: Z2WMPS94V5T2UC
+    Metadata:
+      aws:cdk:path: InfrastructureStack/SiteAliasRecord/Resource
+  DeployWithInvalidationCustomResourceE3FF7455:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameters8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cdS3Bucket601F5C9F
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cdS3VersionKey308ECF9E
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cdS3VersionKey308ECF9E
+      DestinationBucketName:
+        Ref: SiteBucket397A1860
+      Prune: true
+      DistributionId:
+        Ref: SiteDistributionCFDistribution209CF7F5
+      DistributionPaths:
+        - /*
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: InfrastructureStack/DeployWithInvalidation/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cdS3Bucket601F5C9F
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cdS3Bucket601F5C9F
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - SiteBucket397A1860
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - SiteBucket397A1860
+                        - Arn
+                    - /*
+          - Action:
+              - cloudfront:GetInvalidation
+              - cloudfront:CreateInvalidation
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176S3Bucket77147E20
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176S3VersionKey4253216F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176S3VersionKey4253216F
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Runtime: python3.6
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: InfrastructureStack/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.c9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176.zip
+      aws:asset:property: Code
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.71.0,@aws-cdk/aws-applicationautoscaling=1.71.0,@aws-cdk/aws-autoscaling-common=1.71.0,@aws-cdk/aws-certificatemanager=1.71.0,@aws-cdk/aws-cloudfront=1.71.0,@aws-cdk/aws-cloudwatch=1.71.0,@aws-cdk/aws-codeguruprofiler=1.71.0,@aws-cdk/aws-ec2=1.71.0,@aws-cdk/aws-events=1.71.0,@aws-cdk/aws-iam=1.71.0,@aws-cdk/aws-kms=1.71.0,@aws-cdk/aws-lambda=1.71.0,@aws-cdk/aws-logs=1.71.0,@aws-cdk/aws-route53=1.71.0,@aws-cdk/aws-route53-targets=1.71.0,@aws-cdk/aws-s3=1.71.0,@aws-cdk/aws-s3-assets=1.71.0,@aws-cdk/aws-s3-deployment=1.71.0,@aws-cdk/aws-sqs=1.71.0,@aws-cdk/aws-ssm=1.71.0,@aws-cdk/cloud-assembly-schema=1.71.0,@aws-cdk/core=1.71.0,@aws-cdk/cx-api=1.71.0,@aws-cdk/region-info=1.71.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: InfrastructureStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Outputs:
+  Bucket:
+    Value:
+      Ref: SiteBucket397A1860
+  DistributionId:
+    Value:
+      Ref: SiteDistributionCFDistribution209CF7F5
+  websitedomain:
+    Value: demo-test.dev.platform.linuxfoundation.org
+Mappings:
+  AWSCloudFrontPartitionHostedZoneIdMap:
+    aws:
+      zoneId: Z2FDTNDATAQYW2
+    aws-cn:
+      zoneId: Z3RFFRIM2A3IF5
+Parameters:
+  AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176S3Bucket77147E20:
+    Type: String
+    Description: S3 bucket for asset "c9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176"
+  AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176S3VersionKey4253216F:
+    Type: String
+    Description: S3 key for asset version "c9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176"
+  AssetParametersc9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176ArtifactHash4E343C6C:
+    Type: String
+    Description: Artifact hash for asset "c9ac4b3b65f3510a2088b7fd003de23d2aefac424025eb168725ce6769e3c176"
+  AssetParameters8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cdS3Bucket601F5C9F:
+    Type: String
+    Description: S3 bucket for asset "8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cd"
+  AssetParameters8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cdS3VersionKey308ECF9E:
+    Type: String
+    Description: S3 key for asset version "8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cd"
+  AssetParameters8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cdArtifactHash403048E8:
+    Type: String
+    Description: Artifact hash for asset "8c8376062e154086f4dd0e1efaf1092d3fda128b10b8b67aa015d64383da01cd"
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

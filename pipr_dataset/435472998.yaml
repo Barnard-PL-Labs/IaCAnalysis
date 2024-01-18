@@ -1,0 +1,659 @@
+Metadata:
+  cdk_nag:
+    rules_to_suppress:
+      - id: AwsSolutions-IAM4
+        reason: Managed policy only permits Lambda function to write to CloudWatch.
+      - id: AwsSolutions-IAM5
+        reason: Lambda role required to allow setting log retention to the CloudWatch Log Groups created among Lambda execution
+Resources:
+  TrailBucketKey985CE863:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:GenerateDataKey
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Resource: "*"
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+        Version: "2012-10-17"
+      EnableKeyRotation: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/TrailBucketKey/Resource
+  TrailBucketKeyAliasB1FF545F:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/TrailBucket
+      TargetKeyId:
+        Fn::GetAtt:
+          - TrailBucketKey985CE863
+          - Arn
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/TrailBucketKey/Alias/Resource
+  TrailBucketAccessBucket12A3FA55:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/TrailBucketAccessBucket/Resource
+      cdk_nag:
+        rules_to_suppress:
+          - id: AwsSolutions-S1
+            reason: The server access log bucket cannot have its own server access log bucket
+  TrailBucketAccessBucketPolicyCDE0443A:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: TrailBucketAccessBucket12A3FA55
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - TrailBucketAccessBucket12A3FA55
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - TrailBucketAccessBucket12A3FA55
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/TrailBucketAccessBucket/Policy/Resource
+  TrailBucketA831CE63:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - TrailBucketKey985CE863
+                  - Arn
+              SSEAlgorithm: aws:kms
+      LoggingConfiguration:
+        DestinationBucketName:
+          Ref: TrailBucketAccessBucket12A3FA55
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/TrailBucket/Resource
+  TrailBucketPolicyFEBC3C5C:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: TrailBucketA831CE63
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - TrailBucketA831CE63
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - TrailBucketA831CE63
+                        - Arn
+                    - /*
+          - Action: s3:GetBucketAcl
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Resource:
+              Fn::GetAtt:
+                - TrailBucketA831CE63
+                - Arn
+          - Action: s3:PutObject
+            Condition:
+              StringEquals:
+                s3:x-amz-acl: bucket-owner-full-control
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - TrailBucketA831CE63
+                      - Arn
+                  - /AWSLogs/
+                  - Ref: AWS::AccountId
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/TrailBucket/Policy/Resource
+  ManagementAPITrail4F461814:
+    Type: AWS::CloudTrail::Trail
+    Properties:
+      IsLogging: true
+      S3BucketName:
+        Ref: TrailBucketA831CE63
+      EnableLogFileValidation: true
+      EventSelectors: []
+      IncludeGlobalServiceEvents: true
+      IsMultiRegionTrail: true
+      KMSKeyId:
+        Fn::GetAtt:
+          - TrailBucketKey985CE863
+          - Arn
+    DependsOn:
+      - TrailBucketPolicyFEBC3C5C
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/ManagementAPITrail/Resource
+  CentralEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: CentralEventBus
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/CentralEventBus
+  EventBusPolicy:
+    Type: AWS::Events::EventBusPolicy
+    Properties:
+      StatementId: AllowPutEventsWithinOrganizationAccounts
+      Action: events:PutEvents
+      Condition:
+        Key: aws:PrincipalOrgID
+        Type: StringEquals
+      EventBusName: CentralEventBus
+      Principal: "*"
+    DependsOn:
+      - CentralEventBus
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/EventBusPolicy
+  SNSTopicKey900DD9EB:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action: kms:*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Resource: "*"
+        Version: "2012-10-17"
+      EnableKeyRotation: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/SNSTopicKey/Resource
+  SNSTopicBCCC5DD8:
+    Type: AWS::SNS::Topic
+    Properties:
+      KmsMasterKeyId:
+        Fn::GetAtt:
+          - SNSTopicKey900DD9EB
+          - Arn
+      TopicName: EventBridgeTopic
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/SNSTopic/Resource
+  TopicPolicyA24B096F:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Resource:
+              Ref: SNSTopicBCCC5DD8
+            Sid: "0"
+        Version: "2012-10-17"
+      Topics:
+        - Ref: SNSTopicBCCC5DD8
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/TopicPolicy/Resource
+  EmailSubscriptionBC065AF0:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn:
+        Ref: SNSTopicBCCC5DD8
+      Endpoint: ""
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/EmailSubscription/Resource
+  UpdateMatchingruleLambdaRole6575393C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - events:putRule
+                  - events:putTargets
+                  - events:describeRule
+                  - events:deleteRule
+                  - events:removeTargets
+                Effect: Allow
+                Resource:
+                  - Fn::Join:
+                      - ""
+                      - - "arn:aws:events:"
+                        - Ref: AWS::Region
+                        - ":"
+                        - Ref: AWS::AccountId
+                        - :rule/CentralEventBus/CentralEventBridgeRule
+                  - Fn::Join:
+                      - ""
+                      - - "arn:aws:events:"
+                        - Ref: AWS::Region
+                        - ":"
+                        - Ref: AWS::AccountId
+                        - :rule/CentralEventBridgeRule
+              - Action: organizations:ListAccountsForParent
+                Effect: Allow
+                Resource:
+                  Fn::Join:
+                    - ""
+                    - - "arn:aws:organizations::"
+                      - Ref: AWS::AccountId
+                      - :ou/undefined/undefined
+            Version: "2012-10-17"
+          PolicyName: updateEventBusPermissions
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/UpdateMatchingruleLambdaRole/Resource
+  UpdateMatchingRuleLambda5945A189:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: dccf267c3565911b8070b94ce1c2b8e8aca2394bf86f871ae49e010c97862e82.zip
+      Role:
+        Fn::GetAtt:
+          - UpdateMatchingruleLambdaRole6575393C
+          - Arn
+      Environment:
+        Variables:
+          REGION: ""
+          ORGANIZATION_UNIT_ID: ""
+          SNS_TOPIC_ARN:
+            Ref: SNSTopicBCCC5DD8
+          EVENT_BUS_NAME: CentralEventBus
+          CENTRAL_EVENT_BRIDGE_RULE_NAME: CentralEventBridgeRule
+      Handler: update-matching-rules-management.handler
+      Runtime: nodejs14.x
+      Timeout: 600
+    DependsOn:
+      - UpdateMatchingruleLambdaRole6575393C
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/UpdateMatchingRuleLambda/Resource
+      aws:asset:path: asset.dccf267c3565911b8070b94ce1c2b8e8aca2394bf86f871ae49e010c97862e82
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  UpdateMatchingRuleLambdaLogRetentionF0DA084C:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: UpdateMatchingRuleLambda5945A189
+      RetentionInDays: 30
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/UpdateMatchingRuleLambda/LogRetention/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: c13434f8f1aa2ea30fa577b2feb208a41368b11787b752e10bfc71fe8eb919d5.zip
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource
+      aws:asset:path: asset.c13434f8f1aa2ea30fa577b2feb208a41368b11787b752e10bfc71fe8eb919d5
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  UpdateMatchingRuleCustomProviderframeworkonEventServiceRole7A91E928:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/UpdateMatchingRuleCustomProvider/framework-onEvent/ServiceRole/Resource
+  UpdateMatchingRuleCustomProviderframeworkonEventServiceRoleDefaultPolicyF95AFCBB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - UpdateMatchingRuleLambda5945A189
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: UpdateMatchingRuleCustomProviderframeworkonEventServiceRoleDefaultPolicyF95AFCBB
+      Roles:
+        - Ref: UpdateMatchingRuleCustomProviderframeworkonEventServiceRole7A91E928
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/UpdateMatchingRuleCustomProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  UpdateMatchingRuleCustomProviderframeworkonEventDAC33727:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-${AWS::Region}
+        S3Key: 543c7a94b144a6259669eaf884305607b7a9abe85c43e4bfe62f9190ace37916.zip
+      Role:
+        Fn::GetAtt:
+          - UpdateMatchingRuleCustomProviderframeworkonEventServiceRole7A91E928
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (AwsOrganizationsEventBridgeSetupManagementStack/UpdateMatchingRuleCustomProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - UpdateMatchingRuleLambda5945A189
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - UpdateMatchingRuleCustomProviderframeworkonEventServiceRoleDefaultPolicyF95AFCBB
+      - UpdateMatchingRuleCustomProviderframeworkonEventServiceRole7A91E928
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/UpdateMatchingRuleCustomProvider/framework-onEvent/Resource
+      aws:asset:path: asset.543c7a94b144a6259669eaf884305607b7a9abe85c43e4bfe62f9190ace37916
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  UpdateMatchingRuleCustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - UpdateMatchingRuleCustomProviderframeworkonEventDAC33727
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/UpdateMatchingRuleCustomResource/Default
+  AWSOrganizationAccountMemberChangesRuleDFE7BB3C:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Triggers Update Matching rule Lambda whenever a new account is added to the organization or removed.
+      EventPattern:
+        source:
+          - aws.organizations
+        detail-type:
+          - AWS API Call via CloudTrail
+        detail:
+          eventSource:
+            - organizations.amazonaws.com
+          eventName:
+            - RemoveAccountFromOrganization
+            - MoveAccount
+      Name: AWSOrganizationAccountMemberChangesRule
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - UpdateMatchingRuleLambda5945A189
+              - Arn
+          Id: Target0
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/AWSOrganizationAccountMemberChangesRule/Resource
+  AWSOrganizationAccountMemberChangesRuleAllowEventRuleAwsOrganizationsEventBridgeSetupManagementStackUpdateMatchingRuleLambda193D3E25024C5546:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - UpdateMatchingRuleLambda5945A189
+          - Arn
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - AWSOrganizationAccountMemberChangesRuleDFE7BB3C
+          - Arn
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/AWSOrganizationAccountMemberChangesRule/AllowEventRuleAwsOrganizationsEventBridgeSetupManagementStackUpdateMatchingRuleLambda193D3E25
+  MemberStackSet:
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      PermissionModel: SERVICE_MANAGED
+      StackSetName: MemberStackEventBridgeSetup
+      AutoDeployment:
+        Enabled: true
+        RetainStacksOnAccountRemoval: false
+      Capabilities:
+        - CAPABILITY_NAMED_IAM
+      OperationPreferences:
+        MaxConcurrentCount: 10
+      Parameters:
+        - ParameterKey: eventBusName
+          ParameterValue: CentralEventBus
+      StackInstancesGroup:
+        - DeploymentTargets:
+            OrganizationalUnitIds:
+              - ""
+          Regions:
+            - ""
+      TemplateBody: '{"Parameters":{"eventBusName":{"Type":"String","Description":"Management Account event bus name."}},"Resources":{"PublishingRole71C8CF6F":{"Type":"AWS::IAM::Role","Properties":{"AssumeRolePolicyDocument":{"Statement":[{"Action":"sts:AssumeRole","Effect":"Allow","Principal":{"Service":"events.amazonaws.com"}}],"Version":"2012-10-17"}},"Metadata":{"aws:cdk:path":"AwsOrganizationsEventBridgeSetupManagementStack/Stage/MemberEventBridgeStack/PublishingRole/Resource"}},"PublishingRoleDefaultPolicy69C1F8C0":{"Type":"AWS::IAM::Policy","Properties":{"PolicyDocument":{"Statement":[{"Action":"events:PutEvents","Effect":"Allow","Resource":{"Fn::Join":["",["arn:aws:events:undefined:undefined:event-bus/",{"Ref":"eventBusName"}]]}}],"Version":"2012-10-17"},"PolicyName":"PublishingRoleDefaultPolicy69C1F8C0","Roles":[{"Ref":"PublishingRole71C8CF6F"}]},"Metadata":{"aws:cdk:path":"AwsOrganizationsEventBridgeSetupManagementStack/Stage/MemberEventBridgeStack/PublishingRole/DefaultPolicy/Resource"}},"MemberEventBridgeRule256B1C5B":{"Type":"AWS::Events::Rule","Properties":{"Description":"The Rule propagates all Amazon CloudWatch Events, AWS Config Events, AWS Guardduty Events to the management account","EventPattern":{"source":["aws.cloudwatch","aws.config","aws.guardduty"]},"Name":"MemberEventBridgeRule","State":"ENABLED","Targets":[{"Arn":{"Fn::Join":["",["arn:aws:events:undefined:undefined:event-bus/",{"Ref":"eventBusName"}]]},"Id":"Target0","RoleArn":{"Fn::GetAtt":["PublishingRole71C8CF6F","Arn"]}}]},"Metadata":{"aws:cdk:path":"AwsOrganizationsEventBridgeSetupManagementStack/Stage/MemberEventBridgeStack/MemberEventBridgeRule/Resource"}},"Alarm7103F465":{"Type":"AWS::CloudWatch::Alarm","Properties":{"ComparisonOperator":"GreaterThanOrEqualToThreshold","EvaluationPeriods":5,"ActionsEnabled":false,"AlarmName":"BillingAlarm","MetricName":"EstimatedCharges","Namespace":"AWS/Billing","Period":300,"Statistic":"Maximum","Threshold":10},"Metadata":{"aws:cdk:path":"AwsOrganizationsEventBridgeSetupManagementStack/Stage/MemberEventBridgeStack/Alarm/Resource"}}}}'
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/MemberStackSet
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01Ry27CMBD8Fu7O0pRK7bGA6KU9oMAPGGeJTBwbeW0qZPnfazuh4ZKZ2cesN1tD/fYOL4tP/kuVaPtlEMYihIPjomcNkvFWIFsToUuxTuqObc/6P7E1mpz1wrGtJ2eGOXHWxeOALvNU10onjY4sTwr9QBC+8Z5zGdZKcsqikMhoBWHjRT92T2yEvVFS3OfwpEex4YSRCWV86yyXCsIxQ64uJDK8oXZpeIrsMt34MvfBJ7fGq7JDxvQanRqO5ipFMSqkfOe3PMuDP5Gw8pr3LT/iSUcm+QChMZN/xtllZJEpPpxaDuHLa/FweeZ7tIMkKn60qng+D0G5ElOmI/gxXYMurVRKRLlNZafjEOytuckWbWTatAgXWt7qD6hfoV5cSMrK+tQ5IDQj/gFFZlNwJgIAAA==
+    Metadata:
+      aws:cdk:path: AwsOrganizationsEventBridgeSetupManagementStack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

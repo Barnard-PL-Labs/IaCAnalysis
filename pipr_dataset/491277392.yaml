@@ -1,0 +1,678 @@
+Resources:
+  jamesmcneillvanitynumbersbotroleC72CD1B7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lex.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-bot-role/Resource
+  jamesmcneillvanitynumberspolicylogbot7270F693:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource: arn:aws:logs:*:*:*
+        Version: "2012-10-17"
+      PolicyName: Logs
+      Roles:
+        - Ref: jamesmcneillvanitynumbersbotroleC72CD1B7
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-policy-log-bot/Resource
+  jamesmcneillvanitynumbersbot:
+    Type: AWS::Lex::Bot
+    Properties:
+      DataPrivacy:
+        ChildDirected: true
+      IdleSessionTTLInSeconds: 300
+      Name: james-mcneill-vanity-numbers-bot
+      RoleArn:
+        Fn::GetAtt:
+          - jamesmcneillvanitynumbersbotroleC72CD1B7
+          - Arn
+      BotLocales:
+        - Description: en_US locale
+          Intents:
+            - Description: Enter Number
+              DialogCodeHook:
+                Enabled: true
+              FulfillmentCodeHook:
+                Enabled: true
+              Name: EnterNumber
+              SampleUtterances:
+                - Utterance: "Yes"
+              SlotPriorities:
+                - Priority: 1
+                  SlotName: numberToCheck
+              Slots:
+                - Description: Number to check
+                  Name: numberToCheck
+                  SlotTypeName: AMAZON.PhoneNumber
+                  ValueElicitationSetting:
+                    PromptSpecification:
+                      AllowInterrupt: false
+                      MaxRetries: 1
+                      MessageGroupsList:
+                        - Message:
+                            PlainTextMessage:
+                              Value: Enter a phone number to get some vanity number suggestions.
+                    SlotConstraint: Required
+            - Description: Default intent when no other intent matches
+              IntentClosingSetting:
+                ClosingResponse:
+                  MessageGroupsList:
+                    - Message:
+                        PlainTextMessage:
+                          Value: Sorry I didn't understand that.
+                IsActive: true
+              Name: FallbackIntent
+              ParentIntentSignature: AMAZON.FallbackIntent
+          LocaleId: en_US
+          NluConfidenceThreshold: 0.4
+          VoiceSettings:
+            VoiceId: Joanna
+      Description: Generated Lex Chatbot
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-bot
+  jamesmcneillvanitynumbersversioncgtqy:
+    Type: AWS::Lex::BotVersion
+    Properties:
+      BotId:
+        Fn::GetAtt:
+          - jamesmcneillvanitynumbersbot
+          - Id
+      BotVersionLocaleSpecification:
+        - BotVersionLocaleDetails:
+            SourceBotVersion: DRAFT
+          LocaleId: en_US
+      Description: Latest version
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-version-cgtqy
+  jamesmcneillvanitynumberslambdarole9D700DF4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-lambda-role/Resource
+  jamesmcneillvanitynumberspolicyloglambda330441E0:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource: arn:aws:logs:*:*:*
+        Version: "2012-10-17"
+      PolicyName: Logs
+      Roles:
+        - Ref: jamesmcneillvanitynumberslambdarole9D700DF4
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-policy-log-lambda/Resource
+  jamesmcneillvanitynumbersdynamolambda662CAFA6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+            Effect: Allow
+            Resource: arn:aws:dynamodb:*:*:table/jamesMcNeillVanityNumbers
+        Version: "2012-10-17"
+      PolicyName: Dynamo
+      Roles:
+        - Ref: jamesmcneillvanitynumberslambdarole9D700DF4
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-dynamo-lambda/Resource
+  jamesmcneillvanitynumberslambdaD6AB01F7:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameterscb0fad56338aa4d7c0c853d265280d59bd2e8dd261edb86f28124fb830108d5eS3BucketBC421CBC
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterscb0fad56338aa4d7c0c853d265280d59bd2e8dd261edb86f28124fb830108d5eS3VersionKey52810491
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameterscb0fad56338aa4d7c0c853d265280d59bd2e8dd261edb86f28124fb830108d5eS3VersionKey52810491
+      Role:
+        Fn::GetAtt:
+          - jamesmcneillvanitynumberslambdarole9D700DF4
+          - Arn
+      Description: Fulfillment Lambda
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: james-mcneill-vanity-numbers-lambda
+      Handler: index.handler
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Timeout: 20
+    DependsOn:
+      - jamesmcneillvanitynumberslambdarole9D700DF4
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-lambda/Resource
+      aws:asset:path: asset.cb0fad56338aa4d7c0c853d265280d59bd2e8dd261edb86f28124fb830108d5e
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  jamesmcneillvanitynumberslambdainvokelambdapermission23FC3A9B:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - jamesmcneillvanitynumberslambdaD6AB01F7
+          - Arn
+      Principal: lex.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - jamesmcneillvanitynumbersalias
+          - Arn
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-lambda/invoke-lambda-permission
+  jamesmcneillvanitynumbersalias:
+    Type: AWS::Lex::BotAlias
+    Properties:
+      BotAliasName: james-mcneill-vanity-numbers-alias
+      BotId:
+        Fn::GetAtt:
+          - jamesmcneillvanitynumbersbot
+          - Id
+      BotAliasLocaleSettings:
+        - BotAliasLocaleSetting:
+            CodeHookSpecification:
+              LambdaCodeHook:
+                CodeHookInterfaceVersion: "1.0"
+                LambdaArn:
+                  Fn::GetAtt:
+                    - jamesmcneillvanitynumberslambdaD6AB01F7
+                    - Arn
+            Enabled: true
+          LocaleId: en_US
+      BotVersion:
+        Fn::GetAtt:
+          - jamesmcneillvanitynumbersversioncgtqy
+          - BotVersion
+      Description: james-mcneill-vanity-numbers
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-alias
+  jamesmcneillvanitynumberstable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: phoneNumber
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: phoneNumber
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      TableName: jamesMcNeillVanityNumbers
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-table
+  jamesmcneillvanitynumbersbucket90BED6F3:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: james-mcneill-vanity-numbers-bucket
+      Tags:
+        - Key: aws-cdk:cr-owned:b0201fca
+          Value: "true"
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-bucket/Resource
+  jamesmcneillvanitynumbersdeployFilesAwsCliLayer42325A5E:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameters50336bec1c378b6b89cb429265ea84d9df45193d8a0a501e3c7b6794aec3ae17S3Bucket1232D470
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters50336bec1c378b6b89cb429265ea84d9df45193d8a0a501e3c7b6794aec3ae17S3VersionKeyBFF4F192
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters50336bec1c378b6b89cb429265ea84d9df45193d8a0a501e3c7b6794aec3ae17S3VersionKeyBFF4F192
+      Description: /opt/awscli/aws
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-deployFiles/AwsCliLayer/Resource
+      aws:asset:path: asset.50336bec1c378b6b89cb429265ea84d9df45193d8a0a501e3c7b6794aec3ae17.zip
+      aws:asset:is-bundled: false
+      aws:asset:property: Content
+  jamesmcneillvanitynumbersdeployFilesCustomResource7C56C035:
+    Type: Custom::CDKBucketDeployment
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536
+          - Arn
+      SourceBucketNames:
+        - Ref: AssetParameters88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275S3Bucket52D7E01B
+      SourceObjectKeys:
+        - Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275S3VersionKey46FE93B6
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275S3VersionKey46FE93B6
+      DestinationBucketName:
+        Ref: jamesmcneillvanitynumbersbucket90BED6F3
+      Prune: true
+      DestinationBucketArn:
+        Fn::GetAtt:
+          - jamesmcneillvanitynumbersbucket90BED6F3
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-deployFiles/CustomResource/Default
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Default/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275S3Bucket52D7E01B
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":s3:::"
+                    - Ref: AssetParameters88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275S3Bucket52D7E01B
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - jamesmcneillvanitynumbersbucket90BED6F3
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - jamesmcneillvanitynumbersbucket90BED6F3
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      Roles:
+        - Ref: CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: Default/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource
+  CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C81C01536:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersf98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711daS3BucketF23C0DE7
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711daS3VersionKey5E97B17D
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersf98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711daS3VersionKey5E97B17D
+      Role:
+        Fn::GetAtt:
+          - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+          - Arn
+      Handler: index.handler
+      Layers:
+        - Ref: jamesmcneillvanitynumbersdeployFilesAwsCliLayer42325A5E
+      Runtime: python3.7
+      Timeout: 900
+    DependsOn:
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRoleDefaultPolicy88902FDF
+      - CustomCDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756CServiceRole89A01265
+    Metadata:
+      aws:cdk:path: Default/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/Resource
+      aws:asset:path: asset.f98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711da
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  jamesmcneillvanitynumbersconnectFlowServiceRole420306DA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-connectFlow/ServiceRole/Resource
+  jamesmcneillvanitynumbersconnectFlowServiceRoleDefaultPolicy2E41EA34:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - jamesmcneillvanitynumbersbucket90BED6F3
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - jamesmcneillvanitynumbersbucket90BED6F3
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: jamesmcneillvanitynumbersconnectFlowServiceRoleDefaultPolicy2E41EA34
+      Roles:
+        - Ref: jamesmcneillvanitynumbersconnectFlowServiceRole420306DA
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-connectFlow/ServiceRole/DefaultPolicy/Resource
+  jamesmcneillvanitynumbersconnectFlow68702408:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters9054b3d13edc5159fa7e43185077fa1351e92c5422a831b887c8206c32babd36S3BucketF19D63F4
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters9054b3d13edc5159fa7e43185077fa1351e92c5422a831b887c8206c32babd36S3VersionKey52EE0A02
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters9054b3d13edc5159fa7e43185077fa1351e92c5422a831b887c8206c32babd36S3VersionKey52EE0A02
+      Role:
+        Fn::GetAtt:
+          - jamesmcneillvanitynumbersconnectFlowServiceRole420306DA
+          - Arn
+      Description: Connect flow update
+      Environment:
+        Variables:
+          botAliasId:
+            Fn::GetAtt:
+              - jamesmcneillvanitynumbersalias
+              - Arn
+          bucket:
+            Fn::Select:
+              - 0
+              - Fn::Split:
+                  - /
+                  - Fn::Select:
+                      - 5
+                      - Fn::Split:
+                          - ":"
+                          - Fn::GetAtt:
+                              - jamesmcneillvanitynumbersdeployFilesCustomResource7C56C035
+                              - DestinationBucketArn
+          fileName: vanityPhoneNumberFlow
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: james-mcneill-vanity-numbers-connectFlow
+      Handler: index.handler
+      MemorySize: 1024
+      Runtime: nodejs14.x
+      Timeout: 20
+    DependsOn:
+      - jamesmcneillvanitynumbersconnectFlowServiceRoleDefaultPolicy2E41EA34
+      - jamesmcneillvanitynumbersconnectFlowServiceRole420306DA
+    Metadata:
+      aws:cdk:path: Default/james-mcneill-vanity-numbers-connectFlow/Resource
+      aws:asset:path: asset.9054b3d13edc5159fa7e43185077fa1351e92c5422a831b887c8206c32babd36
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  ResourceProviderframeworkonEventServiceRole0C5450E7:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: Default/ResourceProvider/framework-onEvent/ServiceRole/Resource
+  ResourceProviderframeworkonEventServiceRoleDefaultPolicyD6E38BA1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - jamesmcneillvanitynumbersconnectFlow68702408
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - jamesmcneillvanitynumbersconnectFlow68702408
+                        - Arn
+                    - :*
+        Version: "2012-10-17"
+      PolicyName: ResourceProviderframeworkonEventServiceRoleDefaultPolicyD6E38BA1
+      Roles:
+        - Ref: ResourceProviderframeworkonEventServiceRole0C5450E7
+    Metadata:
+      aws:cdk:path: Default/ResourceProvider/framework-onEvent/ServiceRole/DefaultPolicy/Resource
+  ResourceProviderframeworkonEventE93EA26F:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters8dd02cc4ac473ca5b08800e92edaa31a1a7db4005928021d029c5363584f11b9S3Bucket40DFAF90
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8dd02cc4ac473ca5b08800e92edaa31a1a7db4005928021d029c5363584f11b9S3VersionKey36104212
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters8dd02cc4ac473ca5b08800e92edaa31a1a7db4005928021d029c5363584f11b9S3VersionKey36104212
+      Role:
+        Fn::GetAtt:
+          - ResourceProviderframeworkonEventServiceRole0C5450E7
+          - Arn
+      Description: AWS CDK resource provider framework - onEvent (Default/ResourceProvider)
+      Environment:
+        Variables:
+          USER_ON_EVENT_FUNCTION_ARN:
+            Fn::GetAtt:
+              - jamesmcneillvanitynumbersconnectFlow68702408
+              - Arn
+      Handler: framework.onEvent
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - ResourceProviderframeworkonEventServiceRoleDefaultPolicyD6E38BA1
+      - ResourceProviderframeworkonEventServiceRole0C5450E7
+    Metadata:
+      aws:cdk:path: Default/ResourceProvider/framework-onEvent/Resource
+      aws:asset:path: asset.8dd02cc4ac473ca5b08800e92edaa31a1a7db4005928021d029c5363584f11b9
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  providerCustomResource:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - ResourceProviderframeworkonEventE93EA26F
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: Default/providerCustomResource/Default
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01Qy24CMQz8Fu5Z022F1GNhUU9Vi6DqPSQuCuSB4gS6ivbfm2RZ2pPHzmQ8nhbaxQIeZi/8So2Qp3kSziOkXeDixJZEGDI8KHtgnbMUfBSBdd92wz03GNCzLlJwZovkohdY3v7jjxjOMQysyCfFDaSt0yOr1I3TSvRVsKKBafyBlPuVq3ty+UJPytlbt9SKU6Zxs5e8sU7ikeC9ltdoRShMemoSL9YJ6gVM4lm73qANsIrihGF9HwyZDWmcrjghG2HdVtG0q7q6ryiO0RtFk7U33qOfrO5yXhqD++NPYGCyt9w4uYf86ZPvNd6P0UWiyUkJrWB5pU6rqspEjbjxt1wJNt5dlEQ/sBIAHGl+aZ+hfYR2diSlGh9tUAZhO9ZfoIGMTeUBAAA=
+    Metadata:
+      aws:cdk:path: Default/CDKMetadata/Default
+Parameters:
+  AssetParameterscb0fad56338aa4d7c0c853d265280d59bd2e8dd261edb86f28124fb830108d5eS3BucketBC421CBC:
+    Type: String
+    Description: S3 bucket for asset "cb0fad56338aa4d7c0c853d265280d59bd2e8dd261edb86f28124fb830108d5e"
+  AssetParameterscb0fad56338aa4d7c0c853d265280d59bd2e8dd261edb86f28124fb830108d5eS3VersionKey52810491:
+    Type: String
+    Description: S3 key for asset version "cb0fad56338aa4d7c0c853d265280d59bd2e8dd261edb86f28124fb830108d5e"
+  AssetParameterscb0fad56338aa4d7c0c853d265280d59bd2e8dd261edb86f28124fb830108d5eArtifactHashFD835B18:
+    Type: String
+    Description: Artifact hash for asset "cb0fad56338aa4d7c0c853d265280d59bd2e8dd261edb86f28124fb830108d5e"
+  AssetParameters50336bec1c378b6b89cb429265ea84d9df45193d8a0a501e3c7b6794aec3ae17S3Bucket1232D470:
+    Type: String
+    Description: S3 bucket for asset "50336bec1c378b6b89cb429265ea84d9df45193d8a0a501e3c7b6794aec3ae17"
+  AssetParameters50336bec1c378b6b89cb429265ea84d9df45193d8a0a501e3c7b6794aec3ae17S3VersionKeyBFF4F192:
+    Type: String
+    Description: S3 key for asset version "50336bec1c378b6b89cb429265ea84d9df45193d8a0a501e3c7b6794aec3ae17"
+  AssetParameters50336bec1c378b6b89cb429265ea84d9df45193d8a0a501e3c7b6794aec3ae17ArtifactHash8FBD3E15:
+    Type: String
+    Description: Artifact hash for asset "50336bec1c378b6b89cb429265ea84d9df45193d8a0a501e3c7b6794aec3ae17"
+  AssetParametersf98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711daS3BucketF23C0DE7:
+    Type: String
+    Description: S3 bucket for asset "f98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711da"
+  AssetParametersf98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711daS3VersionKey5E97B17D:
+    Type: String
+    Description: S3 key for asset version "f98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711da"
+  AssetParametersf98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711daArtifactHashD85D28D8:
+    Type: String
+    Description: Artifact hash for asset "f98b78092dcdd31f5e6d47489beb5f804d4835ef86a8085d0a2053cb9ae711da"
+  AssetParameters88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275S3Bucket52D7E01B:
+    Type: String
+    Description: S3 bucket for asset "88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275"
+  AssetParameters88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275S3VersionKey46FE93B6:
+    Type: String
+    Description: S3 key for asset version "88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275"
+  AssetParameters88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275ArtifactHash214FF3C9:
+    Type: String
+    Description: Artifact hash for asset "88427bfc6ec60b497b7f055896e2a829be43a51ba96b8468473baee8e928b275"
+  AssetParameters9054b3d13edc5159fa7e43185077fa1351e92c5422a831b887c8206c32babd36S3BucketF19D63F4:
+    Type: String
+    Description: S3 bucket for asset "9054b3d13edc5159fa7e43185077fa1351e92c5422a831b887c8206c32babd36"
+  AssetParameters9054b3d13edc5159fa7e43185077fa1351e92c5422a831b887c8206c32babd36S3VersionKey52EE0A02:
+    Type: String
+    Description: S3 key for asset version "9054b3d13edc5159fa7e43185077fa1351e92c5422a831b887c8206c32babd36"
+  AssetParameters9054b3d13edc5159fa7e43185077fa1351e92c5422a831b887c8206c32babd36ArtifactHashDECEC592:
+    Type: String
+    Description: Artifact hash for asset "9054b3d13edc5159fa7e43185077fa1351e92c5422a831b887c8206c32babd36"
+  AssetParameters8dd02cc4ac473ca5b08800e92edaa31a1a7db4005928021d029c5363584f11b9S3Bucket40DFAF90:
+    Type: String
+    Description: S3 bucket for asset "8dd02cc4ac473ca5b08800e92edaa31a1a7db4005928021d029c5363584f11b9"
+  AssetParameters8dd02cc4ac473ca5b08800e92edaa31a1a7db4005928021d029c5363584f11b9S3VersionKey36104212:
+    Type: String
+    Description: S3 key for asset version "8dd02cc4ac473ca5b08800e92edaa31a1a7db4005928021d029c5363584f11b9"
+  AssetParameters8dd02cc4ac473ca5b08800e92edaa31a1a7db4005928021d029c5363584f11b9ArtifactHash26B5BCAA:
+    Type: String
+    Description: Artifact hash for asset "8dd02cc4ac473ca5b08800e92edaa31a1a7db4005928021d029c5363584f11b9"
+Outputs:
+  jamesmcneillvanitynumbersconnectFlowUrl:
+    Description: Here is the link to your connect flow with the new bot alias arn
+    Value:
+      Fn::Join:
+        - ""
+        - - https://us-east-1.console.aws.amazon.com/s3/object/
+          - Ref: jamesmcneillvanitynumbersbucket90BED6F3
+          - ?region=us-east-1&prefix=vanityPhoneNumberFlow
+

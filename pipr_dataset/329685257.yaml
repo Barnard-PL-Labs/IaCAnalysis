@@ -1,0 +1,2729 @@
+Resources:
+  ChimeAccataBackendUserPoolD08582C9:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_phone_number
+            Priority: 1
+          - Name: verified_email
+            Priority: 2
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 6
+          RequireSymbols: false
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UsernameAttributes:
+        - email
+      UserPoolName: ChimeAccataBackend_UserPool
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAccataBackend_UserPool/Resource
+  ChimeAccataBackendUserPoolClientA4C56ED6:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: ChimeAccataBackendUserPoolD08582C9
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      ClientName: ChimeAccataBackend_UserPoolClient
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAccataBackend_UserPool_Client/Resource
+  StaticSiteBucket8958EE3F:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: chimeaccatabackend-bucket
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/StaticSiteBucket/Resource
+  StaticSiteBucketPolicy54AA1C72:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: StaticSiteBucket8958EE3F
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal: "*"
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - StaticSiteBucket8958EE3F
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/StaticSiteBucket/Policy/Resource
+  meetingTable0204D3B4:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: MeetingName
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: MeetingName
+          AttributeType: S
+        - AttributeName: MeetingId
+          AttributeType: S
+      GlobalSecondaryIndexes:
+        - IndexName: MeetingId
+          KeySchema:
+            - AttributeName: MeetingId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 2
+            WriteCapacityUnits: 2
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+      TableName: ChimeAccataBackend_MeetingTable
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/meetingTable/Resource
+  attendeeTable4DA0AE9E:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: AttendeeId
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: AttendeeId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+      TableName: ChimeAccataBackend_attendeeTable
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/attendeeTable/Resource
+  connectionTable4C9F7D21:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: MeetingId
+          KeyType: HASH
+        - AttributeName: AttendeeId
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: MeetingId
+          AttributeType: S
+        - AttributeName: AttendeeId
+          AttributeType: S
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+      TableName: ChimeAccataBackend_connectionTable
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/connectionTable/Resource
+  NodeModulesLayer29E0D577:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      Content:
+        S3Bucket:
+          Ref: AssetParameters1ebc9d3ac2033816c4abb63e4afd69d350b4aba8704cc9236b82ea520b74f4b0S3Bucket5EA66AEF
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1ebc9d3ac2033816c4abb63e4afd69d350b4aba8704cc9236b82ea520b74f4b0S3VersionKeyD171B821
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters1ebc9d3ac2033816c4abb63e4afd69d350b4aba8704cc9236b82ea520b74f4b0S3VersionKeyD171B821
+      CompatibleRuntimes:
+        - nodejs12.x
+      LayerName: ChimeAccataBackend_LambdaLayer
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/NodeModulesLayer/Resource
+      aws:asset:path: asset.1ebc9d3ac2033816c4abb63e4afd69d350b4aba8704cc9236b82ea520b74f4b0
+      aws:asset:property: Content
+  funcHelloWorldServiceRole5623A008:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcHelloWorld/ServiceRole/Resource
+  funcHelloWorldServiceRoleDefaultPolicyA36477CB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: funcHelloWorldServiceRoleDefaultPolicyA36477CB
+      Roles:
+        - Ref: funcHelloWorldServiceRole5623A008
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcHelloWorld/ServiceRole/DefaultPolicy/Resource
+  funcHelloWorldECFC1A93:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - funcHelloWorldServiceRole5623A008
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      FunctionName: ChimeAccataBackend_getRoot
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 10
+    DependsOn:
+      - funcHelloWorldServiceRoleDefaultPolicyA36477CB
+      - funcHelloWorldServiceRole5623A008
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcHelloWorld/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  funcGetMeetingsServiceRole4DC35A4B:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcGetMeetings/ServiceRole/Resource
+  funcGetMeetingsServiceRoleDefaultPolicy79E1EF0A:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: funcGetMeetingsServiceRoleDefaultPolicy79E1EF0A
+      Roles:
+        - Ref: funcGetMeetingsServiceRole4DC35A4B
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcGetMeetings/ServiceRole/DefaultPolicy/Resource
+  funcGetMeetings55199655:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: index.getMeetings
+      Role:
+        Fn::GetAtt:
+          - funcGetMeetingsServiceRole4DC35A4B
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      FunctionName: ChimeAccataBackend_getMeetings
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 10
+    DependsOn:
+      - funcGetMeetingsServiceRoleDefaultPolicy79E1EF0A
+      - funcGetMeetingsServiceRole4DC35A4B
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcGetMeetings/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  funcPostMeetingServiceRole1B85724D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcPostMeeting/ServiceRole/Resource
+  funcPostMeetingServiceRoleDefaultPolicyACD84585:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: funcPostMeetingServiceRoleDefaultPolicyACD84585
+      Roles:
+        - Ref: funcPostMeetingServiceRole1B85724D
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcPostMeeting/ServiceRole/DefaultPolicy/Resource
+  funcPostMeetingF075CB9A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: index.postMeeting
+      Role:
+        Fn::GetAtt:
+          - funcPostMeetingServiceRole1B85724D
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      FunctionName: ChimeAccataBackend_postMeeting
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 10
+    DependsOn:
+      - funcPostMeetingServiceRoleDefaultPolicyACD84585
+      - funcPostMeetingServiceRole1B85724D
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcPostMeeting/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  funcDeleteMeetingServiceRoleDF7849EB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcDeleteMeeting/ServiceRole/Resource
+  funcDeleteMeetingServiceRoleDefaultPolicyD79F152C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: funcDeleteMeetingServiceRoleDefaultPolicyD79F152C
+      Roles:
+        - Ref: funcDeleteMeetingServiceRoleDF7849EB
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcDeleteMeeting/ServiceRole/DefaultPolicy/Resource
+  funcDeleteMeeting3EC0D049:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: index.deleteMeeting
+      Role:
+        Fn::GetAtt:
+          - funcDeleteMeetingServiceRoleDF7849EB
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      FunctionName: ChimeAccataBackend_deleteMeeting
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 10
+    DependsOn:
+      - funcDeleteMeetingServiceRoleDefaultPolicyD79F152C
+      - funcDeleteMeetingServiceRoleDF7849EB
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcDeleteMeeting/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  funcGetAttendeeServiceRole1A5781CC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcGetAttendee/ServiceRole/Resource
+  funcGetAttendeeServiceRoleDefaultPolicyBC64C7E8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: funcGetAttendeeServiceRoleDefaultPolicyBC64C7E8
+      Roles:
+        - Ref: funcGetAttendeeServiceRole1A5781CC
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcGetAttendee/ServiceRole/DefaultPolicy/Resource
+  funcGetAttendee9E959F1D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: index.getAttendee
+      Role:
+        Fn::GetAtt:
+          - funcGetAttendeeServiceRole1A5781CC
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      FunctionName: ChimeAccataBackend_getAttendee
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 10
+    DependsOn:
+      - funcGetAttendeeServiceRoleDefaultPolicyBC64C7E8
+      - funcGetAttendeeServiceRole1A5781CC
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcGetAttendee/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  funcPostAttendeeServiceRoleB7176125:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcPostAttendee/ServiceRole/Resource
+  funcPostAttendeeServiceRoleDefaultPolicy7CF3D0BD:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: funcPostAttendeeServiceRoleDefaultPolicy7CF3D0BD
+      Roles:
+        - Ref: funcPostAttendeeServiceRoleB7176125
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcPostAttendee/ServiceRole/DefaultPolicy/Resource
+  funcPostAttendeeC691E480:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: index.postAttendee
+      Role:
+        Fn::GetAtt:
+          - funcPostAttendeeServiceRoleB7176125
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      FunctionName: ChimeAccataBackend_postAttendee
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 10
+    DependsOn:
+      - funcPostAttendeeServiceRoleDefaultPolicy7CF3D0BD
+      - funcPostAttendeeServiceRoleB7176125
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcPostAttendee/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  funcPostLogServiceRole7EEE23EE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcPostLog/ServiceRole/Resource
+  funcPostLogServiceRoleDefaultPolicy5C0A4F84:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: funcPostLogServiceRoleDefaultPolicy5C0A4F84
+      Roles:
+        - Ref: funcPostLogServiceRole7EEE23EE
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcPostLog/ServiceRole/DefaultPolicy/Resource
+  funcPostLogF3E87895:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: index.postLog
+      Role:
+        Fn::GetAtt:
+          - funcPostLogServiceRole7EEE23EE
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      FunctionName: ChimeAccataBackend_postLog
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 10
+    DependsOn:
+      - funcPostLogServiceRoleDefaultPolicy5C0A4F84
+      - funcPostLogServiceRole7EEE23EE
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/funcPostLog/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  ChimeAPI4C985D34:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: ChimeAccataBackend_restApi
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Resource
+  ChimeAPICloudWatchRoleF052B433:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/CloudWatchRole/Resource
+  ChimeAPIAccountCD9FF8FC:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - ChimeAPICloudWatchRoleF052B433
+          - Arn
+    DependsOn:
+      - ChimeAPI4C985D34
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Account
+  ChimeAPIDeploymentC8B5888A9e77575aeb85bf2ad0f624e624d986a7:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - ChimeAPIGET2277010D
+      - ChimeAPIlogsOPTIONS13EC1769
+      - ChimeAPIlogsPOSTE86EC95C
+      - ChimeAPIlogs1E01128E
+      - ChimeAPImeetingsmeetingNameattendeesuserIdGET1116C2FC
+      - ChimeAPImeetingsmeetingNameattendeesuserIdOPTIONSC80DBE4B
+      - ChimeAPImeetingsmeetingNameattendeesuserId7E3C489E
+      - ChimeAPImeetingsmeetingNameattendeesOPTIONSE4F9CC4F
+      - ChimeAPImeetingsmeetingNameattendeesPOST6270B0F9
+      - ChimeAPImeetingsmeetingNameattendees820096A2
+      - ChimeAPImeetingsmeetingNameDELETEEC738D19
+      - ChimeAPImeetingsmeetingNameOPTIONS1EB8C7EF
+      - ChimeAPImeetingsmeetingName4BB9C91A
+      - ChimeAPImeetingsGETA8230220
+      - ChimeAPImeetingsOPTIONSFCF12008
+      - ChimeAPImeetingsPOST3A30CCD1
+      - ChimeAPImeetings127DB393
+      - ChimeAPIOPTIONSF8CB7A0F
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Deployment/Resource
+  ChimeAPIDeploymentStageprodC4E0782B:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      DeploymentId:
+        Ref: ChimeAPIDeploymentC8B5888A9e77575aeb85bf2ad0f624e624d986a7
+      StageName: prod
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/DeploymentStage.prod/Resource
+  ChimeAPIOPTIONSF8CB7A0F:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Fn::GetAtt:
+          - ChimeAPI4C985D34
+          - RootResourceId
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Flect-Access-Token'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "200"
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/OPTIONS/Resource
+  ChimeAPIGETApiPermissionChimeAccataBackendChimeAPI2BEACA98GET3F1069FC:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcHelloWorldECFC1A93
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /
+            - Ref: ChimeAPIDeploymentStageprodC4E0782B
+            - /GET/
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/GET/ApiPermission.ChimeAccataBackendChimeAPI2BEACA98.GET..
+  ChimeAPIGETApiPermissionTestChimeAccataBackendChimeAPI2BEACA98GET739D4928:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcHelloWorldECFC1A93
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /test-invoke-stage/GET/
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/GET/ApiPermission.Test.ChimeAccataBackendChimeAPI2BEACA98.GET..
+  ChimeAPIGET2277010D:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Fn::GetAtt:
+          - ChimeAPI4C985D34
+          - RootResourceId
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: cfnAuth
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - funcHelloWorldECFC1A93
+                  - Arn
+              - /invocations
+      OperationName: ChimeAccataBackend_getRoot
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/GET/Resource
+  ChimeAPImeetings127DB393:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - ChimeAPI4C985D34
+          - RootResourceId
+      PathPart: meetings
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/Resource
+  ChimeAPImeetingsmeetingName4BB9C91A:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: ChimeAPImeetings127DB393
+      PathPart: "{meetingName}"
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/Resource
+  ChimeAPImeetingsmeetingNameOPTIONS1EB8C7EF:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: ChimeAPImeetingsmeetingName4BB9C91A
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Flect-Access-Token'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "200"
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/OPTIONS/Resource
+  ChimeAPImeetingsmeetingNameDELETEApiPermissionChimeAccataBackendChimeAPI2BEACA98DELETEmeetingsmeetingNameA2D8ED7B:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcDeleteMeeting3EC0D049
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /
+            - Ref: ChimeAPIDeploymentStageprodC4E0782B
+            - /DELETE/meetings/*
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/DELETE/ApiPermission.ChimeAccataBackendChimeAPI2BEACA98.DELETE..meetings.{meetingName}
+  ChimeAPImeetingsmeetingNameDELETEApiPermissionTestChimeAccataBackendChimeAPI2BEACA98DELETEmeetingsmeetingNameBF0F70E0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcDeleteMeeting3EC0D049
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /test-invoke-stage/DELETE/meetings/*
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/DELETE/ApiPermission.Test.ChimeAccataBackendChimeAPI2BEACA98.DELETE..meetings.{meetingName}
+  ChimeAPImeetingsmeetingNameDELETEEC738D19:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: DELETE
+      ResourceId:
+        Ref: ChimeAPImeetingsmeetingName4BB9C91A
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: cfnAuth
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - funcDeleteMeeting3EC0D049
+                  - Arn
+              - /invocations
+      OperationName: ChimeAccataBackend_deleteMeeting
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/DELETE/Resource
+  ChimeAPImeetingsmeetingNameattendees820096A2:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: ChimeAPImeetingsmeetingName4BB9C91A
+      PathPart: attendees
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/attendees/Resource
+  ChimeAPImeetingsmeetingNameattendeesuserId7E3C489E:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: ChimeAPImeetingsmeetingNameattendees820096A2
+      PathPart: "{userId}"
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/attendees/{userId}/Resource
+  ChimeAPImeetingsmeetingNameattendeesuserIdOPTIONSC80DBE4B:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: ChimeAPImeetingsmeetingNameattendeesuserId7E3C489E
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Flect-Access-Token'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "200"
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/attendees/{userId}/OPTIONS/Resource
+  ChimeAPImeetingsmeetingNameattendeesuserIdGETApiPermissionChimeAccataBackendChimeAPI2BEACA98GETmeetingsmeetingNameattendeesuserId6E51A689:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcGetAttendee9E959F1D
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /
+            - Ref: ChimeAPIDeploymentStageprodC4E0782B
+            - /GET/meetings/*/attendees/*
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/attendees/{userId}/GET/ApiPermission.ChimeAccataBackendChimeAPI2BEACA98.GET..meetings.{meetingName}.attendees.{userId}
+  ChimeAPImeetingsmeetingNameattendeesuserIdGETApiPermissionTestChimeAccataBackendChimeAPI2BEACA98GETmeetingsmeetingNameattendeesuserIdED588766:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcGetAttendee9E959F1D
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /test-invoke-stage/GET/meetings/*/attendees/*
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/attendees/{userId}/GET/ApiPermission.Test.ChimeAccataBackendChimeAPI2BEACA98.GET..meetings.{meetingName}.attendees.{userId}
+  ChimeAPImeetingsmeetingNameattendeesuserIdGET1116C2FC:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: ChimeAPImeetingsmeetingNameattendeesuserId7E3C489E
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: cfnAuth
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - funcGetAttendee9E959F1D
+                  - Arn
+              - /invocations
+      OperationName: ChimeAccataBackend_postAttendee
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/attendees/{userId}/GET/Resource
+  ChimeAPImeetingsmeetingNameattendeesOPTIONSE4F9CC4F:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: ChimeAPImeetingsmeetingNameattendees820096A2
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Flect-Access-Token'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "200"
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/attendees/OPTIONS/Resource
+  ChimeAPImeetingsmeetingNameattendeesPOSTApiPermissionChimeAccataBackendChimeAPI2BEACA98POSTmeetingsmeetingNameattendees1EC82E34:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcPostAttendeeC691E480
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /
+            - Ref: ChimeAPIDeploymentStageprodC4E0782B
+            - /POST/meetings/*/attendees
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/attendees/POST/ApiPermission.ChimeAccataBackendChimeAPI2BEACA98.POST..meetings.{meetingName}.attendees
+  ChimeAPImeetingsmeetingNameattendeesPOSTApiPermissionTestChimeAccataBackendChimeAPI2BEACA98POSTmeetingsmeetingNameattendees1AFA8E84:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcPostAttendeeC691E480
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /test-invoke-stage/POST/meetings/*/attendees
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/attendees/POST/ApiPermission.Test.ChimeAccataBackendChimeAPI2BEACA98.POST..meetings.{meetingName}.attendees
+  ChimeAPImeetingsmeetingNameattendeesPOST6270B0F9:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: ChimeAPImeetingsmeetingNameattendees820096A2
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: cfnAuth
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - funcPostAttendeeC691E480
+                  - Arn
+              - /invocations
+      OperationName: ChimeAccataBackend_postAttendee
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/{meetingName}/attendees/POST/Resource
+  ChimeAPImeetingsOPTIONSFCF12008:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: ChimeAPImeetings127DB393
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Flect-Access-Token'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "200"
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/OPTIONS/Resource
+  ChimeAPImeetingsGETApiPermissionChimeAccataBackendChimeAPI2BEACA98GETmeetingsC67CD90F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcGetMeetings55199655
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /
+            - Ref: ChimeAPIDeploymentStageprodC4E0782B
+            - /GET/meetings
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/GET/ApiPermission.ChimeAccataBackendChimeAPI2BEACA98.GET..meetings
+  ChimeAPImeetingsGETApiPermissionTestChimeAccataBackendChimeAPI2BEACA98GETmeetingsDC866C5F:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcGetMeetings55199655
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /test-invoke-stage/GET/meetings
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/GET/ApiPermission.Test.ChimeAccataBackendChimeAPI2BEACA98.GET..meetings
+  ChimeAPImeetingsGETA8230220:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: GET
+      ResourceId:
+        Ref: ChimeAPImeetings127DB393
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: cfnAuth
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - funcGetMeetings55199655
+                  - Arn
+              - /invocations
+      OperationName: ChimeAccataBackend_getMeetings
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/GET/Resource
+  ChimeAPImeetingsPOSTApiPermissionChimeAccataBackendChimeAPI2BEACA98POSTmeetings546C07B8:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcPostMeetingF075CB9A
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /
+            - Ref: ChimeAPIDeploymentStageprodC4E0782B
+            - /POST/meetings
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/POST/ApiPermission.ChimeAccataBackendChimeAPI2BEACA98.POST..meetings
+  ChimeAPImeetingsPOSTApiPermissionTestChimeAccataBackendChimeAPI2BEACA98POSTmeetings8166B673:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcPostMeetingF075CB9A
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /test-invoke-stage/POST/meetings
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/POST/ApiPermission.Test.ChimeAccataBackendChimeAPI2BEACA98.POST..meetings
+  ChimeAPImeetingsPOST3A30CCD1:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: ChimeAPImeetings127DB393
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId:
+        Ref: cfnAuth
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - funcPostMeetingF075CB9A
+                  - Arn
+              - /invocations
+      OperationName: ChimeAccataBackend_postMeeting
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/meetings/POST/Resource
+  ChimeAPIlogs1E01128E:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - ChimeAPI4C985D34
+          - RootResourceId
+      PathPart: logs
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/logs/Resource
+  ChimeAPIlogsOPTIONS13EC1769:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: OPTIONS
+      ResourceId:
+        Ref: ChimeAPIlogs1E01128E
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: NONE
+      Integration:
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent,X-Flect-Access-Token'"
+              method.response.header.Access-Control-Allow-Origin: "'*'"
+              method.response.header.Access-Control-Allow-Credentials: "'true'"
+              method.response.header.Access-Control-Allow-Methods: "'OPTIONS,GET,PUT,POST,DELETE,PATCH,HEAD'"
+            StatusCode: "200"
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Credentials: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "200"
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/logs/OPTIONS/Resource
+  ChimeAPIlogsPOSTApiPermissionChimeAccataBackendChimeAPI2BEACA98POSTlogs4964A07A:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcPostLogF3E87895
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /
+            - Ref: ChimeAPIDeploymentStageprodC4E0782B
+            - /POST/logs
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/logs/POST/ApiPermission.ChimeAccataBackendChimeAPI2BEACA98.POST..logs
+  ChimeAPIlogsPOSTApiPermissionTestChimeAccataBackendChimeAPI2BEACA98POSTlogs7A0D49C3:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - funcPostLogF3E87895
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ChimeAPI4C985D34
+            - /test-invoke-stage/POST/logs
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/logs/POST/ApiPermission.Test.ChimeAccataBackendChimeAPI2BEACA98.POST..logs
+  ChimeAPIlogsPOSTE86EC95C:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: ChimeAPIlogs1E01128E
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      AuthorizationType: NONE
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - funcPostLogF3E87895
+                  - Arn
+              - /invocations
+      OperationName: ChimeAccataBackend_postLog
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeAPI/Default/logs/POST/Resource
+  cfnAuth:
+    Type: AWS::ApiGateway::Authorizer
+    Properties:
+      RestApiId:
+        Ref: ChimeAPI4C985D34
+      Type: COGNITO_USER_POOLS
+      IdentitySource: method.request.header.Authorization
+      Name: ChimeAccataBackend_authorizer
+      ProviderARNs:
+        - Fn::GetAtt:
+            - ChimeAccataBackendUserPoolD08582C9
+            - Arn
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/cfnAuth
+  ChimeMessageAPI:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: ChimeMessageAPI
+      ProtocolType: WEBSOCKET
+      RouteSelectionExpression: $request.body.action
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPI
+  ChimeMessageAPIConnectServiceRoleBCD804AC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIConnect/ServiceRole/Resource
+  ChimeMessageAPIConnectServiceRoleDefaultPolicy80B2C6A7:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: ChimeMessageAPIConnectServiceRoleDefaultPolicy80B2C6A7
+      Roles:
+        - Ref: ChimeMessageAPIConnectServiceRoleBCD804AC
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIConnect/ServiceRole/DefaultPolicy/Resource
+  ChimeMessageAPIConnect2216E2A3:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: message.connect
+      Role:
+        Fn::GetAtt:
+          - ChimeMessageAPIConnectServiceRoleBCD804AC
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 300
+    DependsOn:
+      - ChimeMessageAPIConnectServiceRoleDefaultPolicy80B2C6A7
+      - ChimeMessageAPIConnectServiceRoleBCD804AC
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIConnect/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  ChimeMessageAPIDisconnectServiceRole4069B26D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIDisconnect/ServiceRole/Resource
+  ChimeMessageAPIDisconnectServiceRoleDefaultPolicy890EEDA1:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: ChimeMessageAPIDisconnectServiceRoleDefaultPolicy890EEDA1
+      Roles:
+        - Ref: ChimeMessageAPIDisconnectServiceRole4069B26D
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIDisconnect/ServiceRole/DefaultPolicy/Resource
+  ChimeMessageAPIDisconnect36976B04:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: message.disconnect
+      Role:
+        Fn::GetAtt:
+          - ChimeMessageAPIDisconnectServiceRole4069B26D
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 300
+    DependsOn:
+      - ChimeMessageAPIDisconnectServiceRoleDefaultPolicy890EEDA1
+      - ChimeMessageAPIDisconnectServiceRole4069B26D
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIDisconnect/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  ChimeMessageAPIMessageServiceRole24ADD4F0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIMessage/ServiceRole/Resource
+  ChimeMessageAPIMessageServiceRoleDefaultPolicyC035E37E:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: ChimeMessageAPIMessageServiceRoleDefaultPolicyC035E37E
+      Roles:
+        - Ref: ChimeMessageAPIMessageServiceRole24ADD4F0
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIMessage/ServiceRole/DefaultPolicy/Resource
+  ChimeMessageAPIMessage6C0E7068:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: message.message
+      Role:
+        Fn::GetAtt:
+          - ChimeMessageAPIMessageServiceRole24ADD4F0
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 300
+    DependsOn:
+      - ChimeMessageAPIMessageServiceRoleDefaultPolicyC035E37E
+      - ChimeMessageAPIMessageServiceRole24ADD4F0
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIMessage/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  ChimeMessageAPIAuthServiceRole415BD18F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIAuth/ServiceRole/Resource
+  ChimeMessageAPIAuthServiceRoleDefaultPolicy775280FF:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - meetingTable0204D3B4
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - meetingTable0204D3B4
+                        - Arn
+                    - /index/*
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - attendeeTable4DA0AE9E
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - connectionTable4C9F7D21
+                  - Arn
+              - Ref: AWS::NoValue
+          - Action:
+              - cognito-idp:GetUser
+              - cognito-idp:AdminGetUser
+              - chime:CreateMeeting
+              - chime:DeleteMeeting
+              - chime:GetMeeting
+              - chime:ListMeetings
+              - chime:BatchCreateAttendee
+              - chime:CreateAttendee
+              - chime:DeleteAttendee
+              - chime:GetAttendee
+              - chime:ListAttendees
+              - execute-api:ManageConnections
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeAccataBackendUserPoolD08582C9
+                  - Arn
+              - arn:*:chime::*:meeting/*
+              - arn:aws:execute-api:*:*:**/@connections/*
+        Version: "2012-10-17"
+      PolicyName: ChimeMessageAPIAuthServiceRoleDefaultPolicy775280FF
+      Roles:
+        - Ref: ChimeMessageAPIAuthServiceRole415BD18F
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIAuth/ServiceRole/DefaultPolicy/Resource
+  ChimeMessageAPIAuthAF213A08:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50
+      Handler: message.authorize
+      Role:
+        Fn::GetAtt:
+          - ChimeMessageAPIAuthServiceRole415BD18F
+          - Arn
+      Runtime: nodejs12.x
+      Environment:
+        Variables:
+          MEETING_TABLE_NAME:
+            Ref: meetingTable0204D3B4
+          ATTENDEE_TABLE_NAME:
+            Ref: attendeeTable4DA0AE9E
+          CONNECTION_TABLE_NAME:
+            Ref: connectionTable4C9F7D21
+          USER_POOL_ID:
+            Ref: ChimeAccataBackendUserPoolD08582C9
+      Layers:
+        - Ref: NodeModulesLayer29E0D577
+      MemorySize: 256
+      Timeout: 300
+    DependsOn:
+      - ChimeMessageAPIAuthServiceRoleDefaultPolicy775280FF
+      - ChimeMessageAPIAuthServiceRole415BD18F
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIAuth/Resource
+      aws:asset:path: asset.c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355
+      aws:asset:property: Code
+  ChimeMessageAPIRoleF19CFDEA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIRole/Resource
+  ChimeMessageAPIRoleDefaultPolicy46048AD3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ChimeMessageAPIConnect2216E2A3
+                  - Arn
+              - Fn::GetAtt:
+                  - ChimeMessageAPIDisconnect36976B04
+                  - Arn
+              - Fn::GetAtt:
+                  - ChimeMessageAPIMessage6C0E7068
+                  - Arn
+              - Fn::GetAtt:
+                  - ChimeMessageAPIAuthAF213A08
+                  - Arn
+        Version: "2012-10-17"
+      PolicyName: ChimeMessageAPIRoleDefaultPolicy46048AD3
+      Roles:
+        - Ref: ChimeMessageAPIRoleF19CFDEA
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIRole/DefaultPolicy/Resource
+  messageAuthorizer:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId:
+        Ref: ChimeMessageAPI
+      AuthorizerType: REQUEST
+      IdentitySource: []
+      Name: ChimeAccataBackend_authorizer
+      AuthorizerCredentialsArn:
+        Fn::GetAtt:
+          - ChimeMessageAPIRoleF19CFDEA
+          - Arn
+      AuthorizerUri:
+        Fn::Join:
+          - ""
+          - - "arn:aws:apigateway:"
+            - Ref: AWS::Region
+            - :lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - ChimeMessageAPIAuthAF213A08
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/messageAuthorizer
+  ChimeMessageAPIConnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: ChimeMessageAPI
+      IntegrationType: AWS_PROXY
+      CredentialsArn:
+        Fn::GetAtt:
+          - ChimeMessageAPIRoleF19CFDEA
+          - Arn
+      IntegrationUri:
+        Fn::Join:
+          - ""
+          - - "arn:aws:apigateway:"
+            - Ref: AWS::Region
+            - :lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - ChimeMessageAPIConnect2216E2A3
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIConnectIntegration
+  ChimeMessageAPIDisconnectIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: ChimeMessageAPI
+      IntegrationType: AWS_PROXY
+      CredentialsArn:
+        Fn::GetAtt:
+          - ChimeMessageAPIRoleF19CFDEA
+          - Arn
+      IntegrationUri:
+        Fn::Join:
+          - ""
+          - - "arn:aws:apigateway:"
+            - Ref: AWS::Region
+            - :lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - ChimeMessageAPIDisconnect36976B04
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIDisconnectIntegration
+  ChimeMessageAPIMessageIntegration:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId:
+        Ref: ChimeMessageAPI
+      IntegrationType: AWS_PROXY
+      CredentialsArn:
+        Fn::GetAtt:
+          - ChimeMessageAPIRoleF19CFDEA
+          - Arn
+      IntegrationUri:
+        Fn::Join:
+          - ""
+          - - "arn:aws:apigateway:"
+            - Ref: AWS::Region
+            - :lambda:path/2015-03-31/functions/
+            - Fn::GetAtt:
+                - ChimeMessageAPIMessage6C0E7068
+                - Arn
+            - /invocations
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIMessageIntegration
+  connectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ChimeMessageAPI
+      RouteKey: $connect
+      AuthorizationType: CUSTOM
+      AuthorizerId:
+        Ref: messageAuthorizer
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: ChimeMessageAPIConnectIntegration
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/connectRoute
+  disconnectRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ChimeMessageAPI
+      RouteKey: $disconnect
+      AuthorizationType: NONE
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: ChimeMessageAPIDisconnectIntegration
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/disconnectRoute
+  messageRoute:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId:
+        Ref: ChimeMessageAPI
+      RouteKey: sendmessage
+      AuthorizationType: NONE
+      Target:
+        Fn::Join:
+          - ""
+          - - integrations/
+            - Ref: ChimeMessageAPIMessageIntegration
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/messageRoute
+  ChimeMessageAPIDep:
+    Type: AWS::ApiGatewayV2::Deployment
+    Properties:
+      ApiId:
+        Ref: ChimeMessageAPI
+    DependsOn:
+      - connectRoute
+      - disconnectRoute
+      - messageRoute
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIDep
+  ChimeMessageAPIStage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId:
+        Ref: ChimeMessageAPI
+      StageName: Prod
+      AutoDeploy: true
+      DeploymentId:
+        Ref: ChimeMessageAPIDep
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/ChimeMessageAPIStage
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.74.0,@aws-cdk/aws-apigateway=1.74.0,@aws-cdk/aws-apigatewayv2=1.74.0,@aws-cdk/aws-applicationautoscaling=1.74.0,@aws-cdk/aws-autoscaling-common=1.74.0,@aws-cdk/aws-cloudwatch=1.74.0,@aws-cdk/aws-codeguruprofiler=1.74.0,@aws-cdk/aws-cognito=1.74.0,@aws-cdk/aws-dynamodb=1.74.0,@aws-cdk/aws-ec2=1.74.0,@aws-cdk/aws-events=1.74.0,@aws-cdk/aws-iam=1.74.0,@aws-cdk/aws-kms=1.74.0,@aws-cdk/aws-lambda=1.74.0,@aws-cdk/aws-logs=1.74.0,@aws-cdk/aws-s3=1.74.0,@aws-cdk/aws-s3-assets=1.74.0,@aws-cdk/aws-sqs=1.74.0,@aws-cdk/aws-ssm=1.74.0,@aws-cdk/cloud-assembly-schema=1.74.0,@aws-cdk/core=1.74.0,@aws-cdk/custom-resources=1.74.0,@aws-cdk/cx-api=1.74.0,@aws-cdk/region-info=1.74.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: ChimeAccataBackend/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters1ebc9d3ac2033816c4abb63e4afd69d350b4aba8704cc9236b82ea520b74f4b0S3Bucket5EA66AEF:
+    Type: String
+    Description: S3 bucket for asset "1ebc9d3ac2033816c4abb63e4afd69d350b4aba8704cc9236b82ea520b74f4b0"
+  AssetParameters1ebc9d3ac2033816c4abb63e4afd69d350b4aba8704cc9236b82ea520b74f4b0S3VersionKeyD171B821:
+    Type: String
+    Description: S3 key for asset version "1ebc9d3ac2033816c4abb63e4afd69d350b4aba8704cc9236b82ea520b74f4b0"
+  AssetParameters1ebc9d3ac2033816c4abb63e4afd69d350b4aba8704cc9236b82ea520b74f4b0ArtifactHash4A934180:
+    Type: String
+    Description: Artifact hash for asset "1ebc9d3ac2033816c4abb63e4afd69d350b4aba8704cc9236b82ea520b74f4b0"
+  AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3Bucket029C719D:
+    Type: String
+    Description: S3 bucket for asset "c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355"
+  AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355S3VersionKey5AF1BF50:
+    Type: String
+    Description: S3 key for asset version "c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355"
+  AssetParametersc110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355ArtifactHash7E29B91C:
+    Type: String
+    Description: Artifact hash for asset "c110dc4c535a458e9a7466713325f991c733ad9c0effba8e03a25b2bfd1ca355"
+Outputs:
+  ChimeAPIEndpointA81918E8:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: ChimeAPI4C985D34
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: ChimeAPIDeploymentStageprodC4E0782B
+          - /
+  UserPoolId:
+    Description: UserPoolId
+    Value:
+      Ref: ChimeAccataBackendUserPoolD08582C9
+  UserPoolClientId:
+    Description: UserPoolClientId
+    Value:
+      Ref: ChimeAccataBackendUserPoolClientA4C56ED6
+  Bucket:
+    Description: Bucket
+    Value:
+      Ref: StaticSiteBucket8958EE3F
+  BucketWebsiteDomainName:
+    Description: BucketWebsiteDomainName
+    Value:
+      Fn::Select:
+        - 2
+        - Fn::Split:
+            - /
+            - Fn::GetAtt:
+                - StaticSiteBucket8958EE3F
+                - WebsiteURL
+  BucketDomainName:
+    Description: BucketDomainName
+    Value:
+      Fn::GetAtt:
+        - StaticSiteBucket8958EE3F
+        - DomainName
+  RestAPIEndpoint:
+    Description: RestAPIEndpoint
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: ChimeAPI4C985D34
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: ChimeAPIDeploymentStageprodC4E0782B
+          - /
+  WebSocketEndpoint:
+    Description: WebSocketEndpoint
+    Value:
+      Fn::GetAtt:
+        - ChimeMessageAPI
+        - ApiEndpoint
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

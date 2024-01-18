@@ -1,0 +1,2237 @@
+Resources:
+  CodeRepositoryD606923B:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: MyAppRepository
+    Metadata:
+      aws:cdk:path: MyWebStack/CodeRepository/CodeRepository/Resource
+  CodeRepositoryMyWebStackCiCdPipelineFACF36E4EventRule737173A3:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::GetAtt:
+              - CodeRepositoryD606923B
+              - Arn
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - master
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:"
+                - Ref: AWS::Region
+                - ":"
+                - Ref: AWS::AccountId
+                - ":"
+                - Ref: CiCdPipeline01F79E8B
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - CiCdPipelineEventsRole19924B7F
+              - Arn
+    Metadata:
+      aws:cdk:path: MyWebStack/CodeRepository/CodeRepository/MyWebStackCiCdPipelineFACF36E4EventRule/Resource
+  CodeRepositoryDevelopers05462D2B:
+    Type: AWS::IAM::Group
+    Metadata:
+      aws:cdk:path: MyWebStack/CodeRepository/Developers/Resource
+  CodeRepositoryDevelopersDefaultPolicy6AD3D098:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codecommit:GitPull
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodeRepositoryD606923B
+                - Arn
+          - Action: codecommit:GitPush
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodeRepositoryD606923B
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CodeRepositoryDevelopersDefaultPolicy6AD3D098
+      Groups:
+        - Ref: CodeRepositoryDevelopers05462D2B
+    Metadata:
+      aws:cdk:path: MyWebStack/CodeRepository/Developers/DefaultPolicy/Resource
+  StagingClusterACB89E13:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Resource
+  StagingClusterVpc39544D94:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/Resource
+  StagingClusterVpcPublicSubnet1Subnet30200AD3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/18
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet1
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet1/Subnet
+  StagingClusterVpcPublicSubnet1RouteTable81C04450:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet1/RouteTable
+  StagingClusterVpcPublicSubnet1RouteTableAssociation236BAC25:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: StagingClusterVpcPublicSubnet1RouteTable81C04450
+      SubnetId:
+        Ref: StagingClusterVpcPublicSubnet1Subnet30200AD3
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet1/RouteTableAssociation
+  StagingClusterVpcPublicSubnet1DefaultRouteCA777AB0:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: StagingClusterVpcPublicSubnet1RouteTable81C04450
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: StagingClusterVpcIGW4F1A61C3
+    DependsOn:
+      - StagingClusterVpcVPCGWE9E6367B
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet1/DefaultRoute
+  StagingClusterVpcPublicSubnet1EIPA0A43754:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet1/EIP
+  StagingClusterVpcPublicSubnet1NATGatewayE45C80C0:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - StagingClusterVpcPublicSubnet1EIPA0A43754
+          - AllocationId
+      SubnetId:
+        Ref: StagingClusterVpcPublicSubnet1Subnet30200AD3
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet1/NATGateway
+  StagingClusterVpcPublicSubnet2Subnet2137F98F:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.64.0/18
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet2
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet2/Subnet
+  StagingClusterVpcPublicSubnet2RouteTableFB5979CD:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet2/RouteTable
+  StagingClusterVpcPublicSubnet2RouteTableAssociationD9A29E17:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: StagingClusterVpcPublicSubnet2RouteTableFB5979CD
+      SubnetId:
+        Ref: StagingClusterVpcPublicSubnet2Subnet2137F98F
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet2/RouteTableAssociation
+  StagingClusterVpcPublicSubnet2DefaultRoute97F63EAD:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: StagingClusterVpcPublicSubnet2RouteTableFB5979CD
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: StagingClusterVpcIGW4F1A61C3
+    DependsOn:
+      - StagingClusterVpcVPCGWE9E6367B
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet2/DefaultRoute
+  StagingClusterVpcPublicSubnet2EIP413CCE08:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet2/EIP
+  StagingClusterVpcPublicSubnet2NATGateway5C22FDAC:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - StagingClusterVpcPublicSubnet2EIP413CCE08
+          - AllocationId
+      SubnetId:
+        Ref: StagingClusterVpcPublicSubnet2Subnet2137F98F
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PublicSubnet2/NATGateway
+  StagingClusterVpcPrivateSubnet1Subnet0ABA03C4:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/18
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet1
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet1/Subnet
+  StagingClusterVpcPrivateSubnet1RouteTable17D1AD95:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet1/RouteTable
+  StagingClusterVpcPrivateSubnet1RouteTableAssociation4C8DF095:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: StagingClusterVpcPrivateSubnet1RouteTable17D1AD95
+      SubnetId:
+        Ref: StagingClusterVpcPrivateSubnet1Subnet0ABA03C4
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet1/RouteTableAssociation
+  StagingClusterVpcPrivateSubnet1DefaultRouteC3094339:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: StagingClusterVpcPrivateSubnet1RouteTable17D1AD95
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: StagingClusterVpcPublicSubnet1NATGatewayE45C80C0
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet1/DefaultRoute
+  StagingClusterVpcPrivateSubnet2Subnet0C0F4FCB:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.192.0/18
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet2
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet2/Subnet
+  StagingClusterVpcPrivateSubnet2RouteTable2D8BDA2F:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet2/RouteTable
+  StagingClusterVpcPrivateSubnet2RouteTableAssociationC03D4A40:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: StagingClusterVpcPrivateSubnet2RouteTable2D8BDA2F
+      SubnetId:
+        Ref: StagingClusterVpcPrivateSubnet2Subnet0C0F4FCB
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet2/RouteTableAssociation
+  StagingClusterVpcPrivateSubnet2DefaultRouteAA7FED40:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: StagingClusterVpcPrivateSubnet2RouteTable2D8BDA2F
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: StagingClusterVpcPublicSubnet2NATGateway5C22FDAC
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/PrivateSubnet2/DefaultRoute
+  StagingClusterVpcIGW4F1A61C3:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyWebStack/StagingCluster/Cluster/Vpc
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/IGW
+  StagingClusterVpcVPCGWE9E6367B:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+      InternetGatewayId:
+        Ref: StagingClusterVpcIGW4F1A61C3
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Cluster/Vpc/VPCGW
+  StagingClusterService1LB82A541F9:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      SecurityGroups:
+        - Fn::GetAtt:
+            - StagingClusterService1LBSecurityGroupD3D4E5DB
+            - GroupId
+      Subnets:
+        - Ref: StagingClusterVpcPublicSubnet1Subnet30200AD3
+        - Ref: StagingClusterVpcPublicSubnet2Subnet2137F98F
+      Type: application
+    DependsOn:
+      - StagingClusterVpcPublicSubnet1DefaultRouteCA777AB0
+      - StagingClusterVpcPublicSubnet2DefaultRoute97F63EAD
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/LB/Resource
+  StagingClusterService1LBSecurityGroupD3D4E5DB:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Automatically created Security Group for ELB MyWebStackStagingClusterService1LB0758959F
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow from anyone on port 80
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/LB/SecurityGroup/Resource
+  StagingClusterService1LBSecurityGrouptoMyWebStackStagingClusterService1ServiceSecurityGroup508D961780A08ADA96:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId:
+        Fn::GetAtt:
+          - StagingClusterService1LBSecurityGroupD3D4E5DB
+          - GroupId
+      IpProtocol: tcp
+      Description: Load balancer to target
+      DestinationSecurityGroupId:
+        Fn::GetAtt:
+          - StagingClusterService1ServiceSecurityGroup663976DB
+          - GroupId
+      FromPort: 80
+      ToPort: 80
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/LB/SecurityGroup/to MyWebStackStagingClusterService1ServiceSecurityGroup508D9617:80
+  StagingClusterService1LBPublicListener2D42EB61:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn:
+            Ref: StagingClusterService1LBPublicListenerECSGroup8587C15D
+          Type: forward
+      LoadBalancerArn:
+        Ref: StagingClusterService1LB82A541F9
+      Port: 80
+      Protocol: HTTP
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/LB/PublicListener/Resource
+  StagingClusterService1LBPublicListenerECSGroup8587C15D:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 5
+      HealthCheckTimeoutSeconds: 4
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: 200,301,302
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip
+      UnhealthyThresholdCount: 2
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/LB/PublicListener/ECSGroup/Resource
+  StagingClusterService1TaskDefTaskRoleB9D99191:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/TaskDef/TaskRole/Resource
+  StagingClusterService1TaskDef645D8E8E:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: APP_ENV
+              Value: staging
+          Essential: true
+          Image: nginx
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: StagingClusterService1TaskDefwebLogGroup137D5B05
+              awslogs-stream-prefix: Service1
+              awslogs-region:
+                Ref: AWS::Region
+          Name: web
+          PortMappings:
+            - ContainerPort: 80
+              Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - StagingClusterService1TaskDefExecutionRoleCB550F0E
+          - Arn
+      Family: MyWebStackStagingClusterService1TaskDef9CFCC7A8
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - StagingClusterService1TaskDefTaskRoleB9D99191
+          - Arn
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/TaskDef/Resource
+  StagingClusterService1TaskDefwebLogGroup137D5B05:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/TaskDef/web/LogGroup/Resource
+  StagingClusterService1TaskDefExecutionRoleCB550F0E:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/TaskDef/ExecutionRole/Resource
+  StagingClusterService1TaskDefExecutionRoleDefaultPolicy5EFEFD24:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - StagingClusterService1TaskDefwebLogGroup137D5B05
+                - Arn
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineECRRepository17E2E82D
+                - Arn
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: StagingClusterService1TaskDefExecutionRoleDefaultPolicy5EFEFD24
+      Roles:
+        - Ref: StagingClusterService1TaskDefExecutionRoleCB550F0E
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/TaskDef/ExecutionRole/DefaultPolicy/Resource
+  StagingClusterService1Service017A2987:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Ref: StagingClusterACB89E13
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 2
+      EnableECSManagedTags: false
+      HealthCheckGracePeriodSeconds: 60
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: web
+          ContainerPort: 80
+          TargetGroupArn:
+            Ref: StagingClusterService1LBPublicListenerECSGroup8587C15D
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::GetAtt:
+                - StagingClusterService1ServiceSecurityGroup663976DB
+                - GroupId
+          Subnets:
+            - Ref: StagingClusterVpcPrivateSubnet1Subnet0ABA03C4
+            - Ref: StagingClusterVpcPrivateSubnet2Subnet0C0F4FCB
+      TaskDefinition:
+        Ref: StagingClusterService1TaskDef645D8E8E
+    DependsOn:
+      - StagingClusterService1LBPublicListenerECSGroup8587C15D
+      - StagingClusterService1LBPublicListener2D42EB61
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/Service/Service
+  StagingClusterService1ServiceSecurityGroup663976DB:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: MyWebStack/StagingCluster/Service1/Service/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: StagingClusterVpc39544D94
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/Service/SecurityGroup/Resource
+  StagingClusterService1ServiceSecurityGroupfromMyWebStackStagingClusterService1LBSecurityGroupF8D8D9E78077458714:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: Load balancer to target
+      FromPort: 80
+      GroupId:
+        Fn::GetAtt:
+          - StagingClusterService1ServiceSecurityGroup663976DB
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - StagingClusterService1LBSecurityGroupD3D4E5DB
+          - GroupId
+      ToPort: 80
+    Metadata:
+      aws:cdk:path: MyWebStack/StagingCluster/Service1/Service/SecurityGroup/from MyWebStackStagingClusterService1LBSecurityGroupF8D8D9E7:80
+  ProductionCluster006995CD:
+    Type: AWS::ECS::Cluster
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Resource
+  ProductionClusterVpc35F9646F:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/Resource
+  ProductionClusterVpcPublicSubnet1SubnetC58B5DBA:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/18
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet1
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet1/Subnet
+  ProductionClusterVpcPublicSubnet1RouteTableD4F10DEE:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet1/RouteTable
+  ProductionClusterVpcPublicSubnet1RouteTableAssociationB77F307C:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: ProductionClusterVpcPublicSubnet1RouteTableD4F10DEE
+      SubnetId:
+        Ref: ProductionClusterVpcPublicSubnet1SubnetC58B5DBA
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet1/RouteTableAssociation
+  ProductionClusterVpcPublicSubnet1DefaultRoute434FAD61:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: ProductionClusterVpcPublicSubnet1RouteTableD4F10DEE
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: ProductionClusterVpcIGWB4AD3579
+    DependsOn:
+      - ProductionClusterVpcVPCGWE434F12C
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet1/DefaultRoute
+  ProductionClusterVpcPublicSubnet1EIP7C4426E2:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet1/EIP
+  ProductionClusterVpcPublicSubnet1NATGatewayCFE9EA7A:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - ProductionClusterVpcPublicSubnet1EIP7C4426E2
+          - AllocationId
+      SubnetId:
+        Ref: ProductionClusterVpcPublicSubnet1SubnetC58B5DBA
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet1
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet1/NATGateway
+  ProductionClusterVpcPublicSubnet2Subnet86FBB689:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.64.0/18
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet2
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet2/Subnet
+  ProductionClusterVpcPublicSubnet2RouteTable5B6E32FD:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet2/RouteTable
+  ProductionClusterVpcPublicSubnet2RouteTableAssociation76826867:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: ProductionClusterVpcPublicSubnet2RouteTable5B6E32FD
+      SubnetId:
+        Ref: ProductionClusterVpcPublicSubnet2Subnet86FBB689
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet2/RouteTableAssociation
+  ProductionClusterVpcPublicSubnet2DefaultRoute6F504DA4:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: ProductionClusterVpcPublicSubnet2RouteTable5B6E32FD
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: ProductionClusterVpcIGWB4AD3579
+    DependsOn:
+      - ProductionClusterVpcVPCGWE434F12C
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet2/DefaultRoute
+  ProductionClusterVpcPublicSubnet2EIP0EBC43F5:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet2/EIP
+  ProductionClusterVpcPublicSubnet2NATGateway86323E7C:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - ProductionClusterVpcPublicSubnet2EIP0EBC43F5
+          - AllocationId
+      SubnetId:
+        Ref: ProductionClusterVpcPublicSubnet2Subnet86FBB689
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet2
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PublicSubnet2/NATGateway
+  ProductionClusterVpcPrivateSubnet1SubnetB03ED6F5:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/18
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet1
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet1/Subnet
+  ProductionClusterVpcPrivateSubnet1RouteTable5C1AC3B7:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet1/RouteTable
+  ProductionClusterVpcPrivateSubnet1RouteTableAssociationF149F685:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: ProductionClusterVpcPrivateSubnet1RouteTable5C1AC3B7
+      SubnetId:
+        Ref: ProductionClusterVpcPrivateSubnet1SubnetB03ED6F5
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet1/RouteTableAssociation
+  ProductionClusterVpcPrivateSubnet1DefaultRoute6FEFD18C:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: ProductionClusterVpcPrivateSubnet1RouteTable5C1AC3B7
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: ProductionClusterVpcPublicSubnet1NATGatewayCFE9EA7A
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet1/DefaultRoute
+  ProductionClusterVpcPrivateSubnet2Subnet6DC59AB6:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.192.0/18
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet2
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet2/Subnet
+  ProductionClusterVpcPrivateSubnet2RouteTable29E45F28:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet2/RouteTable
+  ProductionClusterVpcPrivateSubnet2RouteTableAssociation466DFB11:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: ProductionClusterVpcPrivateSubnet2RouteTable29E45F28
+      SubnetId:
+        Ref: ProductionClusterVpcPrivateSubnet2Subnet6DC59AB6
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet2/RouteTableAssociation
+  ProductionClusterVpcPrivateSubnet2DefaultRoute4412E084:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: ProductionClusterVpcPrivateSubnet2RouteTable29E45F28
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: ProductionClusterVpcPublicSubnet2NATGateway86323E7C
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/PrivateSubnet2/DefaultRoute
+  ProductionClusterVpcIGWB4AD3579:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: MyWebStack/ProductionCluster/Cluster/Vpc
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/IGW
+  ProductionClusterVpcVPCGWE434F12C:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+      InternetGatewayId:
+        Ref: ProductionClusterVpcIGWB4AD3579
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Cluster/Vpc/VPCGW
+  ProductionClusterService1LB8EC5A535:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      SecurityGroups:
+        - Fn::GetAtt:
+            - ProductionClusterService1LBSecurityGroup15543200
+            - GroupId
+      Subnets:
+        - Ref: ProductionClusterVpcPublicSubnet1SubnetC58B5DBA
+        - Ref: ProductionClusterVpcPublicSubnet2Subnet86FBB689
+      Type: application
+    DependsOn:
+      - ProductionClusterVpcPublicSubnet1DefaultRoute434FAD61
+      - ProductionClusterVpcPublicSubnet2DefaultRoute6F504DA4
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/LB/Resource
+  ProductionClusterService1LBSecurityGroup15543200:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Automatically created Security Group for ELB MyWebStackProductionClusterService1LBC2BED973
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow from anyone on port 80
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/LB/SecurityGroup/Resource
+  ProductionClusterService1LBSecurityGrouptoMyWebStackProductionClusterService1ServiceSecurityGroup341CD0FF80C06F334D:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId:
+        Fn::GetAtt:
+          - ProductionClusterService1LBSecurityGroup15543200
+          - GroupId
+      IpProtocol: tcp
+      Description: Load balancer to target
+      DestinationSecurityGroupId:
+        Fn::GetAtt:
+          - ProductionClusterService1ServiceSecurityGroup4CE131A5
+          - GroupId
+      FromPort: 80
+      ToPort: 80
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/LB/SecurityGroup/to MyWebStackProductionClusterService1ServiceSecurityGroup341CD0FF:80
+  ProductionClusterService1LBPublicListener58155516:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn:
+            Ref: ProductionClusterService1LBPublicListenerECSGroup4899ADB3
+          Type: forward
+      LoadBalancerArn:
+        Ref: ProductionClusterService1LB8EC5A535
+      Port: 80
+      Protocol: HTTP
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/LB/PublicListener/Resource
+  ProductionClusterService1LBPublicListenerECSGroup4899ADB3:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      HealthCheckIntervalSeconds: 5
+      HealthCheckTimeoutSeconds: 4
+      HealthyThresholdCount: 2
+      Matcher:
+        HttpCode: 200,301,302
+      Port: 80
+      Protocol: HTTP
+      TargetType: ip
+      UnhealthyThresholdCount: 2
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/LB/PublicListener/ECSGroup/Resource
+  ProductionClusterService1TaskDefTaskRole3714E3F9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/TaskDef/TaskRole/Resource
+  ProductionClusterService1TaskDefE48456CE:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      ContainerDefinitions:
+        - Environment:
+            - Name: APP_ENV
+              Value: production
+          Essential: true
+          Image: nginx
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group:
+                Ref: ProductionClusterService1TaskDefwebLogGroupEABA955D
+              awslogs-stream-prefix: Service1
+              awslogs-region:
+                Ref: AWS::Region
+          Name: web
+          PortMappings:
+            - ContainerPort: 80
+              Protocol: tcp
+      Cpu: "256"
+      ExecutionRoleArn:
+        Fn::GetAtt:
+          - ProductionClusterService1TaskDefExecutionRole07848BC0
+          - Arn
+      Family: MyWebStackProductionClusterService1TaskDefD4969C6A
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      TaskRoleArn:
+        Fn::GetAtt:
+          - ProductionClusterService1TaskDefTaskRole3714E3F9
+          - Arn
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/TaskDef/Resource
+  ProductionClusterService1TaskDefwebLogGroupEABA955D:
+    Type: AWS::Logs::LogGroup
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/TaskDef/web/LogGroup/Resource
+  ProductionClusterService1TaskDefExecutionRole07848BC0:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/TaskDef/ExecutionRole/Resource
+  ProductionClusterService1TaskDefExecutionRoleDefaultPolicyC4ADB805:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ProductionClusterService1TaskDefwebLogGroupEABA955D
+                - Arn
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineECRRepository17E2E82D
+                - Arn
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: ProductionClusterService1TaskDefExecutionRoleDefaultPolicyC4ADB805
+      Roles:
+        - Ref: ProductionClusterService1TaskDefExecutionRole07848BC0
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/TaskDef/ExecutionRole/DefaultPolicy/Resource
+  ProductionClusterService1ServiceB9F39072:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Ref: ProductionCluster006995CD
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 50
+      DesiredCount: 2
+      EnableECSManagedTags: false
+      HealthCheckGracePeriodSeconds: 60
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: web
+          ContainerPort: 80
+          TargetGroupArn:
+            Ref: ProductionClusterService1LBPublicListenerECSGroup4899ADB3
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          SecurityGroups:
+            - Fn::GetAtt:
+                - ProductionClusterService1ServiceSecurityGroup4CE131A5
+                - GroupId
+          Subnets:
+            - Ref: ProductionClusterVpcPrivateSubnet1SubnetB03ED6F5
+            - Ref: ProductionClusterVpcPrivateSubnet2Subnet6DC59AB6
+      TaskDefinition:
+        Ref: ProductionClusterService1TaskDefE48456CE
+    DependsOn:
+      - ProductionClusterService1LBPublicListenerECSGroup4899ADB3
+      - ProductionClusterService1LBPublicListener58155516
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/Service/Service
+  ProductionClusterService1ServiceSecurityGroup4CE131A5:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: MyWebStack/ProductionCluster/Service1/Service/SecurityGroup
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId:
+        Ref: ProductionClusterVpc35F9646F
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/Service/SecurityGroup/Resource
+  ProductionClusterService1ServiceSecurityGroupfromMyWebStackProductionClusterService1LBSecurityGroup7E5D44308071A79B12:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: Load balancer to target
+      FromPort: 80
+      GroupId:
+        Fn::GetAtt:
+          - ProductionClusterService1ServiceSecurityGroup4CE131A5
+          - GroupId
+      SourceSecurityGroupId:
+        Fn::GetAtt:
+          - ProductionClusterService1LBSecurityGroup15543200
+          - GroupId
+      ToPort: 80
+    Metadata:
+      aws:cdk:path: MyWebStack/ProductionCluster/Service1/Service/SecurityGroup/from MyWebStackProductionClusterService1LBSecurityGroup7E5D4430:80
+  CiCdPipelineECRRepository17E2E82D:
+    Type: AWS::ECR::Repository
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/ECRRepository/Resource
+  CiCdPipelineTestProjectRoleC3B3AE52:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/TestProject/Role/Resource
+  CiCdPipelineTestProjectRoleDefaultPolicyA29A4FBA:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CiCdPipelineTestProject2DECA86A
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CiCdPipelineTestProject2DECA86A
+                    - :*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CiCdPipelineArtifactsBucket5B9D3385
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CiCdPipelineArtifactsBucket5B9D3385
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineArtifactsBucketEncryptionKey6C2058A6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineTestProjectRoleDefaultPolicyA29A4FBA
+      Roles:
+        - Ref: CiCdPipelineTestProjectRoleC3B3AE52
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/TestProject/Role/DefaultPolicy/Resource
+  CiCdPipelineTestProject2DECA86A:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:2.0
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CiCdPipelineTestProjectRoleC3B3AE52
+          - Arn
+      Source:
+        BuildSpec: buildspec.test.yml
+        Type: CODEPIPELINE
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/TestProject/Resource
+  CiCdPipelineImageBuildProjectRoleFFCDD102:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/ImageBuildProject/Role/Resource
+  CiCdPipelineImageBuildProjectRoleDefaultPolicyEBC8E696:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CiCdPipelineImageBuildProject03B91F24
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":logs:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - :log-group:/aws/codebuild/
+                    - Ref: CiCdPipelineImageBuildProject03B91F24
+                    - :*
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineECRRepository17E2E82D
+                - Arn
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - ecr:PutImage
+              - ecr:InitiateLayerUpload
+              - ecr:UploadLayerPart
+              - ecr:CompleteLayerUpload
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineECRRepository17E2E82D
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CiCdPipelineArtifactsBucket5B9D3385
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CiCdPipelineArtifactsBucket5B9D3385
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineArtifactsBucketEncryptionKey6C2058A6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineImageBuildProjectRoleDefaultPolicyEBC8E696
+      Roles:
+        - Ref: CiCdPipelineImageBuildProjectRoleFFCDD102
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/ImageBuildProject/Role/DefaultPolicy/Resource
+  CiCdPipelineImageBuildProject03B91F24:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: REPOSITORY_URI
+            Type: PLAINTEXT
+            Value:
+              Fn::Join:
+                - ""
+                - - Fn::Select:
+                      - 4
+                      - Fn::Split:
+                          - ":"
+                          - Fn::GetAtt:
+                              - CiCdPipelineECRRepository17E2E82D
+                              - Arn
+                  - .dkr.ecr.
+                  - Fn::Select:
+                      - 3
+                      - Fn::Split:
+                          - ":"
+                          - Fn::GetAtt:
+                              - CiCdPipelineECRRepository17E2E82D
+                              - Arn
+                  - "."
+                  - Ref: AWS::URLSuffix
+                  - /
+                  - Ref: CiCdPipelineECRRepository17E2E82D
+          - Name: CONTAINER_NAME
+            Type: PLAINTEXT
+            Value: web
+        Image: aws/codebuild/standard:2.0
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - CiCdPipelineImageBuildProjectRoleFFCDD102
+          - Arn
+      Source:
+        BuildSpec: buildspec.deploy.yml
+        Type: CODEPIPELINE
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/ImageBuildProject/Resource
+  CiCdPipelineArtifactsBucketEncryptionKey6C2058A6:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:GenerateDataKey
+              - kms:TagResource
+              - kms:UntagResource
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CiCdPipelineRole44962EB6
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CiCdPipelineSourceCodeCommitCodePipelineActionRoleC72BDAD3
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CiCdPipelineTestProjectRoleC3B3AE52
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CiCdPipelineImageBuildProjectRoleFFCDD102
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CiCdPipelineDeployToStagingStagingEcsDeployActionCodePipelineActionRoleD8A5B657
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - CiCdPipelineDeployToProductionProductionEcsDeployActionCodePipelineActionRoleC9A9E35A
+                  - Arn
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/ArtifactsBucketEncryptionKey/Resource
+  CiCdPipelineArtifactsBucket5B9D3385:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - CiCdPipelineArtifactsBucketEncryptionKey6C2058A6
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/ArtifactsBucket/Resource
+  CiCdPipelineArtifactsBucketEncryptionKeyAlias6580FDD9:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-mywebstackcicdpipelinefacf36e4
+      TargetKeyId:
+        Fn::GetAtt:
+          - CiCdPipelineArtifactsBucketEncryptionKey6C2058A6
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  CiCdPipelineRole44962EB6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/Role/Resource
+  CiCdPipelineRoleDefaultPolicy3A53D7DC:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CiCdPipelineArtifactsBucket5B9D3385
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CiCdPipelineArtifactsBucket5B9D3385
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineArtifactsBucketEncryptionKey6C2058A6
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineSourceCodeCommitCodePipelineActionRoleC72BDAD3
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineUnitTestUnitTestBuildActionCodePipelineActionRoleED3F9789
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineBuildImageBuildActionCodePipelineActionRoleC6C24F76
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineDeployToStagingStagingEcsDeployActionCodePipelineActionRoleD8A5B657
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineManualApprovalManualApprovalActionCodePipelineActionRoleE88EF337
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineDeployToProductionProductionEcsDeployActionCodePipelineActionRoleC9A9E35A
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineRoleDefaultPolicy3A53D7DC
+      Roles:
+        - Ref: CiCdPipelineRole44962EB6
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/Role/DefaultPolicy/Resource
+  CiCdPipeline01F79E8B:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - CiCdPipelineRole44962EB6
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::GetAtt:
+                    - CodeRepositoryD606923B
+                    - Name
+                BranchName: master
+                PollForSourceChanges: false
+              Name: CodeCommit
+              OutputArtifacts:
+                - Name: Artifact_Source_CodeCommit
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineSourceCodeCommitCodePipelineActionRoleC72BDAD3
+                  - Arn
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CiCdPipelineTestProject2DECA86A
+              InputArtifacts:
+                - Name: Artifact_Source_CodeCommit
+              Name: UnitTestBuildAction
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineUnitTestUnitTestBuildActionCodePipelineActionRoleED3F9789
+                  - Arn
+              RunOrder: 1
+          Name: UnitTest
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: CiCdPipelineImageBuildProject03B91F24
+              InputArtifacts:
+                - Name: Artifact_Source_CodeCommit
+              Name: ImageBuildAction
+              OutputArtifacts:
+                - Name: Artifact_Build_ImageBuildAction
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineBuildImageBuildActionCodePipelineActionRoleC6C24F76
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: ECS
+                Version: "1"
+              Configuration:
+                ClusterName:
+                  Ref: StagingClusterACB89E13
+                ServiceName:
+                  Fn::GetAtt:
+                    - StagingClusterService1Service017A2987
+                    - Name
+              InputArtifacts:
+                - Name: Artifact_Build_ImageBuildAction
+              Name: StagingEcsDeployAction
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineDeployToStagingStagingEcsDeployActionCodePipelineActionRoleD8A5B657
+                  - Arn
+              RunOrder: 1
+          Name: DeployToStaging
+        - Actions:
+            - ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: "1"
+              Configuration:
+                NotificationArn:
+                  Ref: CiCdPipelineManualApprovalManualApprovalActionTopicResourceAB9951F7
+                ExternalEntityLink:
+                  Fn::Join:
+                    - ""
+                    - - http://
+                      - Fn::GetAtt:
+                          - StagingClusterService1LB82A541F9
+                          - DNSName
+              Name: ManualApprovalAction
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineManualApprovalManualApprovalActionCodePipelineActionRoleE88EF337
+                  - Arn
+              RunOrder: 1
+          Name: ManualApproval
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: ECS
+                Version: "1"
+              Configuration:
+                ClusterName:
+                  Ref: ProductionCluster006995CD
+                ServiceName:
+                  Fn::GetAtt:
+                    - ProductionClusterService1ServiceB9F39072
+                    - Name
+              InputArtifacts:
+                - Name: Artifact_Build_ImageBuildAction
+              Name: ProductionEcsDeployAction
+              RoleArn:
+                Fn::GetAtt:
+                  - CiCdPipelineDeployToProductionProductionEcsDeployActionCodePipelineActionRoleC9A9E35A
+                  - Arn
+              RunOrder: 1
+          Name: DeployToProduction
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - CiCdPipelineArtifactsBucketEncryptionKey6C2058A6
+              - Arn
+          Type: KMS
+        Location:
+          Ref: CiCdPipelineArtifactsBucket5B9D3385
+        Type: S3
+    DependsOn:
+      - CiCdPipelineRoleDefaultPolicy3A53D7DC
+      - CiCdPipelineRole44962EB6
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/Resource
+  CiCdPipelineSourceCodeCommitCodePipelineActionRoleC72BDAD3:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/Source/CodeCommit/CodePipelineActionRole/Resource
+  CiCdPipelineSourceCodeCommitCodePipelineActionRoleDefaultPolicyC00B861F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CiCdPipelineArtifactsBucket5B9D3385
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CiCdPipelineArtifactsBucket5B9D3385
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineArtifactsBucketEncryptionKey6C2058A6
+                - Arn
+          - Action:
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:UploadArchive
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:CancelUploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CodeRepositoryD606923B
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineSourceCodeCommitCodePipelineActionRoleDefaultPolicyC00B861F
+      Roles:
+        - Ref: CiCdPipelineSourceCodeCommitCodePipelineActionRoleC72BDAD3
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/Source/CodeCommit/CodePipelineActionRole/DefaultPolicy/Resource
+  CiCdPipelineEventsRole19924B7F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/EventsRole/Resource
+  CiCdPipelineEventsRoleDefaultPolicyA661572D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codepipeline:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: CiCdPipeline01F79E8B
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineEventsRoleDefaultPolicyA661572D
+      Roles:
+        - Ref: CiCdPipelineEventsRole19924B7F
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/EventsRole/DefaultPolicy/Resource
+  CiCdPipelineUnitTestUnitTestBuildActionCodePipelineActionRoleED3F9789:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/UnitTest/UnitTestBuildAction/CodePipelineActionRole/Resource
+  CiCdPipelineUnitTestUnitTestBuildActionCodePipelineActionRoleDefaultPolicy5A1B836D:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineTestProject2DECA86A
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineUnitTestUnitTestBuildActionCodePipelineActionRoleDefaultPolicy5A1B836D
+      Roles:
+        - Ref: CiCdPipelineUnitTestUnitTestBuildActionCodePipelineActionRoleED3F9789
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/UnitTest/UnitTestBuildAction/CodePipelineActionRole/DefaultPolicy/Resource
+  CiCdPipelineBuildImageBuildActionCodePipelineActionRoleC6C24F76:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/Build/ImageBuildAction/CodePipelineActionRole/Resource
+  CiCdPipelineBuildImageBuildActionCodePipelineActionRoleDefaultPolicyB9711FC3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineImageBuildProject03B91F24
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineBuildImageBuildActionCodePipelineActionRoleDefaultPolicyB9711FC3
+      Roles:
+        - Ref: CiCdPipelineBuildImageBuildActionCodePipelineActionRoleC6C24F76
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/Build/ImageBuildAction/CodePipelineActionRole/DefaultPolicy/Resource
+  CiCdPipelineDeployToStagingStagingEcsDeployActionCodePipelineActionRoleD8A5B657:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/DeployToStaging/StagingEcsDeployAction/CodePipelineActionRole/Resource
+  CiCdPipelineDeployToStagingStagingEcsDeployActionCodePipelineActionRoleDefaultPolicy5E26AED6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecs:DescribeServices
+              - ecs:DescribeTaskDefinition
+              - ecs:DescribeTasks
+              - ecs:ListTasks
+              - ecs:RegisterTaskDefinition
+              - ecs:UpdateService
+            Effect: Allow
+            Resource: "*"
+          - Action: iam:PassRole
+            Condition:
+              StringEqualsIfExists:
+                iam:PassedToService:
+                  - ec2.amazonaws.com
+                  - ecs-tasks.amazonaws.com
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CiCdPipelineArtifactsBucket5B9D3385
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CiCdPipelineArtifactsBucket5B9D3385
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineArtifactsBucketEncryptionKey6C2058A6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineDeployToStagingStagingEcsDeployActionCodePipelineActionRoleDefaultPolicy5E26AED6
+      Roles:
+        - Ref: CiCdPipelineDeployToStagingStagingEcsDeployActionCodePipelineActionRoleD8A5B657
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/DeployToStaging/StagingEcsDeployAction/CodePipelineActionRole/DefaultPolicy/Resource
+  CiCdPipelineManualApprovalManualApprovalActionCodePipelineActionRoleE88EF337:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/ManualApproval/ManualApprovalAction/CodePipelineActionRole/Resource
+  CiCdPipelineManualApprovalManualApprovalActionCodePipelineActionRoleDefaultPolicy11E143F8:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource:
+              Ref: CiCdPipelineManualApprovalManualApprovalActionTopicResourceAB9951F7
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineManualApprovalManualApprovalActionCodePipelineActionRoleDefaultPolicy11E143F8
+      Roles:
+        - Ref: CiCdPipelineManualApprovalManualApprovalActionCodePipelineActionRoleE88EF337
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/ManualApproval/ManualApprovalAction/CodePipelineActionRole/DefaultPolicy/Resource
+  CiCdPipelineManualApprovalManualApprovalActionTopicResourceAB9951F7:
+    Type: AWS::SNS::Topic
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/ManualApproval/ManualApprovalAction/TopicResource/Resource
+  CiCdPipelineManualApprovalManualApprovalActionTopicResourceemailexamplecomA1F84054:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn:
+        Ref: CiCdPipelineManualApprovalManualApprovalActionTopicResourceAB9951F7
+      Endpoint: email@example.com
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/ManualApproval/ManualApprovalAction/TopicResource/email@example.com/Resource
+  CiCdPipelineDeployToProductionProductionEcsDeployActionCodePipelineActionRoleC9A9E35A:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/DeployToProduction/ProductionEcsDeployAction/CodePipelineActionRole/Resource
+  CiCdPipelineDeployToProductionProductionEcsDeployActionCodePipelineActionRoleDefaultPolicyCB850F46:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecs:DescribeServices
+              - ecs:DescribeTaskDefinition
+              - ecs:DescribeTasks
+              - ecs:ListTasks
+              - ecs:RegisterTaskDefinition
+              - ecs:UpdateService
+            Effect: Allow
+            Resource: "*"
+          - Action: iam:PassRole
+            Condition:
+              StringEqualsIfExists:
+                iam:PassedToService:
+                  - ec2.amazonaws.com
+                  - ecs-tasks.amazonaws.com
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - CiCdPipelineArtifactsBucket5B9D3385
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - CiCdPipelineArtifactsBucket5B9D3385
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - CiCdPipelineArtifactsBucketEncryptionKey6C2058A6
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: CiCdPipelineDeployToProductionProductionEcsDeployActionCodePipelineActionRoleDefaultPolicyCB850F46
+      Roles:
+        - Ref: CiCdPipelineDeployToProductionProductionEcsDeployActionCodePipelineActionRoleC9A9E35A
+    Metadata:
+      aws:cdk:path: MyWebStack/CiCdPipeline/Pipeline/DeployToProduction/ProductionEcsDeployAction/CodePipelineActionRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,@aws-cdk/assets=1.34.1,@aws-cdk/aws-applicationautoscaling=1.34.1,@aws-cdk/aws-autoscaling=1.34.1,@aws-cdk/aws-autoscaling-common=1.34.1,@aws-cdk/aws-autoscaling-hooktargets=1.34.1,@aws-cdk/aws-certificatemanager=1.34.1,@aws-cdk/aws-cloudformation=1.34.1,@aws-cdk/aws-cloudwatch=1.34.1,@aws-cdk/aws-codebuild=1.34.1,@aws-cdk/aws-codecommit=1.34.1,@aws-cdk/aws-codepipeline=1.34.1,@aws-cdk/aws-codepipeline-actions=1.34.1,@aws-cdk/aws-ec2=1.34.1,@aws-cdk/aws-ecr=1.34.1,@aws-cdk/aws-ecr-assets=1.34.1,@aws-cdk/aws-ecs=1.34.1,@aws-cdk/aws-ecs-patterns=1.34.1,@aws-cdk/aws-elasticloadbalancingv2=1.34.1,@aws-cdk/aws-events=1.34.1,@aws-cdk/aws-events-targets=1.34.1,@aws-cdk/aws-iam=1.34.1,@aws-cdk/aws-kms=1.34.1,@aws-cdk/aws-lambda=1.34.1,@aws-cdk/aws-logs=1.34.1,@aws-cdk/aws-route53=1.34.1,@aws-cdk/aws-route53-targets=1.34.1,@aws-cdk/aws-s3=1.34.1,@aws-cdk/aws-s3-assets=1.34.1,@aws-cdk/aws-servicediscovery=1.34.1,@aws-cdk/aws-sns=1.34.1,@aws-cdk/aws-sns-subscriptions=1.34.1,@aws-cdk/aws-sqs=1.34.1,@aws-cdk/aws-ssm=1.34.1,@aws-cdk/cloud-assembly-schema=1.34.1,@aws-cdk/core=1.34.1,@aws-cdk/cx-api=1.34.1,@aws-cdk/region-info=1.34.1,jsii-runtime=node.js/v18.12.1
+    Condition: CDKMetadataAvailable
+Outputs:
+  CodeRepositoryGitRepoC613119B:
+    Value:
+      Fn::Join:
+        - ""
+        - - codecommit://
+          - Fn::GetAtt:
+              - CodeRepositoryD606923B
+              - Name
+  CodeRepositoryGroupE6A39F72:
+    Value:
+      Ref: CodeRepositoryDevelopers05462D2B
+  StagingClusterService1LoadBalancerDNSD1D42FD0:
+    Value:
+      Fn::GetAtt:
+        - StagingClusterService1LB82A541F9
+        - DNSName
+  StagingClusterService1ServiceURL232E4123:
+    Value:
+      Fn::Join:
+        - ""
+        - - http://
+          - Fn::GetAtt:
+              - StagingClusterService1LB82A541F9
+              - DNSName
+  StagingClusterELBURL52DB6AB2:
+    Value:
+      Fn::Join:
+        - ""
+        - - http://
+          - Fn::GetAtt:
+              - StagingClusterService1LB82A541F9
+              - DNSName
+  ProductionClusterService1LoadBalancerDNS7D5440C0:
+    Value:
+      Fn::GetAtt:
+        - ProductionClusterService1LB8EC5A535
+        - DNSName
+  ProductionClusterService1ServiceURLD25FF92F:
+    Value:
+      Fn::Join:
+        - ""
+        - - http://
+          - Fn::GetAtt:
+              - ProductionClusterService1LB8EC5A535
+              - DNSName
+  ProductionClusterELBURL71D52ADA:
+    Value:
+      Fn::Join:
+        - ""
+        - - http://
+          - Fn::GetAtt:
+              - ProductionClusterService1LB8EC5A535
+              - DNSName
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - il-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

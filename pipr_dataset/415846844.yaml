@@ -1,0 +1,866 @@
+Resources:
+  clubclouddomain:
+    Type: AWS::CodeArtifact::Domain
+    Properties:
+      DomainName: clubcloud-domain
+      PermissionsPolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action:
+              - codeartifact:DescribePackageVersion
+              - codeartifact:DescribeRepository
+              - codeartifact:GetPackageVersionReadme
+              - codeartifact:GetRepositoryEndpoint
+              - codeartifact:ListPackageVersionAssets
+              - codeartifact:ListPackageVersionDependencies
+              - codeartifact:ListPackageVersions
+              - codeartifact:ListPackages
+              - codeartifact:ReadFromRepository
+              - codeartifact:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+            Principal: "*"
+            Condition:
+              StringEquals:
+                aws:PrincipalOrgID:
+                  - <ORG_ID>
+          - Action:
+              - codeartifact:AssociateExternalConnection
+              - codeartifact:CopyPackageVersions
+              - codeartifact:DeletePackageVersions
+              - codeartifact:DeleteRepository
+              - codeartifact:DeleteRepositoryPermissionsPolicy
+              - codeartifact:DescribePackageVersion
+              - codeartifact:DescribeRepository
+              - codeartifact:DisassociateExternalConnection
+              - codeartifact:DisposePackageVersions
+              - codeartifact:GetPackageVersionReadme
+              - codeartifact:GetRepositoryEndpoint
+              - codeartifact:ListPackageVersionAssets
+              - codeartifact:ListPackageVersionDependencies
+              - codeartifact:ListPackageVersions
+              - codeartifact:ListPackages
+              - codeartifact:PublishPackageVersion
+              - codeartifact:PutPackageMetadata
+              - codeartifact:PutRepositoryPermissionsPolicy
+              - codeartifact:ReadFromRepository
+              - codeartifact:UpdatePackageVersionsStatus
+              - codeartifact:UpdateRepository
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:aws:iam::"
+                    - Ref: AWS::AccountId
+                    - :root
+            Resource: "*"
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-domain
+  clubcloudcodeartifactnpmrepository:
+    Type: AWS::CodeArtifact::Repository
+    Properties:
+      DomainName:
+        Fn::GetAtt:
+          - clubclouddomain
+          - Name
+      RepositoryName: clubcloud-npm-platform-constructs
+      ExternalConnections:
+        - public:npmjs
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-codeartifact-npm-repository
+  clubcloudcodeartifactpypirepository:
+    Type: AWS::CodeArtifact::Repository
+    Properties:
+      DomainName:
+        Fn::GetAtt:
+          - clubclouddomain
+          - Name
+      RepositoryName: clubcloud-pypi-platform-constructs
+      ExternalConnections:
+        - public:pypi
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-codeartifact-pypi-repository
+  clubcloudcodecommitsecurebucketconstructrepositoryE284D6CC:
+    Type: AWS::CodeCommit::Repository
+    Properties:
+      RepositoryName: clubcloud-secure-bucket-construct
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-codecommit-secure-bucket-construct-repository/Resource
+  clubcloudcodecommitsecurebucketconstructrepositoryclubcloudconstructpipelineclubcloudsecurebucketconstructpipeline36CE53A5EventRule8ED1F773:
+    Type: AWS::Events::Rule
+    Properties:
+      EventPattern:
+        source:
+          - aws.codecommit
+        resources:
+          - Fn::GetAtt:
+              - clubcloudcodecommitsecurebucketconstructrepositoryE284D6CC
+              - Arn
+        detail-type:
+          - CodeCommit Repository State Change
+        detail:
+          event:
+            - referenceCreated
+            - referenceUpdated
+          referenceName:
+            - master
+      State: ENABLED
+      Targets:
+        - Arn:
+            Fn::Join:
+              - ""
+              - - "arn:"
+                - Ref: AWS::Partition
+                - ":codepipeline:us-east-1:036406153779:"
+                - Ref: clubcloudsecurebucketconstructpipeline185497F5
+          Id: Target0
+          RoleArn:
+            Fn::GetAtt:
+              - clubcloudsecurebucketconstructpipelineEventsRole8F755F89
+              - Arn
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-codecommit-secure-bucket-construct-repository/clubcloudconstructpipelineclubcloudsecurebucketconstructpipeline36CE53A5EventRule/Resource
+  clubcloudcodepipelinerole094D0136:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+                - codebuild.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AdministratorAccess
+      RoleName: clubcloud-secure-bucket-construct-pipeline
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-codepipeline-role/Resource
+  clubcloudcodepipelineroleDefaultPolicyAD49673B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ecr:BatchCheckLayerAvailability
+              - ecr:GetDownloadUrlForLayer
+              - ecr:BatchGetImage
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :ecr:us-east-1:036406153779:repository/jsii/superchain
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: clubcloudsecurebucketconstructbuildBDE3BF2A
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: clubcloudsecurebucketconstructbuildBDE3BF2A
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: clubcloudsecurebucketconstructbuildBDE3BF2A
+                  - -*
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: clubcloudsecurebucketconstructpublishnpm9AF0F24A
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: clubcloudsecurebucketconstructpublishnpm9AF0F24A
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: clubcloudsecurebucketconstructpublishnpm9AF0F24A
+                  - -*
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: clubcloudsecurebucketconstructpublishpypiB2313003
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: clubcloudsecurebucketconstructpublishpypiB2313003
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: clubcloudsecurebucketconstructpublishpypiB2313003
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject*
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - clubcloudsecurebucketconstructpipelineArtifactsBucket5855CF3A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - clubcloudsecurebucketconstructpipelineArtifactsBucket5855CF3A
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKey4D25FD1B
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - clubcloudcodepipelinerole094D0136
+                - Arn
+          - Action:
+              - codecommit:GetBranch
+              - codecommit:GetCommit
+              - codecommit:UploadArchive
+              - codecommit:GetUploadArchiveStatus
+              - codecommit:CancelUploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - clubcloudcodecommitsecurebucketconstructrepositoryE284D6CC
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - clubcloudsecurebucketconstructbuildBDE3BF2A
+                - Arn
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKey4D25FD1B
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - clubcloudsecurebucketconstructpublishnpm9AF0F24A
+                - Arn
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - clubcloudsecurebucketconstructpipelineArtifactsBucket5855CF3A
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - clubcloudsecurebucketconstructpipelineArtifactsBucket5855CF3A
+                        - Arn
+                    - /*
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKey4D25FD1B
+                - Arn
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - clubcloudsecurebucketconstructpublishpypiB2313003
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: clubcloudcodepipelineroleDefaultPolicyAD49673B
+      Roles:
+        - Ref: clubcloudcodepipelinerole094D0136
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-codepipeline-role/DefaultPolicy/Resource
+  clubcloudsecurebucketconstructbuildBDE3BF2A:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+          - Name: ORG_ID
+            Type: PLAINTEXT
+            Value: <ORG_ID>
+        Image:
+          Fn::Join:
+            - ""
+            - - 036406153779.dkr.ecr.us-east-1.
+              - Ref: AWS::URLSuffix
+              - /jsii/superchain:node14
+        ImagePullCredentialsType: SERVICE_ROLE
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - clubcloudcodepipelinerole094D0136
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "artifacts": {
+              "files": [
+                "**/*"
+              ]
+            },
+            "phases": {
+              "pre_build": {
+                "commands": [
+                  "npx projen --version"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "yarn install --check-files --frozen-lockfile",
+                  "npx projen release"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKey4D25FD1B
+          - Arn
+      Name: clubcloud-secure-bucket-construct-build
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-secure-bucket-construct-build/Resource
+  clubcloudsecurebucketconstructpublishnpm9AF0F24A:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image:
+          Fn::Join:
+            - ""
+            - - 036406153779.dkr.ecr.us-east-1.
+              - Ref: AWS::URLSuffix
+              - /jsii/superchain:node14
+        ImagePullCredentialsType: SERVICE_ROLE
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - clubcloudcodepipelinerole094D0136
+          - Arn
+      Source:
+        BuildSpec:
+          Fn::Join:
+            - ""
+            - - |-
+                {
+                  "version": "0.2",
+                  "phases": {
+                    "build": {
+                      "commands": [
+                        "export CODEARTIFACT_AUTH_TOKEN=`aws codeartifact get-authorization-token --domain 
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Name
+              - " --domain-owner "
+              - Ref: AWS::AccountId
+              - |-2
+                 --query authorizationToken --output text`",
+                        "echo \"registry=https://
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Name
+              - "-"
+              - Ref: AWS::AccountId
+              - .d.codeartifact.
+              - Ref: AWS::Region
+              - .amazonaws.com/npm/
+              - Fn::GetAtt:
+                  - clubcloudcodeartifactnpmrepository
+                  - Name
+              - |-
+                /\" >> .npmrc",
+                        "echo \"//
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Name
+              - "-"
+              - Ref: AWS::AccountId
+              - .d.codeartifact.
+              - Ref: AWS::Region
+              - .amazonaws.com/npm/
+              - Fn::GetAtt:
+                  - clubcloudcodeartifactnpmrepository
+                  - Name
+              - |-
+                /:always-auth=true\" >> .npmrc",
+                        "echo \"//
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Name
+              - "-"
+              - Ref: AWS::AccountId
+              - .d.codeartifact.
+              - Ref: AWS::Region
+              - .amazonaws.com/npm/
+              - Fn::GetAtt:
+                  - clubcloudcodeartifactnpmrepository
+                  - Name
+              - |-
+                /:_authToken=${CODEARTIFACT_AUTH_TOKEN}\" >> .npmrc",
+                        "export NPM_TOKEN=`aws codeartifact get-authorization-token --domain 
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Name
+              - " --domain-owner "
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Owner
+              - |-2
+                 --query authorizationToken --output text`",
+                        "npx -p jsii-release jsii-release-npm"
+                      ]
+                    }
+                  }
+                }
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKey4D25FD1B
+          - Arn
+      Name: clubcloud-secure-bucket-construct-publish-npm
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-secure-bucket-construct-publish-npm/Resource
+  clubcloudsecurebucketconstructpublishpypiB2313003:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image:
+          Fn::Join:
+            - ""
+            - - 036406153779.dkr.ecr.us-east-1.
+              - Ref: AWS::URLSuffix
+              - /jsii/superchain:node14
+        ImagePullCredentialsType: SERVICE_ROLE
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - clubcloudcodepipelinerole094D0136
+          - Arn
+      Source:
+        BuildSpec:
+          Fn::Join:
+            - ""
+            - - |-
+                {
+                  "version": "0.2",
+                  "phases": {
+                    "pre_build": {
+                      "commands": [
+                        "aws codeartifact login --tool pip --repository 
+              - Fn::GetAtt:
+                  - clubcloudcodeartifactpypirepository
+                  - Name
+              - " --domain "
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Name
+              - " --domain-owner "
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Owner
+              - |-
+                "
+                      ]
+                    },
+                    "build": {
+                      "commands": [
+                        "export TWINE_USERNAME=aws",
+                        "export TWINE_PASSWORD=`aws codeartifact get-authorization-token --domain 
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Name
+              - " --domain-owner "
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Owner
+              - |-2
+                 --query authorizationToken --output text`",
+                        "export TWINE_REPOSITORY_URL=`aws codeartifact get-repository-endpoint --domain 
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Name
+              - " --domain-owner "
+              - Fn::GetAtt:
+                  - clubclouddomain
+                  - Owner
+              - " --repository "
+              - Fn::GetAtt:
+                  - clubcloudcodeartifactpypirepository
+                  - Name
+              - |-2
+                 --format pypi --query repositoryEndpoint --output text`",
+                        "npx -p jsii-release@latest jsii-release-pypi"
+                      ]
+                    }
+                  }
+                }
+        Type: CODEPIPELINE
+      EncryptionKey:
+        Fn::GetAtt:
+          - clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKey4D25FD1B
+          - Arn
+      Name: clubcloud-secure-bucket-construct-publish-pypi
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-secure-bucket-construct-publish-pypi/Resource
+  clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKey4D25FD1B:
+    Type: AWS::KMS::Key
+    Properties:
+      KeyPolicy:
+        Statement:
+          - Action:
+              - kms:Create*
+              - kms:Describe*
+              - kms:Enable*
+              - kms:List*
+              - kms:Put*
+              - kms:Update*
+              - kms:Revoke*
+              - kms:Disable*
+              - kms:Get*
+              - kms:Delete*
+              - kms:ScheduleKeyDeletion
+              - kms:CancelKeyDeletion
+              - kms:GenerateDataKey
+              - kms:TagResource
+              - kms:UntagResource
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - clubcloudcodepipelinerole094D0136
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:Encrypt
+              - kms:ReEncrypt*
+              - kms:GenerateDataKey*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - clubcloudcodepipelinerole094D0136
+                  - Arn
+            Resource: "*"
+          - Action:
+              - kms:Decrypt
+              - kms:DescribeKey
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::GetAtt:
+                  - clubcloudcodepipelinerole094D0136
+                  - Arn
+            Resource: "*"
+        Version: "2012-10-17"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-secure-bucket-construct-pipeline/ArtifactsBucketEncryptionKey/Resource
+  clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKeyAliasA13673E2:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/codepipeline-clubcloudconstructpipelineclubcloudsecurebucketconstructpipeline36ce53a5
+      TargetKeyId:
+        Fn::GetAtt:
+          - clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKey4D25FD1B
+          - Arn
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-secure-bucket-construct-pipeline/ArtifactsBucketEncryptionKeyAlias/Resource
+  clubcloudsecurebucketconstructpipelineArtifactsBucket5855CF3A:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              KMSMasterKeyID:
+                Fn::GetAtt:
+                  - clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKey4D25FD1B
+                  - Arn
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-secure-bucket-construct-pipeline/ArtifactsBucket/Resource
+  clubcloudsecurebucketconstructpipeline185497F5:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - clubcloudcodepipelinerole094D0136
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeCommit
+                Version: "1"
+              Configuration:
+                RepositoryName:
+                  Fn::GetAtt:
+                    - clubcloudcodecommitsecurebucketconstructrepositoryE284D6CC
+                    - Name
+                BranchName: master
+                PollForSourceChanges: false
+                OutputArtifactFormat: CODEBUILD_CLONE_REF
+              Name: codecommitSource
+              OutputArtifacts:
+                - Name: Artifact_codecommitSource_codecommitSource
+              RoleArn:
+                Fn::GetAtt:
+                  - clubcloudcodepipelinerole094D0136
+                  - Arn
+              RunOrder: 1
+          Name: codecommitSource
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: clubcloudsecurebucketconstructbuildBDE3BF2A
+              InputArtifacts:
+                - Name: Artifact_codecommitSource_codecommitSource
+              Name: releasebuild
+              OutputArtifacts:
+                - Name: Artifact_releasebuild_releasebuild
+              RoleArn:
+                Fn::GetAtt:
+                  - clubcloudcodepipelinerole094D0136
+                  - Arn
+              RunOrder: 1
+          Name: releasebuild
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: clubcloudsecurebucketconstructpublishnpm9AF0F24A
+              InputArtifacts:
+                - Name: Artifact_releasebuild_releasebuild
+              Name: publishNPM
+              RoleArn:
+                Fn::GetAtt:
+                  - clubcloudcodepipelinerole094D0136
+                  - Arn
+              RunOrder: 1
+          Name: publishNPM
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: clubcloudsecurebucketconstructpublishpypiB2313003
+              InputArtifacts:
+                - Name: Artifact_releasebuild_releasebuild
+              Name: publishPyPI
+              RoleArn:
+                Fn::GetAtt:
+                  - clubcloudcodepipelinerole094D0136
+                  - Arn
+              RunOrder: 1
+          Name: publishPyPI
+      ArtifactStore:
+        EncryptionKey:
+          Id:
+            Fn::GetAtt:
+              - clubcloudsecurebucketconstructpipelineArtifactsBucketEncryptionKey4D25FD1B
+              - Arn
+          Type: KMS
+        Location:
+          Ref: clubcloudsecurebucketconstructpipelineArtifactsBucket5855CF3A
+        Type: S3
+      Name: clubcloud-secure-bucket-construct-pipeline
+      RestartExecutionOnUpdate: true
+    DependsOn:
+      - clubcloudcodepipelineroleDefaultPolicyAD49673B
+      - clubcloudcodepipelinerole094D0136
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-secure-bucket-construct-pipeline/Resource
+  clubcloudsecurebucketconstructpipelineEventsRole8F755F89:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-secure-bucket-construct-pipeline/EventsRole/Resource
+  clubcloudsecurebucketconstructpipelineEventsRoleDefaultPolicy2CE88A1B:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":codepipeline:us-east-1:036406153779:"
+                  - Ref: clubcloudsecurebucketconstructpipeline185497F5
+        Version: "2012-10-17"
+      PolicyName: clubcloudsecurebucketconstructpipelineEventsRoleDefaultPolicy2CE88A1B
+      Roles:
+        - Ref: clubcloudsecurebucketconstructpipelineEventsRole8F755F89
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/clubcloud-secure-bucket-construct-pipeline/EventsRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/12Qy07DMBBFv6V7d0pgAztou2MTlS8wzlSaxI/IYxchy/+OH5EisbrXM2deHmB4foOnw7v84aOallNSziOkryDVIi7OcvBRBXG52xuyi15hFpUt3ITSB7pLFSCV/NUZSbaTq2MKzv9mUTHljKEC7fH/FD7QBi5E1NhyRbMgaUrIbaGqo9OkWnV3pVJ52DudJWMb+R1JT5BGWlGTxdG7GfsZm+2brVt+Jxuy+SwWU5b6xDaxyocmyfXRTBb8Aukc1YKtdXc5Z2FLb5j59BheywfDcJiZ6OijDWQQbl3/ADQjxaN8AQAA
+    Metadata:
+      aws:cdk:path: clubcloud-construct-pipeline/CDKMetadata/Default
+

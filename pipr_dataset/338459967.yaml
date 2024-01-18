@@ -1,0 +1,505 @@
+Resources:
+  UserPool6BA7E5F2:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+      AutoVerifiedAttributes:
+        - email
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      Schema:
+        - Mutable: true
+          Name: email
+          Required: true
+      SmsVerificationMessage: The verification code to your new account is {####}
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/UserPool/Resource
+  UserPoolClient2F5918F7:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId:
+        Ref: UserPool6BA7E5F2
+      AllowedOAuthFlows:
+        - implicit
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - profile
+        - phone
+        - email
+        - openid
+        - aws.cognito.signin.user.admin
+      CallbackURLs:
+        - https://example.com
+      SupportedIdentityProviders:
+        - COGNITO
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/UserPoolClient/Resource
+  ApiAppApiLogsRoleB3125C7D:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSAppSyncPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/ApiLogsRole/Resource
+  ApiApp29D38B84:
+    Type: AWS::AppSync::GraphQLApi
+    Properties:
+      AuthenticationType: API_KEY
+      Name: cdk-product-api
+      AdditionalAuthenticationProviders:
+        - AuthenticationType: AMAZON_COGNITO_USER_POOLS
+          UserPoolConfig:
+            AwsRegion:
+              Ref: AWS::Region
+            UserPoolId:
+              Ref: UserPool6BA7E5F2
+      LogConfig:
+        CloudWatchLogsRoleArn:
+          Fn::GetAtt:
+            - ApiAppApiLogsRoleB3125C7D
+            - Arn
+        FieldLogLevel: ALL
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/Resource
+  ApiAppSchema4AF892B3:
+    Type: AWS::AppSync::GraphQLSchema
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiApp29D38B84
+          - ApiId
+      Definition: |-
+        # graphql/schema.graphql
+        type Product @aws_api_key @aws_cognito_user_pools {
+          id: ID!
+          name: String!
+          description: String!
+          price: Float!
+          category: String!
+          sku: String
+          inventory: Int
+        }
+
+        input ProductInput {
+          id: ID
+          name: String!
+          description: String!
+          price: Float!
+          category: String!
+          sku: String
+          inventory: Int
+        }
+
+        input UpdateProductInput {
+          id: ID!
+          name: String
+          description: String
+          price: Float
+          category: String
+          sku: String
+          inventory: Int
+        }
+
+        type Query {
+          getProductById(productId: ID!): Product
+            @aws_api_key @aws_cognito_user_pools
+          listProducts: [Product]
+            @aws_api_key @aws_cognito_user_pools
+          productsByCategory(category: String!): [Product]
+            @aws_api_key @aws_cognito_user_pools
+        }
+
+        type Mutation {
+          createProduct(product: ProductInput!): Product
+            @aws_cognito_user_pools(cognito_groups: ["Admin"])
+          deleteProduct(productId: ID!): ID
+            @aws_cognito_user_pools(cognito_groups: ["Admin"])
+          updateProduct(product: UpdateProductInput!): Product
+            @aws_cognito_user_pools(cognito_groups: ["Admin"])
+        }
+
+        type Subscription {
+          onCreateProduct: Product
+            @aws_subscribe(mutations: ["createProduct"])
+        }
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/Schema
+  ApiAppDefaultApiKeyF860FAB4:
+    Type: AWS::AppSync::ApiKey
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiApp29D38B84
+          - ApiId
+      Expires: 1737093705
+    DependsOn:
+      - ApiAppSchema4AF892B3
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/DefaultApiKey
+  ApiAppLambdaDatasourceServiceRole47FBF235:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: appsync.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/LambdaDatasource/ServiceRole/Resource
+  ApiAppLambdaDatasourceServiceRoleDefaultPolicy737FD3A5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: lambda:InvokeFunction
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - ApiAppHandler6B2E0871
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ApiAppLambdaDatasourceServiceRoleDefaultPolicy737FD3A5
+      Roles:
+        - Ref: ApiAppLambdaDatasourceServiceRole47FBF235
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/LambdaDatasource/ServiceRole/DefaultPolicy/Resource
+  ApiAppLambdaDatasource177B606A:
+    Type: AWS::AppSync::DataSource
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiApp29D38B84
+          - ApiId
+      Name: LambdaDatasource
+      Type: AWS_LAMBDA
+      LambdaConfig:
+        LambdaFunctionArn:
+          Fn::GetAtt:
+            - ApiAppHandler6B2E0871
+            - Arn
+      ServiceRoleArn:
+        Fn::GetAtt:
+          - ApiAppLambdaDatasourceServiceRole47FBF235
+          - Arn
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/LambdaDatasource/Resource
+  ApiAppQuerygetProductByIdResolverBD730BCD:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiApp29D38B84
+          - ApiId
+      FieldName: getProductById
+      TypeName: Query
+      DataSourceName: LambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApiAppLambdaDatasource177B606A
+      - ApiAppSchema4AF892B3
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/QuerygetProductByIdResolver/Resource
+  ApiAppQuerylistProductsResolver811A0063:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiApp29D38B84
+          - ApiId
+      FieldName: listProducts
+      TypeName: Query
+      DataSourceName: LambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApiAppLambdaDatasource177B606A
+      - ApiAppSchema4AF892B3
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/QuerylistProductsResolver/Resource
+  ApiAppQueryproductsByCategoryResolver01B7BD8E:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiApp29D38B84
+          - ApiId
+      FieldName: productsByCategory
+      TypeName: Query
+      DataSourceName: LambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApiAppLambdaDatasource177B606A
+      - ApiAppSchema4AF892B3
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/QueryproductsByCategoryResolver/Resource
+  ApiAppMutationcreateProductResolver5EED7150:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiApp29D38B84
+          - ApiId
+      FieldName: createProduct
+      TypeName: Mutation
+      DataSourceName: LambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApiAppLambdaDatasource177B606A
+      - ApiAppSchema4AF892B3
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/MutationcreateProductResolver/Resource
+  ApiAppMutationdeleteProductResolverF3F8B24D:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiApp29D38B84
+          - ApiId
+      FieldName: deleteProduct
+      TypeName: Mutation
+      DataSourceName: LambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApiAppLambdaDatasource177B606A
+      - ApiAppSchema4AF892B3
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/MutationdeleteProductResolver/Resource
+  ApiAppMutationupdateProductResolverC95332F6:
+    Type: AWS::AppSync::Resolver
+    Properties:
+      ApiId:
+        Fn::GetAtt:
+          - ApiApp29D38B84
+          - ApiId
+      FieldName: updateProduct
+      TypeName: Mutation
+      DataSourceName: LambdaDatasource
+      Kind: UNIT
+    DependsOn:
+      - ApiAppLambdaDatasource177B606A
+      - ApiAppSchema4AF892B3
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiApp/MutationupdateProductResolver/Resource
+  ApiAppHandlerServiceRole559BD6DF:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiAppHandler/ServiceRole/Resource
+  ApiAppHandlerServiceRoleDefaultPolicy68716390:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: dynamodb:*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - ProductTableB8D4E9ED
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - ProductTableB8D4E9ED
+                        - Arn
+                    - /index/*
+        Version: "2012-10-17"
+      PolicyName: ApiAppHandlerServiceRoleDefaultPolicy68716390
+      Roles:
+        - Ref: ApiAppHandlerServiceRole559BD6DF
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiAppHandler/ServiceRole/DefaultPolicy/Resource
+  ApiAppHandler6B2E0871:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters2c6fee8c7a7a4ac2188a95c7e40d0611632415fe21be608fa903c729fce0a9ffS3BucketE6E0FDB4
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters2c6fee8c7a7a4ac2188a95c7e40d0611632415fe21be608fa903c729fce0a9ffS3VersionKeyD18F58BE
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters2c6fee8c7a7a4ac2188a95c7e40d0611632415fe21be608fa903c729fce0a9ffS3VersionKeyD18F58BE
+      Role:
+        Fn::GetAtt:
+          - ApiAppHandlerServiceRole559BD6DF
+          - Arn
+      Environment:
+        Variables:
+          PRODUCT_TABLE:
+            Ref: ProductTableB8D4E9ED
+      Handler: lib/index.handler
+      MemorySize: 1024
+      Runtime: nodejs12.x
+    DependsOn:
+      - ApiAppHandlerServiceRoleDefaultPolicy68716390
+      - ApiAppHandlerServiceRole559BD6DF
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ApiAppHandler/Resource
+      aws:asset:path: asset.2c6fee8c7a7a4ac2188a95c7e40d0611632415fe21be608fa903c729fce0a9ff
+      aws:asset:property: Code
+  ProductTableB8D4E9ED:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: category
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      GlobalSecondaryIndexes:
+        - IndexName: productsByCategory
+          KeySchema:
+            - AttributeName: category
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/ProductTable/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Modules: aws-cdk=2.113.0,jsii-runtime=node.js/v18.12.1
+    Metadata:
+      aws:cdk:path: my-cdk-products-stack/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters2c6fee8c7a7a4ac2188a95c7e40d0611632415fe21be608fa903c729fce0a9ffS3BucketE6E0FDB4:
+    Type: String
+    Description: S3 bucket for asset "2c6fee8c7a7a4ac2188a95c7e40d0611632415fe21be608fa903c729fce0a9ff"
+  AssetParameters2c6fee8c7a7a4ac2188a95c7e40d0611632415fe21be608fa903c729fce0a9ffS3VersionKeyD18F58BE:
+    Type: String
+    Description: S3 key for asset version "2c6fee8c7a7a4ac2188a95c7e40d0611632415fe21be608fa903c729fce0a9ff"
+  AssetParameters2c6fee8c7a7a4ac2188a95c7e40d0611632415fe21be608fa903c729fce0a9ffArtifactHash3D1E3824:
+    Type: String
+    Description: Artifact hash for asset "2c6fee8c7a7a4ac2188a95c7e40d0611632415fe21be608fa903c729fce0a9ff"
+Outputs:
+  GraphQLAPIURL:
+    Value:
+      Fn::GetAtt:
+        - ApiApp29D38B84
+        - GraphQLUrl
+  AppSyncAPIKey:
+    Value:
+      Fn::GetAtt:
+        - ApiAppDefaultApiKeyF860FAB4
+        - ApiKey
+  ProjectRegion:
+    Value:
+      Ref: AWS::Region
+  UserPoolId:
+    Value:
+      Ref: UserPool6BA7E5F2
+  UserPoolClientId:
+    Value:
+      Ref: UserPoolClient2F5918F7
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

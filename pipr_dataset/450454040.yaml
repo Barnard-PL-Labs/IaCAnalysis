@@ -1,0 +1,143 @@
+Resources:
+  GithubActionsDEF66140:
+    Type: Custom::AWSCDKOpenIdConnectProvider
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - CustomAWSCDKOpenIdConnectProviderCustomResourceProviderHandlerF2C543E0
+          - Arn
+      ClientIDList:
+        - sts.amazonaws.com
+      Url: https://token.actions.githubusercontent.com
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: GithubOIDCStack/GithubActions/Resource/Default
+  CustomAWSCDKOpenIdConnectProviderCustomResourceProviderRole517FED65:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: Inline
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Resource: "*"
+                Action:
+                  - iam:CreateOpenIDConnectProvider
+                  - iam:DeleteOpenIDConnectProvider
+                  - iam:UpdateOpenIDConnectProviderThumbprint
+                  - iam:AddClientIDToOpenIDConnectProvider
+                  - iam:RemoveClientIDFromOpenIDConnectProvider
+    Metadata:
+      aws:cdk:path: GithubOIDCStack/Custom::AWSCDKOpenIdConnectProviderCustomResourceProvider/Role
+  CustomAWSCDKOpenIdConnectProviderCustomResourceProviderHandlerF2C543E0:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Fn::Sub: cdk-hnb659fds-assets-${AWS::AccountId}-eu-central-1
+        S3Key: e87ed7caf70963cf8fd827aa2d9795431f6e07a2d25d1dbac646437e0e0761ab.zip
+      Timeout: 900
+      MemorySize: 128
+      Handler: __entrypoint__.handler
+      Role:
+        Fn::GetAtt:
+          - CustomAWSCDKOpenIdConnectProviderCustomResourceProviderRole517FED65
+          - Arn
+      Runtime: nodejs12.x
+    DependsOn:
+      - CustomAWSCDKOpenIdConnectProviderCustomResourceProviderRole517FED65
+    Metadata:
+      aws:cdk:path: GithubOIDCStack/Custom::AWSCDKOpenIdConnectProviderCustomResourceProvider/Handler
+      aws:asset:path: asset.e87ed7caf70963cf8fd827aa2d9795431f6e07a2d25d1dbac646437e0e0761ab
+      aws:asset:property: Code
+  HelloParameter171EB291:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Type: String
+      Value: "Hi from aws :wave:"
+      Description: Sample value for demo purpose of project aws-gh-oidc
+      Name: hello_aws-gh-oidc
+    Metadata:
+      aws:cdk:path: GithubOIDCStack/HelloParameter/Resource
+  GithubActionsRoleF5CC769F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+                token.actions.githubusercontent.com:sub:
+                  - repo:WtfJoke/aws-gh-oidc:ref:refs/heads/main
+            Effect: Allow
+            Principal:
+              Federated:
+                Ref: GithubActionsDEF66140
+        Version: "2012-10-17"
+      Description: Role to assume from github actions pipeline of aws-gh-oidc
+      RoleName: aws-gh-oidc
+    Metadata:
+      aws:cdk:path: GithubOIDCStack/GithubActionsRole/Resource
+  GithubActionsRoleDefaultPolicy490FA883:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - ssm:DescribeParameters
+              - ssm:GetParameters
+              - ssm:GetParameter
+              - ssm:GetParameterHistory
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":ssm:eu-central-1:"
+                  - Ref: AWS::AccountId
+                  - :parameter/
+                  - Ref: HelloParameter171EB291
+        Version: "2012-10-17"
+      PolicyName: GithubActionsRoleDefaultPolicy490FA883
+      Roles:
+        - Ref: GithubActionsRoleF5CC769F
+    Metadata:
+      aws:cdk:path: GithubOIDCStack/GithubActionsRole/DefaultPolicy/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VPQQ6CMBB8i/dSA/Hg1XDyJMEHmNquZIFuTbfFGNK/WySSeJqZnezMbiWrgyx36sWFNkMx4l3O16D0IPLoNqOycr48gc6mdkSgQ+PdhAa8aN0Ion7QFxs3on4vcmVJMNslySN1jfLKQsg7i/8TKYk6cnC2BXbR6zVs43/WVnpihpDv63JsEuQMyJ73U3mUZZXf6Bmx8JECWpDtih/bLGDI4gAAAA==
+    Metadata:
+      aws:cdk:path: GithubOIDCStack/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

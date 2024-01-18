@@ -1,0 +1,684 @@
+Resources:
+  vodrecordbucket7DC8B4C7:
+    Type: AWS::S3::Bucket
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: DVRdemoStack/vod-record-bucket/Resource
+  vodrecordbucketNotifications09A25CEE:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: vodrecordbucket7DC8B4C7
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:Put
+            Filter:
+              Key:
+                FilterRules:
+                  - Name: suffix
+                    Value: recording-started.json
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - SaveRecordingStartMetaHandler6746B5AE
+                - Arn
+      Managed: true
+    DependsOn:
+      - vodrecordbucketAllowBucketNotificationsToDVRdemoStackSaveRecordingStartMetaHandler389F015E126B24DA
+    Metadata:
+      aws:cdk:path: DVRdemoStack/vod-record-bucket/Notifications/Resource
+  vodrecordbucketAllowBucketNotificationsToDVRdemoStackSaveRecordingStartMetaHandler389F015E126B24DA:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - SaveRecordingStartMetaHandler6746B5AE
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount: "036406153779"
+      SourceArn:
+        Fn::GetAtt:
+          - vodrecordbucket7DC8B4C7
+          - Arn
+    Metadata:
+      aws:cdk:path: DVRdemoStack/vod-record-bucket/AllowBucketNotificationsToDVRdemoStackSaveRecordingStartMetaHandler389F015E
+  vodrecordbucketPolicyC05586E0:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: vodrecordbucket7DC8B4C7
+      PolicyDocument:
+        Statement:
+          - Action: s3:GetObject
+            Effect: Allow
+            Principal:
+              CanonicalUser:
+                Fn::GetAtt:
+                  - vodoai3C076D99
+                  - S3CanonicalUserId
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - vodrecordbucket7DC8B4C7
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: DVRdemoStack/vod-record-bucket/Policy/Resource
+  dvrrecordingconfig:
+    Type: AWS::IVS::RecordingConfiguration
+    Properties:
+      DestinationConfiguration:
+        S3:
+          BucketName:
+            Ref: vodrecordbucket7DC8B4C7
+      Name: dvr-recording-config
+      ThumbnailConfiguration:
+        RecordingMode: DISABLED
+    Metadata:
+      aws:cdk:path: DVRdemoStack/dvr-recording-config
+  DVRdemochannel:
+    Type: AWS::IVS::Channel
+    Properties:
+      LatencyMode: LOW
+      Name: DVR-demo-channel
+      RecordingConfigurationArn:
+        Fn::GetAtt:
+          - dvrrecordingconfig
+          - Arn
+      Type: BASIC
+    Metadata:
+      aws:cdk:path: DVRdemoStack/DVR-demo-channel
+  dvrstreamkey:
+    Type: AWS::IVS::StreamKey
+    Properties:
+      ChannelArn:
+        Fn::GetAtt:
+          - DVRdemochannel
+          - Arn
+    Metadata:
+      aws:cdk:path: DVRdemoStack/dvr-streamkey
+  ModifyRenditionPlaylistHandlerServiceRole1D30ACCE:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: edgelambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DVRdemoStack/ModifyRenditionPlaylistHandler/ServiceRole/Resource
+  ModifyRenditionPlaylistHandlerServiceRoleDefaultPolicy2CD54645:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - vodrecordbucket7DC8B4C7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - vodrecordbucket7DC8B4C7
+                        - Arn
+                    - /*/playlist.m3u8
+          - Action: ivs:GetStream
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DVRdemochannel
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: ModifyRenditionPlaylistHandlerServiceRoleDefaultPolicy2CD54645
+      Roles:
+        - Ref: ModifyRenditionPlaylistHandlerServiceRole1D30ACCE
+    Metadata:
+      aws:cdk:path: DVRdemoStack/ModifyRenditionPlaylistHandler/ServiceRole/DefaultPolicy/Resource
+  ModifyRenditionPlaylistHandlerD3838DC3:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 7b035f6d33fa117ffbc26ec8e340afb083503177d70b3b1e6fd3512208c2eadb.zip
+      Role:
+        Fn::GetAtt:
+          - ModifyRenditionPlaylistHandlerServiceRole1D30ACCE
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - ModifyRenditionPlaylistHandlerServiceRoleDefaultPolicy2CD54645
+      - ModifyRenditionPlaylistHandlerServiceRole1D30ACCE
+    Metadata:
+      aws:cdk:path: DVRdemoStack/ModifyRenditionPlaylistHandler/Resource
+      aws:asset:path: asset.7b035f6d33fa117ffbc26ec8e340afb083503177d70b3b1e6fd3512208c2eadb
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  ModifyRenditionPlaylistHandlerCurrentVersion06CA2A85bb739c041d95740d4d81d25869a65f81:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName:
+        Ref: ModifyRenditionPlaylistHandlerD3838DC3
+    Metadata:
+      aws:cdk:path: DVRdemoStack/ModifyRenditionPlaylistHandler/CurrentVersion/Resource
+  SaveRecordingStartMetaHandlerServiceRole6BA73936:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DVRdemoStack/SaveRecordingStartMetaHandler/ServiceRole/Resource
+  SaveRecordingStartMetaHandlerServiceRoleDefaultPolicyD6611F92:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - vodrecordbucket7DC8B4C7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - vodrecordbucket7DC8B4C7
+                        - Arn
+                    - /*/recording-started.json
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - vodrecordbucket7DC8B4C7
+                      - Arn
+                  - /recording-started-latest.json
+          - Action: ivs:GetStream
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DVRdemochannel
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: SaveRecordingStartMetaHandlerServiceRoleDefaultPolicyD6611F92
+      Roles:
+        - Ref: SaveRecordingStartMetaHandlerServiceRole6BA73936
+    Metadata:
+      aws:cdk:path: DVRdemoStack/SaveRecordingStartMetaHandler/ServiceRole/DefaultPolicy/Resource
+  SaveRecordingStartMetaHandler6746B5AE:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: 64580974b1cd11217f6e7f55f476429b7c1aca5ff5b688b330836f777c481ea5.zip
+      Role:
+        Fn::GetAtt:
+          - SaveRecordingStartMetaHandlerServiceRole6BA73936
+          - Arn
+      Environment:
+        Variables:
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - SaveRecordingStartMetaHandlerServiceRoleDefaultPolicyD6611F92
+      - SaveRecordingStartMetaHandlerServiceRole6BA73936
+    Metadata:
+      aws:cdk:path: DVRdemoStack/SaveRecordingStartMetaHandler/Resource
+      aws:asset:path: asset.64580974b1cd11217f6e7f55f476429b7c1aca5ff5b688b330836f777c481ea5
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DVRdemoStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: DVRdemoStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/DefaultPolicy/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |
+          import boto3  # type: ignore
+          import json
+          import logging
+          import urllib.request
+
+          s3 = boto3.client("s3")
+
+          CONFIGURATION_TYPES = ["TopicConfigurations", "QueueConfigurations", "LambdaFunctionConfigurations"]
+
+          def handler(event: dict, context):
+              response_status = "SUCCESS"
+              error_message = ""
+              try:
+                  props = event["ResourceProperties"]
+                  bucket = props["BucketName"]
+                  notification_configuration = props["NotificationConfiguration"]
+                  request_type = event["RequestType"]
+                  managed = props.get('Managed', 'true').lower() == 'true'
+                  stack_id = event['StackId']
+
+                  if managed:
+                    config = handle_managed(request_type, notification_configuration)
+                  else:
+                    config = handle_unmanaged(bucket, stack_id, request_type, notification_configuration)
+
+                  put_bucket_notification_configuration(bucket, config)
+              except Exception as e:
+                  logging.exception("Failed to put bucket notification configuration")
+                  response_status = "FAILED"
+                  error_message = f"Error: {str(e)}. "
+              finally:
+                  submit_response(event, context, response_status, error_message)
+
+
+          def handle_managed(request_type, notification_configuration):
+            if request_type == 'Delete':
+              return {}
+            return notification_configuration
+
+
+          def handle_unmanaged(bucket, stack_id, request_type, notification_configuration):
+
+            # find external notifications
+            external_notifications = find_external_notifications(bucket, stack_id)
+
+            # if delete, that's all we need
+            if request_type == 'Delete':
+              return external_notifications
+
+            def with_id(notification):
+              notification['Id'] = f"{stack_id}-{hash(json.dumps(notification, sort_keys=True))}"
+              return notification
+
+            # otherwise, merge external with incoming config and augment with id
+            notifications = {}
+            for t in CONFIGURATION_TYPES:
+              external = external_notifications.get(t, [])
+              incoming = [with_id(n) for n in notification_configuration.get(t, [])]
+              notifications[t] = external + incoming
+            return notifications
+
+
+          def find_external_notifications(bucket, stack_id):
+            existing_notifications = get_bucket_notification_configuration(bucket)
+            external_notifications = {}
+            for t in CONFIGURATION_TYPES:
+              # if the notification was created by us, we know what id to expect
+              # so we can filter by it.
+              external_notifications[t] = [n for n in existing_notifications.get(t, []) if not n['Id'].startswith(f"{stack_id}-")]
+
+            return external_notifications
+
+
+          def get_bucket_notification_configuration(bucket):
+            return s3.get_bucket_notification_configuration(Bucket=bucket)
+
+
+          def put_bucket_notification_configuration(bucket, notification_configuration):
+            s3.put_bucket_notification_configuration(Bucket=bucket, NotificationConfiguration=notification_configuration)
+
+
+          def submit_response(event: dict, context, response_status: str, error_message: str):
+              response_body = json.dumps(
+                  {
+                      "Status": response_status,
+                      "Reason": f"{error_message}See the details in CloudWatch Log Stream: {context.log_stream_name}",
+                      "PhysicalResourceId": event.get("PhysicalResourceId") or event["LogicalResourceId"],
+                      "StackId": event["StackId"],
+                      "RequestId": event["RequestId"],
+                      "LogicalResourceId": event["LogicalResourceId"],
+                      "NoEcho": False,
+                  }
+              ).encode("utf-8")
+              headers = {"content-type": "", "content-length": str(len(response_body))}
+              try:
+                  req = urllib.request.Request(url=event["ResponseURL"], headers=headers, data=response_body, method="PUT")
+                  with urllib.request.urlopen(req) as response:
+                      print(response.read().decode("utf-8"))
+                  print("Status code: " + response.reason)
+              except Exception as e:
+                  print("send(..) failed executing request.urlopen(..): " + str(e))
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: python3.7
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      aws:cdk:path: DVRdemoStack/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Resource
+  GetLatestRecordingStartMetaHandlerServiceRole4FB54865:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: edgelambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: DVRdemoStack/GetLatestRecordingStartMetaHandler/ServiceRole/Resource
+  GetLatestRecordingStartMetaHandlerServiceRoleDefaultPolicy08FDD54F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - vodrecordbucket7DC8B4C7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - vodrecordbucket7DC8B4C7
+                        - Arn
+                    - /recording-started-latest.json
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - vodrecordbucket7DC8B4C7
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - vodrecordbucket7DC8B4C7
+                        - Arn
+                    - /*/playlist.m3u8
+          - Action: ivs:GetStream
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - DVRdemochannel
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: GetLatestRecordingStartMetaHandlerServiceRoleDefaultPolicy08FDD54F
+      Roles:
+        - Ref: GetLatestRecordingStartMetaHandlerServiceRole4FB54865
+    Metadata:
+      aws:cdk:path: DVRdemoStack/GetLatestRecordingStartMetaHandler/ServiceRole/DefaultPolicy/Resource
+  GetLatestRecordingStartMetaHandlerC136C4E5:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-036406153779-us-east-1
+        S3Key: a2fcdef2611b082b758041280a4580da97403d83688172e4208977a784fab782.zip
+      Role:
+        Fn::GetAtt:
+          - GetLatestRecordingStartMetaHandlerServiceRole4FB54865
+          - Arn
+      Handler: index.handler
+      Runtime: nodejs14.x
+    DependsOn:
+      - GetLatestRecordingStartMetaHandlerServiceRoleDefaultPolicy08FDD54F
+      - GetLatestRecordingStartMetaHandlerServiceRole4FB54865
+    Metadata:
+      aws:cdk:path: DVRdemoStack/GetLatestRecordingStartMetaHandler/Resource
+      aws:asset:path: asset.a2fcdef2611b082b758041280a4580da97403d83688172e4208977a784fab782
+      aws:asset:is-bundled: true
+      aws:asset:property: Code
+  GetLatestRecordingStartMetaHandlerCurrentVersion986C367788a542bd30d96a0e3db3604595ade38a:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName:
+        Ref: GetLatestRecordingStartMetaHandlerC136C4E5
+    Metadata:
+      aws:cdk:path: DVRdemoStack/GetLatestRecordingStartMetaHandler/CurrentVersion/Resource
+  vodoai3C076D99:
+    Type: AWS::CloudFront::CloudFrontOriginAccessIdentity
+    Properties:
+      CloudFrontOriginAccessIdentityConfig:
+        Comment: Allows CloudFront to reach the bucket
+    Metadata:
+      aws:cdk:path: DVRdemoStack/vod-oai/Resource
+  VODPlaylistCaching6202D2E7:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Comment: Policy for VOD Playlist Origin
+        DefaultTTL: 30
+        MaxTTL: 31536000
+        MinTTL: 0
+        Name: VOD-PlaylistCaching
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: false
+          EnableAcceptEncodingGzip: true
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+    Metadata:
+      aws:cdk:path: DVRdemoStack/VOD-PlaylistCaching/Resource
+  VODResponseHeadersE1FD92D6:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Comment: Allows only the required origins for CORS requests
+        CorsConfig:
+          AccessControlAllowCredentials: false
+          AccessControlAllowHeaders:
+            Items:
+              - "*"
+          AccessControlAllowMethods:
+            Items:
+              - GET
+          AccessControlAllowOrigins:
+            Items:
+              - http://localhost:3000
+          OriginOverride: true
+        Name: VOD-ResponseHeaders
+    Metadata:
+      aws:cdk:path: DVRdemoStack/VOD-ResponseHeaders/Resource
+  vodcdnDF258074:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        CacheBehaviors:
+          - CachePolicyId:
+              Ref: VODPlaylistCaching6202D2E7
+            Compress: true
+            LambdaFunctionAssociations:
+              - EventType: origin-request
+                LambdaFunctionARN:
+                  Ref: ModifyRenditionPlaylistHandlerCurrentVersion06CA2A85bb739c041d95740d4d81d25869a65f81
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf
+            PathPattern: "*/playlist.m3u8"
+            ResponseHeadersPolicyId:
+              Ref: VODResponseHeadersE1FD92D6
+            TargetOriginId: DVRdemoStackvodcdnOrigin1264AABA8
+            ViewerProtocolPolicy: allow-all
+          - CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+            Compress: true
+            LambdaFunctionAssociations:
+              - EventType: origin-request
+                LambdaFunctionARN:
+                  Ref: GetLatestRecordingStartMetaHandlerCurrentVersion986C367788a542bd30d96a0e3db3604595ade38a
+            OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf
+            PathPattern: /recording-started-latest.json
+            ResponseHeadersPolicyId:
+              Ref: VODResponseHeadersE1FD92D6
+            TargetOriginId: DVRdemoStackvodcdnOrigin1264AABA8
+            ViewerProtocolPolicy: allow-all
+        DefaultCacheBehavior:
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          Compress: true
+          OriginRequestPolicyId: 88a5eaf4-2fd4-4709-b370-b4c650ea3fcf
+          ResponseHeadersPolicyId:
+            Ref: VODResponseHeadersE1FD92D6
+          TargetOriginId: DVRdemoStackvodcdnOrigin1264AABA8
+          ViewerProtocolPolicy: allow-all
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: true
+        Origins:
+          - DomainName:
+              Fn::GetAtt:
+                - vodrecordbucket7DC8B4C7
+                - RegionalDomainName
+            Id: DVRdemoStackvodcdnOrigin1264AABA8
+            OriginCustomHeaders:
+              - HeaderName: vod-record-bucket-name
+                HeaderValue:
+                  Ref: vodrecordbucket7DC8B4C7
+              - HeaderName: channel-arn
+                HeaderValue:
+                  Fn::GetAtt:
+                    - DVRdemochannel
+                    - Arn
+            S3OriginConfig:
+              OriginAccessIdentity:
+                Fn::Join:
+                  - ""
+                  - - origin-access-identity/cloudfront/
+                    - Ref: vodoai3C076D99
+    Metadata:
+      aws:cdk:path: DVRdemoStack/vod-cdn/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/21RwW7CMAz9Fu7BW+GyHaETYpo0UJF2RSFxi6FNUJwwoar/vqYtKwdO79l+T35xZpC8w+tE/vJU6fO0pAPUOy/VWbStfc1zqJdBndGLNDcD62FrS1K3sT3UfbGUjI0oZXXQEupWs0VXETNZEx2rYJSP/AfdvTfQRtCVO0uGyjpNpkityakITvpBmh6lMVhGuvMOZfWFt/u2vbEaTwzfHfwvIllBndkSo6nDMX/PGsHzvWRGz7CIIFRpg86dNR7qjaOCzEIpZP7UaDz5zptGzSpqniukOuK46bHMkC/WMK5R6vbpo+j54IPYOzqE+w0e66YZfDY4haJL335iG6eIg03wl+AbES8DJ365Jm+QzCCZnJho6kIbtULIevwDNbP7VhECAAA=
+    Metadata:
+      aws:cdk:path: DVRdemoStack/CDKMetadata/Default
+Outputs:
+  ingestServer:
+    Value:
+      Fn::Join:
+        - ""
+        - - rtmps://
+          - Fn::GetAtt:
+              - DVRdemochannel
+              - IngestEndpoint
+          - :443/app/
+  streamKey:
+    Value:
+      Fn::GetAtt:
+        - dvrstreamkey
+        - Value
+  playbackUrl:
+    Value:
+      Fn::GetAtt:
+        - DVRdemochannel
+        - PlaybackUrl
+  distributionDomainName:
+    Value:
+      Fn::GetAtt:
+        - vodcdnDF258074
+        - DomainName
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

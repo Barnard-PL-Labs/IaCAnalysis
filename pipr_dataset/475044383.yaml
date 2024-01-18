@@ -1,0 +1,407 @@
+Resources:
+  TestAwsManagedPLEC2SG1E3E4E21:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: AwsManagedPlStack/TestAwsManagedPLEC2SG
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      SecurityGroupIngress:
+        - CidrIp: 172.31.0.0/16
+          Description: from 172.31.0.0/16:80
+          FromPort: 80
+          IpProtocol: tcp
+          ToPort: 80
+        - CidrIp: 0.0.0.0/0
+          Description: from 0.0.0.0/0:22
+          FromPort: 22
+          IpProtocol: tcp
+          ToPort: 22
+      VpcId: vpc-21d8cd46
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestAwsManagedPLEC2SG/Resource
+  TestAwsManagedPLInstanceRole1A4E1A12:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: Name
+          Value: AwsManagedPlStack/TestAwsManagedPL
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestAwsManagedPL/InstanceRole/Resource
+  TestAwsManagedPLInstanceProfile36335597:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: TestAwsManagedPLInstanceRole1A4E1A12
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestAwsManagedPL/InstanceProfile
+  TestAwsManagedPLB720122E:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: ap-southeast-1a
+      IamInstanceProfile:
+        Ref: TestAwsManagedPLInstanceProfile36335597
+      ImageId: ami-07856f3f6b387ee03
+      InstanceType: t3.small
+      KeyName: ultorex-staging-key
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - TestAwsManagedPLEC2SG1E3E4E21
+            - GroupId
+      SubnetId: subnet-de0de396
+      Tags:
+        - Key: Name
+          Value: AwsManagedPlStack/TestAwsManagedPL
+      UserData:
+        Fn::Base64: "#!/bin/bash"
+    DependsOn:
+      - TestAwsManagedPLInstanceRole1A4E1A12
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestAwsManagedPL/Resource
+  TestPLCloudFrontCertificateCertificateRequestorFunctionServiceRoleEC5454D4:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestPLCloudFrontCertificate/CertificateRequestorFunction/ServiceRole/Resource
+  TestPLCloudFrontCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy145BF324:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - acm:RequestCertificate
+              - acm:DescribeCertificate
+              - acm:DeleteCertificate
+              - acm:AddTagsToCertificate
+            Effect: Allow
+            Resource: "*"
+          - Action: route53:GetChange
+            Effect: Allow
+            Resource: "*"
+          - Action: route53:changeResourceRecordSets
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :route53:::hostedzone/Z03309142ACSYFWC4KYU3
+        Version: "2012-10-17"
+      PolicyName: TestPLCloudFrontCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy145BF324
+      Roles:
+        - Ref: TestPLCloudFrontCertificateCertificateRequestorFunctionServiceRoleEC5454D4
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestPLCloudFrontCertificate/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource
+  TestPLCloudFrontCertificateCertificateRequestorFunction8EC4FD98:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-418714370495-ap-southeast-1
+        S3Key: 4d3f21fe611d8ebfd4f1f69754b7f986fed4ecf648d4fafe941cd81ede6cf60c.zip
+      Role:
+        Fn::GetAtt:
+          - TestPLCloudFrontCertificateCertificateRequestorFunctionServiceRoleEC5454D4
+          - Arn
+      Handler: index.certificateRequestHandler
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - TestPLCloudFrontCertificateCertificateRequestorFunctionServiceRoleDefaultPolicy145BF324
+      - TestPLCloudFrontCertificateCertificateRequestorFunctionServiceRoleEC5454D4
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestPLCloudFrontCertificate/CertificateRequestorFunction/Resource
+      aws:asset:path: asset.4d3f21fe611d8ebfd4f1f69754b7f986fed4ecf648d4fafe941cd81ede6cf60c
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  TestPLCloudFrontCertificateCertificateRequestorResource79BBB47D:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - TestPLCloudFrontCertificateCertificateRequestorFunction8EC4FD98
+          - Arn
+      DomainName: test-pl.ultorex.org
+      HostedZoneId: Z03309142ACSYFWC4KYU3
+      Region: us-east-1
+      CleanupRecords: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestPLCloudFrontCertificate/CertificateRequestorResource/Default
+  TestPLLBCertificateCertificateRequestorFunctionServiceRole5980A546:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestPLLBCertificate/CertificateRequestorFunction/ServiceRole/Resource
+  TestPLLBCertificateCertificateRequestorFunctionServiceRoleDefaultPolicyA96D2058:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - acm:RequestCertificate
+              - acm:DescribeCertificate
+              - acm:DeleteCertificate
+              - acm:AddTagsToCertificate
+            Effect: Allow
+            Resource: "*"
+          - Action: route53:GetChange
+            Effect: Allow
+            Resource: "*"
+          - Action: route53:changeResourceRecordSets
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :route53:::hostedzone/Z03309142ACSYFWC4KYU3
+        Version: "2012-10-17"
+      PolicyName: TestPLLBCertificateCertificateRequestorFunctionServiceRoleDefaultPolicyA96D2058
+      Roles:
+        - Ref: TestPLLBCertificateCertificateRequestorFunctionServiceRole5980A546
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestPLLBCertificate/CertificateRequestorFunction/ServiceRole/DefaultPolicy/Resource
+  TestPLLBCertificateCertificateRequestorFunction5A2D31E7:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: cdk-hnb659fds-assets-418714370495-ap-southeast-1
+        S3Key: 4d3f21fe611d8ebfd4f1f69754b7f986fed4ecf648d4fafe941cd81ede6cf60c.zip
+      Role:
+        Fn::GetAtt:
+          - TestPLLBCertificateCertificateRequestorFunctionServiceRole5980A546
+          - Arn
+      Handler: index.certificateRequestHandler
+      Runtime: nodejs12.x
+      Timeout: 900
+    DependsOn:
+      - TestPLLBCertificateCertificateRequestorFunctionServiceRoleDefaultPolicyA96D2058
+      - TestPLLBCertificateCertificateRequestorFunctionServiceRole5980A546
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestPLLBCertificate/CertificateRequestorFunction/Resource
+      aws:asset:path: asset.4d3f21fe611d8ebfd4f1f69754b7f986fed4ecf648d4fafe941cd81ede6cf60c
+      aws:asset:is-bundled: false
+      aws:asset:property: Code
+  TestPLLBCertificateCertificateRequestorResourceE5582264:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - TestPLLBCertificateCertificateRequestorFunction5A2D31E7
+          - Arn
+      DomainName: test-pl.ultorex.org
+      HostedZoneId: Z03309142ACSYFWC4KYU3
+      Region: ap-southeast-1
+      CleanupRecords: "true"
+    UpdateReplacePolicy: Delete
+    DeletionPolicy: Delete
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestPLLBCertificate/CertificateRequestorResource/Default
+  TestAwsManagedPLTG8528511E:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Port: 80
+      Protocol: HTTP
+      TargetGroupAttributes:
+        - Key: stickiness.enabled
+          Value: "false"
+      Targets:
+        - Id:
+            Fn::GetAtt:
+              - TestAwsManagedPLB720122E
+              - PrivateIp
+      TargetType: ip
+      VpcId: vpc-21d8cd46
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestAwsManagedPLTG/Resource
+  TestAwsManagedPLLBSG139CEFD6:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: AwsManagedPlStack/TestAwsManagedPLLBSG
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: "-1"
+      VpcId: vpc-21d8cd46
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestAwsManagedPLLBSG/Resource
+  TestAwsManagedPLLBSGfrompl31a3465880F52D9A7A:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      IpProtocol: tcp
+      Description: from pl-31a34658:80
+      FromPort: 80
+      GroupId:
+        Fn::GetAtt:
+          - TestAwsManagedPLLBSG139CEFD6
+          - GroupId
+      SourcePrefixListId: pl-31a34658
+      ToPort: 80
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestAwsManagedPLLBSG/from pl-31a34658:80
+  TestAwsManagedPLLB1535BAC3:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      LoadBalancerAttributes:
+        - Key: deletion_protection.enabled
+          Value: "false"
+      Scheme: internet-facing
+      SecurityGroups:
+        - Fn::GetAtt:
+            - TestAwsManagedPLLBSG139CEFD6
+            - GroupId
+      Subnets:
+        - subnet-d9b34abf
+        - subnet-de0de396
+        - subnet-e33683ba
+      Type: application
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestAwsManagedPLLB/Resource
+  TestAwsManagedPLLBlistener18B5E23D:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn:
+            Ref: TestAwsManagedPLTG8528511E
+          Type: forward
+      LoadBalancerArn:
+        Ref: TestAwsManagedPLLB1535BAC3
+      Certificates:
+        - CertificateArn:
+            Fn::GetAtt:
+              - TestPLLBCertificateCertificateRequestorResourceE5582264
+              - Arn
+      Port: 443
+      Protocol: HTTPS
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestAwsManagedPLLB/listener/Resource
+  TestDist785D38D1:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Aliases:
+          - test-pl.ultorex.org
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - PATCH
+            - POST
+            - DELETE
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+          CachedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+          Compress: true
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          TargetOriginId: AwsManagedPlStackTestDistOrigin1A6EF4895
+          ViewerProtocolPolicy: redirect-to-https
+        Enabled: true
+        HttpVersion: http2
+        IPV6Enabled: false
+        Origins:
+          - CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+            DomainName:
+              Fn::GetAtt:
+                - TestAwsManagedPLLB1535BAC3
+                - DNSName
+            Id: AwsManagedPlStackTestDistOrigin1A6EF4895
+        ViewerCertificate:
+          AcmCertificateArn:
+            Fn::GetAtt:
+              - TestPLCloudFrontCertificateCertificateRequestorResource79BBB47D
+              - Arn
+          MinimumProtocolVersion: TLSv1.2_2021
+          SslSupportMethod: sni-only
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestDist/Resource
+  TestPlRecordC7AE673B:
+    Type: AWS::Route53::RecordSet
+    Properties:
+      Name: ultorex.org.
+      Type: AAAA
+      AliasTarget:
+        DNSName:
+          Fn::GetAtt:
+            - TestDist785D38D1
+            - DomainName
+        HostedZoneId:
+          Fn::FindInMap:
+            - AWSCloudFrontPartitionHostedZoneIdMap
+            - Ref: AWS::Partition
+            - zoneId
+      HostedZoneId: Z03309142ACSYFWC4KYU3
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/TestPlRecord/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/1VRy27CMBD8Fu7GLSCkXoGqFVIroVD1ijb2Jlpw7MgPKhTl37sJBMJpZ3fG433M5WwpXyfwF6ZKn6aGctnsI6iTyDC45BUK5g4NqjkTqJKnePn0LtViU9jnwtaGCJZfMDPGT6qtLT2G0AqCSjaZM71kiMOznXcFcWnnDKlLx1xRKxT6SAUpiFiBhRK9fLfhFwxpLunNgxYGqlyDbD6SVZGc7WwG3IqwOEAIGINcdYFzuU7qhHENAQUaCJGUcaBzMNwS2fLMK1jVtenc2eIHfInxvotxOlJ9scO6d0DfyZ7ysY5CRHvT3DBPa1zShXc2yuadq57yNIwyzlvB/0ZcLrhDAMhQOa/7xfZoj7FtRT8nH7fkWcQmheiq+5F76QN/Q12zqhXWaZTH8HKevcnZXM4mx0A09clGqlBm1/gPvQYeTkUCAAA=
+    Metadata:
+      aws:cdk:path: AwsManagedPlStack/CDKMetadata/Default
+Mappings:
+  AWSCloudFrontPartitionHostedZoneIdMap:
+    aws:
+      zoneId: Z2FDTNDATAQYW2
+    aws-cn:
+      zoneId: Z3RFFRIM2A3IF5
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

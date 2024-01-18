@@ -1,0 +1,857 @@
+Github repository: cabcookie/potsdam-bot
+Resources:
+  PBotPipelineArtifactsBucket7B18E647:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/ArtifactsBucket/Resource
+  PBotPipelineArtifactsBucketPolicy25800AB5:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: PBotPipelineArtifactsBucket7B18E647
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal:
+              AWS: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - PBotPipelineArtifactsBucket7B18E647
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PBotPipelineArtifactsBucket7B18E647
+                        - Arn
+                    - /*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+            Resource:
+              - Fn::GetAtt:
+                  - PBotPipelineArtifactsBucket7B18E647
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PBotPipelineArtifactsBucket7B18E647
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/ArtifactsBucket/Policy/Resource
+  PBotPipelineRoleC33B6047:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Role/Resource
+  PBotPipelineRoleDefaultPolicy443E6877:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PBotPipelineArtifactsBucket7B18E647
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PBotPipelineArtifactsBucket7B18E647
+                        - Arn
+                    - /*
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PBotPipelineBuildSynthStepCodePipelineActionRole69AF06ED
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PBotPipelineUpdatePipelineSelfMutateCodePipelineActionRoleEB0555C9
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PBotPipelineAssetsDockerAsset1CodePipelineActionRoleB1C38E2F
+                - Arn
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":iam::"
+                  - Ref: AWS::AccountId
+                  - :role/cdk-hnb659fds-deploy-role-
+                  - Ref: AWS::AccountId
+                  - "-"
+                  - Ref: AWS::Region
+        Version: "2012-10-17"
+      PolicyName: PBotPipelineRoleDefaultPolicy443E6877
+      Roles:
+        - Ref: PBotPipelineRoleC33B6047
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Role/DefaultPolicy/Resource
+  PBotPipeline49BECE7A:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      RoleArn:
+        Fn::GetAtt:
+          - PBotPipelineRoleC33B6047
+          - Arn
+      Stages:
+        - Actions:
+            - ActionTypeId:
+                Category: Source
+                Owner: ThirdParty
+                Provider: GitHub
+                Version: "1"
+              Configuration:
+                Owner: cabcookie
+                Repo: potsdam-bot
+                Branch: main
+                OAuthToken: "{{resolve:secretsmanager:github-token:SecretString:::}}"
+                PollForSourceChanges: false
+              Name: cabcookie_potsdam-bot
+              OutputArtifacts:
+                - Name: cabcookie_potsdam_bot_Source
+              RunOrder: 1
+          Name: Source
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PBotPipelineBuildSynthStepCdkBuildProjectFC5A81ED
+                EnvironmentVariables: '[{"name":"_PROJECT_CONFIG_HASH","type":"PLAINTEXT","value":"00ebacfb32b1bde8d3638577308e7b7144dfa3b0a58a83bc6ff38a3b1f26951c"}]'
+              InputArtifacts:
+                - Name: cabcookie_potsdam_bot_Source
+              Name: SynthStep
+              OutputArtifacts:
+                - Name: SynthStep_Output
+              RoleArn:
+                Fn::GetAtt:
+                  - PBotPipelineBuildSynthStepCodePipelineActionRole69AF06ED
+                  - Arn
+              RunOrder: 1
+          Name: Build
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PBotPipelineUpdatePipelineSelfMutationA66841EE
+                EnvironmentVariables: '[{"name":"_PROJECT_CONFIG_HASH","type":"PLAINTEXT","value":"9ce0952fd8ab043fe6ea255489bf0b83c0dac98ab1abd1fc82d1f02fa89e068f"}]'
+              InputArtifacts:
+                - Name: SynthStep_Output
+              Name: SelfMutate
+              RoleArn:
+                Fn::GetAtt:
+                  - PBotPipelineUpdatePipelineSelfMutateCodePipelineActionRoleEB0555C9
+                  - Arn
+              RunOrder: 1
+          Name: UpdatePipeline
+        - Actions:
+            - ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Provider: CodeBuild
+                Version: "1"
+              Configuration:
+                ProjectName:
+                  Ref: PBotPipelineAssetsDockerAsset1737C1C82
+              InputArtifacts:
+                - Name: SynthStep_Output
+              Name: DockerAsset1
+              RoleArn:
+                Fn::GetAtt:
+                  - PBotPipelineAssetsDockerAsset1CodePipelineActionRoleB1C38E2F
+                  - Arn
+              RunOrder: 1
+          Name: Assets
+        - Actions:
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: PBotCrawlerStage-PBotCrawlerStack
+                Capabilities: CAPABILITY_NAMED_IAM,CAPABILITY_AUTO_EXPAND
+                RoleArn:
+                  Fn::Join:
+                    - ""
+                    - - "arn:"
+                      - Ref: AWS::Partition
+                      - ":iam::"
+                      - Ref: AWS::AccountId
+                      - :role/cdk-hnb659fds-cfn-exec-role-
+                      - Ref: AWS::AccountId
+                      - "-"
+                      - Ref: AWS::Region
+                ActionMode: CHANGE_SET_REPLACE
+                ChangeSetName: PipelineChange
+                TemplatePath: SynthStep_Output::assembly-PotsdamBotStack-PBotCrawlerStage/PotsdamBotStackPBotCrawlerStagePBotCrawlerStackF6136CA9.template.json
+              InputArtifacts:
+                - Name: SynthStep_Output
+              Name: Prepare
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 1
+            - ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Provider: CloudFormation
+                Version: "1"
+              Configuration:
+                StackName: PBotCrawlerStage-PBotCrawlerStack
+                ActionMode: CHANGE_SET_EXECUTE
+                ChangeSetName: PipelineChange
+              Name: Deploy
+              RoleArn:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":iam::"
+                    - Ref: AWS::AccountId
+                    - :role/cdk-hnb659fds-deploy-role-
+                    - Ref: AWS::AccountId
+                    - "-"
+                    - Ref: AWS::Region
+              RunOrder: 2
+          Name: PBotCrawlerStage
+      ArtifactStore:
+        Location:
+          Ref: PBotPipelineArtifactsBucket7B18E647
+        Type: S3
+      Name: PotsdamBot
+      RestartExecutionOnUpdate: true
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    DependsOn:
+      - PBotPipelineRoleDefaultPolicy443E6877
+      - PBotPipelineRoleC33B6047
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Resource
+  PBotPipelineSourcecabcookiepotsdambotWebhookResource9B09F99B:
+    Type: AWS::CodePipeline::Webhook
+    Properties:
+      Authentication: GITHUB_HMAC
+      AuthenticationConfiguration:
+        SecretToken: "{{resolve:secretsmanager:github-token:SecretString:::}}"
+      Filters:
+        - JsonPath: $.ref
+          MatchEquals: refs/heads/{Branch}
+      TargetAction: cabcookie_potsdam-bot
+      TargetPipeline:
+        Ref: PBotPipeline49BECE7A
+      TargetPipelineVersion: 1
+      RegisterWithThirdParty: true
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Source/cabcookie_potsdam-bot/WebhookResource
+  PBotPipelineBuildSynthStepCdkBuildProjectRoleE4C0F089:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Build/SynthStep/CdkBuildProject/Role/Resource
+  PBotPipelineBuildSynthStepCdkBuildProjectRoleDefaultPolicy15F4E4D3:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: PBotPipelineBuildSynthStepCdkBuildProjectFC5A81ED
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: PBotPipelineBuildSynthStepCdkBuildProjectFC5A81ED
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: PBotPipelineBuildSynthStepCdkBuildProjectFC5A81ED
+                  - -*
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+              - s3:DeleteObject*
+              - s3:PutObject
+              - s3:PutObjectLegalHold
+              - s3:PutObjectRetention
+              - s3:PutObjectTagging
+              - s3:PutObjectVersionTagging
+              - s3:Abort*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PBotPipelineArtifactsBucket7B18E647
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PBotPipelineArtifactsBucket7B18E647
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PBotPipelineBuildSynthStepCdkBuildProjectRoleDefaultPolicy15F4E4D3
+      Roles:
+        - Ref: PBotPipelineBuildSynthStepCdkBuildProjectRoleE4C0F089
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Build/SynthStep/CdkBuildProject/Role/DefaultPolicy/Resource
+  PBotPipelineBuildSynthStepCdkBuildProjectFC5A81ED:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PBotPipelineBuildSynthStepCdkBuildProjectRoleE4C0F089
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "build": {
+                "commands": [
+                  "npm ci",
+                  "npm run build",
+                  "npx cdk synth"
+                ]
+              }
+            },
+            "artifacts": {
+              "base-directory": "cdk.out",
+              "files": "**/*"
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step PotsdamBotStack/Pipeline/Build/SynthStep
+      EncryptionKey: alias/aws/s3
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Build/SynthStep/CdkBuildProject/Resource
+  PBotPipelineBuildSynthStepCodePipelineActionRole69AF06ED:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Build/SynthStep/CodePipelineActionRole/Resource
+  PBotPipelineBuildSynthStepCodePipelineActionRoleDefaultPolicyA3EAECF6:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PBotPipelineBuildSynthStepCdkBuildProjectFC5A81ED
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PBotPipelineBuildSynthStepCodePipelineActionRoleDefaultPolicyA3EAECF6
+      Roles:
+        - Ref: PBotPipelineBuildSynthStepCodePipelineActionRole69AF06ED
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Build/SynthStep/CodePipelineActionRole/DefaultPolicy/Resource
+  PBotPipelineUpdatePipelineSelfMutateCodePipelineActionRoleEB0555C9:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/UpdatePipeline/SelfMutate/CodePipelineActionRole/Resource
+  PBotPipelineUpdatePipelineSelfMutateCodePipelineActionRoleDefaultPolicyDB5A3F37:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PBotPipelineUpdatePipelineSelfMutationA66841EE
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PBotPipelineUpdatePipelineSelfMutateCodePipelineActionRoleDefaultPolicyDB5A3F37
+      Roles:
+        - Ref: PBotPipelineUpdatePipelineSelfMutateCodePipelineActionRoleEB0555C9
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/UpdatePipeline/SelfMutate/CodePipelineActionRole/DefaultPolicy/Resource
+  PBotPipelineAssetsDockerAsset1CodePipelineActionRoleB1C38E2F:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Assets/DockerAsset1/CodePipelineActionRole/Resource
+  PBotPipelineAssetsDockerAsset1CodePipelineActionRoleDefaultPolicy9A298303:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - PBotPipelineAssetsDockerAsset1737C1C82
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: PBotPipelineAssetsDockerAsset1CodePipelineActionRoleDefaultPolicy9A298303
+      Roles:
+        - Ref: PBotPipelineAssetsDockerAsset1CodePipelineActionRoleB1C38E2F
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Pipeline/Assets/DockerAsset1/CodePipelineActionRole/DefaultPolicy/Resource
+  PBotPipelineUpdatePipelineSelfMutationRole01921CCA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+        Version: "2012-10-17"
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/UpdatePipeline/SelfMutation/Role/Resource
+  PBotPipelineUpdatePipelineSelfMutationRoleDefaultPolicy0D046130:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: PBotPipelineUpdatePipelineSelfMutationA66841EE
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :logs:us-east-1:036406153779:log-group:/aws/codebuild/
+                    - Ref: PBotPipelineUpdatePipelineSelfMutationA66841EE
+                    - :*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/
+                  - Ref: PBotPipelineUpdatePipelineSelfMutationA66841EE
+                  - -*
+          - Action: sts:AssumeRole
+            Condition:
+              ForAnyValue:StringEquals:
+                iam:ResourceTag/aws-cdk:bootstrap-role:
+                  - image-publishing
+                  - file-publishing
+                  - deploy
+            Effect: Allow
+            Resource: arn:*:iam::036406153779:role/*
+          - Action: cloudformation:DescribeStacks
+            Effect: Allow
+            Resource: "*"
+          - Action: s3:ListBucket
+            Effect: Allow
+            Resource: "*"
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PBotPipelineArtifactsBucket7B18E647
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PBotPipelineArtifactsBucket7B18E647
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PBotPipelineUpdatePipelineSelfMutationRoleDefaultPolicy0D046130
+      Roles:
+        - Ref: PBotPipelineUpdatePipelineSelfMutationRole01921CCA
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/UpdatePipeline/SelfMutation/Role/DefaultPolicy/Resource
+  PBotPipelineUpdatePipelineSelfMutationA66841EE:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PBotPipelineUpdatePipelineSelfMutationRole01921CCA
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g aws-cdk@2"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk -a . deploy PotsdamBotStack --require-approval=never --verbose"
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step PotsdamBotStack/Pipeline/UpdatePipeline/SelfMutate
+      EncryptionKey: alias/aws/s3
+      Name: PotsdamBot-selfupdate
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/UpdatePipeline/SelfMutation/Resource
+  PBotPipelineAssetsDockerRole67CBCF72:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              AWS:
+                Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - :iam::036406153779:root
+        Version: "2012-10-17"
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Assets/DockerRole/Resource
+  PBotPipelineAssetsDockerRoleDefaultPolicy0999A069:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :logs:us-east-1:036406153779:log-group:/aws/codebuild/*
+          - Action:
+              - codebuild:CreateReportGroup
+              - codebuild:CreateReport
+              - codebuild:UpdateReport
+              - codebuild:BatchPutTestCases
+              - codebuild:BatchPutCodeCoverages
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - :codebuild:us-east-1:036406153779:report-group/*
+          - Action:
+              - codebuild:BatchGetBuilds
+              - codebuild:StartBuild
+              - codebuild:StopBuild
+            Effect: Allow
+            Resource: "*"
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Resource:
+              - Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:role/cdk-hnb659fds-image-publishing-role-${AWS::AccountId}-${AWS::Region}
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - PBotPipelineArtifactsBucket7B18E647
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - PBotPipelineArtifactsBucket7B18E647
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: PBotPipelineAssetsDockerRoleDefaultPolicy0999A069
+      Roles:
+        - Ref: PBotPipelineAssetsDockerRole67CBCF72
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Assets/DockerRole/DefaultPolicy/Resource
+  PBotPipelineAssetsDockerAsset1737C1C82:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+        ImagePullCredentialsType: CODEBUILD
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      ServiceRole:
+        Fn::GetAtt:
+          - PBotPipelineAssetsDockerRole67CBCF72
+          - Arn
+      Source:
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "install": {
+                "commands": [
+                  "npm install -g cdk-assets@2"
+                ]
+              },
+              "build": {
+                "commands": [
+                  "cdk-assets --path \"assembly-PotsdamBotStack-PBotCrawlerStage/PotsdamBotStackPBotCrawlerStagePBotCrawlerStackF6136CA9.assets.json\" --verbose publish \"fc861ef0007caab64a8855ebcd1dd996899e424163330bde5393d460878dda7e:current_account-current_region\""
+                ]
+              }
+            }
+          }
+        Type: CODEPIPELINE
+      Cache:
+        Type: NO_CACHE
+      Description: Pipeline step PotsdamBotStack/Pipeline/Assets/DockerAsset1
+      EncryptionKey: alias/aws/s3
+      Tags:
+        - Key: Project
+          Value: Potsdam Bot
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/PBotPipeline/Assets/DockerAsset1/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAA/01OSw6CMBA9C/syCmxcywUILlwaKGMcWltCqcY0vbtAi7h6n3kz83LICjgmzdukvBOppBbcZWq4YAMNKEmhgVJ3WEXF5uTN8dnZ5uB+s/Ku/vkV24fWwjNTgDtbLnBa7MgCVFoS/+x20J5R8wRXa7keWnFPbpmlRWtJdnuFatQ98vVNpN6zGo22Iw+nIvdMzdvQm8MrO0GWQ5b0higdrZroiVAH/AJxZj1mHwEAAA==
+    Metadata:
+      aws:cdk:path: PotsdamBotStack/CDKMetadata/Default
+Parameters:
+  BootstrapVersion:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cdk-bootstrap/hnb659fds/version
+    Description: Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]
+Rules:
+  CheckBootstrapVersion:
+    Assertions:
+      - Assert:
+          Fn::Not:
+            - Fn::Contains:
+                - - "1"
+                  - "2"
+                  - "3"
+                  - "4"
+                  - "5"
+                - Ref: BootstrapVersion
+        AssertDescription: CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.
+

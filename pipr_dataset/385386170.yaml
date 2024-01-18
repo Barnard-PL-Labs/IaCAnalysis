@@ -1,0 +1,1830 @@
+Mappings:
+  Solution:
+    Data:
+      SendAnonymousUsageData: "Yes"
+Resources:
+  RoleRolerole1AB037D5:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                Fn::Join:
+                  - ""
+                  - - ec2.
+                    - Ref: AWS::URLSuffix
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/AmazonSSMManagedInstanceCore
+      RoleName: TamperProofQualityDataClientRole
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W28
+            reason: This role use for demonstration
+  RoleRoleroleDefaultPolicyD9C2BAA2:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - sts:AssumeRole
+              - iam:GetRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - RoleRolerole1AB037D5
+                - Arn
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Condition:
+              StringEquals:
+                aws:sourceVpce:
+                  Ref: InspectionCameraInspectionCameras3vpcendpoint85517E79
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - InspectionCameraInspectionCamerabucket126AFCD5
+                      - Arn
+                  - /*
+          - Action: iot:Publish
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":iot:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :topic/iot/inspectionmodel
+        Version: "2012-10-17"
+      PolicyName: RoleRoleroleDefaultPolicyD9C2BAA2
+      Roles:
+        - Ref: RoleRolerole1AB037D5
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/Role/Role-role/DefaultPolicy/Resource
+  RoleRoleinstanceprofile8077F3D5:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - Ref: RoleRolerole1AB037D5
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/Role/Role-instance-profile
+  VPC61AD6880:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      InstanceTenancy: default
+      Tags:
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/Resource
+  VPCPublicSubnet1Subnet441EC08B:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.0.0/24
+      VpcId:
+        Ref: VPC61AD6880
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet1
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W33
+            reason: This is a public subnet, MapPublicIpOnLaunch is expected.
+  VPCPublicSubnet1RouteTable2DF31CC2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC61AD6880
+      Tags:
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet1/RouteTable
+  VPCPublicSubnet1RouteTableAssociation45D07AC0:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicSubnet1RouteTable2DF31CC2
+      SubnetId:
+        Ref: VPCPublicSubnet1Subnet441EC08B
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet1/RouteTableAssociation
+  VPCPublicSubnet1DefaultRoute3EBA16C7:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicSubnet1RouteTable2DF31CC2
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: VPCIGWE1DD60CF
+    DependsOn:
+      - VPCVPCGW3AFA48F6
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet1/DefaultRoute
+  VPCPublicSubnet1EIP4B4569C9:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet1/EIP
+  VPCPublicSubnet1NATGateway773F4C26:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - VPCPublicSubnet1EIP4B4569C9
+          - AllocationId
+      SubnetId:
+        Ref: VPCPublicSubnet1Subnet441EC08B
+      Tags:
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet1
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet1/NATGateway
+  VPCPublicSubnet2SubnetE3B6F81A:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.1.0/24
+      VpcId:
+        Ref: VPC61AD6880
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Public
+        - Key: aws-cdk:subnet-type
+          Value: Public
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet2
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W33
+            reason: This is a public subnet, MapPublicIpOnLaunch is expected.
+  VPCPublicSubnet2RouteTableED3EBA50:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC61AD6880
+      Tags:
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet2/RouteTable
+  VPCPublicSubnet2RouteTableAssociation124A6C7A:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicSubnet2RouteTableED3EBA50
+      SubnetId:
+        Ref: VPCPublicSubnet2SubnetE3B6F81A
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet2/RouteTableAssociation
+  VPCPublicSubnet2DefaultRoute7530A66D:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VPCPublicSubnet2RouteTableED3EBA50
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: VPCIGWE1DD60CF
+    DependsOn:
+      - VPCVPCGW3AFA48F6
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet2/DefaultRoute
+  VPCPublicSubnet2EIPB849754E:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet2/EIP
+  VPCPublicSubnet2NATGateway5A7176EE:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+          - VPCPublicSubnet2EIPB849754E
+          - AllocationId
+      SubnetId:
+        Ref: VPCPublicSubnet2SubnetE3B6F81A
+      Tags:
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet2
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PublicSubnet2/NATGateway
+  VPCPrivateSubnet1Subnet77928CB3:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.64.0/18
+      VpcId:
+        Ref: VPC61AD6880
+      AvailabilityZone:
+        Fn::Select:
+          - 0
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet1/Subnet
+  VPCPrivateSubnet1RouteTable49AABFA8:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC61AD6880
+      Tags:
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet1
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet1/RouteTable
+  VPCPrivateSubnet1RouteTableAssociationD9B03FCA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPrivateSubnet1RouteTable49AABFA8
+      SubnetId:
+        Ref: VPCPrivateSubnet1Subnet77928CB3
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet1/RouteTableAssociation
+  VPCPrivateSubnet1DefaultRouteECADCC3A:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VPCPrivateSubnet1RouteTable49AABFA8
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: VPCPublicSubnet1NATGateway773F4C26
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet1/DefaultRoute
+  VPCPrivateSubnet2SubnetFF789F8E:
+    Type: AWS::EC2::Subnet
+    Properties:
+      CidrBlock: 10.0.128.0/18
+      VpcId:
+        Ref: VPC61AD6880
+      AvailabilityZone:
+        Fn::Select:
+          - 1
+          - Fn::GetAZs: ""
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: aws-cdk:subnet-name
+          Value: Private
+        - Key: aws-cdk:subnet-type
+          Value: Private
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet2/Subnet
+  VPCPrivateSubnet2RouteTable61C48158:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId:
+        Ref: VPC61AD6880
+      Tags:
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet2
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet2/RouteTable
+  VPCPrivateSubnet2RouteTableAssociation8205E0E5:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: VPCPrivateSubnet2RouteTable61C48158
+      SubnetId:
+        Ref: VPCPrivateSubnet2SubnetFF789F8E
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet2/RouteTableAssociation
+  VPCPrivateSubnet2DefaultRoute538BAFF8:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId:
+        Ref: VPCPrivateSubnet2RouteTable61C48158
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: VPCPublicSubnet2NATGateway5A7176EE
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/PrivateSubnet2/DefaultRoute
+  VPCIGWE1DD60CF:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/IGW
+  VPCVPCGW3AFA48F6:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+        Ref: VPC61AD6880
+      InternetGatewayId:
+        Ref: VPCIGWE1DD60CF
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC/VPCGW
+  VPCVPCflowlogloggroupAE13638C:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 3653
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: This logGroup is encrypted by the default master key.
+  VPCVPCflowlogIAMRoleCF35AA9C:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: vpc-flow-logs.amazonaws.com
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC-flowlog/IAMRole/Resource
+  VPCVPCflowlogIAMRoleDefaultPolicyEC3B2D44:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogStreams
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - VPCVPCflowlogloggroupAE13638C
+                - Arn
+          - Action: iam:PassRole
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+                - VPCVPCflowlogIAMRoleCF35AA9C
+                - Arn
+        Version: "2012-10-17"
+      PolicyName: VPCVPCflowlogIAMRoleDefaultPolicyEC3B2D44
+      Roles:
+        - Ref: VPCVPCflowlogIAMRoleCF35AA9C
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC-flowlog/IAMRole/DefaultPolicy/Resource
+  VPCVPCflowlogFlowLog060F729D:
+    Type: AWS::EC2::FlowLog
+    Properties:
+      ResourceId:
+        Ref: VPC61AD6880
+      ResourceType: VPC
+      TrafficType: ALL
+      DeliverLogsPermissionArn:
+        Fn::GetAtt:
+          - VPCVPCflowlogIAMRoleCF35AA9C
+          - Arn
+      LogDestinationType: cloud-watch-logs
+      LogGroupName:
+        Ref: VPCVPCflowlogloggroupAE13638C
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/VPC/VPC-flowlog/FlowLog
+  QLDBQLDBqldbFDD122BB:
+    Type: AWS::QLDB::Ledger
+    Properties:
+      PermissionsMode: ALLOW_ALL
+      Name: quality-ledger
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/QLDB/QLDB-qldb
+  InspectionCameraInspectionCameralogbucketEE5EAD72:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: LogDeliveryWrite
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W51
+            reason: This bucket doesn't need any bucket policy.
+          - id: W35
+            reason: This is a logs bucket, no logging desired.
+  InspectionCameraInspectionCamerabucket126AFCD5:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+      LoggingConfiguration:
+        DestinationBucketName:
+          Ref: InspectionCameraInspectionCameralogbucketEE5EAD72
+        LogFilePrefix: inspectionCameraLog
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W51
+            reason: This bucket doesn't need any bucket policy.
+  InspectionCameraInspectionCamerabucketNotifications53175AFB:
+    Type: Custom::S3BucketNotifications
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691
+          - Arn
+      BucketName:
+        Ref: InspectionCameraInspectionCamerabucket126AFCD5
+      NotificationConfiguration:
+        LambdaFunctionConfigurations:
+          - Events:
+              - s3:ObjectCreated:*
+            LambdaFunctionArn:
+              Fn::GetAtt:
+                - InspectionCameraInspectionCameralambdaInspectionCameraLambda6A88E3EC
+                - Arn
+    DependsOn:
+      - InspectionCameraInspectionCamerabucketAllowBucketNotificationsTotamperproofqualitydatausingamazonqldbInspectionCameraInspectionCameralambdaInspectionCameraLambda63C7C2DD96A9E90E
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionCamera/InspectionCamera-bucket/Notifications/Resource
+  InspectionCameraInspectionCamerabucketPolicyE6D65DEF:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: InspectionCameraInspectionCamerabucket126AFCD5
+      PolicyDocument:
+        Statement:
+          - Action: s3:*
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+            Effect: Deny
+            Principal: "*"
+            Resource:
+              - Fn::GetAtt:
+                  - InspectionCameraInspectionCamerabucket126AFCD5
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - InspectionCameraInspectionCamerabucket126AFCD5
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionCamera/InspectionCamera-bucket/Policy/Resource
+  InspectionCameraInspectionCamerabucketAllowBucketNotificationsTotamperproofqualitydatausingamazonqldbInspectionCameraInspectionCameralambdaInspectionCameraLambda63C7C2DD96A9E90E:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - InspectionCameraInspectionCameralambdaInspectionCameraLambda6A88E3EC
+          - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Fn::GetAtt:
+          - InspectionCameraInspectionCamerabucket126AFCD5
+          - Arn
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionCamera/InspectionCamera-bucket/AllowBucketNotificationsTotamperproofqualitydatausingamazonqldbInspectionCameraInspectionCameralambdaInspectionCameraLambda63C7C2DD
+  InspectionCameraInspectionCameras3vpcendpointsg170DF9C9:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: tamper-proof-quality-data-using-amazon-qldb/InspectionCamera/InspectionCamera-s3-vpc-endpoint-sg
+      SecurityGroupEgress:
+        - CidrIp:
+            Fn::GetAtt:
+              - VPC61AD6880
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - VPC61AD6880
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - VPC61AD6880
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - VPC61AD6880
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      VpcId:
+        Ref: VPC61AD6880
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionCamera/InspectionCamera-s3-vpc-endpoint-sg/Resource
+  InspectionCameraInspectionCameras3vpcendpoint85517E79:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .s3
+      VpcId:
+        Ref: VPC61AD6880
+      PolicyDocument:
+        Statement:
+          - Action:
+              - s3:PutObject
+              - s3:PutObjectAcl
+            Effect: Allow
+            Principal:
+              AWS:
+                - Fn::Join:
+                    - ""
+                    - - "arn:aws:sts::"
+                      - Ref: AWS::AccountId
+                      - :assumed-role/
+                      - Ref: RoleRolerole1AB037D5
+                      - /DeviceSession
+                - Fn::GetAtt:
+                    - RoleRolerole1AB037D5
+                    - Arn
+            Resource:
+              Fn::Join:
+                - ""
+                - - Fn::GetAtt:
+                      - InspectionCameraInspectionCamerabucket126AFCD5
+                      - Arn
+                  - /*
+        Version: "2012-10-17"
+      PrivateDnsEnabled: false
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - InspectionCameraInspectionCameras3vpcendpointsg170DF9C9
+            - GroupId
+      SubnetIds:
+        - Ref: VPCPrivateSubnet1Subnet77928CB3
+        - Ref: VPCPrivateSubnet2SubnetFF789F8E
+      VpcEndpointType: Interface
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionCamera/InspectionCamera-s3-vpc-endpoint/Resource
+  InspectionCameraInspectionCameralambdaInspectionCameraLambdaServiceRole008CFCEA:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionCamera/InspectionCamera-lambda/InspectionCameraLambda/ServiceRole/Resource
+  InspectionCameraInspectionCameralambdaInspectionCameraLambdaServiceRoleDefaultPolicy9931AA24:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action: qldb:SendCommand
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":qldb:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :ledger/quality-ledger
+          - Action:
+              - s3:GetObject*
+              - s3:GetBucket*
+              - s3:List*
+            Effect: Allow
+            Resource:
+              - Fn::GetAtt:
+                  - InspectionCameraInspectionCamerabucket126AFCD5
+                  - Arn
+              - Fn::Join:
+                  - ""
+                  - - Fn::GetAtt:
+                        - InspectionCameraInspectionCamerabucket126AFCD5
+                        - Arn
+                    - /*
+        Version: "2012-10-17"
+      PolicyName: InspectionCameraInspectionCameralambdaInspectionCameraLambdaServiceRoleDefaultPolicy9931AA24
+      Roles:
+        - Ref: InspectionCameraInspectionCameralambdaInspectionCameraLambdaServiceRole008CFCEA
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: We have not defined any specific tracing requirements, so leave it the default value.
+  InspectionCameraInspectionCameralambdaInspectionCameraLambda6A88E3EC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters6e47e5ef9be98b54e4298eb32ad2ee95985971d40f7e77a349a26ea65a3ce122S3BucketA7F7982C
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6e47e5ef9be98b54e4298eb32ad2ee95985971d40f7e77a349a26ea65a3ce122S3VersionKeyCC35EA68
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters6e47e5ef9be98b54e4298eb32ad2ee95985971d40f7e77a349a26ea65a3ce122S3VersionKeyCC35EA68
+      Role:
+        Fn::GetAtt:
+          - InspectionCameraInspectionCameralambdaInspectionCameraLambdaServiceRole008CFCEA
+          - Arn
+      Environment:
+        Variables:
+          LEDGER_NAME: quality-ledger
+          TABLE_NAME: QualityData
+          SEND_ANONYMOUS_DATA:
+            Fn::FindInMap:
+              - Solution
+              - Data
+              - SendAnonymousUsageData
+          CUSTOM_USER_AGENT: AwsSolution/SO0172/1.0.0
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: InspectionCameraLambda
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - InspectionCameraInspectionCameralambdaInspectionCameraLambdaServiceRoleDefaultPolicy9931AA24
+      - InspectionCameraInspectionCameralambdaInspectionCameraLambdaServiceRole008CFCEA
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Invalid warning: function has access to cloudwatch"
+          - id: W89
+            reason: "Invalid warning: function does not access VPC resources"
+          - id: W92
+            reason: We do not define any specific access amount, so leave it the default value.
+  InspectionCameraInspectionCameralambdaInspectionCameraLambdaLogRetentionA729A46F:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: InspectionCameraInspectionCameralambdaInspectionCameraLambda6A88E3EC
+      RetentionInDays: 3653
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionCamera/InspectionCamera-lambda/InspectionCameraLambda/LogRetention/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - logs:PutRetentionPolicy
+              - logs:DeleteRetentionPolicy
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      Roles:
+        - Ref: LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: This policy is used for custom resource handler.
+  LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs12.x
+      Code:
+        S3Bucket:
+          Ref: AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3Bucket4D46ABB5
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3VersionKeyB0F28861
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3VersionKeyB0F28861
+      Role:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+          - Arn
+    DependsOn:
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB
+      - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Invalid warning: function has access to cloudwatch"
+          - id: W89
+            reason: "Invalid warning: function does not access VPC resources"
+          - id: W92
+            reason: We do not define any specific access amount, so leave it the default value.
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/BucketNotificationsHandler050a0587b7544547bf325f094a3db834/Role/Resource
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: s3:PutBucketNotification
+            Effect: Allow
+            Resource: "*"
+        Version: "2012-10-17"
+      PolicyName: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      Roles:
+        - Ref: BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: This policy is used for custom resource handler.
+  BucketNotificationsHandler050a0587b7544547bf325f094a3db8347ECC3691:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: AWS CloudFormation handler for "Custom::S3BucketNotifications" resources (@aws-cdk/aws-s3)
+      Code:
+        ZipFile: |-
+          exports.handler = (event, context) => {
+              // eslint-disable-next-line @typescript-eslint/no-require-imports, import/no-extraneous-dependencies
+              const s3 = new (require('aws-sdk').S3)();
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const https = require('https');
+              // eslint-disable-next-line @typescript-eslint/no-require-imports
+              const url = require('url');
+              log(JSON.stringify(event, undefined, 2));
+              const props = event.ResourceProperties;
+              if (event.RequestType === 'Delete') {
+                  props.NotificationConfiguration = {}; // this is how you clean out notifications
+              }
+              const req = {
+                  Bucket: props.BucketName,
+                  NotificationConfiguration: props.NotificationConfiguration,
+              };
+              return s3.putBucketNotificationConfiguration(req, (err, data) => {
+                  log({ err, data });
+                  if (err) {
+                      return submitResponse('FAILED', err.message + `\nMore information in CloudWatch Log Stream: ${context.logStreamName}`);
+                  }
+                  else {
+                      return submitResponse('SUCCESS');
+                  }
+              });
+              function log(obj) {
+                  console.error(event.RequestId, event.StackId, event.LogicalResourceId, obj);
+              }
+              // eslint-disable-next-line max-len
+              // adapted from https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-lambda-function-code.html#cfn-lambda-function-code-cfnresponsemodule
+              // to allow sending an error message as a reason.
+              function submitResponse(responseStatus, reason) {
+                  const responseBody = JSON.stringify({
+                      Status: responseStatus,
+                      Reason: reason || 'See the details in CloudWatch Log Stream: ' + context.logStreamName,
+                      PhysicalResourceId: event.PhysicalResourceId || event.LogicalResourceId,
+                      StackId: event.StackId,
+                      RequestId: event.RequestId,
+                      LogicalResourceId: event.LogicalResourceId,
+                      NoEcho: false,
+                  });
+                  log({ responseBody });
+                  const parsedUrl = url.parse(event.ResponseURL);
+                  const options = {
+                      hostname: parsedUrl.hostname,
+                      port: 443,
+                      path: parsedUrl.path,
+                      method: 'PUT',
+                      headers: {
+                          'content-type': '',
+                          'content-length': responseBody.length,
+                      },
+                  };
+                  const request = https.request(options, (r) => {
+                      log({ statusCode: r.statusCode, statusMessage: r.statusMessage });
+                      context.done();
+                  });
+                  request.on('error', (error) => {
+                      log({ sendError: error });
+                      context.done();
+                  });
+                  request.write(responseBody);
+                  request.end();
+              }
+          };
+      Handler: index.handler
+      Role:
+        Fn::GetAtt:
+          - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+          - Arn
+      Runtime: nodejs12.x
+      Timeout: 300
+    DependsOn:
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleDefaultPolicy2CF63D36
+      - BucketNotificationsHandler050a0587b7544547bf325f094a3db834RoleB6FB88EC
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Invalid warning: function has access to cloudwatch"
+          - id: W89
+            reason: "Invalid warning: function does not access VPC resources"
+          - id: W92
+            reason: We do not define any specific access amount, so leave it the default value.
+  InspectionModelInspectionModellambdaInspectionModelLambdaServiceRole4B887B80:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionModel/InspectionModel-lambda/InspectionModelLambda/ServiceRole/Resource
+  InspectionModelInspectionModellambdaInspectionModelLambdaServiceRoleDefaultPolicy026B609C:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action: qldb:SendCommand
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":qldb:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :ledger/quality-ledger
+        Version: "2012-10-17"
+      PolicyName: InspectionModelInspectionModellambdaInspectionModelLambdaServiceRoleDefaultPolicy026B609C
+      Roles:
+        - Ref: InspectionModelInspectionModellambdaInspectionModelLambdaServiceRole4B887B80
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: We have not defined any specific tracing requirements, so leave it the default value.
+  InspectionModelInspectionModellambdaInspectionModelLambdaCFA0899D:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParametersad4cfd07f8c40f2f0a4bbe76e3cc8f4278d412d354c179af4b3b182731403858S3BucketEF43DA9C
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersad4cfd07f8c40f2f0a4bbe76e3cc8f4278d412d354c179af4b3b182731403858S3VersionKeyC3E72D0F
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParametersad4cfd07f8c40f2f0a4bbe76e3cc8f4278d412d354c179af4b3b182731403858S3VersionKeyC3E72D0F
+      Role:
+        Fn::GetAtt:
+          - InspectionModelInspectionModellambdaInspectionModelLambdaServiceRole4B887B80
+          - Arn
+      Environment:
+        Variables:
+          LEDGER_NAME: quality-ledger
+          TABLE_NAME: QualityData
+          SEND_ANONYMOUS_DATA:
+            Fn::FindInMap:
+              - Solution
+              - Data
+              - SendAnonymousUsageData
+          CUSTOM_USER_AGENT: AwsSolution/SO0172/1.0.0
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: InspectionModelLambda
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - InspectionModelInspectionModellambdaInspectionModelLambdaServiceRoleDefaultPolicy026B609C
+      - InspectionModelInspectionModellambdaInspectionModelLambdaServiceRole4B887B80
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Invalid warning: function has access to cloudwatch"
+          - id: W89
+            reason: "Invalid warning: function does not access VPC resources"
+          - id: W92
+            reason: We do not define any specific access amount, so leave it the default value.
+  InspectionModelInspectionModellambdaInspectionModelLambdaLogRetentionA9729C06:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: InspectionModelInspectionModellambdaInspectionModelLambdaCFA0899D
+      RetentionInDays: 3653
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionModel/InspectionModel-lambda/InspectionModelLambda/LogRetention/Resource
+  InspectionModelInspectionModellambdaInspectionModelLambdaInspectionModeliotinvokeAD49319D:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - InspectionModelInspectionModellambdaInspectionModelLambdaCFA0899D
+          - Arn
+      Principal: iot.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - InspectionModelInspectionModeliotcoreruleFEE3DDD6
+          - Arn
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionModel/InspectionModel-lambda/InspectionModelLambda/InspectionModel-iot-invoke
+  InspectionModelInspectionModeliotcoreruleFEE3DDD6:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        Actions:
+          - Lambda:
+              FunctionArn:
+                Fn::GetAtt:
+                  - InspectionModelInspectionModellambdaInspectionModelLambdaCFA0899D
+                  - Arn
+        AwsIotSqlVersion: "2016-03-23"
+        RuleDisabled: false
+        Sql: SELECT * FROM 'iot/inspectionmodel'
+      RuleName: InspectionModelIoTCoreRule
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/InspectionModel/InspectionModel-iotcore-rule
+  ReflowOvenReflowOvenapigwvpcendpointsg0A6A7A0F:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-apigw-vpc-endpoint-sg
+      SecurityGroupEgress:
+        - CidrIp:
+            Fn::GetAtt:
+              - VPC61AD6880
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - VPC61AD6880
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      SecurityGroupIngress:
+        - CidrIp:
+            Fn::GetAtt:
+              - VPC61AD6880
+              - CidrBlock
+          Description:
+            Fn::Join:
+              - ""
+              - - "from "
+                - Fn::GetAtt:
+                    - VPC61AD6880
+                    - CidrBlock
+                - :443
+          FromPort: 443
+          IpProtocol: tcp
+          ToPort: 443
+      VpcId:
+        Ref: VPC61AD6880
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-apigw-vpc-endpoint-sg/Resource
+  ReflowOvenReflowOvenapivpcendpoint0727D026:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName:
+        Fn::Join:
+          - ""
+          - - com.amazonaws.
+            - Ref: AWS::Region
+            - .execute-api
+      VpcId:
+        Ref: VPC61AD6880
+      PolicyDocument:
+        Statement:
+          - Action: execute-api:Invoke
+            Effect: Allow
+            Principal:
+              AWS:
+                - Fn::Join:
+                    - ""
+                    - - "arn:aws:sts::"
+                      - Ref: AWS::AccountId
+                      - :assumed-role/
+                      - Ref: RoleRolerole1AB037D5
+                      - /DeviceSession
+                - Fn::GetAtt:
+                    - RoleRolerole1AB037D5
+                    - Arn
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":execute-api:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - ":"
+                  - Ref: ReflowOvenReflowOvenapiAD4261D0
+                  - /*
+        Version: "2012-10-17"
+      PrivateDnsEnabled: true
+      SecurityGroupIds:
+        - Fn::GetAtt:
+            - ReflowOvenReflowOvenapigwvpcendpointsg0A6A7A0F
+            - GroupId
+      SubnetIds:
+        - Ref: VPCPrivateSubnet1Subnet77928CB3
+        - Ref: VPCPrivateSubnet2SubnetFF789F8E
+      VpcEndpointType: Interface
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api-vpc-endpoint/Resource
+  ReflowOvenReflowOvenapiloggroup9E87B70B:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: 3653
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W84
+            reason: This logGroup is encrypted by the default master key.
+  ReflowOvenReflowOvenapiAD4261D0:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      EndpointConfiguration:
+        Types:
+          - PRIVATE
+      Name: LedgerSolutionAPI
+      Policy:
+        Statement:
+          - Action: execute-api:Invoke
+            Effect: Allow
+            Principal: "*"
+            Resource: execute-api:/*
+        Version: "2012-10-17"
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/Resource
+  ReflowOvenReflowOvenapiCloudWatchRole134E5D43:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: apigateway.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/CloudWatchRole/Resource
+  ReflowOvenReflowOvenapiAccountB3C4475F:
+    Type: AWS::ApiGateway::Account
+    Properties:
+      CloudWatchRoleArn:
+        Fn::GetAtt:
+          - ReflowOvenReflowOvenapiCloudWatchRole134E5D43
+          - Arn
+    DependsOn:
+      - ReflowOvenReflowOvenapiAD4261D0
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/Account
+  ReflowOvenReflowOvenapiDeployment6B8670ED299bffeeb5dc5e3f01417b2298b207ff:
+    Type: AWS::ApiGateway::Deployment
+    Properties:
+      RestApiId:
+        Ref: ReflowOvenReflowOvenapiAD4261D0
+      Description: Automatically created by the RestApi construct
+    DependsOn:
+      - ReflowOvenReflowOvenapiproductserialNumberPUT9DF8E3CC
+      - ReflowOvenReflowOvenapiproductserialNumber7D469302
+      - ReflowOvenReflowOvenapiproductPOST3DB4A6C6
+      - ReflowOvenReflowOvenapiproduct2183B3DE
+      - ReflowOvenReflowOvenapiReflowOvencreateproductmodelC4693A7D
+      - ReflowOvenReflowOvenapiReflowOvenupdateproductmodelA77B37E2
+      - ReflowOvenReflowOvenvalidator913178A9
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/Deployment/Resource
+  ReflowOvenReflowOvenapiDeploymentStageprod50526DF8:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      RestApiId:
+        Ref: ReflowOvenReflowOvenapiAD4261D0
+      AccessLogSetting:
+        DestinationArn:
+          Fn::GetAtt:
+            - ReflowOvenReflowOvenapiloggroup9E87B70B
+            - Arn
+        Format: $context.identity.sourceIp $context.identity.caller $context.identity.user [$context.requestTime] "$context.httpMethod $context.resourcePath $context.protocol" $context.status $context.responseLength $context.requestId
+      DeploymentId:
+        Ref: ReflowOvenReflowOvenapiDeployment6B8670ED299bffeeb5dc5e3f01417b2298b207ff
+      StageName: prod
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/DeploymentStage.prod/Resource
+  ReflowOvenReflowOvenapiproduct2183B3DE:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Fn::GetAtt:
+          - ReflowOvenReflowOvenapiAD4261D0
+          - RootResourceId
+      PathPart: product
+      RestApiId:
+        Ref: ReflowOvenReflowOvenapiAD4261D0
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/Default/product/Resource
+  ReflowOvenReflowOvenapiproductPOSTApiPermissiontamperproofqualitydatausingamazonqldbReflowOvenReflowOvenapiEC74F10DPOSTproductA042C5DC:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ReflowOvenReflowOvenlambdaReflowOvenLambdaBD754CBC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ReflowOvenReflowOvenapiAD4261D0
+            - /
+            - Ref: ReflowOvenReflowOvenapiDeploymentStageprod50526DF8
+            - /POST/product
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/Default/product/POST/ApiPermission.tamperproofqualitydatausingamazonqldbReflowOvenReflowOvenapiEC74F10D.POST..product
+  ReflowOvenReflowOvenapiproductPOSTApiPermissionTesttamperproofqualitydatausingamazonqldbReflowOvenReflowOvenapiEC74F10DPOSTproductF2AD7BB0:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ReflowOvenReflowOvenlambdaReflowOvenLambdaBD754CBC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ReflowOvenReflowOvenapiAD4261D0
+            - /test-invoke-stage/POST/product
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/Default/product/POST/ApiPermission.Test.tamperproofqualitydatausingamazonqldbReflowOvenReflowOvenapiEC74F10D.POST..product
+  ReflowOvenReflowOvenapiproductPOST3DB4A6C6:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: POST
+      ResourceId:
+        Ref: ReflowOvenReflowOvenapiproduct2183B3DE
+      RestApiId:
+        Ref: ReflowOvenReflowOvenapiAD4261D0
+      AuthorizationType: AWS_IAM
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - ReflowOvenReflowOvenlambdaReflowOvenLambdaBD754CBC
+                  - Arn
+              - /invocations
+      RequestModels:
+        application/json:
+          Ref: ReflowOvenReflowOvenapiReflowOvencreateproductmodelC4693A7D
+      RequestValidatorId:
+        Ref: ReflowOvenReflowOvenvalidator913178A9
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W59
+            reason: This api doesn't require authorization.
+  ReflowOvenReflowOvenapiproductserialNumber7D469302:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId:
+        Ref: ReflowOvenReflowOvenapiproduct2183B3DE
+      PathPart: "{serialNumber}"
+      RestApiId:
+        Ref: ReflowOvenReflowOvenapiAD4261D0
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/Default/product/{serialNumber}/Resource
+  ReflowOvenReflowOvenapiproductserialNumberPUTApiPermissiontamperproofqualitydatausingamazonqldbReflowOvenReflowOvenapiEC74F10DPUTproductserialNumber86422C11:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ReflowOvenReflowOvenlambdaReflowOvenLambdaBD754CBC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ReflowOvenReflowOvenapiAD4261D0
+            - /
+            - Ref: ReflowOvenReflowOvenapiDeploymentStageprod50526DF8
+            - /PUT/product/*
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/Default/product/{serialNumber}/PUT/ApiPermission.tamperproofqualitydatausingamazonqldbReflowOvenReflowOvenapiEC74F10D.PUT..product.{serialNumber}
+  ReflowOvenReflowOvenapiproductserialNumberPUTApiPermissionTesttamperproofqualitydatausingamazonqldbReflowOvenReflowOvenapiEC74F10DPUTproductserialNumberA1904197:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+          - ReflowOvenReflowOvenlambdaReflowOvenLambdaBD754CBC
+          - Arn
+      Principal: apigateway.amazonaws.com
+      SourceArn:
+        Fn::Join:
+          - ""
+          - - "arn:"
+            - Ref: AWS::Partition
+            - ":execute-api:"
+            - Ref: AWS::Region
+            - ":"
+            - Ref: AWS::AccountId
+            - ":"
+            - Ref: ReflowOvenReflowOvenapiAD4261D0
+            - /test-invoke-stage/PUT/product/*
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/Default/product/{serialNumber}/PUT/ApiPermission.Test.tamperproofqualitydatausingamazonqldbReflowOvenReflowOvenapiEC74F10D.PUT..product.{serialNumber}
+  ReflowOvenReflowOvenapiproductserialNumberPUT9DF8E3CC:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      HttpMethod: PUT
+      ResourceId:
+        Ref: ReflowOvenReflowOvenapiproductserialNumber7D469302
+      RestApiId:
+        Ref: ReflowOvenReflowOvenapiAD4261D0
+      AuthorizationType: AWS_IAM
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri:
+          Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - ":apigateway:"
+              - Ref: AWS::Region
+              - :lambda:path/2015-03-31/functions/
+              - Fn::GetAtt:
+                  - ReflowOvenReflowOvenlambdaReflowOvenLambdaBD754CBC
+                  - Arn
+              - /invocations
+      RequestModels:
+        application/json:
+          Ref: ReflowOvenReflowOvenapiReflowOvenupdateproductmodelA77B37E2
+      RequestValidatorId:
+        Ref: ReflowOvenReflowOvenvalidator913178A9
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W59
+            reason: This api doesn't require authorization.
+  ReflowOvenReflowOvenapiReflowOvenusageplan646ED7AF:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      ApiStages:
+        - ApiId:
+            Ref: ReflowOvenReflowOvenapiAD4261D0
+          Stage:
+            Ref: ReflowOvenReflowOvenapiDeploymentStageprod50526DF8
+          Throttle: {}
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/ReflowOven-usage-plan/Resource
+  ReflowOvenReflowOvenapiReflowOvencreateproductmodelC4693A7D:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: ReflowOvenReflowOvenapiAD4261D0
+      ContentType: application/json
+      Schema:
+        type: object
+        properties:
+          serialNumber:
+            type: string
+          factoryId:
+            type: string
+          lineId:
+            type: string
+        required:
+          - serialNumber
+          - factoryId
+          - lineId
+        $schema: http://json-schema.org/draft-04/schema#
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/ReflowOven-create-product-model/Resource
+  ReflowOvenReflowOvenapiReflowOvenupdateproductmodelA77B37E2:
+    Type: AWS::ApiGateway::Model
+    Properties:
+      RestApiId:
+        Ref: ReflowOvenReflowOvenapiAD4261D0
+      ContentType: application/json
+      Schema:
+        type: object
+        $schema: http://json-schema.org/draft-04/schema#
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-api/ReflowOven-update-product-model/Resource
+  ReflowOvenReflowOvenlambdaReflowOvenLambdaServiceRole485C1EE6:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+        Version: "2012-10-17"
+      ManagedPolicyArns:
+        - Fn::Join:
+            - ""
+            - - "arn:"
+              - Ref: AWS::Partition
+              - :iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-lambda/ReflowOvenLambda/ServiceRole/Resource
+  ReflowOvenReflowOvenlambdaReflowOvenLambdaServiceRoleDefaultPolicy6DD2AEF5:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Effect: Allow
+            Resource: "*"
+          - Action: qldb:SendCommand
+            Effect: Allow
+            Resource:
+              Fn::Join:
+                - ""
+                - - "arn:"
+                  - Ref: AWS::Partition
+                  - ":qldb:"
+                  - Ref: AWS::Region
+                  - ":"
+                  - Ref: AWS::AccountId
+                  - :ledger/quality-ledger
+        Version: "2012-10-17"
+      PolicyName: ReflowOvenReflowOvenlambdaReflowOvenLambdaServiceRoleDefaultPolicy6DD2AEF5
+      Roles:
+        - Ref: ReflowOvenReflowOvenlambdaReflowOvenLambdaServiceRole485C1EE6
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W12
+            reason: We have not defined any specific tracing requirements, so leave it the default value.
+  ReflowOvenReflowOvenlambdaReflowOvenLambdaBD754CBC:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket:
+          Ref: AssetParameters531a86e0cb7e1e0d7d1c9e67720ccf9f4b5fe47f40cb528479bcfbdbc2198219S3Bucket3F0E55F3
+        S3Key:
+          Fn::Join:
+            - ""
+            - - Fn::Select:
+                  - 0
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters531a86e0cb7e1e0d7d1c9e67720ccf9f4b5fe47f40cb528479bcfbdbc2198219S3VersionKeyA50275C6
+              - Fn::Select:
+                  - 1
+                  - Fn::Split:
+                      - "||"
+                      - Ref: AssetParameters531a86e0cb7e1e0d7d1c9e67720ccf9f4b5fe47f40cb528479bcfbdbc2198219S3VersionKeyA50275C6
+      Role:
+        Fn::GetAtt:
+          - ReflowOvenReflowOvenlambdaReflowOvenLambdaServiceRole485C1EE6
+          - Arn
+      Environment:
+        Variables:
+          LEDGER_NAME: quality-ledger
+          TABLE_NAME: QualityData
+          SEND_ANONYMOUS_DATA:
+            Fn::FindInMap:
+              - Solution
+              - Data
+              - SendAnonymousUsageData
+          CUSTOM_USER_AGENT: AwsSolution/SO0172/1.0.0
+          AWS_NODEJS_CONNECTION_REUSE_ENABLED: "1"
+      FunctionName: ReflowOvenLambda
+      Handler: index.handler
+      Runtime: nodejs14.x
+      Timeout: 60
+      TracingConfig:
+        Mode: Active
+    DependsOn:
+      - ReflowOvenReflowOvenlambdaReflowOvenLambdaServiceRoleDefaultPolicy6DD2AEF5
+      - ReflowOvenReflowOvenlambdaReflowOvenLambdaServiceRole485C1EE6
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: "Invalid warning: function has access to cloudwatch"
+          - id: W89
+            reason: "Invalid warning: function does not access VPC resources"
+          - id: W92
+            reason: We do not define any specific access amount, so leave it the default value.
+  ReflowOvenReflowOvenlambdaReflowOvenLambdaLogRetention0D9EA89C:
+    Type: Custom::LogRetention
+    Properties:
+      ServiceToken:
+        Fn::GetAtt:
+          - LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A
+          - Arn
+      LogGroupName:
+        Fn::Join:
+          - ""
+          - - /aws/lambda/
+            - Ref: ReflowOvenReflowOvenlambdaReflowOvenLambdaBD754CBC
+      RetentionInDays: 3653
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-lambda/ReflowOvenLambda/LogRetention/Resource
+  ReflowOvenReflowOvenvalidator913178A9:
+    Type: AWS::ApiGateway::RequestValidator
+    Properties:
+      RestApiId:
+        Ref: ReflowOvenReflowOvenapiAD4261D0
+      ValidateRequestBody: true
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/ReflowOven-validator/Resource
+  ReflowOvenAllowRegisterProduct8991E88F:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Action: execute-api:Invoke
+            Effect: Allow
+            Resource:
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":execute-api:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - ":"
+                    - Ref: ReflowOvenReflowOvenapiAD4261D0
+                    - /
+                    - Ref: ReflowOvenReflowOvenapiDeploymentStageprod50526DF8
+                    - /POST/product
+              - Fn::Join:
+                  - ""
+                  - - "arn:"
+                    - Ref: AWS::Partition
+                    - ":execute-api:"
+                    - Ref: AWS::Region
+                    - ":"
+                    - Ref: AWS::AccountId
+                    - ":"
+                    - Ref: ReflowOvenReflowOvenapiAD4261D0
+                    - /
+                    - Ref: ReflowOvenReflowOvenapiDeploymentStageprod50526DF8
+                    - /PUT/product/*
+        Version: "2012-10-17"
+      PolicyName: ReflowOvenAllowRegisterProduct8991E88F
+      Roles:
+        - Ref: RoleRolerole1AB037D5
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/ReflowOven/AllowRegisterProduct/Resource
+  CDKMetadata:
+    Type: AWS::CDK::Metadata
+    Properties:
+      Analytics: v2:deflate64:H4sIAAAAAAAAE21S227bMAz9lr4rat1hwB6XZm0RYOkMp8s7IzOpElt0dWkQGP73UZKdtMCeeHjRIXnEQhZ33+XdzU84uZmqj7e9IouyX3tQR7HYmRV0nTZ7sSDjvA3KiwodBaswZi947hx6frRPtTtTgoUWPdro/Am+Cz4iZqm112QGERv2GlrZV9RksmhLarQ6J4oLWnJrMApLSzvd4CBQ3ct+06mY3JQLUYYt167D1mBqc0UVBY+vsM0dcvwa46lJaYgDXYojeFyW0byAfwaPJziL0uoPhlfipeHlGE8FeZLRm3uW761F48VTQ6fflDSZ4BpVsNqfny2FLo31JZCYd6CQF3w0dUfa+JF+cgfR0N7JntkuJBfMoGLlTZb5vam3Mqax3vNvuG+yfwjqmJcYUTZXvT/73ArabQ2yj1+CttXOjXI9BaNyk1wyM1TjwcmXZKYst5xBvA4n05EITT4O9EqdVlXgj4FO77NufAvo/LzT421NcK4UBVbhF3YNnZOuHP3kxcvLP5zAdJYP4PD/97pC/0Z1OvCM/jp+WDaQNrs6K96lSWUJVPgeeKwNNLoGTzZzfo0NwyCiEvLgbj+KH7K4l8XNwWk9s7yDblFW2f4Dka01PnwDAAA=
+    Metadata:
+      aws:cdk:path: tamper-proof-quality-data-using-amazon-qldb/CDKMetadata/Default
+    Condition: CDKMetadataAvailable
+Parameters:
+  AssetParameters6e47e5ef9be98b54e4298eb32ad2ee95985971d40f7e77a349a26ea65a3ce122S3BucketA7F7982C:
+    Type: String
+    Description: S3 bucket for asset "6e47e5ef9be98b54e4298eb32ad2ee95985971d40f7e77a349a26ea65a3ce122"
+  AssetParameters6e47e5ef9be98b54e4298eb32ad2ee95985971d40f7e77a349a26ea65a3ce122S3VersionKeyCC35EA68:
+    Type: String
+    Description: S3 key for asset version "6e47e5ef9be98b54e4298eb32ad2ee95985971d40f7e77a349a26ea65a3ce122"
+  AssetParameters6e47e5ef9be98b54e4298eb32ad2ee95985971d40f7e77a349a26ea65a3ce122ArtifactHashF46E4D3A:
+    Type: String
+    Description: Artifact hash for asset "6e47e5ef9be98b54e4298eb32ad2ee95985971d40f7e77a349a26ea65a3ce122"
+  AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3Bucket4D46ABB5:
+    Type: String
+    Description: S3 bucket for asset "67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24"
+  AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24S3VersionKeyB0F28861:
+    Type: String
+    Description: S3 key for asset version "67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24"
+  AssetParameters67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24ArtifactHashBA91B77F:
+    Type: String
+    Description: Artifact hash for asset "67b7823b74bc135986aa72f889d6a8da058d0c4a20cbc2dfc6f78995fdd2fc24"
+  AssetParametersad4cfd07f8c40f2f0a4bbe76e3cc8f4278d412d354c179af4b3b182731403858S3BucketEF43DA9C:
+    Type: String
+    Description: S3 bucket for asset "ad4cfd07f8c40f2f0a4bbe76e3cc8f4278d412d354c179af4b3b182731403858"
+  AssetParametersad4cfd07f8c40f2f0a4bbe76e3cc8f4278d412d354c179af4b3b182731403858S3VersionKeyC3E72D0F:
+    Type: String
+    Description: S3 key for asset version "ad4cfd07f8c40f2f0a4bbe76e3cc8f4278d412d354c179af4b3b182731403858"
+  AssetParametersad4cfd07f8c40f2f0a4bbe76e3cc8f4278d412d354c179af4b3b182731403858ArtifactHash04B6DA97:
+    Type: String
+    Description: Artifact hash for asset "ad4cfd07f8c40f2f0a4bbe76e3cc8f4278d412d354c179af4b3b182731403858"
+  AssetParameters531a86e0cb7e1e0d7d1c9e67720ccf9f4b5fe47f40cb528479bcfbdbc2198219S3Bucket3F0E55F3:
+    Type: String
+    Description: S3 bucket for asset "531a86e0cb7e1e0d7d1c9e67720ccf9f4b5fe47f40cb528479bcfbdbc2198219"
+  AssetParameters531a86e0cb7e1e0d7d1c9e67720ccf9f4b5fe47f40cb528479bcfbdbc2198219S3VersionKeyA50275C6:
+    Type: String
+    Description: S3 key for asset version "531a86e0cb7e1e0d7d1c9e67720ccf9f4b5fe47f40cb528479bcfbdbc2198219"
+  AssetParameters531a86e0cb7e1e0d7d1c9e67720ccf9f4b5fe47f40cb528479bcfbdbc2198219ArtifactHash260636B3:
+    Type: String
+    Description: Artifact hash for asset "531a86e0cb7e1e0d7d1c9e67720ccf9f4b5fe47f40cb528479bcfbdbc2198219"
+Outputs:
+  ReflowOvenReflowOvenapiEndpoint42B5A496:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: ReflowOvenReflowOvenapiAD4261D0
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: ReflowOvenReflowOvenapiDeploymentStageprod50526DF8
+          - /
+  ReflowOvenReflowOvenapiendpointFA145F5B:
+    Value:
+      Fn::Join:
+        - ""
+        - - https://
+          - Ref: ReflowOvenReflowOvenapiAD4261D0
+          - .execute-api.
+          - Ref: AWS::Region
+          - "."
+          - Ref: AWS::URLSuffix
+          - /
+          - Ref: ReflowOvenReflowOvenapiDeploymentStageprod50526DF8
+          - /
+Conditions:
+  CDKMetadataAvailable:
+    Fn::Or:
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - af-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-northeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ap-southeast-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - ca-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - cn-northwest-1
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-central-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-north-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-2
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - eu-west-3
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - me-south-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - sa-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-east-2
+      - Fn::Or:
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-1
+          - Fn::Equals:
+              - Ref: AWS::Region
+              - us-west-2
+

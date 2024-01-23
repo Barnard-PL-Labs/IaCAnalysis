@@ -12,8 +12,6 @@ class ResourceTypes:
     AWS_Serverless_Function = "AWS::Serverless::Function"
     AWS_SNS_Subscription = "AWS::SNS::Subscription"
     AWS_SNS_Topic = "AWS::SNS::Topic"
-    AWS_S3_AccessPoint = "AWS::S3::AccessPoint"
-    AWS_S3ObjectLambda_AccessPoint = "AWS::S3ObjectLambda::AccessPoint"
     AWS_DynamoDB_Table = "AWS::DynamoDB::Table"
 
     AWS_S3_BucketPolicy = "AWS::S3::BucketPolicy"
@@ -44,8 +42,6 @@ supported_resource_types = [
     ResourceTypes.AWS_Serverless_Function,
     ResourceTypes.AWS_SNS_Subscription,
     ResourceTypes.AWS_SNS_Topic,
-    ResourceTypes.AWS_S3_AccessPoint,
-    ResourceTypes.AWS_S3ObjectLambda_AccessPoint,
     ResourceTypes.AWS_DynamoDB_Table,
 ]
 
@@ -73,6 +69,29 @@ public_usage_metrics = {
         ResourceMetric.monthly_dynamodb_w,
         ResourceMetric.monthly_dynamodb_rw,
     ],
+}
+
+metrics = {
+    ResourceTypes.AWS_S3_Bucket: [
+        ResourceMetric.monthly_s3_object_created,
+        ResourceMetric.monthly_s3_object_removed,
+    ],
+    ResourceTypes.AWS_SQS_Queue: [
+        ResourceMetric.monthly_requests,
+        ResourceMetric.monthly_sqs_billing_requests,
+    ],
+    ResourceTypes.AWS_Lambda_Function: [ResourceMetric.monthly_requests],
+    ResourceTypes.AWS_Serverless_Function: [ResourceMetric.monthly_requests],
+    ResourceTypes.AWS_SNS_Topic: [ResourceMetric.monthly_requests],
+    ResourceTypes.AWS_DynamoDB_Table: [
+        ResourceMetric.monthly_dynamodb_r,
+        ResourceMetric.monthly_dynamodb_w,
+        ResourceMetric.monthly_dynamodb_rw,
+    ],
+    ResourceTypes.AWS_Lambda_Alias: [ResourceMetric.monthly_requests],
+    ResourceTypes.AWS_Lambda_EventSourceMapping: [ResourceMetric.monthly_requests],
+    ResourceTypes.AWS_SNS_Subscription: [ResourceMetric.monthly_requests],
+    ResourceTypes.AWS_SNS_Topic: [ResourceMetric.monthly_requests],
 }
 
 

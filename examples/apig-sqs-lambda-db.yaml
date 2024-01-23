@@ -1,0 +1,129 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Resources:
+  MyApiGateway:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: MyApi
+      FailOnWarnings: 'true'
+
+  MyApiGatewayResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt MyApiGateway.RootResourceId
+      RestApiId: !Ref MyApiGateway
+      PathPart: '{proxy+}'
+
+  MyApiGatewayGetMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: GET
+      ResourceId: !Ref MyApiGatewayResource
+      RestApiId: !Ref MyApiGateway
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: 
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MyGetLambdaFunction.Arn}/invocations
+      MethodResponses:
+        - StatusCode: 200
+
+  MyApiGatewayPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      HttpMethod: POST
+      ResourceId: !Ref MyApiGatewayResource
+      RestApiId: !Ref MyApiGateway
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS
+        Uri: 
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path/${MySQSQueue.QueueName}
+      MethodResponses:
+        - StatusCode: 200
+
+  MyGetLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt MyLambdaExecutionRole.Arn
+      FunctionName: MyGetLambdaFunction
+      Runtime: nodejs14.x
+      Timeout: 10
+      MemorySize: 128
+      Code:
+        S3Bucket: my-lambda-code-bucket
+        S3Key: my-get-lambda-code.zip
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref MyDynamoDBTable
+
+  MyPostLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Role: !GetAtt MyLambdaExecutionRole.Arn
+      FunctionName: MyPostLambdaFunction
+      Runtime: nodejs14.x
+      Timeout: 10
+      MemorySize: 128
+      Code:
+        S3Bucket: my-lambda-code-bucket
+        S3Key: my-post-lambda-code.zip
+      Environment:
+        Variables:
+          DYNAMODB_TABLE: !Ref MyDynamoDBTable
+
+  MyLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaDynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:Scan
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                Resource: !GetAtt MyDynamoDBTable.Arn
+
+  MyDynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: MyDynamoDBTable
+      AttributeDefinitions:
+        - AttributeName: ReceiptID
+          AttributeType: S
+      KeySchema:
+        - AttributeName: ReceiptID
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  MySQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: MySQSQueue
+
+  MySQSQueueEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      EventSourceArn: !GetAtt MySQSQueue.Arn
+      FunctionName: !GetAtt MyPostLambdaFunction.Arn
+

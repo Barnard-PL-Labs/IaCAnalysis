@@ -190,3 +190,5 @@ def benchmark_constrain(
     infra.compute_constraints(s, custom_generator=custom_generator)
     if not custom_smt2 is None:
         s.add(solver.parse_smt2_file(custom_smt2))
+
+    print("Done")

@@ -17,25 +17,8 @@ from iac_analysis.custom_generator import load_custom_generator
 app = typer.Typer()
 
 
-def version_callback(value: bool) -> None:
-    if value:
-        print(f"{__app_name__} benchmark v{__version__}")
-        raise typer.Exit()
-
-
 @app.callback()
-def main(
-    version: Annotated[
-        Optional[bool],
-        typer.Option(
-            "--version",
-            "-v",
-            help="Show the version and exit.",
-            callback=version_callback,
-            is_eager=True,
-        ),
-    ] = None,
-) -> None:
+def main() -> None:
     """
     Benchmark commands for IaC analysis
     """

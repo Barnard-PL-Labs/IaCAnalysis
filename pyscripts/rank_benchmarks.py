@@ -1,4 +1,5 @@
 from typing import Optional
+import sys
 import typer
 from typing_extensions import Annotated
 import logging
@@ -24,25 +25,8 @@ from iac_analysis.resource import (
 app = typer.Typer()
 
 
-def version_callback(value: bool) -> None:
-    if value:
-        print(f"{__app_name__} benchmark v{__version__}")
-        raise typer.Exit()
-
-
 @app.callback()
-def main(
-    version: Annotated[
-        Optional[bool],
-        typer.Option(
-            "--version",
-            "-v",
-            help="Show the version and exit.",
-            callback=version_callback,
-            is_eager=True,
-        ),
-    ] = None,
-) -> None:
+def main() -> None:
     """
     Benchmark commands for IaC analysis
     """
@@ -98,7 +82,7 @@ def rank_by_constraints(
             infra.compute_constraints(s)
             records.append((len(s.constraints), benchmark))
         except:
-            pass
+            print(benchmark_path, file=sys.stderr)
 
     ranked_records = sorted(records, reverse=True)
 

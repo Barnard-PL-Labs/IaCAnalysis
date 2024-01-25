@@ -1,6 +1,6 @@
 import os
 import z3
-from z3 import parse_smt2_string, parse_smt2_file, sat, unsat, unknown
+from z3 import parse_smt2_string, parse_smt2_file, sat, unsat, unknown, Implies
 import logging
 
 logger = logging.getLogger(__name__)

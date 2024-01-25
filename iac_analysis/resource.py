@@ -1,4 +1,5 @@
 import logging
+from iac_analysis.solver import Implies
 
 logger = logging.getLogger(__name__)
 
@@ -551,10 +552,35 @@ class Resource:
                         outn.resource_type
                         == ResourceTypes.AWS_Lambda_EventSourceMapping
                     ):
-                        solver.add_outgoing(
-                            solver.nv(self, ResourceMetric.monthly_requests)
-                            == solver.ev(self, outn, ResourceMetric.monthly_requests)
-                        )
+                        if (
+                            "FifoQueue" in self.config["Properties"]
+                            and "ContentBasedDeduplication" in self.config["Properties"]
+                            and self.config["Properties"]["FifoQueue"]
+                            and self.config["Properties"]["ContentBasedDeduplication"]
+                        ):
+                            solver.add_outgoing(
+                                solver.nv(self, ResourceMetric.monthly_requests)
+                                >= solver.ev(
+                                    self, outn, ResourceMetric.monthly_requests
+                                )
+                            )
+                            solver.add_outgoing(
+                                Implies(
+                                    solver.nv(self, ResourceMetric.monthly_requests)
+                                    > 0,
+                                    solver.ev(
+                                        self, outn, ResourceMetric.monthly_requests
+                                    )
+                                    > 0,
+                                )
+                            )
+                        else:
+                            solver.add_outgoing(
+                                solver.nv(self, ResourceMetric.monthly_requests)
+                                == solver.ev(
+                                    self, outn, ResourceMetric.monthly_requests
+                                )
+                            )
             case ResourceTypes.AWS_SNS_Topic:
                 # > incoming constraints
                 solver.add_aggregate_incoming_constraint(

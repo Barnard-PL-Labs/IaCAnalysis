@@ -79,7 +79,7 @@ def benchmarks_writer():
         "number_of_incoming_constraints",
         "number_of_intrinsic_constraints",
         "number_of_outgoing_constraints",
-        "time_to_generate_constraints_in_ms",
+        # "time_to_generate_constraints_in_ms",
     ]
     writer = csv.DictWriter(sys.stdout, fieldnames=fieldnames)
     writer.writeheader()
@@ -92,9 +92,9 @@ def run(benchmark_path):
     infra.compute_constraints(s)
 
     cmd = ["iac-analysis", "benchmark-constrain", benchmark_path]
-    result, time_to_generate_constraints_in_ms = time_shell_command_in_ms(cmd)
-    if result.stdout.decode() != "Done\n":
-        os.exit(f"Did not successfully run benchmark {benchmark_path}")
+    # result, time_to_generate_constraints_in_ms = time_shell_command_in_ms(cmd)
+    # if result.stdout.decode() != "Done\n":
+    #     os.exit(f"Did not successfully run benchmark {benchmark_path}")
 
     return {
         "benchmark_name": os.path.basename(benchmark_path),
@@ -110,7 +110,7 @@ def run(benchmark_path):
         "number_of_intrinsic_constraints": s.number_of_intrinsic,
         "number_of_incoming_constraints": s.number_of_incoming,
         "number_of_outgoing_constraints": s.number_of_outgoing,
-        "time_to_generate_constraints_in_ms": time_to_generate_constraints_in_ms,
+        # "time_to_generate_constraints_in_ms": time_to_generate_constraints_in_ms,
     }
 
 

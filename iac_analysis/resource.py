@@ -25,6 +25,20 @@ class ResourceTypes:
     AWS_SNS_TopicPolicy = "AWS::SNS::TopicPolicy"
     AWS_IAM_Role = "AWS::IAM::Role"
     AWS_IAM_Policy = "AWS::IAM::Policy"
+    AWS_IAM_AccessKey = "AWS::IAM::AccessKey"
+    AWS_IAM_Group = "AWS::IAM::Group"
+    AWS_IAM_GroupPolicy = "AWS::IAM::GroupPolicy"
+    AWS_IAM_InstanceProfile = "AWS::IAM::InstanceProfile"
+    AWS_IAM_ManagedPolicy = "AWS::IAM::ManagedPolicy"
+    AWS_IAM_OIDCProvider = "AWS::IAM::OIDCProvider"
+    AWS_IAM_RolePolicy = "AWS::IAM::RolePolicy"
+    AWS_IAM_SAMLProvider = "AWS::IAM::SAMLProvider"
+    AWS_IAM_ServerCertificate = "AWS::IAM::ServerCertificate"
+    AWS_IAM_ServiceLinkedRole = "AWS::IAM::ServiceLinkedRole"
+    AWS_IAM_User = "AWS::IAM::User"
+    AWS_IAM_UserPolicy = "AWS::IAM::UserPolicy"
+    AWS_IAM_UserToGroupAddition = "AWS::IAM::UserToGroupAddition"
+    AWS_IAM_VirtualMFADevice = "AWS::IAM::VirtualMFADevice"
     AWS_CDK_Metadata = "AWS::CDK::Metadata"
 
 
@@ -68,6 +82,20 @@ ignore_resource_types = [
     ResourceTypes.AWS_SNS_TopicPolicy,
     ResourceTypes.AWS_IAM_Role,
     ResourceTypes.AWS_IAM_Policy,
+    ResourceTypes.AWS_IAM_AccessKey,
+    ResourceTypes.AWS_IAM_Group,
+    ResourceTypes.AWS_IAM_GroupPolicy,
+    ResourceTypes.AWS_IAM_InstanceProfile,
+    ResourceTypes.AWS_IAM_ManagedPolicy,
+    ResourceTypes.AWS_IAM_OIDCProvider,
+    ResourceTypes.AWS_IAM_RolePolicy,
+    ResourceTypes.AWS_IAM_SAMLProvider,
+    ResourceTypes.AWS_IAM_ServerCertificate,
+    ResourceTypes.AWS_IAM_ServiceLinkedRole,
+    ResourceTypes.AWS_IAM_User,
+    ResourceTypes.AWS_IAM_UserPolicy,
+    ResourceTypes.AWS_IAM_UserToGroupAddition,
+    ResourceTypes.AWS_IAM_VirtualMFADevice,
     ResourceTypes.AWS_CDK_Metadata,
     ResourceTypes.AWS_ApiGateway_Deployment,
 ]
@@ -553,7 +581,8 @@ class Resource:
                         == ResourceTypes.AWS_Lambda_EventSourceMapping
                     ):
                         if (
-                            "FifoQueue" in self.config["Properties"]
+                            "Properties" in self.config
+                            and "FifoQueue" in self.config["Properties"]
                             and "ContentBasedDeduplication" in self.config["Properties"]
                             and self.config["Properties"]["FifoQueue"]
                             and self.config["Properties"]["ContentBasedDeduplication"]

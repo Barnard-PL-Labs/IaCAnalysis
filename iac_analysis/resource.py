@@ -456,7 +456,7 @@ class Resource:
                             case "s3:ObjectRemoved:*":
                                 target_queue = all_resources[
                                     try_find_occurrence(
-                                        all_resources, lambdaConfiguration["Queue"]
+                                        all_resources, queueConfiguration["Queue"]
                                     )
                                 ]
                                 solver.add_outgoing(
